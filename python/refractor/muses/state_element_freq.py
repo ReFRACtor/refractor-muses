@@ -238,7 +238,8 @@ class StateElementEmis(StateElementFreqShared):
         **kwargs: Any,
     ) -> OspSetupReturn | None:
         f = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc",
+            retrieval_config.input_file_monitor
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -256,6 +257,7 @@ class StateElementEmis(StateElementFreqShared):
             sounding_metadata.year,
             sounding_metadata.month,
             spectral_domain.data,
+            retrieval_config.input_file_monitor,
             retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
@@ -376,7 +378,8 @@ class StateElementNativeEmis(StateElementFreqShared):
         **kwargs: Any,
     ) -> OspSetupReturn | None:
         f = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc",
+            retrieval_config.input_file_monitor
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -399,6 +402,7 @@ class StateElementNativeEmis(StateElementFreqShared):
             sounding_metadata.year,
             sounding_metadata.month,
             spectral_domain_in.data,
+            retrieval_config.input_file_monitor,
             retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
@@ -425,7 +429,8 @@ class StateElementCloudExt(StateElementFreqShared):
         **kwargs: Any,
     ) -> OspSetupReturn | None:
         f = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc",
+            retrieval_config.input_file_monitor
         )
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(

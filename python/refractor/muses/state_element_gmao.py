@@ -172,7 +172,8 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         # Pressure starts from the atmospheric profile, augmented with the
         # surface pressure from gmao
         fatm = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc",
+            retrieval_config.input_file_monitor
         )
         pressure0 = np.array(fatm.checked_table["Pressure"])
         gmao_dir = (
@@ -182,7 +183,7 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         )
         if sounding_metadata is None:
             return None
-        gmao = GmaoReader(sounding_metadata, gmao_dir)
+        gmao = GmaoReader(sounding_metadata, gmao_dir, retrieval_config.input_file_monitor)
         # TODO Verify that this calculation is correct. It matches what muses-py does,
         # but the height of zero instead of sounding_metadata.surface_altitude.value looks
         # a little suspicious
@@ -294,7 +295,8 @@ class StateElementFromGmaoPsur(StateElementOspFile):
         )
         if sounding_metadata is None:
             return None
-        gmao = GmaoReader(sounding_metadata, gmao_dir, pressure_in=p.value_fm)
+        gmao = GmaoReader(sounding_metadata, gmao_dir, retrieval_config.input_file_monitor,
+                          pressure_in=p.value_fm)
 
         return cls(
             StateElementIdentifier("PSUR"),

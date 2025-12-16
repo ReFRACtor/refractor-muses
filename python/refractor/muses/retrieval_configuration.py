@@ -6,7 +6,10 @@ import copy
 from .tes_file import TesFile
 from pathlib import Path
 from typing import Any, Self, Iterator
+import typing
 
+if typing.TYPE_CHECKING:
+    from .input_file_monitor import InputFileMonitor
 
 class RetrievalConfiguration(collections.abc.MutableMapping):
     """There are a number of configuration parameters, e.g. directory
@@ -45,6 +48,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         base_dir: str | os.PathLike[str] = ".",
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
+        ifile_mon: InputFileMonitor | None = None
     ) -> None:
         self._data: dict[str, Any] = {}
         # These can be updated after the object is created, e.g. after
@@ -53,6 +57,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         self.base_dir = Path(base_dir)
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
         self.gmao_dir: Path | None = Path(gmao_dir) if gmao_dir is not None else None
+        self.input_file_monitor = ifile_mon
 
     def __getitem__(self, key: str) -> Any:
         return self.abs_dir(self._data[key])
@@ -75,11 +80,13 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         fname: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
+        ifile_mon: InputFileMonitor | None = None
     ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent
-        res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir, gmao_dir=gmao_dir)
-        f = TesFile.create(strategy_table_fname)
+        res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir, gmao_dir=gmao_dir,
+                  ifile_mon=ifile_mon)
+        f = TesFile.create(strategy_table_fname, res.input_file_monitor)
         res._data = dict(f)
         # Replace GMAO_Directory if one was passed in
         if res.gmao_dir is not None:
@@ -93,17 +100,19 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             Path(
                 res["defaultStrategyTableDirectory"],
                 res["defaultStrategyTableFilename"],
-            )
+            ),
+            res.input_file_monitor
         )
         d = dict(f)
         d.update(res._data)
         res._data = d
         # Add in cloud parameters.
-        f = TesFile.create(res["CloudParameterFilename"])
+        f = TesFile.create(res["CloudParameterFilename"], res.input_file_monitor)
         res._data.update(f)
         # Add in initial guess configuration
         f = TesFile.create(
-            Path(res["initialGuessSetupDirectory"], "L2_Setup_Control_Initial.asc")
+            Path(res["initialGuessSetupDirectory"], "L2_Setup_Control_Initial.asc"),
+            res.input_file_monitor
         )
         res._data.update(f)
         # For some odd reason, Single_State_Directory is not relative path like
@@ -112,14 +121,14 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         res["Single_State_Directory"] = str(
             Path("../OSP", res["Single_State_Directory"])
         )
-        f = TesFile.create(res["allTESPressureLevelsFilename"])
+        f = TesFile.create(res["allTESPressureLevelsFilename"], res.input_file_monitor)
         # This is the pressure levels that species information uses. This
         # is generally the initial pressure levels the forward model
         # is performed on, although these are distinct concepts. This
         # is really a column that might make sense to include in the
         # species information files, but is kept in this separate
         # file.
-        res["pressure_species_input"] = list(f.table["Pressure"])
+        res["pressure_species_input"] = list(f.checked_table["Pressure"])
 
         # Make run dir available
         res["run_dir"] = strategy_table_dir
@@ -144,7 +153,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # lists the required options. Note sure if this is complete,
         # but if we are missing one of these then muses-py marks this
         # as a failure
-        f = TesFile.create(res["tableOptionsFilename"])
+        f = TesFile.create(res["tableOptionsFilename"], res.input_file_monitor)
         for k in f.keys():
             if k not in res:
                 raise RuntimeError(

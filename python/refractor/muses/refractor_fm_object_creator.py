@@ -19,6 +19,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
@@ -52,6 +53,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self,
         current_state: CurrentState,
         measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
         instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
@@ -100,9 +102,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         else:
             self.fm_sv = current_state.setup_fm_state_vector()
         self.current_state = current_state
-        # Note MeasurementId also has access to all the stuff in
-        # RetrievalConfiguration
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
+        self.ifile_mon = retrieval_config.input_file_monitor
 
         # Depending on when the StateVector is created, the
         # observation may or may not have been added. Note it is safe
@@ -157,7 +159,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         rf_uip = RefractorUip.create_uip_from_refractor_objects(
             [self.observation],
             self.current_state,  # type: ignore[arg-type]
-            self.measurement_id,  # type: ignore[arg-type]
+            self.retrieval_config,  # type: ignore[arg-type]
         )
         return MusesRayInfo(
             rf_uip,
@@ -426,7 +428,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             rf_uip = RefractorUip.create_uip_from_refractor_objects(
                 [self.observation],
                 self.current_state,  # type: ignore[arg-type]
-                self.measurement_id,  # type: ignore[arg-type]
+                self.retrieval_config,  # type: ignore[arg-type]
             )
 
             rinfo = MusesRayInfo(
@@ -531,6 +533,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.absorber_vmr,
             self.observation,
             ils_params_list,
+            self.ifile_mon,
             self.osp_dir,
         )
 

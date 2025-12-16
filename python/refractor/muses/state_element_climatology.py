@@ -8,11 +8,11 @@ from .state_element import (
 )
 from .retrieval_array import FullGridMappedArray
 from .tes_file import TesFile
+from .input_file_monitor import InputFileMonitor
 from pathlib import Path
 import numpy as np
 import scipy
 import math
-import h5py  # type: ignore
 from loguru import logger
 from typing import Any, Self
 import typing
@@ -97,10 +97,10 @@ class StateElementFromClimatology(StateElementOspFile):
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
         value_fm, _ = cls.read_climatology_2022(
-            sid, pressure_list_fm, False, clim_dir, sounding_metadata
+            sid, pressure_list_fm, False, clim_dir, sounding_metadata, retrieval_config.input_file_monitor,
         )
         constraint_vector_fm, _ = cls.read_climatology_2022(
-            sid, pressure_list_fm, True, clim_dir, sounding_metadata
+            sid, pressure_list_fm, True, clim_dir, sounding_metadata, retrieval_config.input_file_monitor
         )
         return OspSetupReturn(
             value_fm=value_fm,
@@ -115,6 +115,7 @@ class StateElementFromClimatology(StateElementOspFile):
         is_constraint: bool,
         climate_dir: Path,
         sounding_metadata: SoundingMetadata,
+        ifile_mon: InputFileMonitor | None,
         linear_interp: bool = True,
         ind_type: None | str = None,
     ) -> tuple[FullGridMappedArray, str | None]:
@@ -126,7 +127,7 @@ class StateElementFromClimatology(StateElementOspFile):
                 filename = climate_dir / f"climatology_{sid}.nc"
         else:
             filename = climate_dir / f"climatology_{sid}.nc"
-        f = h5py.File(filename, "r")
+        f = InputFileMonitor.open_h5(filename, ifile_mon)
         pressure = f["pressure"][:]
         if "vmr" in f or "type_index" in f:
             # 1 = January
@@ -329,6 +330,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             False,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             linear_interp=False,
         )
         constraint_vector_fm, poltype = cls.read_climatology_2022(
@@ -337,6 +339,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             True,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             linear_interp=False,
         )
         # In some cases, the CH3OH isn't read from the climatology, although we still
@@ -352,7 +355,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         ]:
             fatm = TesFile(
                 Path(retrieval_config["Single_State_Directory"])
-                / "State_AtmProfiles.asc"
+                / "State_AtmProfiles.asc", retrieval_config.input_file_monitor
             )
             value_fm = np.array(fatm.checked_table["CH3OH"]).view(FullGridMappedArray)
             pressure = fatm.checked_table["Pressure"]
@@ -478,10 +481,10 @@ class StateElementFromClimatologyHdo(StateElementFromClimatology):
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
         value_fm, _ = cls.read_climatology_2022(
-            sid, pressure_list_fm, False, clim_dir, sounding_metadata
+            sid, pressure_list_fm, False, clim_dir, sounding_metadata, retrieval_config.input_file_monitor,
         )
         constraint_vector_fm, _ = cls.read_climatology_2022(
-            sid, pressure_list_fm, True, clim_dir, sounding_metadata
+            sid, pressure_list_fm, True, clim_dir, sounding_metadata, retrieval_config.input_file_monitor,
         )
         value_fm = (
             value_fm.view(np.ndarray)
@@ -574,6 +577,7 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
             True,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             ind_type=nh3type,
             linear_interp=False,
         )
@@ -583,6 +587,7 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
             True,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             ind_type=nh3type,
             linear_interp=False,
         )
@@ -852,6 +857,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             True,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             ind_type=hcoohtype,
             linear_interp=False,
         )
@@ -861,6 +867,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             True,
             clim_dir,
             sounding_metadata,
+            retrieval_config.input_file_monitor,
             ind_type=hcoohtype,
             linear_interp=False,
         )

@@ -5,6 +5,7 @@ from refractor.muses import (
     CurrentStrategyStepDict,
     FilterIdentifier,
     InstrumentIdentifier,
+    InputFileMonitor,
     MeasurementId,
     MusesStrategy,
     MusesStrategyHandle,
@@ -143,6 +144,7 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,

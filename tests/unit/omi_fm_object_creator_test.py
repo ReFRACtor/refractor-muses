@@ -100,6 +100,7 @@ def test_fm_run_step2(omi_fm_object_creator_step_1):
     fm = OmiFmObjectCreator(
         omi_fm_object_creator_step_1.current_state,
         omi_fm_object_creator_step_1.measurement_id,
+        omi_fm_object_creator_step_1.rs.retrieval_config,
         omi_fm_object_creator_step_1.rs.observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
             omi_fm_object_creator_step_1.current_state,

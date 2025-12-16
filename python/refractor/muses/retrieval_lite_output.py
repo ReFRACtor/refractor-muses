@@ -13,7 +13,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-
+    from .input_file_monitor import InputFileMonitor
 
 class CdfWriteLiteTes:
     """Logically this fits into CdfWriteTes, but that class is already getting
@@ -35,6 +35,7 @@ class CdfWriteLiteTes:
         data1: dict[str, Any],
         data2: dict[str, Any] | None,
         dataAnc: dict[str, Any],
+        ifile_mon: InputFileMonitor | None        
     ) -> tuple[dict, list[float]]:
         if species_name == "RH":
             # Special case, relative humidity isn't something we retrieve
@@ -55,22 +56,22 @@ class CdfWriteLiteTes:
             lite_directory
             / f"RetrievalLevels/Retrieval_Levels_Nadir_{'Linear' if linear else 'Log'}_{species_name.upper()}"
         )
-        fh = TesFile.create(level_filename)
+        fh = TesFile.create(level_filename, ifile_mon)
         found = False
         for k in ("level", "Level", "LEVEL"):
-            if k in fh.table:
+            if k in fh.checked_table:
                 found = True
-                levels = fh.table[k].array
+                levels = fh.checked_table[k].array
         if not found:
             raise RuntimeError(f"Trouble reading file {level_filename}")
 
         pressure_filename = lite_directory / "TES_baseline_66.asc"
-        fh = TesFile.create(pressure_filename)
+        fh = TesFile.create(pressure_filename, ifile_mon)
         found = False
         for k in ("pressure", "Pressure", "PRESSURE"):
-            if k in fh.table:
+            if k in fh.checked_table:
                 found = True
-                pressure0 = fh.table[k].array
+                pressure0 = fh.checked_table[k].array
         if not found:
             raise RuntimeError(f"Trouble reading file {pressure_filename}")
         (dataNew, pressuresMax) = self.products_map_pressures(

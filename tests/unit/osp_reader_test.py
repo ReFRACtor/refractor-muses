@@ -148,7 +148,7 @@ def test_species(osp_dir):
 
 def test_osp_l2_setup_control_initial(osp_dir):
     f = OspL2SetupControlInitial.read(
-        osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL"
+        osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL", None
     )
     assert f["Single_State_Directory"] == osp_dir / "L2_Setup" / "ops" / "L2_Setup"
     assert f.sid_to_type[StateElementIdentifier("PCLOUD")] == "Single"

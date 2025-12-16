@@ -138,13 +138,16 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
 
     def __init__(self) -> None:
         self.filter_metadata: None | FilterMetadata = None
+        self.retrieval_config: None | RetrievalConfiguration = None
 
     def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.retrieval_config = retrieval_config
         self.filter_metadata = FileFilterMetadata(
-            measurement_id["defaultSpectralWindowsDefinitionFilename"]
+            measurement_id["defaultSpectralWindowsDefinitionFilename"],
+            retrieval_config.input_file_monitor    
         )
 
     def spectral_window_dict(
@@ -156,12 +159,14 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         for that instrument. Note because of the extra metadata and bad sample/full band
         handing we need we currently require a MusesSpectralWindow. We could perhaps
         relax this in the future if we have another way of handling this extra functionality."""
+        if self.retrieval_config is None:
+            raise RuntimeError("Call notify_update_target before this function")
         fname = current_strategy_step.muses_microwindows_fname()
         logger.debug(
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"
         )
         return MusesSpectralWindow.create_dict_from_file(
-            fname, filter_list_all_dict, self.filter_metadata
+            fname, self.retrieval_config.input_file_monitor, filter_list_all_dict, self.filter_metadata
         )
 
 

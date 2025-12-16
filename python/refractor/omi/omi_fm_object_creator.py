@@ -8,6 +8,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     FilterIdentifier,
     StateElementIdentifier,
+    InputFileMonitor,
 )
 import refractor.framework as rf  # type: ignore
 import os
@@ -15,10 +16,7 @@ from functools import cache
 from pathlib import Path
 from loguru import logger
 import numpy as np
-import h5py  # type: ignore
 
-# for netCDF3 support which is not supported in h5py
-from netCDF4 import Dataset
 from typing import Any
 import typing
 
@@ -56,6 +54,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         self,
         current_state: CurrentState,
         measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         use_eof: bool = False,
         eof_dir: None | str | os.PathLike[str] = None,
@@ -64,6 +63,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         super().__init__(
             current_state,
             measurement_id,
+            retrieval_config,
             InstrumentIdentifier("OMI"),
             observation,
             **kwargs,
@@ -145,7 +145,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # absorber types and select which one is used by some kind of logic.
         #
         # We really need a test case to work through the logic here before changing this
-        return self.measurement_id["ils_omi_xsection"]
+        return self.retrieval_config["ils_omi_xsection"]
 
     @cached_property
     def instrument_correction(self) -> list[list[rf.InstrumentCorrection]]:
@@ -198,7 +198,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
                 eof_path = "/eign_vector"
                 eof_index_path = "/Index"
-                with Dataset(eof_fname) as eof_ds:
+                with InputFileMonitor.open_ncdf(eof_fname, self.ifile_mon) as eof_ds:
                     eofs = eof_ds[eof_path][:]
                     pixel_indexes = eof_ds[eof_index_path][:]
 
@@ -253,7 +253,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         """We read a 3 year average solar file HDF file for omi. This
         duplicates what mpy.read_omi does, which is then stored in the pickle
         file that solar_model uses."""
-        f = h5py.File(self.measurement_id["omiSolarReference"], "r")
+        f = InputFileMonitor.open_h5(self.retrieval_config["omiSolarReference"], self.ifile_mon)
         res = []
         for i in range(self.num_channels):
             ind = self.observation.across_track[i]
@@ -463,6 +463,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 raise RuntimeError(f"File not found: {fn}")
 
             # get freq index
+            if self.ifile_mon is not None:
+                self.ifile_mon.notify_file_input(fn)
             temp_XCF0 = _omi_ils_read_variable(fn, "XCF0")
             tempind = np.where(
                 abs(temp_XCF0 - tempfreq) == np.amin(abs(temp_XCF0 - tempfreq))
@@ -934,12 +936,14 @@ class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
         self.measurement_id: None | MeasurementId = None
+        self.retrieval_config: None | RetrievalConfiguration = None
 
     def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -951,12 +955,13 @@ class OmiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
             return None
-        if self.measurement_id is None:
+        if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating forward model using using OmiFmObjectCreator")
         obj_creator = OmiFmObjectCreator(
             current_state,
             self.measurement_id,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -968,7 +973,8 @@ class OmiForwardModelHandle(ForwardModelHandle):
 
 @cache
 def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray:
-    with h5py.File(i_filename, "r") as f:
+    # We catch this file at a higher level
+    with InputFileMonitor.open_h5(i_filename, None) as f:
         return f[i_variable_name][:]
 
 

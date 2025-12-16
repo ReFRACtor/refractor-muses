@@ -1,10 +1,10 @@
 from __future__ import annotations
 from functools import cache
-import h5py  # type: ignore
 import numpy as np
 import scipy
 import datetime
 from .misc import greatcircle
+from .input_file_monitor import InputFileMonitor
 from pathlib import Path
 from loguru import logger
 import typing
@@ -20,6 +20,7 @@ class GmaoReader:
         self,
         smeta: SoundingMetadata,
         gmao_dir: Path,
+        ifile_mon: InputFileMonitor | None,
         pressure_in: np.ndarray | None = None,
     ) -> None:
         """Note we could just take the time and latitude/longitude directly.
@@ -39,10 +40,13 @@ class GmaoReader:
             yr = next_day.year
             month = next_day.month
             day = next_day.day
-        gmao_d = GmaoReader.read_gmao(gmao_dir, yr, month, day, h)
+        gmao_d, f1, f2 = GmaoReader.read_gmao(gmao_dir, yr, month, day, h)
         lon = gmao_d["lon"]
         lat = gmao_d["lat"]
-
+        if ifile_mon is not None:
+            ifile_mon.notify_file_input(f1)
+            ifile_mon.notify_file_input(f2)
+            
         # Find index of nearest lat/lon
         lon_ind = None
         lat_ind = None
@@ -156,8 +160,8 @@ class GmaoReader:
     @classmethod
     @cache
     def read_gmao(
-        cls, gmao_dir: Path, year: int, month: int, day: int, hour: int
-    ) -> dict[str, np.ndarray]:
+            cls, gmao_dir: Path, year: int, month: int, day: int, hour: int,
+    ) -> tuple[dict[str, np.ndarray], Path, Path]:
         # GMAO apparently has different directory structures, try each.
         gmao_fdir = gmao_dir / f"{year}/{month:02d}/{day:02d}"
         # Try year/month
@@ -185,17 +189,17 @@ class GmaoReader:
         except StopIteration:
             raise RuntimeError("GMAO file not found")
         res = {}
-        with h5py.File(fname_3d, "r") as f:
+        with InputFileMonitor.open_h5(fname_3d, None) as f:
             for v in ["QV", "T", "lat", "lev", "lon"]:
                 res[v] = f[v][:]
                 if res[v].shape[0] == 1:
                     res[v] = res[v][0]
-        with h5py.File(fname_2d, "r") as f:
+        with InputFileMonitor.open_h5(fname_2d, None) as f:
             for v in ["SLP", "TROPPT", "TS", "lat", "lon"]:
                 res[v] = f[v][:]
                 if res[v].shape[0] == 1:
                     res[v] = res[v][0]
-        return res
+        return res, fname_3d, fname_2d
 
     def interpol_1d(
         self, yin: np.ndarray, xin: np.ndarray, xout: np.ndarray

@@ -36,6 +36,7 @@ if typing.TYPE_CHECKING:
     from .sounding_metadata import SoundingMetadata
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
+    from .input_file_monitor import InputFileMonitor
 
 
 class ExtraL2Output:
@@ -993,6 +994,7 @@ class CdfWriteTes:
         current_state: CurrentState,
         instrument: list[InstrumentIdentifier],
         lite_directory: Path,
+        ifile_mon: InputFileMonitor | None,
         data1In: dict,
         data2: dict | None = None,
         species_name: str = "",
@@ -1038,6 +1040,7 @@ class CdfWriteTes:
             data1,
             data2,
             dataAnc,
+            ifile_mon,
         )
         tracer = species_name
         retrieval_pressures = pressuresMax

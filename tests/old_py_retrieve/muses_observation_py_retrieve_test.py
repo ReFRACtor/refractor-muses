@@ -65,7 +65,7 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile,None)
     obs.spectral_window = swin_dict[InstrumentIdentifier("AIRS")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
@@ -155,7 +155,7 @@ def test_muses_tropomi_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
     obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
@@ -257,7 +257,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
     obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)

@@ -5,6 +5,7 @@ import re
 from typing import Self
 from .identifier import InstrumentIdentifier
 from .tes_file import TesFile
+from .input_file_monitor import InputFileMonitor
 from datetime import datetime
 
 if typing.TYPE_CHECKING:
@@ -51,6 +52,7 @@ class SoundingMetadata:
         measurement_id: MeasurementId,
         instrument: InstrumentIdentifier,
         obs: MusesObservation,
+        ifile_mon: InputFileMonitor | None,
     ) -> Self:
         res = cls()
         instrument_name = str(instrument)
@@ -77,7 +79,7 @@ class SoundingMetadata:
         res._surface_type = "OCEAN" if oceanflag == 1 else "LAND"
         res._sounding_id = measurement_id["key"]
         # Couple of things in the DateTime file
-        f = TesFile(measurement_id["run_dir"] / "DateTime.asc")
+        f = TesFile(measurement_id["run_dir"] / "DateTime.asc", ifile_mon)
         res._tai_time = float(f["TAI_Time_of_ZPD"])
         res._utc_time = f["UTC_Time"]
         res._day_flag = res.local_hour >= 8 and res.local_hour <= 22

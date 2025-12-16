@@ -183,7 +183,7 @@ def test_refractor_fm_refractor(
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorTropOmiFm(
-        obs, mid, use_pca=False, use_lrad=False, lrad_second_order=False
+        obs, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -257,7 +257,7 @@ def test_refractor_joint_fm_refractor(
         joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
     r = RefractorTropOmiFm(
-        obs_tropomi, mid, use_pca=False, use_lrad=False, lrad_second_order=False
+        obs_tropomi, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -356,7 +356,7 @@ def test_refractor_detailed_fm_refractor(
     mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     # Do a lidort run, just to leave PCA out of our checks
     r = RefractorTropOmiFm(
-        tropomi_obs_step_2, mid, use_pca=False, use_lrad=False, lrad_second_order=False
+        tropomi_obs_step_2, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(

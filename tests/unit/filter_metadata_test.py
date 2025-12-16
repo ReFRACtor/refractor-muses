@@ -6,7 +6,7 @@ def test_file_filter_metadata(osp_dir):
         osp_dir
         / "Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
     )
-    fmeta = FileFilterMetadata(default_fname)
+    fmeta = FileFilterMetadata(default_fname, None)
     assert fmeta.filter_metadata(None) == {}
     assert fmeta.filter_metadata("FOO") == {}
     assert fmeta.filter_metadata("1A1") == {

@@ -59,14 +59,17 @@ class StateElementFromSingle(StateElementOspFile):
         ]:
             return None
         fcloud = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc",
+            retrieval_config.input_file_monitor
         )
         fatm = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
+            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc",
+            retrieval_config.input_file_monitor
         )
         fcal = TesFile(
             Path(retrieval_config["Single_State_Directory"])
-            / "State_CalibrationData.asc"
+            / "State_CalibrationData.asc",
+            retrieval_config.input_file_monitor
         )
         return super(StateElementFromSingle, cls).create(
             sid,

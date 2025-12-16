@@ -9,7 +9,7 @@ from refractor.omi import OmiFmObjectCreator
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MusesObservation, MeasurementId
+    from refractor.muses import MusesObservation, MeasurementId, RetrievalConfiguration
 
 # ============================================================================
 # This set of classes replace the lower level call to omi_fm in
@@ -33,11 +33,12 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
     Use a ReFRACtor ForwardModel as a replacement for omi_fm."""
 
     def __init__(
-        self, obs: MusesObservation, measurement_id: MeasurementId, **kwargs: dict
+            self, obs: MusesObservation, measurement_id: MeasurementId, rconfig: RetrievalConfiguration, **kwargs: dict
     ) -> None:
         super().__init__(func_name="omi_fm", **kwargs)
         self._obs = obs
         self.measurement_id = measurement_id
+        self.rconfig = rconfig
 
     @property
     def observation(self) -> MusesObservation:
@@ -55,6 +56,7 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
             self.rf_uip.refractor_cache["omi_fm_object_creator"] = OmiFmObjectCreator(
                 CurrentStateUip(self.rf_uip),
                 self.measurement_id,
+                self.rconfig,
                 self._obs,
                 match_py_retrieve=True,
                 **self.obj_creator_args,

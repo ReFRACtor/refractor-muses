@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
+    from .input_file_monitor import InputFileMonitor
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -52,8 +53,8 @@ class QaFlagValueFile(QaFlagValue):
     # it might be easier just to leave this as a pandas table. Right now this
     # is just a placeholder, we are using the old muses-py to do the QA calculation
     # but we can revisit this if needed, and perhaps change this interface.
-    def __init__(self, fname: str | os.PathLike[str]):
-        self.d = TesFile(fname)
+    def __init__(self, fname: str | os.PathLike[str], ifile_mon: InputFileMonitor | None):
+        self.d = TesFile(fname, ifile_mon)
         self.tbl: pd.DataFrame = self.d.checked_table
 
     @property
@@ -133,6 +134,7 @@ class MusesPyQaDataHandle(QaDataHandle):
     def __init__(self) -> None:
         self.viewing_mode = None
         self.qa_flag_directory = None
+        self.ifile_mon : InputFileMonitor | None = None
 
     def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
@@ -145,6 +147,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         )
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
+        self.ifile_mon = retrieval_config.input_file_monitor
 
     def quality_flag_file_name(
         self, current_strategy_step: CurrentStrategyStep
@@ -185,7 +188,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         fstate_info = FakeStateInfo(retrieval_result.current_state)
         master = self.write_quality_flags(
-            QaFlagValueFile(self.quality_flag_file_name(current_strategy_step)),
+            QaFlagValueFile(self.quality_flag_file_name(current_strategy_step), self.ifile_mon),
             retrieval_result,
             fstate_info,
         )

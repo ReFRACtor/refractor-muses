@@ -3,7 +3,10 @@ from .tes_file import TesFile
 import abc
 import os
 from pathlib import Path
+import typing
 
+if typing.TYPE_CHECKING:
+    from .input_file_monitor import InputFileMonitor
 
 class FilterMetadata(object, metaclass=abc.ABCMeta):
     """muses-py code has additional metadata associated with each
@@ -60,11 +63,11 @@ class FileFilterMetadata(FilterMetadata):
 
     """
 
-    def __init__(self, filename: str | os.PathLike[str]):
+    def __init__(self, filename: str | os.PathLike[str], ifile_mon: InputFileMonitor | None):
         self.filename = Path(filename)
-        f = TesFile.create(filename)
+        f = TesFile.create(filename, ifile_mon)
         self.metadata = {}
-        for row in f.table.iloc:
+        for row in f.checked_table.iloc:
             res = {}
             res["monoextend"] = float(row["MONO_BOUND_EXTENS"])
             res["monoSpacing"] = float(row["MONO_FRQ_SPC"])

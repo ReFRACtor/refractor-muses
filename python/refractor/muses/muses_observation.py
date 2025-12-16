@@ -132,7 +132,7 @@ class MeasurementIdFile(MeasurementId):
     ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
-        self._p = TesFile(self.fname)
+        self._p = TesFile(self.fname, retrieval_config.input_file_monitor)
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
 
@@ -821,6 +821,7 @@ class MusesObservationHandle(ObservationHandle):
         # change - we just update the spectral windows.
         self.existing_obs: MusesObservation | None = None
         self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
 
     def __getstate__(self) -> dict[str, Any]:
         # If we pickle, don't include the stashed obs
@@ -837,6 +838,7 @@ class MusesObservationHandle(ObservationHandle):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
 
     def observation(
         self,
@@ -848,7 +850,7 @@ class MusesObservationHandle(ObservationHandle):
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
-        if self.measurement_id is None:
+        if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target before observation")
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
@@ -857,6 +859,7 @@ class MusesObservationHandle(ObservationHandle):
             current_state,
             spec_win,
             fm_sv,
+            self.retrieval_config.input_file_monitor,
             osp_dir=self.measurement_id.osp_abs_dir,
             **kwargs,
         )

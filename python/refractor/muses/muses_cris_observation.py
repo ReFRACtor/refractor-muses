@@ -21,6 +21,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
+    from .input_file_monitor import InputFileMonitor
 
 
 class MusesCrisObservation(MusesObservationImp):
@@ -193,6 +194,7 @@ class MusesCrisObservation(MusesObservationImp):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> Self:

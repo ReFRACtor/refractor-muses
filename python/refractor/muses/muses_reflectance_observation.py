@@ -26,11 +26,12 @@ from typing import Any, Self
 import typing
 import math
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
-import netCDF4
+from .input_file_monitor import InputFileMonitor
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-
+    import netCDF4
+    
 # Logically you might expect MusesOmiObservation and MusesTropomiObservation to be in
 # refractor.omi and refractor.tropomi. However they share a whole lot in common, both
 # working in reflectance rather than radiance.
@@ -535,6 +536,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         iXTracks: dict[str, str],
         iATracks: dict[str, str],
         windows: list[dict[str, str]],
+        ifile_mon: InputFileMonitor | None,
     ) -> dict[str, Any]:
         o_ObservationTable: dict[str, Any] = {
             "ATRACK": [],
@@ -576,7 +578,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 if current_band != band["filter"]:
                     current_band = band["filter"]
                     band_filenames.append(tropomi_fns[current_band])
-                    fh = netCDF4.Dataset(tropomi_fns[current_band])
+                    fh = InputFileMonitor.open_ncdf(tropomi_fns[current_band], ifile_mon)
                     try:
                         # Without this, various returned things are masked_array. We
                         # handle masking separately, so we want to skip this.
@@ -821,6 +823,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         write_tropomi_radiance_pickle: bool = False,
         **kwargs: Any,
@@ -1119,6 +1122,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         write_omi_radiance_pickle: bool = False,
         **kwargs: Any,

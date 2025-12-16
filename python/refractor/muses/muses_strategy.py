@@ -28,6 +28,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
+    from .input_file_monitor import InputFileMonitor
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -291,6 +292,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -311,13 +313,14 @@ class MusesStrategyHandleSet(CreatorHandleSet):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
         return self.handle(
-            measurement_id, osp_dir, spectral_window_handle_set, **kwargs
+            measurement_id, ifile_mon, osp_dir, spectral_window_handle_set, **kwargs
         )
 
 
@@ -574,6 +577,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -582,7 +586,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         return MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
+            measurement_id["run_dir"] / "Table.asc", ifile_mon, osp_dir, spectral_window_handle_set
         )
 
 
@@ -621,12 +625,13 @@ class MusesStrategyStepList(MusesStrategyImp):
     def create_from_strategy_file(
         cls,
         filename: str | os.PathLike[str],
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(spectral_window_handle_set)
-        fin = TesFile(filename)
+        fin = TesFile(filename, ifile_mon)
         i2 = -1
         for i, row in fin.checked_table.iterrows():
             i2 += 1
@@ -886,6 +891,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -894,7 +900,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         s = MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
+            measurement_id["run_dir"] / "Table.asc", ifile_mon, osp_dir, spectral_window_handle_set
         )
         s.current_strategy_list[
             self.step_number

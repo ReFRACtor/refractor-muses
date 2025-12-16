@@ -74,15 +74,17 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
     )
     fmeta = FileFilterMetadata(
         osp_dir
-        / "Strategy_Tables/ssund/Defaults/Default_Spectral_Windows_Definition_File_Filters.asc"
+        / "Strategy_Tables/ssund/Defaults/Default_Spectral_Windows_Definition_File_Filters.asc",
+        rconfig.input_file_monitor,
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_metadata=fmeta)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor, filter_metadata=fmeta)
     obs = MusesTesObservation.create_from_id(
         measurement_id,
         None,
         None,
         swin_dict[InstrumentIdentifier("TES")],
         None,
+        rconfig.input_file_monitor,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)

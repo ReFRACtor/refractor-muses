@@ -8,9 +8,9 @@ from refractor.muses import (
     SurfaceAlbedo,
     InstrumentIdentifier,
     StateElementIdentifier,
+    InputFileMonitor
 )
 from functools import cache
-import h5py  # type: ignore
 import refractor.framework as rf  # type: ignore
 from loguru import logger
 import numpy as np
@@ -46,6 +46,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         self,
         current_state: CurrentState,
         measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         use_raman: bool = True,
         use_oss: bool = False,
@@ -55,6 +56,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         super().__init__(
             current_state,
             measurement_id,
+            retrieval_config,
             InstrumentIdentifier("TROPOMI"),
             observation,
             use_raman=use_raman,
@@ -168,7 +170,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # absorber types and select which one is used by some kind of logic.
         #
         # We really need a test case to work through the logic here before changing this
-        return self.measurement_id["ils_tropomi_xsection"]
+        return self.retrieval_config["ils_tropomi_xsection"]
 
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
         band_name = str(self.filter_list[sensor_index])
@@ -495,14 +497,14 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         use_bands_7_8_flag = np.max(band_index_list) >= 7
 
         if use_bands_1_6_flag:
-            with h5py.File(fn_1_6, "r") as f:
+            with InputFileMonitor.open_h5(fn_1_6, self.ifile_mon) as f:
                 for i_band in range(6):
                     FilterBand_group = f"band_{i_band + 1}"
                     isrf_var = f[FilterBand_group]["isrf"]
                     band_num_delta_wavelengths[i_band] = isrf_var.shape[2]
 
         if use_bands_7_8_flag:
-            with h5py.File(fn_7_8, "r") as f:
+            with InputFileMonitor.open_h5(fn_7_8, self.ifile_mon) as f:
                 for i_band in range(6, num_bands):
                     FilterBand_group = f"band_{i_band + 1}"
                     delta_wavelength_var = f[FilterBand_group]["delta_wavelength"]
@@ -549,6 +551,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             # So we will interpolate between bands if necessary.
 
             if band_index < 7:
+                if self.ifile_mon is not None:
+                    self.ifile_mon.notify_file_input(fn_1_6)
                 central_wavelength_var, delta_wavelength_var, isrf_var = _tropomi_ils(
                     fn_1_6, band_index
                 )
@@ -557,6 +561,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 ].flatten()
                 temp_delta_wavelength = delta_wavelength_var
             elif band_index >= 7:
+                if self.ifile_mon is not None:
+                    self.ifile_mon.notify_file_input(fn_7_8)
                 central_wavelength_var, delta_wavelength_var, isrf_var = _tropomi_ils(
                     fn_7_8, band_index
                 )
@@ -915,11 +921,13 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
         self.measurement_id: None | MeasurementId = None
+        self.retrieval_config: None | RetrievalConfiguration = None
 
     def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -931,12 +939,13 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
-        if self.measurement_id is None:
+        if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating forward model using using TropomiFmObjectCreator")
         obj_creator = TropomiFmObjectCreator(
             current_state,
             self.measurement_id,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -949,7 +958,8 @@ class TropomiForwardModelHandle(ForwardModelHandle):
 # This is separated out so we can cache this
 @cache
 def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    with h5py.File(i_fn, "r") as f:
+    # We catch this file at a higher level
+    with InputFileMonitor.open_h5(i_fn, None) as f:
         FilterBand_group = f"band_{i_band}"
         if i_band < 7:
             wav = f[FilterBand_group]["wavelength"][...]

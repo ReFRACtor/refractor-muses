@@ -8,9 +8,11 @@ import io
 import os
 from functools import lru_cache
 import typing
-from typing import Iterator, Any
+from typing import Iterator, Any, Self
 from loguru import logger
 
+if typing.TYPE_CHECKING:
+    from .input_file_monitor import InputFileMonitor
 
 class TesFile(collections.abc.Mapping):
     """There are a number of files that are in the "TES File"
@@ -28,7 +30,7 @@ class TesFile(collections.abc.Mapping):
     table content
     """
 
-    def __init__(self, fname: str | os.PathLike[str], use_mpy: bool = False) -> None:
+    def __init__(self, fname: str | os.PathLike[str], ifile_mon : InputFileMonitor | None, use_mpy: bool = False) -> None:
         """Open the given file, and read the keyword/value pairs plus
         the (possibly empty) table.
 
@@ -46,6 +48,8 @@ class TesFile(collections.abc.Mapping):
         # on
         if False:
             logger.debug(f"Reading file {self.file_name}")
+        if ifile_mon is not None:
+            ifile_mon.notify_file_input(self.file_name)
         if use_mpy:
             _, d = mpy_read_all_tes(str(fname))
             self.mpy_d = d
@@ -160,13 +164,18 @@ class TesFile(collections.abc.Mapping):
     @typing.no_type_check
     @classmethod
     @lru_cache(maxsize=50)
-    def create(cls, fname: str | os.PathLike[str]):
+    def _create(cls, fname: str | os.PathLike[str]) -> Self:
         """This creates a TesFile that reads the given file. Because we often
         open the same file multiple times in different contexts, this adds caching so
         open the same file a second time just returns the existing TesFile object.
         """
-        return cls(fname)
+        return cls(fname, None)
 
+    @classmethod
+    def create(cls, fname: str | os.PathLike[str], ifile_mon : InputFileMonitor | None) -> Self:
+        if ifile_mon is not None:
+            ifile_mon.notify_file_input(Path(fname))
+        return cls._create(fname)
 
 __all__ = [
     "TesFile",

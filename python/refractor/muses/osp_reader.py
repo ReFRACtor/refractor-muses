@@ -16,6 +16,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_array import RetrievalGridArray, FullGridMappedArray
+    from .input_file_monitor import InputFileMonitor
 
 
 class RangeFind:
@@ -150,12 +151,13 @@ class OspDiagonalUncertainityReader:
 
     """
 
-    def __init__(self, diagonal_directory: Path) -> None:
+    def __init__(self, diagonal_directory: Path, ifile_mon: InputFileMonitor | None) -> None:
         """This looks through the given directory (e.g.,
         OSP/Covariance/Covariance/DiagonalUncertainty) and maps all
         the files found into a simple structure that we can use to
         look up the file to read for a particular StateElement
         """
+        self.ifile_mon = ifile_mon
         self.filename_data: dict[
             StateElementIdentifier, dict[str, dict[str, RangeFind]]
         ] = {}
@@ -199,23 +201,24 @@ class OspDiagonalUncertainityReader:
         We also take the view type (NADIR, LIMB), although I think this is always
         NADIR.
         """
-        tf = TesFile(self.filename_data[sid][stype][vtype][latitude])
+        tf = TesFile(self.filename_data[sid][stype][vtype][latitude], self.ifile_mon)
         d = np.array(tf.table)
         return d * d
 
     @classmethod
     @cache
     def read_dir(cls, diagonal_directory: Path) -> Self:
-        return cls(diagonal_directory)
+        return cls(diagonal_directory, None)
 
 
 class OspCovarianceMatrixReader:
     """This reads file found in OSP/Covariance/Covariance"""
 
-    def __init__(self, covariance_directory: Path) -> None:
+    def __init__(self, covariance_directory: Path, ifile_mon: InputFileMonitor | None) -> None:
         """This looks through the given directory (e.g., OSP/Covariance/Covariance) and
         maps all the files found into a simple structure that we can use to look up
         the file to read for a particular StateElement"""
+        self.ifile_mon = ifile_mon
         self.filename_data: dict[
             StateElementIdentifier, dict[str, dict[str, RangeFind]]
         ] = {}
@@ -268,7 +271,7 @@ class OspCovarianceMatrixReader:
         # column with map type, and then the data. So we just subset for that
         if poltype is None:
             poltype = ""
-        tf = TesFile(self.filename_data[sid][poltype][map_type.lower()][latitude])
+        tf = TesFile(self.filename_data[sid][poltype][map_type.lower()][latitude], self.ifile_mon)
         d = np.array(tf.table)[:, 3:].astype(float)
         pressure_sa = np.array(tf.table)[:, 1].astype(float)
         return CovarianceMatrix(pressure_sa, d)
@@ -278,7 +281,7 @@ class OspCovarianceMatrixReader:
     @classmethod
     @cache
     def read_dir(cls, covariance_directory: Path) -> Self:
-        return cls(covariance_directory)
+        return cls(covariance_directory, None)
 
 
 class OspSpeciesReader(OspFileHandle):
@@ -288,6 +291,7 @@ class OspSpeciesReader(OspFileHandle):
     def __init__(
         self,
         species_directory: str | os.PathLike[str],
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         """This looks through the given directory (e.g.,
@@ -297,6 +301,7 @@ class OspSpeciesReader(OspFileHandle):
 
         """
         super().__init__(osp_dir=osp_dir, ref_path=species_directory, nlevel=4)
+        self.ifile_mon=ifile_mon
         self.filename_data: dict[
             StateElementIdentifier,
             dict[StateElementIdentifier | None, dict[RetrievalType, Path]],
@@ -391,7 +396,7 @@ class OspSpeciesReader(OspFileHandle):
                             r"_87.asc$", f"_{num_retrieval}_{poltype}.asc", str(fname)
                         )
                     )
-                d = TesFile(fname)
+                d = TesFile(fname, self.ifile_mon)
                 # First column is name of species, second is pressure, third is map type.
                 # We chop off just to get the data
                 cov = np.array(d.table)[:, 3:].astype(float)
@@ -414,7 +419,7 @@ class OspSpeciesReader(OspFileHandle):
                         self._abs_path(t["sSubaFilename"]),
                     )
                 else:
-                    d2 = np.array(TesFile(self._abs_path(t["sSubaFilename"])).table)
+                    d2 = np.array(TesFile(self._abs_path(t["sSubaFilename"]), self.ifile_mon).table)
                     # First column is name of species, second is pressure, third is map type.
                     # We chop off just to get the data
                     cov = np.linalg.inv(d2[:, 3:].astype(float))
@@ -472,16 +477,18 @@ class OspSpeciesReader(OspFileHandle):
             fname = self.filename_data[sid][sid2][retrieval_type]
         else:
             fname = self.filename_data[sid][sid2][RetrievalType("default")]
+        if self.ifile_mon is not None:
+            self.ifile_mon.notify_file_input(fname)
         return self._tes_file(fname)
 
     @cache
     def _tes_file(self, fname: Path) -> TesFile:
-        return TesFile(fname)
+        return TesFile(fname, None)
 
     @classmethod
     @cache
     def read_dir(cls, species_directory: Path) -> Self:
-        return cls(species_directory)
+        return cls(species_directory, None)
 
     def make_interpolation_matrix_susan(
         self, xFrom: np.ndarray, xTo: np.ndarray
@@ -530,7 +537,7 @@ class OspSpeciesReader(OspFileHandle):
             shape=(num_retrievalPressures, num_retrievalPressures), dtype=np.float64
         )
 
-        t = TesFile(i_filename)
+        t = TesFile(i_filename, self.ifile_mon)
         assert t.table is not None
         pressureSa = np.array(t.table["Pressure"]).astype(np.float32)
         sSubaMatrix = np.array(t.table)[:, 3:].astype(np.float32)
@@ -614,10 +621,11 @@ class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
     def __init__(
         self,
         fname: str | os.PathLike[str],
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
     ):
         OspFileHandle.__init__(self, osp_dir=osp_dir, ref_path=fname, nlevel=4)
-        self._file = TesFile(fname)
+        self._file = TesFile(fname, ifile_mon)
         self._sid_to_type: dict[StateElementIdentifier, str] = {}
         typ = [
             "Zero",
@@ -666,12 +674,13 @@ class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
     def read(
         cls,
         initial_guess_setup_directory: Path,
+        ifile_mon: InputFileMonitor | None,
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> Self:
         # muses-py uses a hardcoded file name given the "initialGuessSetupDirectory"
         # found in the target file.
         return cls(
-            initial_guess_setup_directory / "L2_Setup_Control_Initial.asc", osp_dir
+            initial_guess_setup_directory / "L2_Setup_Control_Initial.asc", ifile_mon, osp_dir
         )
 
 

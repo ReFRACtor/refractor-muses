@@ -129,15 +129,16 @@ def test_muses_spectral_window_microwindows(osp_dir):
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    fmeta = FileFilterMetadata(default_fname)
+    fmeta = FileFilterMetadata(default_fname, None)
     swin = MusesSpectralWindow.create_from_file(
         spec_fname,
         "TROPOMI",
+        None,
         filter_metadata=fmeta,
         different_filter_different_sensor_index=True,
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        spec_fname, filter_metadata=fmeta
+        spec_fname, None, filter_metadata=fmeta
     )
     assert spec_fname == MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,

@@ -55,7 +55,7 @@ class MusesRunDir:
                 shutil.copy(
                     refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
                 )
-        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc")
+        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc", None)
         dout = dict(d)
         for k in (
             "AIRS_filename",
@@ -144,7 +144,7 @@ class MusesRunDir:
         amuse_me_run_dir = Path(amuse_me_run_dir)
         for f in ("Table", "Measurement_ID", "DateTime"):
             shutil.copy(amuse_me_run_dir / f"{f}.asc", refractor_sounding_dir)
-        d = TesFile(amuse_me_run_dir / "Measurement_ID.asc")
+        d = TesFile(amuse_me_run_dir / "Measurement_ID.asc", None)
         for k in (
             "AIRS_filename",
             "OMI_filename",

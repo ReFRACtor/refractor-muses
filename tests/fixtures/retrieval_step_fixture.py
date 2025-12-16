@@ -303,6 +303,7 @@ def tropomi_fm_object_creator_step_0(
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
+        rs.retrieval_config,
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
@@ -352,6 +353,7 @@ def tropomi_fm_object_creator_swir_step(
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
+        rs.retrieval_config,
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
@@ -388,6 +390,7 @@ def tropomi_fm_object_creator_step_1(
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
+        rs.retrieval_config,
         obs,
         osp_dir=osp_dir,
     )
@@ -420,6 +423,7 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
+        rs.retrieval_config,
         obs,
         osp_dir=osp_dir,
     )
@@ -451,6 +455,7 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
+        rs.retrieval_config,
         obs,
         osp_dir=osp_dir,
     )

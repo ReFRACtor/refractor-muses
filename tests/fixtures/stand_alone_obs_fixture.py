@@ -40,7 +40,7 @@ def joint_tropomi_obs_step_12(osp_dir, joint_tropomi_test_in_dir):
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
     )
@@ -90,6 +90,7 @@ def joint_omi_obs_step_8(osp_dir, joint_omi_test_in_dir):
     ]
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         mwfile,
+        None,
         filter_list_dict={
             InstrumentIdentifier("OMI"): filter_list,
             InstrumentIdentifier("AIRS"): channel_list,
@@ -151,6 +152,7 @@ def tropomi_obs_step_1(osp_dir, tropomi_test_in_dir):
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         mwfile,
+        None,
         filter_list_dict={InstrumentIdentifier("TROPOMI"): filter_list},
         filter_metadata=DictFilterMetadata(
             {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
@@ -192,6 +194,7 @@ def tropomi_obs_step_2(osp_dir, tropomi_test_in_dir):
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         mwfile,
+        None,
         filter_list_dict={InstrumentIdentifier("TROPOMI"): filter_list},
         filter_metadata=DictFilterMetadata(
             {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
@@ -227,7 +230,7 @@ def omi_obs_step_1(osp_dir, omi_test_in_dir):
         / "Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
+        mwfile, None, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,
@@ -266,7 +269,7 @@ def omi_obs_step_2(osp_dir, omi_test_in_dir):
         osp_dir / "Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
+        mwfile, None, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,

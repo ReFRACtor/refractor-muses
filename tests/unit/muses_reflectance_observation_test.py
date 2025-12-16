@@ -44,7 +44,7 @@ def test_create_muses_tropomi_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
     cs = CurrentStateDict(
         {
             "TROPOMISOLARSHIFTBAND3": 0.1,
@@ -61,6 +61,7 @@ def test_create_muses_tropomi_observation(
         cs,
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
+        rconfig.input_file_monitor,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
@@ -98,7 +99,7 @@ def test_create_muses_omi_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
     cs = CurrentStateDict(
         {
             "OMINRADWAVUV1": 0.1,
@@ -118,6 +119,7 @@ def test_create_muses_omi_observation(
         cs,
         swin_dict[InstrumentIdentifier("OMI")],
         None,
+        rconfig.input_file_monitor,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
@@ -161,7 +163,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
     obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(1).data)
@@ -194,7 +196,7 @@ def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
     utc_time = "2019-08-07T06:24:33.584090Z"
     erad = mpy.combine_tropomi_erad(filename_dict, xtrack_dict, atrack_dict, windows)
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
-        filename_dict, xtrack_dict, atrack_dict, windows
+        filename_dict, xtrack_dict, atrack_dict, windows, None
     )
     compare_muses_py_dict(erad2, erad, "erad")
 

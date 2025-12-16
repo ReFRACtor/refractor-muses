@@ -13,5 +13,5 @@ def test_gmao(airs_omi_shandle, gmao_dir):
     # it isn't worth making a new fixture. So just use this here
     # for testing, even if we ignore most of it
     _, _, _, _, smeta, _ = airs_omi_shandle
-    res = GmaoReader(smeta, gmao_dir)
+    res = GmaoReader(smeta, gmao_dir, None)
     assert res is not None

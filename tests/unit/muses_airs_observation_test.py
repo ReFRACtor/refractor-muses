@@ -41,13 +41,14 @@ def test_create_muses_airs_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
     obs = MusesAirsObservation.create_from_id(
         measurement_id,
         None,
         None,
         swin_dict[InstrumentIdentifier("AIRS")],
         None,
+        rconfig.input_file_monitor,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)

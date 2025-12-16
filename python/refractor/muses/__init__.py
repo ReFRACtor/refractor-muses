@@ -96,6 +96,7 @@ if _typing.TYPE_CHECKING:
         suppress_replacement,
         register_replacement_function_in_block,
     )
+    from .input_file_monitor import InputFileMonitor
     from .refractor_capture_directory import RefractorCaptureDirectory
     from .retrieval_result import RetrievalResult
     from .spectral_window_handle import SpectralWindowHandleSet

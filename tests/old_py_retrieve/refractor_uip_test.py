@@ -109,8 +109,8 @@ def test_refractor_joint_tropomi_create_uip(
     }
     mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
     obs_list = [
-        MusesCrisObservation.create_from_id(mid, None, None, None, None),
-        MusesTropomiObservation.create_from_id(mid, None, None, None, None),
+        MusesCrisObservation.create_from_id(mid, None, None, None, None, None),
+        MusesTropomiObservation.create_from_id(mid, None, None, None, None, None),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -180,7 +180,7 @@ def test_refractor_tropomi_create_uip(
     }
     mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
     obs_list = [
-        MusesTropomiObservation.create_from_id(mid, None, None, None, None),
+        MusesTropomiObservation.create_from_id(mid, None, None, None, None, None),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -248,8 +248,8 @@ def test_refractor_joint_omi_create_uip(
     }
     mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
     obs_list = [
-        MusesAirsObservation.create_from_id(mid, None, None, None, None),
-        MusesOmiObservation.create_from_id(mid, None, None, None, None),
+        MusesAirsObservation.create_from_id(mid, None, None, None, None, None),
+        MusesOmiObservation.create_from_id(mid, None, None, None, None, None),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -317,7 +317,7 @@ def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, os
     }
     mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
     obs_list = [
-        MusesOmiObservation.create_from_id(mid, None, None, None, None),
+        MusesOmiObservation.create_from_id(mid, None, None, None, None, None),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
