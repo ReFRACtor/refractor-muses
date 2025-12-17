@@ -8,7 +8,7 @@ from refractor.muses import (
     SurfaceAlbedo,
     InstrumentIdentifier,
     StateElementIdentifier,
-    InputFileMonitor
+    InputFileHelper,
 )
 from functools import cache
 import refractor.framework as rf  # type: ignore
@@ -497,14 +497,14 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         use_bands_7_8_flag = np.max(band_index_list) >= 7
 
         if use_bands_1_6_flag:
-            with InputFileMonitor.open_h5(fn_1_6, self.ifile_mon) as f:
+            with InputFileHelper.open_h5(fn_1_6, self.ifile_hlp) as f:
                 for i_band in range(6):
                     FilterBand_group = f"band_{i_band + 1}"
                     isrf_var = f[FilterBand_group]["isrf"]
                     band_num_delta_wavelengths[i_band] = isrf_var.shape[2]
 
         if use_bands_7_8_flag:
-            with InputFileMonitor.open_h5(fn_7_8, self.ifile_mon) as f:
+            with InputFileHelper.open_h5(fn_7_8, self.ifile_hlp) as f:
                 for i_band in range(6, num_bands):
                     FilterBand_group = f"band_{i_band + 1}"
                     delta_wavelength_var = f[FilterBand_group]["delta_wavelength"]
@@ -551,8 +551,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             # So we will interpolate between bands if necessary.
 
             if band_index < 7:
-                if self.ifile_mon is not None:
-                    self.ifile_mon.notify_file_input(fn_1_6)
+                self.ifile_hlp.notify_file_input(fn_1_6)
                 central_wavelength_var, delta_wavelength_var, isrf_var = _tropomi_ils(
                     fn_1_6, band_index
                 )
@@ -561,8 +560,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 ].flatten()
                 temp_delta_wavelength = delta_wavelength_var
             elif band_index >= 7:
-                if self.ifile_mon is not None:
-                    self.ifile_mon.notify_file_input(fn_7_8)
+                self.ifile_hlp.notify_file_input(fn_7_8)
                 central_wavelength_var, delta_wavelength_var, isrf_var = _tropomi_ils(
                     fn_7_8, band_index
                 )
@@ -923,7 +921,9 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         self.measurement_id: None | MeasurementId = None
         self.retrieval_config: None | RetrievalConfiguration = None
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
@@ -959,7 +959,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
 @cache
 def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # We catch this file at a higher level
-    with InputFileMonitor.open_h5(i_fn, None) as f:
+    with InputFileHelper.open_h5(i_fn, None) as f:
         FilterBand_group = f"band_{i_band}"
         if i_band < 7:
             wav = f[FilterBand_group]["wavelength"][...]

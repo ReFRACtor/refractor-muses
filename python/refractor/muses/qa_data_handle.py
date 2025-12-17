@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -53,8 +53,8 @@ class QaFlagValueFile(QaFlagValue):
     # it might be easier just to leave this as a pandas table. Right now this
     # is just a placeholder, we are using the old muses-py to do the QA calculation
     # but we can revisit this if needed, and perhaps change this interface.
-    def __init__(self, fname: str | os.PathLike[str], ifile_mon: InputFileMonitor | None):
-        self.d = TesFile(fname, ifile_mon)
+    def __init__(self, fname: str | os.PathLike[str], ifile_hlp: InputFileHelper):
+        self.d = TesFile(fname, ifile_hlp)
         self.tbl: pd.DataFrame = self.d.checked_table
 
     @property
@@ -85,7 +85,9 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
     that a class is intended for this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -134,9 +136,11 @@ class MusesPyQaDataHandle(QaDataHandle):
     def __init__(self) -> None:
         self.viewing_mode = None
         self.qa_flag_directory = None
-        self.ifile_mon : InputFileMonitor | None = None
+        self.ifile_hlp: InputFileHelper | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration
@@ -147,13 +151,13 @@ class MusesPyQaDataHandle(QaDataHandle):
         )
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
-        self.ifile_mon = retrieval_config.input_file_monitor
+        self.ifile_hlp = retrieval_config.input_file_helper
 
     def quality_flag_file_name(
         self, current_strategy_step: CurrentStrategyStep
     ) -> Path:
         """Return the quality file name."""
-        if self.viewing_mode is None:
+        if self.viewing_mode is None or self.ifile_hlp is None:
             raise RuntimeError("Need to call notify_update_target first")
 
         # Name is derived from the microwindows file name
@@ -186,9 +190,13 @@ class MusesPyQaDataHandle(QaDataHandle):
         results. A good result returns "GOOD".
         """
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
+        if self.ifile_hlp is None:
+            raise RuntimeError("Need to call notify_update_target first")
         fstate_info = FakeStateInfo(retrieval_result.current_state)
         master = self.write_quality_flags(
-            QaFlagValueFile(self.quality_flag_file_name(current_strategy_step), self.ifile_mon),
+            QaFlagValueFile(
+                self.quality_flag_file_name(current_strategy_step), self.ifile_hlp
+            ),
             retrieval_result,
             fstate_info,
         )

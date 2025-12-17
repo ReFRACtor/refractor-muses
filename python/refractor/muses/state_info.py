@@ -209,7 +209,7 @@ class StateInfo(UserDict):
                 None,
                 None,
             ),
-            retrieval_config.input_file_monitor,
+            retrieval_config.input_file_helper,
         )
         if self._current_state_old is not None:
             self._current_state_old.notify_update_target(

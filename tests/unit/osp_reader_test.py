@@ -5,6 +5,7 @@ from refractor.muses import (
     OspDiagonalUncertainityReader,
     OspL2SetupControlInitial,
     RetrievalType,
+    InputFileHelper,
 )
 import numpy as np
 import numpy.testing as npt
@@ -13,7 +14,9 @@ import numpy.testing as npt
 def test_covariance(osp_dir):
     latitude = 30.0
     map_type = "linear"
-    r = OspCovarianceMatrixReader.read_dir(osp_dir / "Covariance" / "Covariance")
+    r = OspCovarianceMatrixReader.read_dir(
+        osp_dir / "Covariance" / "Covariance", InputFileHelper()
+    )
     cov_matrix = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), map_type, latitude)
     npt.assert_allclose(cov_matrix.original_cov, np.array([[0.0004]]))
     pressure = np.array(
@@ -96,7 +99,7 @@ def test_diagonal_uncertainity(osp_dir):
     latitude = 30.0
     stype = "OCEAN"
     r = OspDiagonalUncertainityReader.read_dir(
-        osp_dir / "Covariance" / "Covariance" / "DiagonalUncertainty"
+        osp_dir / "Covariance" / "Covariance" / "DiagonalUncertainty", InputFileHelper()
     )
     cmatrix = r.read_cov(StateElementIdentifier("TSUR"), stype, latitude)
     npt.assert_allclose(cmatrix, [[0.36]])
@@ -104,7 +107,8 @@ def test_diagonal_uncertainity(osp_dir):
 
 def test_species(osp_dir):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
+        InputFileHelper(),
     )
     t = r.read_file(
         StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
@@ -157,7 +161,8 @@ def test_osp_l2_setup_control_initial(osp_dir):
 
 def test_species_premade(osp_dir):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
+        InputFileHelper(),
     )
     cov = r.read_constraint_matrix(
         StateElementIdentifier("TATM"), RetrievalType("default"), 30
@@ -203,7 +208,8 @@ def test_species_premade(osp_dir):
 
 def test_species_h2o_hdo(osp_dir):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
+        InputFileHelper(),
     )
     # Test handling cross terms when we have both H2O and HDO.
     cov = r.read_constraint_matrix(
@@ -231,7 +237,8 @@ def test_species_h2o_hdo(osp_dir):
 
 def test_species_covariance(osp_dir):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
+        InputFileHelper(),
     )
     # Note that this returns a dummy identify matrix. See the comment in the code about
     # this

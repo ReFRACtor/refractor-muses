@@ -7,6 +7,7 @@ from refractor.muses import (
     RetrievalType,
     CurrentStrategyStepDict,
     StrategyStepIdentifier,
+    InputFileHelper,
 )
 import numpy as np
 import numpy.testing as npt
@@ -34,6 +35,7 @@ def test_osp_state_element(osp_dir, omi_test_in_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )
@@ -148,6 +150,7 @@ def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )
@@ -211,6 +214,7 @@ def test_osp_state_element_latitude(osp_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )
@@ -222,6 +226,7 @@ def test_osp_state_element_latitude(osp_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )
@@ -233,6 +238,7 @@ def test_osp_state_element_latitude(osp_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )
@@ -244,6 +250,7 @@ def test_osp_state_element_latitude(osp_dir):
         apriori_value,
         latitude,
         "LAND",
+        InputFileHelper(),
         species_directory,
         covariance_directory,
     )

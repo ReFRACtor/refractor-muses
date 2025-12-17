@@ -12,6 +12,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
+    from .input_file_helper import InputFileHelper
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .current_state import (
@@ -264,10 +265,13 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         self,
         state_element_1: StateElement,
         state_element_2: StateElement,
+        ifile_hlp: InputFileHelper,
         species_directory: Path,
     ) -> None:
         super().__init__(state_element_1, state_element_2)
-        self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
+        self.osp_species_reader = OspSpeciesReader.read_dir(
+            species_directory, ifile_hlp
+        )
         self.retrieval_type = RetrievalType("default")
         self._retrieve_both = False
         self._retrieve_first = False
@@ -388,6 +392,7 @@ class H2OCrossStateElementOspHandle(CrossStateElementHandle):
         res = H2OCrossStateElementOsp(
             state_element_1,
             state_element_2,
+            self.retrieval_config.input_file_helper,
             Path(self.retrieval_config["speciesDirectory"]),
         )
         if res is not None:

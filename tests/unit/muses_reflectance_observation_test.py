@@ -44,7 +44,9 @@ def test_create_muses_tropomi_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, rconfig.input_file_helper
+    )
     cs = CurrentStateDict(
         {
             "TROPOMISOLARSHIFTBAND3": 0.1,
@@ -61,7 +63,7 @@ def test_create_muses_tropomi_observation(
         cs,
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
@@ -99,7 +101,9 @@ def test_create_muses_omi_observation(
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, rconfig.input_file_helper
+    )
     cs = CurrentStateDict(
         {
             "OMINRADWAVUV1": 0.1,
@@ -119,7 +123,7 @@ def test_create_muses_omi_observation(
         cs,
         swin_dict[InstrumentIdentifier("OMI")],
         None,
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
         osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)

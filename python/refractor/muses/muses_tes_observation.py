@@ -24,7 +24,7 @@ from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
 
 
 class MusesTesObservation(MusesObservationImp):
@@ -319,7 +319,7 @@ class MusesTesObservation(MusesObservationImp):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> Self:
@@ -359,7 +359,9 @@ class MusesTesObservation(MusesObservationImp):
             func = mid["apodizationFunction"]
             if func == "NORTON_BEER":
                 strength = mid["NortonBeerApodizationStrength"]
-                sdef = TesFile(mid["defaultSpectralWindowsDefinitionFilename"], ifile_mon)
+                sdef = TesFile(
+                    mid["defaultSpectralWindowsDefinitionFilename"], ifile_hlp
+                )
                 maxopd = np.array(sdef.checked_table["MAXOPD"])
                 flt = np.array(sdef.checked_table["FILTER"])
                 spacing = np.array(sdef.checked_table["RET_FRQ_SPC"])

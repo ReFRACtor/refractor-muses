@@ -10,14 +10,14 @@ import scipy
 from scipy.io import readsav
 from .misc import greatcircle
 from .tes_file import TesFile
-from .input_file_monitor import InputFileMonitor
+from .input_file_helper import InputFileHelper
 from loguru import logger
 from typing import Any, cast, Iterator
 import typing
 
 if typing.TYPE_CHECKING:
     import netCDF4
-    
+
 # This is complicated enough that we have copied this over from muses-py, and edited things
 # to work with muses. We will probably just leave this in place, the code is pretty clean.
 # We rely on muses_py calls for the version 1 support. I don't think we'll run into this
@@ -93,7 +93,7 @@ def get_emis_dispatcher(
     i_year: int,
     i_month: int,
     freq: np.ndarray,
-    ifile_mon: InputFileMonitor | None,
+    ifile_hlp: InputFileHelper,
     osp_dir: Path,
     camel_coef_dir: str | os.PathLike[str] | None = None,
     camel_lab_dir: str | os.PathLike[str] | None = None,
@@ -179,12 +179,12 @@ def get_emis_dispatcher(
 
     if emis_type == UwisCamelOptions.V1_UWIS:
         native_emis = get_emis_uwis(
-            i_latitude, i_longitude, i_year, i_month, ifile_mon, osp_dir
+            i_latitude, i_longitude, i_year, i_month, ifile_hlp, osp_dir
         )  # need to update with altitude
     elif i_oceanFlag == 1:
         # The CAMEL databases do not include emissivity over ocean. This should be identical to how ocean/lake
         # emissivity is gotten in UWis (v1).
-        native_emis = get_water_emis(i_altitude, ifile_mon, osp_dir)
+        native_emis = get_water_emis(i_altitude, ifile_hlp, osp_dir)
     elif emis_type == UwisCamelOptions.V2_CAMEL:
         try:
             assert camel_lab_dir is not None
@@ -193,7 +193,11 @@ def get_emis_dispatcher(
                 camel_lab_dir, camel_coef_dir
             )
             native_emis = camel_interface.compute_emissivity_for_lat_lon(
-                tgt_lat=i_latitude, tgt_lon=i_longitude, year=i_year, month=i_month, ifile_mon=ifile_mon
+                tgt_lat=i_latitude,
+                tgt_lon=i_longitude,
+                year=i_year,
+                month=i_month,
+                ifile_hlp=ifile_hlp,
             )
         except CamelLandFlagError:
             logger.info(
@@ -204,7 +208,7 @@ def get_emis_dispatcher(
             # are probably also treating a land sounding as water, so which water type we use isn't the largest concern.
             # Some test cases (e.g. test_targets/cris/20160818_009_42_05_5) fail with a CAMEL search radius of 10, so we
             # need this fallback. -JLL
-            native_emis = get_water_emis(i_altitude, ifile_mon, osp_dir)
+            native_emis = get_water_emis(i_altitude, ifile_hlp, osp_dir)
 
     elif emis_type == UwisCamelOptions.V2_CAMEL_CLIM:
         try:
@@ -212,15 +216,18 @@ def get_emis_dispatcher(
             assert camel_coef_dir is not None
             camel_interface = CamelClimatologyHsr(camel_lab_dir, camel_coef_dir)
             native_emis = camel_interface.compute_emissivity_for_lat_lon(
-                tgt_lat=i_latitude, tgt_lon=i_longitude, year=i_year, month=i_month,
-                ifile_mon=ifile_mon,
+                tgt_lat=i_latitude,
+                tgt_lon=i_longitude,
+                year=i_year,
+                month=i_month,
+                ifile_hlp=ifile_hlp,
             )
         except CamelLandFlagError:
             logger.info(
                 f"Could not find CAMEL emissivity near lat = {i_latitude}, lon = {i_latitude}, defaulting to ocean emissivity"
             )
             # See note above in the V2_CAMEL except block.
-            native_emis = get_water_emis(i_altitude, ifile_mon, osp_dir)
+            native_emis = get_water_emis(i_altitude, ifile_hlp, osp_dir)
     else:
         raise NotImplementedError(
             f'Emissivity type "{emis_type.value}" has not been implemented'
@@ -610,12 +617,14 @@ class AbstractCamelHsr(ABC):
         """Return the path to a lab spec file for a given "version" """
         return self._lab_dir / f"pchsr_v{lab_version}.2.nc"
 
-    def _load_lab_spectra(self, lab_version: int, ifile_mon: InputFileMonitor | None) -> dict:
+    def _load_lab_spectra(self, lab_version: int, ifile_hlp: InputFileHelper) -> dict:
         """Load the lab spectra for a specific "version". Caches the data to be faster on subsequent calls."""
         if lab_version in self._lab_data:
             return self._lab_data[lab_version]
         else:
-            with InputFileMonitor.open_ncdf(self._lab_file(lab_version), ifile_mon) as ds:
+            with InputFileHelper.open_ncdf(
+                self._lab_file(lab_version), ifile_hlp
+            ) as ds:
                 self._lab_data[lab_version] = {
                     "eigenvectors": ds["Eigenvectors"][:],
                     "eigenvalues": ds["Eigenvalues"][:],
@@ -623,7 +632,9 @@ class AbstractCamelHsr(ABC):
 
             return self._lab_data[lab_version]
 
-    def _sum_eigens(self, lab_version: int, pc_coefficients: np.ndarray, ifile_mon : InputFileMonitor | None) -> np.ndarray:
+    def _sum_eigens(
+        self, lab_version: int, pc_coefficients: np.ndarray, ifile_hlp: InputFileHelper
+    ) -> np.ndarray:
         """Calculate the total HSR emissivity from the individual lab spectra eigenvectors
 
         Parameters
@@ -656,7 +667,7 @@ class AbstractCamelHsr(ABC):
         emis : np.ndarray
             The HSR emissivity on the native frequency grid of the HSR database.
         """
-        eigens = self._load_lab_spectra(lab_version, ifile_mon)
+        eigens = self._load_lab_spectra(lab_version, ifile_hlp)
 
         # Scale the eigenvectors by the coefficients, and add in the eigenvectors.
         # The tricky part is these are square matrices, so it's a little harder to confirm that
@@ -699,7 +710,7 @@ class AbstractCamelHsr(ABC):
 
     @abstractmethod
     def _compute_emissivity_from_pcs(
-            self, linear_index: int, year: int, month: int, ifile_mon: InputFileMonitor | None
+        self, linear_index: int, year: int, month: int, ifile_hlp: InputFileHelper
     ) -> np.ndarray:
         """
         Compute the HSR emissivities for a given grid cell
@@ -720,7 +731,13 @@ class AbstractCamelHsr(ABC):
 
     @abstractmethod
     def compute_emissivity_for_lat_lon(
-            self, tgt_lat: float, tgt_lon: float, year: int, month: int, ifile_mon : InputFileMonitor | None, **kwargs: Any
+        self,
+        tgt_lat: float,
+        tgt_lon: float,
+        year: int,
+        month: int,
+        ifile_hlp: InputFileHelper,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         pass
 
@@ -729,7 +746,7 @@ class AbstractCamelHsr(ABC):
         linear_index: int,
         year: int,
         month: int,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         spectral_index: str = "wavenumber",
     ) -> dict[str, Any]:
         """
@@ -771,7 +788,7 @@ class AbstractCamelHsr(ABC):
             allowed = f'"{wn_strs2}", "{wl_strs2}"'
             raise TypeError(f"Only allowed values for `spectral_index` are {allowed}")
 
-        y = self._compute_emissivity_from_pcs(linear_index, year, month, ifile_mon)
+        y = self._compute_emissivity_from_pcs(linear_index, year, month, ifile_hlp)
         return {index_name: x, "emissivity": y}
 
     def _emissivity_from_lat_lon_common(
@@ -781,7 +798,7 @@ class AbstractCamelHsr(ABC):
         year: int,
         month: int,
         index_trans: CamelIndexTransform,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         **kwargs: Any,
     ) -> dict[str, Any]:
         """
@@ -814,7 +831,7 @@ class AbstractCamelHsr(ABC):
 
         """
         lin_idx, tgt_dist = index_trans.get_linear_index_from_lat_lon(tgt_lat, tgt_lon)
-        emis = self.compute_emissivity(lin_idx, year, month, ifile_mon, **kwargs)
+        emis = self.compute_emissivity(lin_idx, year, month, ifile_hlp, **kwargs)
         emis["camel_offset_distance_km"] = tgt_dist
         return emis
 
@@ -862,9 +879,17 @@ class CamelTimeseriesHsr(AbstractCamelHsr):
         )
 
     def compute_emissivity_for_lat_lon(
-            self, tgt_lat: float, tgt_lon: float, year: int, month: int, ifile_mon: InputFileMonitor | None, **kwargs: Any
+        self,
+        tgt_lat: float,
+        tgt_lon: float,
+        year: int,
+        month: int,
+        ifile_hlp: InputFileHelper,
+        **kwargs: Any,
     ) -> dict[str, Any]:
-        with InputFileMonitor.open_ncdf(self.get_coef_file(year, month), ifile_mon) as coef_ds:
+        with InputFileHelper.open_ncdf(
+            self.get_coef_file(year, month), ifile_hlp
+        ) as coef_ds:
             index_transform = CamelIndexTransform(coef_ds, "camel_qflag")
 
         return self._emissivity_from_lat_lon_common(
@@ -873,19 +898,21 @@ class CamelTimeseriesHsr(AbstractCamelHsr):
             year=year,
             month=month,
             index_trans=index_transform,
-            ifile_mon=ifile_mon,
+            ifile_hlp=ifile_hlp,
             **kwargs,
         )
 
     def _compute_emissivity_from_pcs(
-            self, linear_index: int, year: int, month: int, ifile_mon: InputFileMonitor | None
+        self, linear_index: int, year: int, month: int, ifile_hlp: InputFileHelper
     ) -> np.ndarray:
-        with InputFileMonitor.open_ncdf(self.get_coef_file(year, month), ifile_mon) as coef_ds:
+        with InputFileHelper.open_ncdf(
+            self.get_coef_file(year, month), ifile_hlp
+        ) as coef_ds:
             npcs = coef_ds["pc_npcs"][linear_index].item()
             lab_version = coef_ds["pc_labvs"][linear_index].item()
             pc_coefs = coef_ds["pc_coefs"][linear_index, :npcs].filled(np.nan)
 
-        return self._sum_eigens(lab_version, pc_coefs, ifile_mon)
+        return self._sum_eigens(lab_version, pc_coefs, ifile_hlp)
 
 
 class CamelClimatologyHsr(AbstractCamelHsr):
@@ -910,9 +937,17 @@ class CamelClimatologyHsr(AbstractCamelHsr):
         return self._coef_dir / coef_file
 
     def compute_emissivity_for_lat_lon(
-            self, tgt_lat: float, tgt_lon: float, year: int, month: int, ifile_mon: InputFileMonitor | None, **kwargs: Any
+        self,
+        tgt_lat: float,
+        tgt_lon: float,
+        year: int,
+        month: int,
+        ifile_hlp: InputFileHelper,
+        **kwargs: Any,
     ) -> dict[str, Any]:
-        with InputFileMonitor.open_ncdf(self.get_coef_file(year, month), ifile_mon) as coef_ds:
+        with InputFileHelper.open_ncdf(
+            self.get_coef_file(year, month), ifile_hlp
+        ) as coef_ds:
             index_transform = CamelIndexTransform(coef_ds, "landflag")
 
         return self._emissivity_from_lat_lon_common(
@@ -921,15 +956,22 @@ class CamelClimatologyHsr(AbstractCamelHsr):
             year=year,
             month=month,
             index_trans=index_transform,
-            ifile_mon=ifile_mon,
+            ifile_hlp=ifile_hlp,
             **kwargs,
         )
 
     def _compute_emissivity_from_pcs(
-            self, linear_index: int, year: int, month: int, ifile_mon: InputFileMonitor | None, debug_info: dict | None = None
+        self,
+        linear_index: int,
+        year: int,
+        month: int,
+        ifile_hlp: InputFileHelper,
+        debug_info: dict | None = None,
     ) -> np.ndarray:
         total_emis: np.ndarray | None = None
-        with InputFileMonitor.open_ncdf(self.get_coef_file(year, month), ifile_mon) as coef_ds:
+        with InputFileHelper.open_ncdf(
+            self.get_coef_file(year, month), ifile_hlp
+        ) as coef_ds:
             # These are small and we need the whole array for each of them
             #
             # Unlike the timeseries CAMEL database, which only uses 1 set of lab eigenvectors
@@ -958,7 +1000,7 @@ class CamelClimatologyHsr(AbstractCamelHsr):
                 set_coefs = set_coefs.filled(0.0)
                 set_weight = coef_ds["pc_coef_weights"][linear_index, iset]
 
-                this_emis = self._sum_eigens(lab_version, set_coefs, ifile_mon)
+                this_emis = self._sum_eigens(lab_version, set_coefs, ifile_hlp)
                 if total_emis is None:
                     total_emis = set_weight * this_emis
                 else:
@@ -974,7 +1016,9 @@ class CamelClimatologyHsr(AbstractCamelHsr):
         return total_emis
 
 
-def get_water_emis(surfaceAltitude: float, ifile_mon : InputFileMonitor | None, osp_dir: Path) -> dict[str, Any]:
+def get_water_emis(
+    surfaceAltitude: float, ifile_hlp: InputFileHelper, osp_dir: Path
+) -> dict[str, Any]:
     tes_emis_dir = osp_dir / "EMIS/EMIS_UWIS"
     if surfaceAltitude > 0.2:
         # Assume we're looking at freshwater when the altitude is above 200 m
@@ -984,7 +1028,7 @@ def get_water_emis(surfaceAltitude: float, ifile_mon : InputFileMonitor | None, 
         emissivity_file = tes_emis_dir / "Emissivity_Ocean.asc"
         surface_type = "Ocean"
 
-    t = TesFile(emissivity_file, ifile_mon)
+    t = TesFile(emissivity_file, ifile_hlp)
     wavenumber = np.array(t.checked_table["Frequency"])
     emis = np.array(t.checked_table["Emissivity"])
 
@@ -1001,7 +1045,7 @@ def get_emis_uwis(
     lonin: float,
     year: int,
     month: int,
-    ifile_mon: InputFileMonitor | None,
+    ifile_hlp: InputFileHelper,
     osp_dir: Path,
     surfaceAltitude: None | np.ndarray = None,
     filenameSave: None | str = None,
@@ -1041,7 +1085,9 @@ def get_emis_uwis(
         year = 2007
 
     if filelats is None or filelons is None:
-        with InputFileMonitor.open_h5(tes_emis_dir / "global_emis_inf10_location_small.nc", ifile_mon) as f:
+        with InputFileHelper.open_h5(
+            tes_emis_dir / "global_emis_inf10_location_small.nc", ifile_hlp
+        ) as f:
             filelats = f["LAT"][:]
             filelons = f["LON"][:]
 
@@ -1124,21 +1170,23 @@ def get_emis_uwis(
         scale_factor_wvn = 1.0
         scale_factor_emis = 1.0
 
-        wavenumber0, o_variable_attributes_dict = nc_read_variable(ncfile, "wavenumber", ifile_mon)
+        wavenumber0, o_variable_attributes_dict = nc_read_variable(
+            ncfile, "wavenumber", ifile_hlp
+        )
         scale_factor_wvn = o_variable_attributes_dict["scale_factor"]
 
-        emis0, o_variable_attributes_dict = nc_read_variable(ncfile, "emis1", ifile_mon)
+        emis0, o_variable_attributes_dict = nc_read_variable(ncfile, "emis1", ifile_hlp)
         scale_factor_emis = o_variable_attributes_dict["scale_factor"]
 
-        emis1, _ = nc_read_variable(ncfile, "emis2", ifile_mon)
-        emis2, _ = nc_read_variable(ncfile, "emis3", ifile_mon)
-        emis3, _ = nc_read_variable(ncfile, "emis4", ifile_mon)
-        emis4, _ = nc_read_variable(ncfile, "emis5", ifile_mon)
-        emis5, _ = nc_read_variable(ncfile, "emis6", ifile_mon)
-        emis6, _ = nc_read_variable(ncfile, "emis7", ifile_mon)
-        emis7, _ = nc_read_variable(ncfile, "emis8", ifile_mon)
-        emis8, _ = nc_read_variable(ncfile, "emis9", ifile_mon)
-        emis9, _ = nc_read_variable(ncfile, "emis10", ifile_mon)
+        emis1, _ = nc_read_variable(ncfile, "emis2", ifile_hlp)
+        emis2, _ = nc_read_variable(ncfile, "emis3", ifile_hlp)
+        emis3, _ = nc_read_variable(ncfile, "emis4", ifile_hlp)
+        emis4, _ = nc_read_variable(ncfile, "emis5", ifile_hlp)
+        emis5, _ = nc_read_variable(ncfile, "emis6", ifile_hlp)
+        emis6, _ = nc_read_variable(ncfile, "emis7", ifile_hlp)
+        emis7, _ = nc_read_variable(ncfile, "emis8", ifile_hlp)
+        emis8, _ = nc_read_variable(ncfile, "emis9", ifile_hlp)
+        emis9, _ = nc_read_variable(ncfile, "emis10", ifile_hlp)
 
         # Apply the scale factor to all applicable arrays.
         wavenumber0 = wavenumber0 * scale_factor_wvn
@@ -1305,7 +1353,7 @@ def get_emis_uwis(
                 watertype = "Lake"
 
                 # fresh water
-                t = TesFile(tes_emis_dir / "Emissivity_Lake.asc", ifile_mon)
+                t = TesFile(tes_emis_dir / "Emissivity_Lake.asc", ifile_hlp)
 
                 wavenumber = np.asarray(t.checked_table["Frequency"])
                 emis = np.asarray(t.checked_table["Emissivity"])
@@ -1324,9 +1372,8 @@ def get_emis_uwis(
                 result = waterresult
             else:
                 # ocean
-                if ifile_mon is not None:
-                    ifile_mon.notify_file_input(tes_emis_dir / "Emissivity_Lake.asc")
-                t = TesFile(tes_emis_dir / "Emissivity_Ocean.asc", ifile_mon)
+                ifile_hlp.notify_file_input(tes_emis_dir / "Emissivity_Lake.asc")
+                t = TesFile(tes_emis_dir / "Emissivity_Ocean.asc", ifile_hlp)
 
                 wavenumber = np.asarray(t.checked_table["Frequency"])
                 emis = np.asarray(t.checked_table["Emissivity"])
@@ -1359,7 +1406,7 @@ def get_emis_uwis(
             lonin,
             2007,
             month,
-            ifile_mon,
+            ifile_hlp,
             osp_dir,
             surfaceAltitude,
             filenameSave,
@@ -1376,7 +1423,7 @@ def get_emis_uwis(
             lonin,
             2007,
             month,
-            ifile_mon,
+            ifile_hlp,
             osp_dir,
             surfaceAltitude,
             filenameSave,
@@ -1405,11 +1452,11 @@ def _bilinear(
 
 
 def nc_read_variable(
-        i_filename: str, i_variable_name: str, ifile_mon: InputFileMonitor | None
+    i_filename: str, i_variable_name: str, ifile_hlp: InputFileHelper
 ) -> tuple[np.ndarray, dict[str, Any]]:
     # Read a specific variable into memory and returned the variable along with any variable attributes.
     try:
-        nci = InputFileMonitor.open_ncdf(Path(i_filename).resolve(), ifile_mon)
+        nci = InputFileHelper.open_ncdf(Path(i_filename).resolve(), ifile_hlp)
         nci.set_auto_maskandscale(False)
 
         o_variable_attributes_dict = nci[i_variable_name].__dict__

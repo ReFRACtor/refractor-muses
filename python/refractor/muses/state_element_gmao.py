@@ -173,7 +173,7 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         # surface pressure from gmao
         fatm = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc",
-            retrieval_config.input_file_monitor
+            retrieval_config.input_file_helper,
         )
         pressure0 = np.array(fatm.checked_table["Pressure"])
         gmao_dir = (
@@ -183,7 +183,9 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         )
         if sounding_metadata is None:
             return None
-        gmao = GmaoReader(sounding_metadata, gmao_dir, retrieval_config.input_file_monitor)
+        gmao = GmaoReader(
+            sounding_metadata, gmao_dir, retrieval_config.input_file_helper
+        )
         # TODO Verify that this calculation is correct. It matches what muses-py does,
         # but the height of zero instead of sounding_metadata.surface_altitude.value looks
         # a little suspicious
@@ -210,6 +212,7 @@ class StateElementFromGmaoPressure(StateElementOspFile):
             pressure,
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
+            retrieval_config.input_file_helper,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
@@ -295,8 +298,12 @@ class StateElementFromGmaoPsur(StateElementOspFile):
         )
         if sounding_metadata is None:
             return None
-        gmao = GmaoReader(sounding_metadata, gmao_dir, retrieval_config.input_file_monitor,
-                          pressure_in=p.value_fm)
+        gmao = GmaoReader(
+            sounding_metadata,
+            gmao_dir,
+            retrieval_config.input_file_helper,
+            pressure_in=p.value_fm,
+        )
 
         return cls(
             StateElementIdentifier("PSUR"),
@@ -313,6 +320,7 @@ class StateElementFromGmaoPsur(StateElementOspFile):
             ).view(FullGridMappedArray),
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
+            retrieval_config.input_file_helper,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,

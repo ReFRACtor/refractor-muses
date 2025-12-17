@@ -66,7 +66,9 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
         osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, rconfig.input_file_monitor)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, rconfig.input_file_helper
+    )
     cs = CurrentStateDict(
         {
             "TROPOMISOLARSHIFTBAND3": 0.1,
@@ -83,7 +85,7 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
         cs,
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
         osp_dir=osp_dir,
     )
     rad = [

@@ -8,7 +8,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     FilterIdentifier,
     StateElementIdentifier,
-    InputFileMonitor,
+    InputFileHelper,
 )
 import refractor.framework as rf  # type: ignore
 import os
@@ -198,7 +198,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
                 eof_path = "/eign_vector"
                 eof_index_path = "/Index"
-                with InputFileMonitor.open_ncdf(eof_fname, self.ifile_mon) as eof_ds:
+                with InputFileHelper.open_ncdf(eof_fname, self.ifile_hlp) as eof_ds:
                     eofs = eof_ds[eof_path][:]
                     pixel_indexes = eof_ds[eof_index_path][:]
 
@@ -253,7 +253,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         """We read a 3 year average solar file HDF file for omi. This
         duplicates what mpy.read_omi does, which is then stored in the pickle
         file that solar_model uses."""
-        f = InputFileMonitor.open_h5(self.retrieval_config["omiSolarReference"], self.ifile_mon)
+        f = InputFileHelper.open_h5(
+            self.retrieval_config["omiSolarReference"], self.ifile_hlp
+        )
         res = []
         for i in range(self.num_channels):
             ind = self.observation.across_track[i]
@@ -463,8 +465,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 raise RuntimeError(f"File not found: {fn}")
 
             # get freq index
-            if self.ifile_mon is not None:
-                self.ifile_mon.notify_file_input(fn)
+            self.ifile_hlp.notify_file_input(fn)
             temp_XCF0 = _omi_ils_read_variable(fn, "XCF0")
             tempind = np.where(
                 abs(temp_XCF0 - tempfreq) == np.amin(abs(temp_XCF0 - tempfreq))
@@ -938,7 +939,9 @@ class OmiForwardModelHandle(ForwardModelHandle):
         self.measurement_id: None | MeasurementId = None
         self.retrieval_config: None | RetrievalConfiguration = None
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -974,7 +977,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
 @cache
 def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray:
     # We catch this file at a higher level
-    with InputFileMonitor.open_h5(i_filename, None) as f:
+    with InputFileHelper.open_h5(i_filename, None) as f:
         return f[i_variable_name][:]
 
 

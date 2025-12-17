@@ -110,7 +110,9 @@ def test_refractor_fm_refractor(
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
-    r = RefractorOmiFm(obs, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False)
+    r = RefractorOmiFm(
+        obs, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False
+    )
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
@@ -163,7 +165,12 @@ def test_refractor_detailed_fm_refractor(
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorOmiFm(
-        omi_obs_step_2, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False
+        omi_obs_step_2,
+        mid,
+        rconf,
+        use_pca=False,
+        use_lrad=False,
+        lrad_second_order=False,
     )
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(

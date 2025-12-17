@@ -12,7 +12,8 @@ from typing import Iterator, Any, Self
 from loguru import logger
 
 if typing.TYPE_CHECKING:
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
+
 
 class TesFile(collections.abc.Mapping):
     """There are a number of files that are in the "TES File"
@@ -30,7 +31,12 @@ class TesFile(collections.abc.Mapping):
     table content
     """
 
-    def __init__(self, fname: str | os.PathLike[str], ifile_mon : InputFileMonitor | None, use_mpy: bool = False) -> None:
+    def __init__(
+        self,
+        fname: str | os.PathLike[str],
+        ifile_hlp: InputFileHelper | None,
+        use_mpy: bool = False,
+    ) -> None:
         """Open the given file, and read the keyword/value pairs plus
         the (possibly empty) table.
 
@@ -48,8 +54,8 @@ class TesFile(collections.abc.Mapping):
         # on
         if False:
             logger.debug(f"Reading file {self.file_name}")
-        if ifile_mon is not None:
-            ifile_mon.notify_file_input(self.file_name)
+        if ifile_hlp is not None:
+            ifile_hlp.notify_file_input(self.file_name)
         if use_mpy:
             _, d = mpy_read_all_tes(str(fname))
             self.mpy_d = d
@@ -172,10 +178,13 @@ class TesFile(collections.abc.Mapping):
         return cls(fname, None)
 
     @classmethod
-    def create(cls, fname: str | os.PathLike[str], ifile_mon : InputFileMonitor | None) -> Self:
-        if ifile_mon is not None:
-            ifile_mon.notify_file_input(Path(fname))
+    def create(
+        cls, fname: str | os.PathLike[str], ifile_hlp: InputFileHelper | None
+    ) -> Self:
+        if ifile_hlp is not None:
+            ifile_hlp.notify_file_input(Path(fname))
         return cls._create(fname)
+
 
 __all__ = [
     "TesFile",

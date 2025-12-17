@@ -21,7 +21,9 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -140,14 +142,16 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         self.filter_metadata: None | FilterMetadata = None
         self.retrieval_config: None | RetrievalConfiguration = None
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.retrieval_config = retrieval_config
         self.filter_metadata = FileFilterMetadata(
             measurement_id["defaultSpectralWindowsDefinitionFilename"],
-            retrieval_config.input_file_monitor    
+            retrieval_config.input_file_helper,
         )
 
     def spectral_window_dict(
@@ -166,7 +170,10 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"
         )
         return MusesSpectralWindow.create_dict_from_file(
-            fname, self.retrieval_config.input_file_monitor, filter_list_all_dict, self.filter_metadata
+            fname,
+            self.retrieval_config.input_file_helper,
+            filter_list_all_dict,
+            self.filter_metadata,
         )
 
 

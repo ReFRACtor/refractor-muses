@@ -32,7 +32,9 @@ def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_
         tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, rconfig.input_file_monitor, osp_dir=osp_dir)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+    )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -51,7 +53,7 @@ def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(strat.instrument_name[0], None, None, None),
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     sinfo = StateInfo()
     sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
@@ -80,7 +82,7 @@ def tropomi_swir_shandle(
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_monitor, osp_dir=josh_osp_dir
+        tfilename, rconfig.input_file_helper, osp_dir=josh_osp_dir
     )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
@@ -98,7 +100,7 @@ def tropomi_swir_shandle(
             None,
             None,  # osp_dir=josh_osp_dir
         ),
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     sinfo = StateInfo()
     sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
@@ -124,7 +126,9 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
         tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, rconfig.input_file_monitor, osp_dir=osp_dir)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+    )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -148,7 +152,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
             None,
             None,
         ),
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     sinfo = StateInfo()
     sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
@@ -174,7 +178,9 @@ def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
         tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, rconfig.input_file_monitor, osp_dir=osp_dir)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+    )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -193,7 +199,7 @@ def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
             None,
             None,
         ),
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     sinfo = StateInfo()
     sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)

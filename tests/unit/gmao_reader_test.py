@@ -1,4 +1,4 @@
-from refractor.muses import GmaoReader
+from refractor.muses import GmaoReader, InputFileHelper
 
 
 def test_read_gmao(gmao_dir):
@@ -13,5 +13,5 @@ def test_gmao(airs_omi_shandle, gmao_dir):
     # it isn't worth making a new fixture. So just use this here
     # for testing, even if we ignore most of it
     _, _, _, _, smeta, _ = airs_omi_shandle
-    res = GmaoReader(smeta, gmao_dir, None)
+    res = GmaoReader(smeta, gmao_dir, InputFileHelper())
     assert res is not None

@@ -104,7 +104,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.current_state = current_state
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
-        self.ifile_mon = retrieval_config.input_file_monitor
+        self.ifile_hlp = retrieval_config.input_file_helper
 
         # Depending on when the StateVector is created, the
         # observation may or may not have been added. Note it is safe
@@ -533,7 +533,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.absorber_vmr,
             self.observation,
             ils_params_list,
-            self.ifile_mon,
+            self.ifile_hlp,
             self.osp_dir,
         )
 

@@ -17,6 +17,7 @@ from typing import Self, Any, NamedTuple
 if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
+    from .input_file_helper import InputFileHelper
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
@@ -69,6 +70,7 @@ class StateElementOspFile(StateElementWithCreate):
         constraint_vector_fm: FullGridMappedArray,
         latitude: float,
         surface_type: str,
+        ifile_hlp: InputFileHelper,
         species_directory: Path,
         covariance_directory: Path,
         spectral_domain: rf.SpectralDomain | None = None,
@@ -90,20 +92,22 @@ class StateElementOspFile(StateElementWithCreate):
             constraint_vector_fm = None
         self._map_type: str | None = None
         self._surf_type: str | None = None
+        self.ifile_hlp = ifile_hlp
         self.osp_species_reader: OspSpeciesReader = OspSpeciesReader.read_dir(
-            species_directory
+            species_directory, ifile_hlp
         )
         self.cov_is_constraint = cov_is_constraint
         self.diag_cov = diag_cov
         if not self.cov_is_constraint:
             self.osp_cov_reader = OspCovarianceMatrixReader.read_dir(
-                covariance_directory
+                covariance_directory, ifile_hlp
             )
         if self.diag_cov:
             self.osp_diag_reader = OspDiagonalUncertainityReader.read_dir(
                 diag_directory
                 if diag_directory is not None
-                else covariance_directory / "DiagonalUncertainty"
+                else covariance_directory / "DiagonalUncertainty",
+                ifile_hlp,
             )
         self.latitude = latitude
         self.surface_type = surface_type
@@ -377,6 +381,7 @@ class StateElementOspFile(StateElementWithCreate):
             else sret.value_fm,
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
+            retrieval_config.input_file_helper,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,

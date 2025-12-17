@@ -132,7 +132,7 @@ class MeasurementIdFile(MeasurementId):
     ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
-        self._p = TesFile(self.fname, retrieval_config.input_file_monitor)
+        self._p = TesFile(self.fname, retrieval_config.input_file_helper)
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
 
@@ -783,7 +783,9 @@ class SimulatedObservationHandle(ObservationHandle):
         self.instrument_name = instrument_name
         self.obs = obs
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
 
@@ -833,7 +835,9 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.existing_obs = None
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         # Need to read new data when the target changes
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
@@ -859,7 +863,7 @@ class MusesObservationHandle(ObservationHandle):
             current_state,
             spec_win,
             fm_sv,
-            self.retrieval_config.input_file_monitor,
+            self.retrieval_config.input_file_helper,
             osp_dir=self.measurement_id.osp_abs_dir,
             **kwargs,
         )
@@ -877,7 +881,9 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
     then the next time a observation gets read in a unit test we can read the pickle
     file."""
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
         pname = measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
         if pname.exists():

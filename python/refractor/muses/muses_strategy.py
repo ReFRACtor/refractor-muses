@@ -28,7 +28,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -282,7 +282,9 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     between calls, see CreatorHandle for a discussion of this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -292,7 +294,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -313,14 +315,14 @@ class MusesStrategyHandleSet(CreatorHandleSet):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
         return self.handle(
-            measurement_id, ifile_mon, osp_dir, spectral_window_handle_set, **kwargs
+            measurement_id, ifile_hlp, osp_dir, spectral_window_handle_set, **kwargs
         )
 
 
@@ -342,7 +344,9 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -568,16 +572,20 @@ class MusesStrategyImp(MusesStrategy):
         """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
         return self._spectral_window_handle_set
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         self._measurement_id = measurement_id
-        self.spectral_window_handle_set.notify_update_target(self.measurement_id, retrieval_config)
+        self.spectral_window_handle_set.notify_update_target(
+            self.measurement_id, retrieval_config
+        )
 
 
 class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -586,7 +594,10 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         return MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc", ifile_mon, osp_dir, spectral_window_handle_set
+            measurement_id["run_dir"] / "Table.asc",
+            ifile_hlp,
+            osp_dir,
+            spectral_window_handle_set,
         )
 
 
@@ -625,13 +636,13 @@ class MusesStrategyStepList(MusesStrategyImp):
     def create_from_strategy_file(
         cls,
         filename: str | os.PathLike[str],
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(spectral_window_handle_set)
-        fin = TesFile(filename, ifile_mon)
+        fin = TesFile(filename, ifile_hlp)
         i2 = -1
         for i, row in fin.checked_table.iterrows():
             i2 += 1
@@ -821,7 +832,9 @@ class MusesStrategyStepList(MusesStrategyImp):
             return []
         return [StateElementIdentifier(i) for i in r]
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
         filter_list_dict_t: dict[
             InstrumentIdentifier, dict[FilterIdentifier, float]
@@ -891,7 +904,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
@@ -900,7 +913,10 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         s = MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc", ifile_mon, osp_dir, spectral_window_handle_set
+            measurement_id["run_dir"] / "Table.asc",
+            ifile_hlp,
+            osp_dir,
+            spectral_window_handle_set,
         )
         s.current_strategy_list[
             self.step_number

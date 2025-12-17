@@ -22,7 +22,7 @@ from .mpy import (
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
 
 
 class MusesSpectralWindow(rf.SpectralWindow):
@@ -334,14 +334,15 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
     @classmethod
     def filter_list_dict_from_file(
-            cls, spec_fname: str | os.PathLike[str],
-            ifile_mon: InputFileMonitor | None,
+        cls,
+        spec_fname: str | os.PathLike[str],
+        ifile_hlp: InputFileHelper,
     ) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """Return a dictionary going from instrument name to the list
         of filters for that given instrument.
 
         """
-        fspec = TesFile.create(spec_fname, ifile_mon)
+        fspec = TesFile.create(spec_fname, ifile_hlp)
         res = {}
         for iname in [
             InstrumentIdentifier(i)
@@ -350,9 +351,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
             res[iname] = [
                 FilterIdentifier(i)
                 for i in dict.fromkeys(
-                    fspec.checked_table[fspec.checked_table["Instrument"] == str(iname)][
-                        "Filter"
-                    ].to_list()
+                    fspec.checked_table[
+                        fspec.checked_table["Instrument"] == str(iname)
+                    ]["Filter"].to_list()
                 )
             ]
         return res
@@ -361,7 +362,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def create_dict_from_file(
         cls,
         spec_fname: str | os.PathLike[str],
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]]
         | None = None,
         filter_metadata: FilterMetadata | None = None,
@@ -373,7 +374,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
         """
         res = {}
-        for iname in cls.filter_list_dict_from_file(spec_fname, ifile_mon).keys():
+        for iname in cls.filter_list_dict_from_file(spec_fname, ifile_hlp).keys():
             # TODO - Remove this. we should have AIRS and CRIS changed
             # to act like our other observation classes and have a different
             # sensor index for each filter, so we don't need
@@ -385,7 +386,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
             res[iname] = cls.create_from_file(
                 spec_fname,
                 iname,
-                ifile_mon,
+                ifile_hlp,
                 filter_list_all=filter_list_dict[iname]
                 if filter_list_dict is not None
                 else None,
@@ -399,7 +400,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         cls,
         spec_fname: str | os.PathLike[str],
         instrument_name: InstrumentIdentifier,
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         filter_list_all: list[FilterIdentifier] | None = None,
         filter_metadata: FilterMetadata | None = None,
         different_filter_different_sensor_index: bool = True,
@@ -424,8 +425,10 @@ class MusesSpectralWindow(rf.SpectralWindow):
         MeasurementId.
 
         """
-        fspec = TesFile.create(spec_fname, ifile_mon)
-        rowlist = fspec.checked_table[fspec.checked_table["Instrument"] == str(instrument_name)]
+        fspec = TesFile.create(spec_fname, ifile_hlp)
+        rowlist = fspec.checked_table[
+            fspec.checked_table["Instrument"] == str(instrument_name)
+        ]
 
         flist = list(dict.fromkeys(rowlist["Filter"].to_list()))
         # I think it is ok to have this always True, but leave this knob in

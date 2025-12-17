@@ -299,13 +299,13 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self._strategy: MusesStrategy | None = None
 
     def notify_update_target(
-            self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
     ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
         # TODO Replace osp_dir here
         self._strategy = self.muses_strategy_handle_set.muses_strategy(
             measurement_id,
-            retrieval_config.input_file_monitor,
+            retrieval_config.input_file_helper,
             osp_dir=retrieval_config.osp_abs_dir,
             spectral_window_handle_set=self.spectral_window_handle_set,
         )
@@ -345,7 +345,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
-        if(self.retrieval_config is None):
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_retrieval(
             self.current_strategy_step, self.retrieval_config
@@ -353,7 +353,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def notify_start_step(self, skip_initial_guess_update: bool = False) -> None:
         """Called to notify other object that we are on a new retrieval step."""
-        if(self.retrieval_config is None):
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_step(
             self.current_strategy_step,
@@ -482,7 +482,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         Take a look at the capture_data_test.py examples for how to
         save this data
         """
-        if(self.retrieval_config is None):
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target before this function")
         rplay = CurrentStateRecordAndPlay(current_state_replay_file)
         # Note we go to the end of the previous step. We then are ready

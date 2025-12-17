@@ -3,7 +3,7 @@ import numpy as np
 import math
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
-from .input_file_monitor import InputFileMonitor
+from .input_file_helper import InputFileHelper
 import os
 import scipy
 from functools import cache
@@ -32,13 +32,13 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         absorber_vmr: rf.AbsorberVmr,
         obs: MusesObservation,
         ils_params_list: list[dict],
-        ifile_mon: InputFileMonitor | None,
+        ifile_hlp: InputFileHelper,
         osp_dir: str | os.PathLike[str],
     ) -> None:
         """Creator"""
         # Dummy since we are overwriting the optical_depth function
         self.osp_dir = Path(osp_dir)
-        self.ifile_mon = ifile_mon
+        self.ifile_hlp = ifile_hlp
         self.obs = obs
         self.ils_params_list = ils_params_list
         xsec_tables = []
@@ -157,8 +157,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         i_o3_col: np.ndarray,
     ) -> dict[str, Any]:
         fn = self.osp_dir / "TROPOMI/Ozone_Xsec/serdyuchenkoo3temp.dat"
-        if self.ifile_mon is not None:
-            self.ifile_mon.notify_file_input(fn)
+        self.ifile_hlp.notify_file_input(fn)
         (c0, c1, c2, temp_wav_all) = _tropomi_o3xsec(fn)
 
         start_freq = np.amin(i_tropomifreq[i_tropomifreqIndex]) - np.float64(1.0)
@@ -273,11 +272,10 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         i_TATM: np.ndarray,
         i_omifreq: np.ndarray,
         i_omifreqIndex: np.ndarray,
-        i_o3_col: np.ndarray
+        i_o3_col: np.ndarray,
     ) -> dict[str, Any]:
         fn = self.osp_dir / "OMI/Ozone_Xsec/o3abs_brion_195_660_vacfinal.h5"
-        if self.ifile_mon is not None:
-            self.ifile_mon.notify_file_input(fn)
+        self.ifile_hlp.notify_file_input(fn)
         c0, c1, c2, temp_wav_all = _omi_o3xsec(fn)
 
         start_freq = np.amin(
@@ -413,7 +411,7 @@ def _tropomi_o3xsec(fn: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.nd
 @cache
 def _omi_o3xsec(fn: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # We catch this file at a higher level
-    with InputFileMonitor.open_h5(fn, None) as f:
+    with InputFileHelper.open_h5(fn, None) as f:
         wav = f["WAV_ALL"][:]
         c0 = f["C0_ALL"][:]
         c1 = f["C1_ALL"][:]

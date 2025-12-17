@@ -53,7 +53,7 @@ def test_read_climatology_2022(airs_omi_shandle, unit_test_expected_dir):
         False,
         Path(rconfig.osp_dir) / "Climatology/Climatology_files",
         smeta,
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     vmr_prior, type_name = StateElementFromClimatology.read_climatology_2022(
         StateElementIdentifier("PAN"),
@@ -61,7 +61,7 @@ def test_read_climatology_2022(airs_omi_shandle, unit_test_expected_dir):
         True,
         Path(rconfig.osp_dir) / "Climatology/Climatology_files",
         smeta,
-        rconfig.input_file_monitor,
+        rconfig.input_file_helper,
     )
     npt.assert_allclose(panvmr.value_fm, vmr)
     npt.assert_allclose(panvmr.constraint_vector_fm, vmr_prior)

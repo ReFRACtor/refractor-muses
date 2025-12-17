@@ -33,7 +33,11 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
     Use a ReFRACtor ForwardModel as a replacement for omi_fm."""
 
     def __init__(
-            self, obs: MusesObservation, measurement_id: MeasurementId, rconfig: RetrievalConfiguration, **kwargs: dict
+        self,
+        obs: MusesObservation,
+        measurement_id: MeasurementId,
+        rconfig: RetrievalConfiguration,
+        **kwargs: dict,
     ) -> None:
         super().__init__(func_name="omi_fm", **kwargs)
         self._obs = obs

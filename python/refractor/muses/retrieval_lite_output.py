@@ -13,7 +13,8 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
+
 
 class CdfWriteLiteTes:
     """Logically this fits into CdfWriteTes, but that class is already getting
@@ -35,7 +36,7 @@ class CdfWriteLiteTes:
         data1: dict[str, Any],
         data2: dict[str, Any] | None,
         dataAnc: dict[str, Any],
-        ifile_mon: InputFileMonitor | None        
+        ifile_hlp: InputFileHelper,
     ) -> tuple[dict, list[float]]:
         if species_name == "RH":
             # Special case, relative humidity isn't something we retrieve
@@ -56,7 +57,7 @@ class CdfWriteLiteTes:
             lite_directory
             / f"RetrievalLevels/Retrieval_Levels_Nadir_{'Linear' if linear else 'Log'}_{species_name.upper()}"
         )
-        fh = TesFile.create(level_filename, ifile_mon)
+        fh = TesFile.create(level_filename, ifile_hlp)
         found = False
         for k in ("level", "Level", "LEVEL"):
             if k in fh.checked_table:
@@ -66,7 +67,7 @@ class CdfWriteLiteTes:
             raise RuntimeError(f"Trouble reading file {level_filename}")
 
         pressure_filename = lite_directory / "TES_baseline_66.asc"
-        fh = TesFile.create(pressure_filename, ifile_mon)
+        fh = TesFile.create(pressure_filename, ifile_hlp)
         found = False
         for k in ("pressure", "Pressure", "PRESSURE"):
             if k in fh.checked_table:

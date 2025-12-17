@@ -118,7 +118,10 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             cstate.set_brightness_temperature_data(step, btdata)
             return
 
-        cfile = TesFile(retrieval_config["CloudParameterFilename"], retrieval_config.input_file_monitor)
+        cfile = TesFile(
+            retrieval_config["CloudParameterFilename"],
+            retrieval_config.input_file_helper,
+        )
         BTLow = np.array(cfile.checked_table["BT_low"])
         BTHigh = np.array(cfile.checked_table["BT_high"])
         # This is either 0 (for don't update) or 1 (for update)

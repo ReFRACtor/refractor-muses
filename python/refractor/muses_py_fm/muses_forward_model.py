@@ -847,7 +847,9 @@ class MusesForwardModelHandle(ForwardModelHandle):
         self.measurement_id: MeasurementId | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
 
-    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id

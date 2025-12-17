@@ -64,7 +64,7 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
         [
             obj_creator.ils_params(0),
         ],
-        obj_creator.retrieval_config.input_file_monitor,
+        obj_creator.retrieval_config.input_file_helper,
         osp_dir,
     )
 

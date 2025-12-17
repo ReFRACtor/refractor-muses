@@ -6,7 +6,8 @@ from pathlib import Path
 import typing
 
 if typing.TYPE_CHECKING:
-    from .input_file_monitor import InputFileMonitor
+    from .input_file_helper import InputFileHelper
+
 
 class FilterMetadata(object, metaclass=abc.ABCMeta):
     """muses-py code has additional metadata associated with each
@@ -63,7 +64,7 @@ class FileFilterMetadata(FilterMetadata):
 
     """
 
-    def __init__(self, filename: str | os.PathLike[str], ifile_mon: InputFileMonitor | None):
+    def __init__(self, filename: str | os.PathLike[str], ifile_mon: InputFileHelper):
         self.filename = Path(filename)
         f = TesFile.create(filename, ifile_mon)
         self.metadata = {}
