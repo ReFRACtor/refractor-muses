@@ -8,12 +8,12 @@ from refractor.muses import (
 from refractor.osr_ml import read_l1b, features_l1b, prediction
 
 
-def test_cris_co_ml(cris_test_in_dir, cris_ml_dir, isolated_dir, osp_dir, gmao_dir):
+def test_cris_co_ml(cris_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
     """Basic test of using machine learning to predict CO. This is pulled from the
     troppy notebook https://github-fn.jpl.nasa.gov/fwerner/troppy/blob/main/troppy/notebooks/ml/CRIS/CO/09_cris_ml_predict_noprior_keras.ipynb"""
-    r = MusesRunDir(cris_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(cris_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     filter_list_dict = {
         InstrumentIdentifier("CRIS"): [

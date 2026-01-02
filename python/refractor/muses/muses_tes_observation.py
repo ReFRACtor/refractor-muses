@@ -7,7 +7,6 @@ from .muses_observation import (
     MeasurementId,
 )
 from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
-from .tes_file import TesFile
 from .mpy import (
     mpy_read_tes_l1b,
     mpy_radiance_apodize,
@@ -66,12 +65,12 @@ class MusesTesObservation(MusesObservationImp):
         sequence: int,
         scan: int,
         filter_list: list[str],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         windows = []
         for cname in filter_list:
             windows.append({"filter": cname})
-        o_tes = cls.read_tes(filename, l1b_index, l1b_avgflag, windows, osp_dir)
+        o_tes = cls.read_tes(filename, l1b_index, l1b_avgflag, windows, ifile_hlp)
         bangle = rf.DoubleWithUnit(o_tes["boresightNadirRadians"], "rad")
         sdesc = {
             "TES_RUN": np.int16(run),
@@ -88,7 +87,7 @@ class MusesTesObservation(MusesObservationImp):
         l1b_index: list[int],
         l1b_avgflag: int,
         windows: list[dict[str, Any]],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
         i_fileid = {}
         i_fileid["preferences"] = {
@@ -96,7 +95,7 @@ class MusesTesObservation(MusesObservationImp):
             "TES_filename_L1B_Index": l1b_index,
             "TES_L1B_Average_Flag": l1b_avgflag,
         }
-        with osp_setup(osp_dir):
+        with osp_setup(ifile_hlp):
             o_tes = mpy_read_tes_l1b(i_fileid, windows)
         return o_tes
 
@@ -288,7 +287,7 @@ class MusesTesObservation(MusesObservationImp):
         sequence: int,
         scan: int,
         filter_list: list[str],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> Self:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -307,7 +306,7 @@ class MusesTesObservation(MusesObservationImp):
             sequence,
             scan,
             [str(i) for i in filter_list],
-            osp_dir=osp_dir,
+            ifile_hlp=ifile_hlp,
         )
         return cls(o_tes, sdesc)
 
@@ -320,7 +319,6 @@ class MusesTesObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> Self:
         """Create from a MeasurementId. If this depends on any state
@@ -354,13 +352,13 @@ class MusesTesObservation(MusesObservationImp):
                 sequence,
                 scan,
                 [str(i) for i in filter_list],
-                osp_dir=osp_dir,
+                ifile_hlp=ifile_hlp,
             )
             func = mid["apodizationFunction"]
             if func == "NORTON_BEER":
                 strength = mid["NortonBeerApodizationStrength"]
-                sdef = TesFile(
-                    mid["defaultSpectralWindowsDefinitionFilename"], ifile_hlp
+                sdef = ifile_hlp.open_tes(
+                    mid["defaultSpectralWindowsDefinitionFilename"]
                 )
                 maxopd = np.array(sdef.checked_table["MAXOPD"])
                 flt = np.array(sdef.checked_table["FILTER"])

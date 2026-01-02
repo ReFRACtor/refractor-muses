@@ -4,7 +4,6 @@ import os
 import re
 import copy
 from .input_file_helper import InputFileHelper
-from .tes_file import TesFile
 from pathlib import Path
 from typing import Any, Self, Iterator
 
@@ -44,8 +43,6 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     def __init__(
         self,
         base_dir: str | os.PathLike[str] = ".",
-        osp_dir: str | os.PathLike[str] | None = None,
-        gmao_dir: str | os.PathLike[str] | None = None,
         ifile_hlp: InputFileHelper | None = None,
     ) -> None:
         self._data: dict[str, Any] = {}
@@ -53,8 +50,6 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # have a pickle file loaded. The relative paths in the our
         # data get converted based on these values.
         self.base_dir = Path(base_dir)
-        self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
-        self.gmao_dir: Path | None = Path(gmao_dir) if gmao_dir is not None else None
         if ifile_hlp is not None:
             self.input_file_helper = ifile_hlp
         else:
@@ -79,45 +74,34 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     def create_from_strategy_file(
         cls,
         fname: str | os.PathLike[str],
-        osp_dir: str | os.PathLike[str] | None = None,
-        gmao_dir: str | os.PathLike[str] | None = None,
         ifile_hlp: InputFileHelper | None = None,
     ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent
         res = cls(
             base_dir=strategy_table_dir,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
             ifile_hlp=ifile_hlp,
         )
-        f = TesFile.create(strategy_table_fname, res.input_file_helper)
+        f = res.input_file_helper.open_tes(strategy_table_fname)
         res._data = dict(f)
-        # Replace GMAO_Directory if one was passed in
-        if res.gmao_dir is not None:
-            res["GMAO_Directory"] = str(res.gmao_dir)
+        res["GMAO_Directory"] = str(res.input_file_helper.gmao_dir)
 
         # Start with default values, and then add anything we find in
         # the table Make sure to use os.path.join or pathlib.Path's /
         # operator so that if defaultStrategyTableFilename is already
         # an absolute path, we don't prepend the default directory.
-        f = TesFile.create(
-            Path(
-                res["defaultStrategyTableDirectory"],
-                res["defaultStrategyTableFilename"],
-            ),
-            res.input_file_helper,
+        f = res.input_file_helper.open_tes(
+            res["defaultStrategyTableDirectory"] / res["defaultStrategyTableFilename"]
         )
         d = dict(f)
         d.update(res._data)
         res._data = d
         # Add in cloud parameters.
-        f = TesFile.create(res["CloudParameterFilename"], res.input_file_helper)
+        f = res.input_file_helper.open_tes(res["CloudParameterFilename"])
         res._data.update(f)
         # Add in initial guess configuration
-        f = TesFile.create(
-            Path(res["initialGuessSetupDirectory"], "L2_Setup_Control_Initial.asc"),
-            res.input_file_helper,
+        f = res.input_file_helper.open_tes(
+            res["initialGuessSetupDirectory"] / "L2_Setup_Control_Initial.asc"
         )
         res._data.update(f)
         # For some odd reason, Single_State_Directory is not relative path like
@@ -126,7 +110,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         res["Single_State_Directory"] = str(
             Path("../OSP", res["Single_State_Directory"])
         )
-        f = TesFile.create(res["allTESPressureLevelsFilename"], res.input_file_helper)
+        f = res.input_file_helper.open_tes(res["allTESPressureLevelsFilename"])
         # This is the pressure levels that species information uses. This
         # is generally the initial pressure levels the forward model
         # is performed on, although these are distinct concepts. This
@@ -158,7 +142,9 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # lists the required options. Note sure if this is complete,
         # but if we are missing one of these then muses-py marks this
         # as a failure
-        f = TesFile.create(res["tableOptionsFilename"], res.input_file_helper)
+        f = res.input_file_helper.open_tes(
+            res["tableOptionsFilename"],
+        )
         for k in f.keys():
             if k not in res:
                 raise RuntimeError(
@@ -168,10 +154,6 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # muses-py created some derived quantities. I think we can
         # skip this, we'll at least try that for now.
         return res
-
-    @property
-    def osp_abs_dir(self) -> Path:
-        return Path(self.abs_dir("../OSP/.")).resolve()
 
     def abs_dir(self, v: Any) -> Any:
         """Convert values like ../OSP to the osp_dir passed in. Expand
@@ -188,15 +170,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             os.environ["strategy_table_dir"] = str(self.base_dir)
             v = os.path.expandvars(os.path.expanduser(v))
             m = re.match(r"^\.\./OSP/(.*)", v)
-            if m and self.osp_dir:
-                v = f"{self.osp_dir}/{m[1]}"
-            if re.match(r"^\.\./", v) or re.match(r"^\./", v):
-                v = os.path.normpath(f"{self.base_dir}/{v}")
-            # Note, we leave path and filenames as str rather than
-            # converting to Path.  This is different then our normal
-            # convention, but the RetrievalConfiguration may get
-            # passed to py-retrieve code which assumes str instead of
-            # Path.
+            if m:
+                v = self.input_file_helper.osp_dir / m[1]
+            elif re.match(r"^\.\./", v) or re.match(r"^\./", v):
+                v = (self.base_dir / v).resolve()
             return v
         finally:
             if t is not None:
@@ -205,6 +182,21 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
                 del os.environ["strategy_table_dir"]
 
 
-__all__ = [
-    "RetrievalConfiguration",
-]
+class AdapterRetrievalConfiguration(collections.abc.Mapping):
+    """For py-test code, we need to return a str instead of InputFilePath. This
+    simple adapter does that."""
+
+    def __init__(self, rconf: RetrievalConfiguration) -> None:
+        self.rconf = rconf
+
+    def __getitem__(self, key: str) -> Any:
+        return str(self.rconf[key])
+
+    def __iter__(self) -> Iterator[str]:
+        return self.rconf.__iter__()
+
+    def __len__(self) -> int:
+        return len(self.rconf)
+
+
+__all__ = ["RetrievalConfiguration", "AdapterRetrievalConfiguration"]

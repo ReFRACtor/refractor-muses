@@ -1,7 +1,6 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .state_element_osp import StateElementOspFile, OspSetupReturn
-from .tes_file import TesFile
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .state_element import (
     StateElementWithCreateHandle,
@@ -10,7 +9,6 @@ from .state_element import (
 from .priority_handle_set import NoHandleFound
 from .state_element_osp import StateElementOspFileFixedValue
 from .retrieval_array import FullGridMappedArray
-from pathlib import Path
 import numpy as np
 import scipy
 from typing import Any, Self
@@ -23,6 +21,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
     from .state_info import StateInfo
+    from .tes_file import TesFile
 
 
 class StateElementFromSingle(StateElementOspFile):
@@ -58,18 +57,14 @@ class StateElementFromSingle(StateElementOspFile):
             for i in retrieval_config["Species_List_From_Single"].split(",")
         ]:
             return None
-        fcloud = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc",
-            retrieval_config.input_file_helper,
+        fcloud = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_Cloud_IR.asc"
         )
-        fatm = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc",
-            retrieval_config.input_file_helper,
+        fatm = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_AtmProfiles.asc"
         )
-        fcal = TesFile(
-            Path(retrieval_config["Single_State_Directory"])
-            / "State_CalibrationData.asc",
-            retrieval_config.input_file_helper,
+        fcal = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_CalibrationData.asc"
         )
         return super(StateElementFromSingle, cls).create(
             sid,

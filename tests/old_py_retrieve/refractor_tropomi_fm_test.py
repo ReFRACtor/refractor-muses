@@ -30,7 +30,7 @@ import pytest
 @require_muses_py_fm
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, tropomi_test_in_dir
+    isolated_dir, step_number, ifile_hlp, tropomi_test_in_dir
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
@@ -40,8 +40,7 @@ def test_refractor_fm_muses_py(
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -51,8 +50,7 @@ def test_refractor_fm_muses_py(
     (o_jacobian2, o_radiance2, o_measured_radiance_tropomi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="py_retrieve/",
         )
     )
@@ -91,7 +89,7 @@ def test_refractor_fm_muses_py(
     ],
 )
 def test_refractor_joint_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, joint_tropomi_test_in_dir
+    isolated_dir, step_number, ifile_hlp, joint_tropomi_test_in_dir
 ):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
 
@@ -103,8 +101,7 @@ def test_refractor_joint_fm_muses_py(
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -114,8 +111,7 @@ def test_refractor_joint_fm_muses_py(
     (o_jacobian2, o_radiance2, o_measured_radiance_tropomi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="py_retrieve/",
         )
     )
@@ -159,8 +155,7 @@ def test_refractor_joint_fm_muses_py(
 def test_refractor_fm_refractor(
     isolated_dir,
     step_number,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_obs_step_1,
     tropomi_obs_step_2,
     tropomi_test_in_dir,
@@ -178,7 +173,8 @@ def test_refractor_fm_refractor(
     elif step_number == 2:
         obs = tropomi_obs_step_2
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        tropomi_test_in_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
@@ -188,8 +184,7 @@ def test_refractor_fm_refractor(
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_ref/",
         )
     )
@@ -198,8 +193,7 @@ def test_refractor_fm_refractor(
     (o_jacobian2, o_radiance2, o_measured_radiance_tropomi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -233,8 +227,7 @@ def test_refractor_fm_refractor(
 def test_refractor_joint_fm_refractor(
     isolated_dir,
     step_number,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_obs_step_12,
     joint_tropomi_test_in_dir,
 ):
@@ -250,7 +243,8 @@ def test_refractor_joint_fm_refractor(
     # Do a lidort run, just to leave PCA out of our checks
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        joint_tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        joint_tropomi_test_in_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(
@@ -262,8 +256,7 @@ def test_refractor_joint_fm_refractor(
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_ref/",
         )
     )
@@ -272,8 +265,7 @@ def test_refractor_joint_fm_refractor(
     (o_jacobian2, o_radiance2, o_measured_radiance_tropomi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -337,8 +329,7 @@ def test_refractor_joint_fm_refractor(
 @require_muses_py_fm
 def test_refractor_detailed_fm_refractor(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_obs_step_2,
     tropomi_test_in_dir,
 ):
@@ -350,7 +341,8 @@ def test_refractor_detailed_fm_refractor(
     vlidort_nstokes = 1
     pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        tropomi_test_in_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
@@ -366,8 +358,7 @@ def test_refractor_detailed_fm_refractor(
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_ref/",
         )
     )
@@ -378,8 +369,7 @@ def test_refractor_detailed_fm_refractor(
     (o_jacobian2, o_radiance2, o_measured_radiance_tropomi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -539,8 +529,7 @@ def test_refractor_detailed_fm_refractor(
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_fd(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     index,
     do_refractor,
     tropomi_test_in_dir,
@@ -558,8 +547,7 @@ def test_jac_fd(
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
+                ifile_hlp=ifile_hlp,
                 path="fm_muses_ref/",
             )
         )
@@ -568,8 +556,7 @@ def test_jac_fd(
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
+                ifile_hlp=ifile_hlp,
                 path="fm_muses_py/",
             )
         )
@@ -670,8 +657,7 @@ def test_jac_fd(
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_joint_fd(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     index,
     do_refractor,
     joint_tropomi_test_in_dir,
@@ -692,8 +678,7 @@ def test_jac_joint_fd(
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
+                ifile_hlp=ifile_hlp,
                 path="fm_muses_ref/",
             )
         )
@@ -702,8 +687,7 @@ def test_jac_joint_fd(
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
+                ifile_hlp=ifile_hlp,
                 path="fm_muses_py/",
             )
         )

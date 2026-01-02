@@ -382,8 +382,8 @@ class StateElementOspFile(StateElementWithCreate):
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
             retrieval_config.input_file_helper,
-            Path(retrieval_config["speciesDirectory"]),
-            Path(retrieval_config["covarianceDirectory"]),
+            retrieval_config["speciesDirectory"],
+            retrieval_config["covarianceDirectory"],
             selem_wrapper=selem_wrapper,
             **sret.create_kwargs,
         )

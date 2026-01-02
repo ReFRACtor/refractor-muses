@@ -5,6 +5,10 @@ from loguru import logger
 import subprocess
 import os
 from pathlib import Path
+import typing
+
+if typing.TYPE_CHECKING:
+    from .input_file_helper import InputFileHelper
 
 
 class MusesRunDir:
@@ -19,8 +23,7 @@ class MusesRunDir:
     def __init__(
         self,
         refractor_sounding_dir: str | os.PathLike[str],
-        osp_dir: str | os.PathLike[str],
-        gmao_dir: str | os.PathLike[str],
+        ifile_hlp: InputFileHelper,
         path_prefix: str | os.PathLike[str] = ".",
         osp_sym_link: bool = False,
         obs_sym_link: bool = True,
@@ -42,8 +45,8 @@ class MusesRunDir:
             # So we don't have this done in most places, to make sure no code depends on
             # it. However some old_py_retrieve_wrapper code purposely uses old code to
             # compare our new code against. For these cases, we need to old symbolic links.
-            (path_prefix / "OSP").symlink_to(osp_dir)
-            (path_prefix / "GMAO").symlink_to(gmao_dir)
+            (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir))
+            (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir))
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
         if obs_sym_link:
@@ -55,7 +58,7 @@ class MusesRunDir:
                 shutil.copy(
                     refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
                 )
-        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc", None)
+        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc")
         dout = dict(d)
         for k in (
             "AIRS_filename",
@@ -144,7 +147,7 @@ class MusesRunDir:
         amuse_me_run_dir = Path(amuse_me_run_dir)
         for f in ("Table", "Measurement_ID", "DateTime"):
             shutil.copy(amuse_me_run_dir / f"{f}.asc", refractor_sounding_dir)
-        d = TesFile(amuse_me_run_dir / "Measurement_ID.asc", None)
+        d = TesFile(amuse_me_run_dir / "Measurement_ID.asc")
         for k in (
             "AIRS_filename",
             "OMI_filename",

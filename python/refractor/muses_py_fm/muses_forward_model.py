@@ -51,7 +51,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         current_state: CurrentState,
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         use_vlidort_temp_dir: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -82,7 +82,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         self.current_state = copy.deepcopy(current_state)
         self.obs = obs
         self.kwargs = kwargs
-        self.measurement_id = measurement_id
+        self.rconf = rconf
         self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.have_fake_jac_in_oss = False
@@ -109,7 +109,7 @@ class MusesForwardModelBase(rf.ForwardModel):
                 self.obs,
             ],
             self.current_state,
-            self.measurement_id,
+            self.rconf,
             vlidort_dir=self.vlidort_tempdir.name
             if self.vlidort_tempdir is not None
             else None,
@@ -210,7 +210,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
-        with osswrapper(self.rf_uip.uip, osp_dir=self.measurement_id.osp_abs_dir):
+        with osswrapper(self.rf_uip.uip, self.rconf.input_file_helper):
             rad, jac = mpy_fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         # This is for the full set of frequences that fm_oss_stack works with
         # (which of course includes bad samples)
@@ -304,7 +304,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
                 self.obs,
             ],
             cstate,
-            self.measurement_id,
+            self.rconf,
             pointing_angle=pointing_angle,
         )
         rf_uip_original = self.rf_uip
@@ -623,7 +623,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         current_state: CurrentState,
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         vlidort_nstokes: int = 2,
         vlidort_nstreams: int = 4,
         **kwargs: Any,
@@ -633,7 +633,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
             current_state,
             instrument_name,
             obs,
-            measurement_id,
+            rconf,
             use_vlidort_temp_dir=True,
             **kwargs,
         )
@@ -649,16 +649,46 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
             vlidort_nstreams=self.vlidort_nstreams,
         ):
             if self.instrument_name == InstrumentIdentifier("TROPOMI"):
+                # We looked at rtf_tropomi and the ring code to determine what files are
+                # read here. These are fixed, unless the code gets modified at some
+                # point.
+                tpath = self.rconf.input_file_helper.osp_dir / "TROPOMI" / "RamanInputs"
+                for fname in (
+                    "N2En.txt",
+                    "N2pos.txt",
+                    "N2PT.txt",
+                    "O2EnfZ.txt",
+                    "O2En.txtO2JfZ.txt",
+                    "O2J.txt",
+                    "O2pos.txt",
+                    "O2PT.txt",
+                ):
+                    self.rconf.input_file_helper.notify_file_input(tpath / fname)
                 jac, rad, _, success_flag = mpy_tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
-                    i_osp_dir=self.measurement_id.osp_abs_dir,
+                    i_osp_dir=self.rconf.input_file_helper.osp_dir,
                     i_obs=self.obs.muses_py_dict,
                     skip_raman_copy=True,
                 )
             elif self.instrument_name == InstrumentIdentifier("OMI"):
+                # We looked at rtf_omi and the ring code to determine what files are
+                # read here. These are fixed, unless the code gets modified at some
+                # point.
+                tpath = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
+                for fname in (
+                    "N2En.txt",
+                    "N2pos.txt",
+                    "N2PT.txt",
+                    "O2EnfZ.txt",
+                    "O2En.txtO2JfZ.txt",
+                    "O2J.txt",
+                    "O2pos.txt",
+                    "O2PT.txt",
+                ):
+                    self.rconf.input_file_helper.notify_file_input(tpath / fname)
                 jac, rad, _, success_flag = mpy_omi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
-                    i_osp_dir=self.measurement_id.osp_abs_dir,
+                    i_osp_dir=self.rconf.input_file_helper.osp_dir,
                     i_obs=self.obs.muses_py_dict,
                     skip_raman_copy=True,
                 )
@@ -701,14 +731,14 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
         self,
         current_state: CurrentState,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             current_state,
             InstrumentIdentifier("TROPOMI"),
             obs,
-            measurement_id,
+            rconf,
             **kwargs,
         )
 
@@ -718,14 +748,14 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
         self,
         current_state: CurrentState,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             current_state,
             InstrumentIdentifier("OMI"),
             obs,
-            measurement_id,
+            rconf,
             **kwargs,
         )
 
@@ -737,14 +767,14 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
         self,
         current_state: CurrentState,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             current_state,
             InstrumentIdentifier("CRIS"),
             obs,
-            measurement_id,
+            rconf,
             **kwargs,
         )
 
@@ -760,14 +790,14 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         self,
         current_state: CurrentState,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             current_state,
             InstrumentIdentifier("AIRS"),
             obs,
-            measurement_id,
+            rconf,
             **kwargs,
         )
 
@@ -781,7 +811,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         # Replace with a fake TES observation. This is done to get the
         # full TES frequency range.
         tes_frequency_fname = (
-            f"{self.measurement_id['spectralWindowDirectory']}/../../tes_frequency.nc"
+            f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
         )
         return MusesTesObservation.create_fake_for_irk(
             tes_frequency_fname, self.obs.spectral_window
@@ -814,14 +844,14 @@ class MusesTesForwardModel(MusesForwardModelIrk):
         self,
         current_state: CurrentState,
         obs: MusesObservation,
-        measurement_id: MeasurementId,
+        rconf: RetrievalConfiguration,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             current_state,
             InstrumentIdentifier("TES"),
             obs,
-            measurement_id,
+            rconf,
             **kwargs,
         )
 
@@ -844,7 +874,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
-        self.measurement_id: MeasurementId | None = None
+        self.rconf: RetrievalConfiguration | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
 
     def notify_update_target(
@@ -852,7 +882,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.measurement_id = measurement_id
+        self.rconf = retrieval_config
 
     def forward_model(
         self,
@@ -869,15 +899,13 @@ class MusesForwardModelHandle(ForwardModelHandle):
 
         if instrument_name != self.instrument_name:
             return None
-        if self.measurement_id is None:
+        if self.rconf is None:
             raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
-        # Note MeasurementId also has access to all the stuff in
-        # RetrievalConfiguration
         return self.cls(
             current_state,
             obs,
-            self.measurement_id,
+            self.rconf,
             **kwargs,
         )
 

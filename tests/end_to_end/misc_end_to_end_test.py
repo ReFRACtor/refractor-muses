@@ -11,23 +11,21 @@ from refractor.muses import RetrievalStrategy, MusesRunDir
 # start running it again. This  test depends on a specific run, and a hard coded path,
 # so we don't normally run. But it is a basic example of how to do this.
 @pytest.mark.skip
-def test_run_fabiano_refractor(isolated_dir, osp_dir, gmao_dir, end_to_end_run_dir):
+def test_run_fabiano_refractor(isolated_dir, ifile_hlp, end_to_end_run_dir):
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
         end_to_end_run_dir
         / "compare_fabiano_refractor/20200701_204_05_29_0/retrieval_step_10.pkl",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     rs.continue_retrieval()
 
 
 @pytest.mark.skip
-def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, end_to_end_run_dir):
+def test_run_fabiano_vlidort(isolated_dir, ifile_hlp, end_to_end_run_dir):
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
         end_to_end_run_dir
         / "compare_fabiano_refractor_vlidort/20200701_204_05_29_0/retrieval_step_10.pkl",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     rs.continue_retrieval()
 
@@ -35,7 +33,7 @@ def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, end_to_end_run_dir
 # Used to diagnose a few problems with TES. Leave here in case we need
 # to do this again in the future
 @pytest.mark.skip
-def test_failed_tes(osp_dir, gmao_dir, python_fp_logger, end_to_end_run_dir):
+def test_failed_tes(ifile_hlp, python_fp_logger, end_to_end_run_dir):
     """Quick turn around at failing step for tes"""
     dir = end_to_end_run_dir / "failed_tes"
     subprocess.run(["rm", "-r", str(dir)])
@@ -44,8 +42,7 @@ def test_failed_tes(osp_dir, gmao_dir, python_fp_logger, end_to_end_run_dir):
         end_to_end_run_dir
         / f"retrieval_strategy_tes/20040920_02147_388_02/retrieval_strategy_retrieval_step_{step_number}.pkl",
         path=dir,
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
@@ -56,7 +53,7 @@ def test_failed_tes(osp_dir, gmao_dir, python_fp_logger, end_to_end_run_dir):
 
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_original_retrieval_oco2(osp_dir, gmao_dir, test_base_path, end_to_end_run_dir):
+def test_original_retrieval_oco2(ifile_hlp, test_base_path, end_to_end_run_dir):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -77,8 +74,7 @@ def test_original_retrieval_oco2(osp_dir, gmao_dir, test_base_path, end_to_end_r
     subprocess.run("rm -r original_retrieval_oco2", shell=True)
     r = MusesRunDir(
         test_base_path / "oco2/in/sounding_1",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     r.run_retrieval()

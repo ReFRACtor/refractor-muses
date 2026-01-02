@@ -13,15 +13,14 @@ import refractor.muses_py as mpy
 
 
 def load_muses_retrieval_step(
-    dir_in, step_number=1, osp_dir=None, gmao_dir=None, change_to_dir=True
+    dir_in, step_number=1, ifile_hlp=None, change_to_dir=True
 ):
     """This reads parameters that can be use to call the py-retrieve function
     run_retrieval. See muses_capture in refractor-muses for collecting this.
     """
     return MusesRetrievalStep.load_retrieval_step(
         dir_in / f"run_retrieval_step_{step_number}.pkl",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
         change_to_dir=change_to_dir,
     )
 
@@ -53,15 +52,11 @@ def test_capture_joint_tropomi_residual_fm_jac(
     isolated_dir,
     step_number,
     iteration,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_test_in_dir,
 ):
     rstep = load_muses_retrieval_step(
-        joint_tropomi_test_in_dir,
-        step_number=step_number,
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        joint_tropomi_test_in_dir, step_number=step_number, ifile_hlp=ifile_hlp
     )
     MusesResidualFmJacobian.create_from_retrieval_step(
         rstep,
@@ -97,15 +92,13 @@ def test_capture_joint_omi_residual_fm_jac(
     isolated_dir,
     step_number,
     iteration,
-    osp_dir,
+    ifile_hlp,
     joint_omi_test_in_dir,
-    gmao_dir,
 ):
     rstep = load_muses_retrieval_step(
         joint_omi_test_in_dir,
         step_number=step_number,
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     MusesResidualFmJacobian.create_from_retrieval_step(
         rstep,
@@ -124,12 +117,11 @@ def test_capture_tropomi_refractor_fm(
     isolated_dir,
     step_number,
     iteration,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_test_in_dir,
 ):
     rstep = load_muses_retrieval_step(
-        tropomi_test_in_dir, step_number=step_number, osp_dir=osp_dir, gmao_dir=gmao_dir
+        tropomi_test_in_dir, step_number=step_number, ifile_hlp=ifile_hlp
     )
     RefractorTropOrOmiFmPyRetrieve.uip_from_muses_retrieval_step(
         rstep,
@@ -150,16 +142,14 @@ def test_capture_joint_tropomi_refractor_fm(
     isolated_dir,
     step_number,
     iteration,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_test_in_dir,
 ):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
     rstep = load_muses_retrieval_step(
         joint_tropomi_test_in_dir,
         step_number=step_number,
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     RefractorTropOrOmiFmPyRetrieve.uip_from_muses_retrieval_step(
         rstep,
@@ -180,12 +170,11 @@ def test_capture_omi_refractor_fm(
     isolated_dir,
     step_number,
     iteration,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     omi_test_in_dir,
 ):
     rstep = load_muses_retrieval_step(
-        omi_test_in_dir, step_number=step_number, osp_dir=osp_dir, gmao_dir=gmao_dir
+        omi_test_in_dir, step_number=step_number, ifile_hlp=ifile_hlp
     )
     RefractorTropOrOmiFmPyRetrieve.uip_from_muses_retrieval_step(
         rstep,
@@ -205,12 +194,11 @@ def test_capture_initial_tropomi(
     isolated_dir,
     step_number,
     do_uip,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_test_in_dir,
 ):
     capoutdir = tropomi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
+    r = MusesRunDir(capoutdir, ifile_hlp, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -241,12 +229,11 @@ def test_capture_initial_omi(
     isolated_dir,
     step_number,
     do_uip,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     omi_test_in_dir,
 ):
     capoutdir = omi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
+    r = MusesRunDir(capoutdir, ifile_hlp, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -282,13 +269,12 @@ def test_capture_initial_joint_omi(
     isolated_dir,
     step_number,
     do_uip,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_omi_test_in_dir,
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     capoutdir = joint_omi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
+    r = MusesRunDir(capoutdir, ifile_hlp, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -325,12 +311,11 @@ def test_capture_initial_joint_tropomi(
     step_number,
     joint_tropomi_test_in_dir,
     do_uip,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     capoutdir = joint_tropomi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
+    r = MusesRunDir(capoutdir, ifile_hlp, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -361,12 +346,11 @@ def test_capture_initial_tropomi_band7(
     isolated_dir,
     step_number,
     do_uip,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_band7_test_in_dir,
 ):
     capoutdir = tropomi_band7_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
+    r = MusesRunDir(capoutdir, ifile_hlp, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(

@@ -8,9 +8,9 @@ from refractor.muses import (
     InstrumentIdentifier,
     FilterIdentifier,
     StateElementIdentifier,
-    InputFileHelper,
 )
 import refractor.framework as rf  # type: ignore
+import h5py  # type: ignore
 import os
 from functools import cache
 from pathlib import Path
@@ -198,7 +198,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
                 eof_path = "/eign_vector"
                 eof_index_path = "/Index"
-                with InputFileHelper.open_ncdf(eof_fname, self.ifile_hlp) as eof_ds:
+                with self.ifile_hlp.open_ncdf(eof_fname) as eof_ds:
                     eofs = eof_ds[eof_path][:]
                     pixel_indexes = eof_ds[eof_index_path][:]
 
@@ -253,8 +253,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         """We read a 3 year average solar file HDF file for omi. This
         duplicates what mpy.read_omi does, which is then stored in the pickle
         file that solar_model uses."""
-        f = InputFileHelper.open_h5(
-            self.retrieval_config["omiSolarReference"], self.ifile_hlp
+        f = self.ifile_hlp.open_h5(
+            self.retrieval_config["omiSolarReference"],
         )
         res = []
         for i in range(self.num_channels):
@@ -424,7 +424,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         i_num_fwhm_srf: int,
     ) -> dict[str, Any]:
         # ILS files
-        ils_dir = self.osp_dir / "OMI/OMI_ILS/"
+        ils_dir = self.ifile_hlp.osp_dir / "OMI/OMI_ILS/"
 
         # number of data points
         num_points = len(i_freqIndex)
@@ -976,8 +976,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
 
 @cache
 def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray:
-    # We catch this file at a higher level
-    with InputFileHelper.open_h5(i_filename, None) as f:
+    with h5py.File(str(i_filename)) as f:
         return f[i_variable_name][:]
 
 

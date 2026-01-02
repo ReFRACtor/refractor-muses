@@ -13,9 +13,9 @@ import numpy as np
 import numpy.testing as npt
 
 
-def test_osp_state_element(osp_dir, omi_test_in_dir):
+def test_osp_state_element(ifile_hlp, omi_test_in_dir):
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", ifile_hlp
     )
     apriori_value = np.array(
         [
@@ -25,9 +25,13 @@ def test_osp_state_element(osp_dir, omi_test_in_dir):
     # Dummy value, most of the elements don't actually depend on latitude
     latitude = 10.0
     species_directory = (
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66"
     )
-    covariance_directory = osp_dir / "Covariance" / "Covariance"
+    covariance_directory = ifile_hlp.osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMIODWAVUV1"),
         None,
@@ -127,10 +131,10 @@ def test_osp_state_element(osp_dir, omi_test_in_dir):
     npt.assert_allclose(selem.value_fm, [5.0])
 
 
-def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
+def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
     """Check that the constraint matrix update for specific retrieval types is handled correctly"""
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", ifile_hlp
     )
     apriori_value = np.array(
         [
@@ -140,9 +144,13 @@ def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
     # Dummy value, most of the elements don't actually depend on latitude
     latitude = 10.0
     species_directory = (
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66"
     )
-    covariance_directory = osp_dir / "Covariance" / "Covariance"
+    covariance_directory = ifile_hlp.osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMICLOUDFRACTION"),
         None,
@@ -194,7 +202,7 @@ def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
     npt.assert_allclose(selem.constraint_matrix, cmatrix1)
 
 
-def test_osp_state_element_latitude(osp_dir):
+def test_osp_state_element_latitude(ifile_hlp):
     """Test an element that depends on latitude, to check correct handling of latitude"""
     apriori_value = np.array(
         [
@@ -204,9 +212,13 @@ def test_osp_state_element_latitude(osp_dir):
     # Dummy value, most of the elements don't actually depend on latitude
     latitude = 20
     species_directory = (
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66"
     )
-    covariance_directory = osp_dir / "Covariance" / "Covariance"
+    covariance_directory = ifile_hlp.osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
         None,

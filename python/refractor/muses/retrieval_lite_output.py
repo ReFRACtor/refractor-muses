@@ -1,9 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import StateElementIdentifier
-from .tes_file import TesFile
 from .misc import AttrDictAdapter
-from pathlib import Path
 import numpy as np
 import copy
 import math
@@ -13,7 +11,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 
 class CdfWriteLiteTes:
@@ -32,7 +30,7 @@ class CdfWriteLiteTes:
         species_name: str,
         current_state: CurrentState,
         instrument: list[str],
-        lite_directory: Path,
+        lite_directory: InputFilePath,
         data1: dict[str, Any],
         data2: dict[str, Any] | None,
         dataAnc: dict[str, Any],
@@ -57,7 +55,7 @@ class CdfWriteLiteTes:
             lite_directory
             / f"RetrievalLevels/Retrieval_Levels_Nadir_{'Linear' if linear else 'Log'}_{species_name.upper()}"
         )
-        fh = TesFile.create(level_filename, ifile_hlp)
+        fh = ifile_hlp.open_tes(level_filename)
         found = False
         for k in ("level", "Level", "LEVEL"):
             if k in fh.checked_table:
@@ -67,7 +65,7 @@ class CdfWriteLiteTes:
             raise RuntimeError(f"Trouble reading file {level_filename}")
 
         pressure_filename = lite_directory / "TES_baseline_66.asc"
-        fh = TesFile.create(pressure_filename, ifile_hlp)
+        fh = ifile_hlp.open_tes(pressure_filename)
         found = False
         for k in ("pressure", "Pressure", "PRESSURE"):
             if k in fh.checked_table:
@@ -955,7 +953,7 @@ class CdfWriteLiteTes:
         data2: dict[str, Any] | None,
         dataAnc: dict[str, Any],
         instrument: list[str],
-        lite_directory: Path,
+        lite_directory: InputFilePath,
     ) -> dict[str, Any]:
         len_dataIn = 1
 
@@ -2261,7 +2259,7 @@ def add_column(
     return dataIn
 
 
-def products_add_pan_fields(lite_directory: Path, dataInOut):
+def products_add_pan_fields(lite_directory: InputFilePath, dataInOut):
     # Temp
     from refractor.muses_py import nc_read_variable, UtilGeneral
 

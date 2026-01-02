@@ -15,10 +15,10 @@ import numpy.testing as npt
 import pytest
 
 
-def test_measurement_id(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
-    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+def test_measurement_id(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
+    r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {
         InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
@@ -37,15 +37,15 @@ def test_measurement_id(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
         os.path.basename(mid["OMI_Cloud_filename"])
         == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     )
-    assert mid["omi_calibrationFilename"] == str(
-        osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    assert str(mid["omi_calibrationFilename"]) == str(
+        ifile_hlp.osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     )
 
 
-def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
-    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+def test_simulated_obs(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
+    r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -63,7 +63,7 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
@@ -86,7 +86,6 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
         rconfig.input_file_helper,
-        osp_dir=osp_dir,
     )
     rad = [
         copy.copy(obs.radiance(0).spectral_range.data),

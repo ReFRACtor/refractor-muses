@@ -19,16 +19,15 @@ match_py_retrieve = False
 @pytest.mark.long_test
 def test_two_tropomi(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_test_in_dir,
     tropomi_test_in_dir3,
 ):
     """Run two soundings, using a single RetrievalStrategy. This is how the
     MPI version of py-retrieve works, and we need to make sure any caching
     etc. gets cleared out from the first sounding to the second."""
-    r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir)
-    r2 = MusesRunDir(tropomi_test_in_dir3, osp_dir, gmao_dir)
+    r = MusesRunDir(tropomi_test_in_dir, ifile_hlp)
+    r2 = MusesRunDir(tropomi_test_in_dir3, ifile_hlp)
 
     rs = RetrievalStrategy(
         None,

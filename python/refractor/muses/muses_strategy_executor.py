@@ -302,11 +302,9 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
     ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
-        # TODO Replace osp_dir here
         self._strategy = self.muses_strategy_handle_set.muses_strategy(
             measurement_id,
             retrieval_config.input_file_helper,
-            osp_dir=retrieval_config.osp_abs_dir,
             spectral_window_handle_set=self.spectral_window_handle_set,
         )
         self.strategy.notify_update_target(measurement_id, retrieval_config)

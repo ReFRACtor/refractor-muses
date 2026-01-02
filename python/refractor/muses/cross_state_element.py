@@ -393,7 +393,7 @@ class H2OCrossStateElementOspHandle(CrossStateElementHandle):
             state_element_1,
             state_element_2,
             self.retrieval_config.input_file_helper,
-            Path(self.retrieval_config["speciesDirectory"]),
+            self.retrieval_config["speciesDirectory"],
         )
         if res is not None:
             logger.debug(

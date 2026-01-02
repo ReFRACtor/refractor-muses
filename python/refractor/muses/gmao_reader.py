@@ -19,7 +19,6 @@ class GmaoReader:
     def __init__(
         self,
         smeta: SoundingMetadata,
-        gmao_dir: Path,
         ifile_hlp: InputFileHelper,
         pressure_in: np.ndarray | None = None,
     ) -> None:
@@ -40,7 +39,7 @@ class GmaoReader:
             yr = next_day.year
             month = next_day.month
             day = next_day.day
-        gmao_d, f1, f2 = GmaoReader.read_gmao(gmao_dir, yr, month, day, h)
+        gmao_d, f1, f2 = GmaoReader.read_gmao(ifile_hlp, yr, month, day, h)
         lon = gmao_d["lon"]
         lat = gmao_d["lat"]
         ifile_hlp.notify_file_input(f1)
@@ -160,14 +159,14 @@ class GmaoReader:
     @cache
     def read_gmao(
         cls,
-        gmao_dir: Path,
+        ifile_hlp: InputFileHelper,
         year: int,
         month: int,
         day: int,
         hour: int,
     ) -> tuple[dict[str, np.ndarray], Path, Path]:
         # GMAO apparently has different directory structures, try each.
-        gmao_fdir = gmao_dir / f"{year}/{month:02d}/{day:02d}"
+        gmao_fdir = ifile_hlp.gmao_dir / f"{year}/{month:02d}/{day:02d}"
         # Try year/month
         if not gmao_fdir.exists():
             gmao_fdir = gmao_fdir.parent
@@ -175,7 +174,7 @@ class GmaoReader:
         if not gmao_fdir.exists():
             gmao_fdir = gmao_fdir.parent
         if not gmao_fdir.exists():
-            gmao_fdir = gmao_dir / f"{year}/{month:02d}/{day:02d}/{hour:04d}"
+            gmao_fdir = ifile_hlp.gmao_dir / f"{year}/{month:02d}/{day:02d}"
             raise RuntimeError(
                 f"Can not find GMAO directory {gmao_fdir} or any parents"
             )
@@ -193,12 +192,12 @@ class GmaoReader:
         except StopIteration:
             raise RuntimeError("GMAO file not found")
         res = {}
-        with InputFileHelper.open_h5(fname_3d, None) as f:
+        with ifile_hlp.open_h5(fname_3d) as f:
             for v in ["QV", "T", "lat", "lev", "lon"]:
                 res[v] = f[v][:]
                 if res[v].shape[0] == 1:
                     res[v] = res[v][0]
-        with InputFileHelper.open_h5(fname_2d, None) as f:
+        with ifile_hlp.open_h5(fname_2d) as f:
             for v in ["SLP", "TROPPT", "TS", "lat", "lon"]:
                 res[v] = f[v][:]
                 if res[v].shape[0] == 1:

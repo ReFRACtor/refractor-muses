@@ -5,17 +5,16 @@ from refractor.muses import (
     OspDiagonalUncertainityReader,
     OspL2SetupControlInitial,
     RetrievalType,
-    InputFileHelper,
 )
 import numpy as np
 import numpy.testing as npt
 
 
-def test_covariance(osp_dir):
+def test_covariance(ifile_hlp):
     latitude = 30.0
     map_type = "linear"
     r = OspCovarianceMatrixReader.read_dir(
-        osp_dir / "Covariance" / "Covariance", InputFileHelper()
+        ifile_hlp.osp_dir / "Covariance" / "Covariance", ifile_hlp
     )
     cov_matrix = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), map_type, latitude)
     npt.assert_allclose(cov_matrix.original_cov, np.array([[0.0004]]))
@@ -95,20 +94,25 @@ def test_covariance(osp_dir):
     cov_matrix = r.read_cov(StateElementIdentifier("NH3"), map_type, latitude, "ENH")
 
 
-def test_diagonal_uncertainity(osp_dir):
+def test_diagonal_uncertainity(ifile_hlp):
     latitude = 30.0
     stype = "OCEAN"
     r = OspDiagonalUncertainityReader.read_dir(
-        osp_dir / "Covariance" / "Covariance" / "DiagonalUncertainty", InputFileHelper()
+        ifile_hlp.osp_dir / "Covariance" / "Covariance" / "DiagonalUncertainty",
+        ifile_hlp,
     )
     cmatrix = r.read_cov(StateElementIdentifier("TSUR"), stype, latitude)
     npt.assert_allclose(cmatrix, [[0.36]])
 
 
-def test_species(osp_dir):
+def test_species(ifile_hlp):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
-        InputFileHelper(),
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66",
+        ifile_hlp,
     )
     t = r.read_file(
         StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
@@ -150,19 +154,26 @@ def test_species(osp_dir):
     )
 
 
-def test_osp_l2_setup_control_initial(osp_dir):
+def test_osp_l2_setup_control_initial(ifile_hlp):
     f = OspL2SetupControlInitial.read(
-        osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL", None
+        ifile_hlp.osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL",
+        ifile_hlp,
     )
-    assert f["Single_State_Directory"] == osp_dir / "L2_Setup" / "ops" / "L2_Setup"
+    assert str(f["Single_State_Directory"]) == str(
+        ifile_hlp.osp_dir / "L2_Setup" / "ops" / "L2_Setup"
+    )
     assert f.sid_to_type[StateElementIdentifier("PCLOUD")] == "Single"
     assert f.sid_to_type[StateElementIdentifier("TATM")] == "GMAO"
 
 
-def test_species_premade(osp_dir):
+def test_species_premade(ifile_hlp):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
-        InputFileHelper(),
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66",
+        ifile_hlp,
     )
     cov = r.read_constraint_matrix(
         StateElementIdentifier("TATM"), RetrievalType("default"), 30
@@ -206,10 +217,14 @@ def test_species_premade(osp_dir):
     ]
 
 
-def test_species_h2o_hdo(osp_dir):
+def test_species_h2o_hdo(ifile_hlp):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
-        InputFileHelper(),
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66",
+        ifile_hlp,
     )
     # Test handling cross terms when we have both H2O and HDO.
     cov = r.read_constraint_matrix(
@@ -235,10 +250,14 @@ def test_species_h2o_hdo(osp_dir):
     assert cov3.shape == (16, 16)
 
 
-def test_species_covariance(osp_dir):
+def test_species_covariance(ifile_hlp):
     r = OspSpeciesReader.read_dir(
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66",
-        InputFileHelper(),
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-OMI-AIRS-v10"
+        / "Species-66",
+        ifile_hlp,
     )
     # Note that this returns a dummy identify matrix. See the comment in the code about
     # this

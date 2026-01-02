@@ -13,7 +13,7 @@ def test_muses_strategy_old(joint_omi_step_8_osp_sym_link):
     # old one here.
     os.chdir(rs.run_dir)
     stable = MusesStrategyOldStrategyTable(
-        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
+        rs.run_dir / "Table.asc", rs.ifile_hlp, rs.spectral_window_handle_set
     )
     stable.notify_update_target(rs.measurement_id, rs.retrieval_config)
     print(stable.filter_list_dict)

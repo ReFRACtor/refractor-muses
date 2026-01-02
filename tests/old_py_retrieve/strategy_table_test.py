@@ -144,8 +144,8 @@ class EofStateElement(RetrievableStateElementOld):
 
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
-def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
-    r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, osp_sym_link=True)
+def test_strategy_table(isolated_dir, ifile_hlp, omi_test_in_dir):
+    r = MusesRunDir(omi_test_in_dir, ifile_hlp, osp_sym_link=True)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.

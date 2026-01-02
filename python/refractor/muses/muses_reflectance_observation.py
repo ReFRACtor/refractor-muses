@@ -446,7 +446,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         utc_time: str,
         filter_list: list[str],
         calibration_filename: str | None = None,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         # Filter list should be in the same order as filename_list,
         # and should be things like "BAND3"
@@ -459,7 +459,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             {"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list
         ]
         o_tropomi = cls.read_tropomi(
-            filename_dict, xtrack_dict, atrack_dict, utc_time, i_windows, osp_dir
+            filename_dict, xtrack_dict, atrack_dict, utc_time, i_windows, ifile_hlp
         )
         sdesc = {
             "TROPOMI_ATRACK_INDEX_BAND1": np.int16(-999),
@@ -505,9 +505,9 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         atrack_dict: dict[str, int],
         utc_time: str,
         i_windows: list[dict[str, str]],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
-        with osp_setup(osp_dir):
+        with osp_setup(ifile_hlp):
             o_tropomi = mpy_read_tropomi(
                 {k: str(v) for (k, v) in filename_dict.items()},
                 xtrack_dict,
@@ -578,7 +578,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 if current_band != band["filter"]:
                     current_band = band["filter"]
                     band_filenames.append(tropomi_fns[current_band])
-                    fh = InputFileHelper.open_ncdf(tropomi_fns[current_band], ifile_hlp)
+                    fh = ifile_hlp.open_ncdf(tropomi_fns[current_band])
                     try:
                         # Without this, various returned things are masked_array. We
                         # handle masking separately, so we want to skip this.
@@ -794,7 +794,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         utc_time: str,
         filter_list: list[FilterIdentifier],
         calibration_filename: str | None = None,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -811,7 +811,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             utc_time,
             [str(i) for i in filter_list],
             calibration_filename=calibration_filename,
-            osp_dir=osp_dir,
+            ifile_hlp=ifile_hlp,
         )
         return cls(o_tropomi, sdesc, filter_list)
 
@@ -824,7 +824,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         write_tropomi_radiance_pickle: bool = False,
         **kwargs: Any,
     ) -> Self:
@@ -898,7 +897,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 atrack_dict,
                 utc_time,
                 [str(i) for i in filter_list],
-                osp_dir=osp_dir,
+                ifile_hlp=ifile_hlp,
             )
             obs = cls(o_tropomi, sdesc, filter_list, coeff=coeff, mp=mp)
 
@@ -1017,7 +1016,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         utc_time: str,
         calibration_filename: str | os.PathLike[str],
         cld_filename: str | os.PathLike[str] | None = None,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         o_omi = cls.read_omi(
             filename,
@@ -1026,7 +1025,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             utc_time,
             calibration_filename,
             cld_filename,
-            osp_dir,
+            ifile_hlp,
         )
         sdesc = {
             "OMI_ATRACK_INDEX": np.int16(atrack),
@@ -1060,9 +1059,9 @@ class MusesOmiObservation(MusesReflectanceObservation):
         utc_time: str,
         calibration_filename: str | os.PathLike[str],
         cld_filename: str | os.PathLike[str] | None = None,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
-        with osp_setup(osp_dir):
+        with osp_setup(ifile_hlp):
             o_omi = mpy_read_omi(
                 str(filename),
                 xtrack_uv2,
@@ -1091,7 +1090,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         calibration_filename: str,
         filter_list: list[FilterIdentifier],
         cld_filename: str | None = None,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1110,7 +1109,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             utc_time,
             calibration_filename,
             cld_filename=cld_filename,
-            osp_dir=osp_dir,
+            ifile_hlp=ifile_hlp,
         )
         return cls(o_omi, sdesc, filter_list)
 
@@ -1123,7 +1122,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         write_omi_radiance_pickle: bool = False,
         **kwargs: Any,
     ) -> Self:
@@ -1174,7 +1172,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 utc_time,
                 calibration_filename,
                 cld_filename=cld_filename,
-                osp_dir=osp_dir,
+                ifile_hlp=ifile_hlp,
             )
             obs = cls(o_omi, sdesc, filter_list, coeff=coeff, mp=mp)
 

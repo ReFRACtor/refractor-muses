@@ -31,11 +31,11 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
     def __init__(
         self,
         filename: str | os.PathLike[str],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
     ):
         super().__init__(spectral_window_handle_set)
-        self._stable = StrategyTable(filename, osp_dir=osp_dir)
+        self._stable = StrategyTable(filename, ifile_hlp=ifile_hlp)
 
     def is_next_bt(self) -> bool:
         """Indicate if the next step is a BT step. This is a bit
@@ -145,7 +145,6 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
         self,
         measurement_id: MeasurementId,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -153,7 +152,9 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         return MusesStrategyOldStrategyTable(
-            measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
+            measurement_id["run_dir"] / "Table.asc",
+            ifile_hlp,
+            spectral_window_handle_set,
         )
 
 

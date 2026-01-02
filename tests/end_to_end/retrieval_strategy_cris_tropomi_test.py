@@ -23,8 +23,7 @@ match_py_retrieve = False
 @pytest.mark.long_test
 @require_muses_py_fm
 def test_retrieval_strategy_cris_tropomi(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     joint_tropomi_test_in_dir,
@@ -44,8 +43,7 @@ def test_retrieval_strategy_cris_tropomi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(
@@ -91,8 +89,7 @@ def test_retrieval_strategy_cris_tropomi(
 @pytest.mark.long_test
 @require_muses_py_fm
 def test_retrieval_cris(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     cris_test_in_dir,
@@ -110,8 +107,7 @@ def test_retrieval_cris(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         cris_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(

@@ -103,7 +103,10 @@ if _typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .cost_function_creator import CostFunctionCreator
     from .priority_handle_set import PriorityHandleSet
-    from .retrieval_configuration import RetrievalConfiguration
+    from .retrieval_configuration import (
+        RetrievalConfiguration,
+        AdapterRetrievalConfiguration,
+    )
     from .observation_handle import (
         ObservationHandleSet,
         mpy_radiance_from_observation_list,

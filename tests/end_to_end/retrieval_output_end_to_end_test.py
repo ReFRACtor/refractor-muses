@@ -57,11 +57,9 @@ class RsSetupRetState:
         self.step_number += 1
 
 
-def run_canned_results(
-    directory: Path, input_directory: Path, osp_dir: Path, gmao_dir: Path
-) -> None:
-    r = MusesRunDir(input_directory, osp_dir, gmao_dir, path_prefix=directory)
-    rs = RetrievalStrategy(None, osp_dir=osp_dir)
+def run_canned_results(directory: Path, input_directory: Path, ifile_hlp) -> None:
+    r = MusesRunDir(input_directory, ifile_hlp, path_prefix=directory)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
@@ -115,8 +113,7 @@ def run_canned_results(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_output_cris_tropomi(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     end_to_end_run_dir,
     joint_tropomi_test_expected_retrieval_output_dir,
 ):
@@ -133,8 +130,7 @@ def test_compare_retrieval_output_cris_tropomi(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_output_airs_omi(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     end_to_end_run_dir,
     joint_omi_test_expected_retrieval_output_dir,
 ):
@@ -151,8 +147,7 @@ def test_compare_retrieval_output_airs_omi(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_output_airs_irk(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     end_to_end_run_dir,
     airs_irk_test_expected_retrieval_output_dir,
 ):
@@ -169,8 +164,7 @@ def test_compare_retrieval_output_airs_irk(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_output_tes(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     end_to_end_run_dir,
     tes_test_expected_retrieval_output_dir,
 ):
@@ -190,12 +184,11 @@ def test_retrieval_output_cris_tropomi(
     end_to_end_run_dir,
     joint_tropomi_test_in_dir,
     joint_tropomi_test_expected_retrieval_output_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     dir = end_to_end_run_dir / "retrieval_output_cris_tropomi"
     subprocess.run(["rm", "-r", str(dir)])
-    run_canned_results(dir, joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    run_canned_results(dir, joint_tropomi_test_in_dir, ifile_hlp)
     compare_dir = joint_tropomi_test_expected_retrieval_output_dir
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
@@ -206,12 +199,11 @@ def test_retrieval_output_airs_omi(
     end_to_end_run_dir,
     joint_omi_test_in_dir,
     joint_omi_test_expected_retrieval_output_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     dir = end_to_end_run_dir / "retrieval_output_airs_omi"
     subprocess.run(["rm", "-r", str(dir)])
-    run_canned_results(dir, joint_omi_test_in_dir, osp_dir, gmao_dir)
+    run_canned_results(dir, joint_omi_test_in_dir, ifile_hlp)
     compare_dir = joint_omi_test_expected_retrieval_output_dir
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
@@ -222,12 +214,11 @@ def test_retrieval_output_airs_irk(
     end_to_end_run_dir,
     airs_irk_test_in_dir,
     airs_irk_test_expected_retrieval_output_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     dir = end_to_end_run_dir / "retrieval_output_airs_irk"
     subprocess.run(["rm", "-r", str(dir)])
-    run_canned_results(dir, airs_irk_test_in_dir, osp_dir, gmao_dir)
+    run_canned_results(dir, airs_irk_test_in_dir, ifile_hlp)
     compare_dir = airs_irk_test_expected_retrieval_output_dir
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
@@ -238,12 +229,11 @@ def test_retrieval_output_tes(
     end_to_end_run_dir,
     tes_test_in_dir,
     tes_test_expected_retrieval_output_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     dir = end_to_end_run_dir / "retrieval_output_tes"
     subprocess.run(["rm", "-r", str(dir)])
-    run_canned_results(dir, tes_test_in_dir, osp_dir, gmao_dir)
+    run_canned_results(dir, tes_test_in_dir, ifile_hlp)
     compare_dir = tes_test_expected_retrieval_output_dir
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)

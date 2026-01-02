@@ -4,6 +4,7 @@
 import os
 import pytest
 from pathlib import Path
+from refractor.muses import InputFileHelper
 
 
 @pytest.fixture(scope="session")
@@ -52,6 +53,11 @@ def gmao_dir():
             "test requires GMAO directory set by through the MUSES_GMAO_PATH environment variable"
         )
     return Path(gmao_path)
+
+
+@pytest.fixture(scope="session")
+def ifile_hlp(osp_dir, gmao_dir):
+    return InputFileHelper(osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 
 @pytest.fixture(scope="session")

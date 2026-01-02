@@ -27,9 +27,7 @@ import pytest
 @require_muses_py
 @require_muses_py_fm
 @pytest.mark.parametrize("step_number", [1, 2])
-def test_refractor_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, omi_test_in_dir
-):
+def test_refractor_fm_muses_py(isolated_dir, step_number, ifile_hlp, omi_test_in_dir):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration = 2
@@ -38,8 +36,7 @@ def test_refractor_fm_muses_py(
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -49,8 +46,7 @@ def test_refractor_fm_muses_py(
     (o_jacobian2, o_radiance2, o_measured_radiance_omi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="py_retrieve/",
         )
     )
@@ -86,8 +82,7 @@ def test_refractor_fm_muses_py(
 def test_refractor_fm_refractor(
     isolated_dir,
     step_number,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     omi_obs_step_1,
     omi_obs_step_2,
     omi_test_in_dir,
@@ -106,7 +101,7 @@ def test_refractor_fm_refractor(
         obs = omi_obs_step_2
     obs.spectral_window.include_bad_sample = True
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
@@ -116,8 +111,7 @@ def test_refractor_fm_refractor(
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_ref/",
         )
     )
@@ -126,8 +120,7 @@ def test_refractor_fm_refractor(
     (o_jacobian2, o_radiance2, o_measured_radiance_omi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )
@@ -148,7 +141,7 @@ def test_refractor_fm_refractor(
 @require_muses_py
 @require_muses_py_fm
 def test_refractor_detailed_fm_refractor(
-    isolated_dir, osp_dir, gmao_dir, omi_obs_step_2, omi_test_in_dir
+    isolated_dir, ifile_hlp, omi_obs_step_2, omi_test_in_dir
 ):
     """Look at each piece in detail, so make sure we are agreeing"""
     step_number = 2
@@ -160,7 +153,7 @@ def test_refractor_detailed_fm_refractor(
     # Do a lidort run, just to leave PCA out of our checks
     omi_obs_step_2.spectral_window.include_bad_sample = True
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
@@ -175,8 +168,7 @@ def test_refractor_detailed_fm_refractor(
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_ref/",
         )
     )
@@ -187,8 +179,7 @@ def test_refractor_detailed_fm_refractor(
     (o_jacobian2, o_radiance2, o_measured_radiance_omi2, o_success_flag2) = (
         r2.run_pickle_file(
             pfile,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp,
             path="fm_muses_py/",
         )
     )

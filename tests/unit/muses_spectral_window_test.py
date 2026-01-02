@@ -11,7 +11,6 @@ from fixtures.require_check import require_muses_py
 from refractor.old_py_retrieve_wrapper import StrategyTable
 import numpy as np
 import numpy.testing as npt
-from pathlib import Path
 
 
 def struct_compare(s1, s2):
@@ -39,7 +38,7 @@ def mw_compare(mw1, mw2):
 # We use the old StrategyTable here (since we don't want to use our higher order
 # MusesStrategy, we want to test MusesSpectralWindow without that).
 @require_muses_py
-def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
+def test_muses_spectral_window(ifile_hlp, joint_omi_test_in_dir):
     # This is an observation that has some bad samples in it.
     xtrack_uv1 = 10
     xtrack_uv2 = 20
@@ -53,8 +52,8 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
         / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     )
     utc_time = "2016-04-01T23:07:33.676106Z"
-    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    stable = StrategyTable(joint_omi_test_in_dir / "Table.asc", osp_dir=osp_dir)
+    calibration_filename = ifile_hlp.osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    stable = StrategyTable(joint_omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp)
     obs = MusesOmiObservation.create_from_filename(
         filename,
         xtrack_uv1,
@@ -64,7 +63,7 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
         calibration_filename,
         [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
         cld_filename=cld_filename,
-        osp_dir=osp_dir,
+        ifile_hlp=ifile_hlp,
     )
     step_number = 3
     # Note this is off by 1. The table numbering get redone after the BT step. It might
@@ -97,16 +96,18 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
 
 
-def test_muses_spectral_window_microwindows(osp_dir):
+def test_muses_spectral_window_microwindows(ifile_hlp):
     """Test creating a spectral window dictionary and then creating the
     microwindows struct. Compare to using the old muses-py code."""
     # This is just a set of microwindows, sufficient for testing all the functionality.
     default_fname = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
     )
     viewing_mode = "nadir"
-    spectral_dir = osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    spectral_dir = (
+        ifile_hlp.osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    )
     retrieval_elements = [
         StateElementIdentifier("H2O"),
         StateElementIdentifier("O3"),
@@ -126,27 +127,29 @@ def test_muses_spectral_window_microwindows(osp_dir):
     # This is the file muses-py ends up with. We need to get that functionality in place,
     # but at a higher level. At this level, we just read "a given file"
     spec_fname = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    fmeta = FileFilterMetadata(default_fname, None)
+    fmeta = FileFilterMetadata(default_fname, ifile_hlp)
     swin = MusesSpectralWindow.create_from_file(
         spec_fname,
         "TROPOMI",
-        None,
+        ifile_hlp,
         filter_metadata=fmeta,
         different_filter_different_sensor_index=True,
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        spec_fname, None, filter_metadata=fmeta
+        spec_fname, ifile_hlp, filter_metadata=fmeta
     )
-    assert spec_fname == MusesSpectralWindow.muses_microwindows_fname(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
+    assert str(spec_fname) == str(
+        MusesSpectralWindow.muses_microwindows_fname(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
     )
     mw = MusesSpectralWindow.muses_microwindows_from_muses_py(
         default_fname,
@@ -165,10 +168,12 @@ def test_muses_spectral_window_microwindows(osp_dir):
     assert len(mono_filter_list) == (337 - 323) * 100
 
 
-def test_microwindows_fname(osp_dir):
+def test_microwindows_fname(ifile_hlp):
     """Compare our name against the old mpy code."""
     viewing_mode = "nadir"
-    spectral_dir = osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    spectral_dir = (
+        ifile_hlp.osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    )
     retrieval_elements = [
         StateElementIdentifier("H2O"),
         StateElementIdentifier("O3"),
@@ -202,7 +207,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     viewing_mode = "limb"
     spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
@@ -222,7 +227,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     viewing_mode = "nadir"
     spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
@@ -242,7 +247,7 @@ def test_microwindows_fname(osp_dir):
         spec_file="foo",
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     retrieval_type = RetrievalType("bt")
     spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
@@ -262,7 +267,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     retrieval_type = RetrievalType("forwardmodel")
     spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
@@ -282,7 +287,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     retrieval_elements = [
         StateElementIdentifier("CLOUDEXT"),
@@ -313,7 +318,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     retrieval_elements = [
         StateElementIdentifier("H2O"),
@@ -348,7 +353,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("-")
@@ -369,7 +374,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("fullfilter")
@@ -390,7 +395,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("bt_ig_refine")
@@ -411,7 +416,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "TROPOMIwide"
     retrieval_type = RetrievalType("joint")
@@ -432,7 +437,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "TROPOMIBand_1_2_short"
     retrieval_type = RetrievalType("joint")
@@ -453,7 +458,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "TROPOMIBand_1_2"
     retrieval_type = RetrievalType("joint")
@@ -474,7 +479,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "TROPOMIBand_2"
     retrieval_type = RetrievalType("joint")
@@ -495,7 +500,7 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)
 
     step_name = "TROPOMIBand_1_2_short"
     retrieval_type = RetrievalType("foo")
@@ -516,4 +521,4 @@ def test_microwindows_fname(osp_dir):
         spec_file=None,
     )
     print(spec_fname)
-    assert Path(spec_fname) == spec_fname2
+    assert spec_fname == str(spec_fname2)

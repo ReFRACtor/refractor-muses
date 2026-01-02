@@ -48,7 +48,7 @@ import numpy.testing as npt
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
+def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -91,7 +91,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
-        with osswrapper(rf_uip.uip):
+        with osswrapper(rf_uip.uip, ifile_hlp):
             (
                 o_radiance2,
                 jac_fm2,
@@ -121,7 +121,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
+def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -164,7 +164,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
-        with osswrapper(rf_uip.uip):
+        with osswrapper(rf_uip.uip, ifile_hlp):
             (
                 o_radiance2,
                 jac_fm2,
@@ -196,8 +196,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
 @require_muses_py_fm
 def test_residual_fm_jac_tropomi(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_obs_step_12,
     joint_tropomi_test_in_dir,
 ):
@@ -212,7 +211,7 @@ def test_residual_fm_jac_tropomi(
     work to maintain this old compatibility function than it is worth.
     """
     rrefractor = joint_tropomi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
+        ifile_hlp, joint_tropomi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -230,7 +229,7 @@ def test_residual_fm_jac_tropomi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
+        rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
@@ -246,7 +245,7 @@ def test_residual_fm_jac_tropomi(
     )
 
     rmuses_py = joint_tropomi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="muses_py"
+        ifile_hlp, joint_tropomi_test_in_dir, path="muses_py"
     )
     # Results to compare against
     (
@@ -256,7 +255,7 @@ def test_residual_fm_jac_tropomi(
         radiance_out2,
         o_jacobianOut2,
         o_stop_flag2,
-    ) = rmuses_py.residual_fm_jacobian()
+    ) = rmuses_py.residual_fm_jacobian(ifile_hlp)
     assert o_stop_flag == o_stop_flag2
     # Note we put in fill values for bad samples, while muses-py actually
     # runs the forward model on all the data. It isn't clear what we want
@@ -284,8 +283,7 @@ def test_residual_fm_jac_tropomi(
 @require_muses_py_fm
 def test_residual_fm_jac_omi(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_omi_obs_step_8,
     joint_omi_test_in_dir,
 ):
@@ -300,7 +298,7 @@ def test_residual_fm_jac_omi(
     work to maintain this old compatibility function than it is worth.
     """
     rrefractor = joint_omi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+        ifile_hlp, joint_omi_test_in_dir, path="refractor"
     )
 
     # Note OMI already has a number of bad pixels, so we don't need to
@@ -324,7 +322,7 @@ def test_residual_fm_jac_omi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
+        rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
@@ -340,7 +338,7 @@ def test_residual_fm_jac_omi(
     )
 
     rmuses_py = joint_omi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_omi_test_in_dir, path="muses_py"
+        ifile_hlp, joint_omi_test_in_dir, path="muses_py"
     )
     # Results to compare against
     (
@@ -350,7 +348,7 @@ def test_residual_fm_jac_omi(
         radiance_out2,
         o_jacobianOut2,
         o_stop_flag2,
-    ) = rmuses_py.residual_fm_jacobian()
+    ) = rmuses_py.residual_fm_jacobian(ifile_hlp)
     assert o_stop_flag == o_stop_flag2
     # Note we put in fill values for bad samples, while muses-py actually
     # runs the forward model on all the data. It isn't clear what we want
@@ -376,8 +374,7 @@ def test_residual_fm_jac_omi(
 @require_muses_py_fm
 def test_residual_fm_jac_omi2(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_omi_obs_step_8,
     joint_omi_test_in_dir,
 ):
@@ -393,7 +390,7 @@ def test_residual_fm_jac_omi2(
     work to maintain this old compatibility function than it is worth.
     """
     rrefractor = joint_omi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+        ifile_hlp, joint_omi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -405,7 +402,7 @@ def test_residual_fm_jac_omi2(
     creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        joint_omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        joint_omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
@@ -426,8 +423,7 @@ def test_residual_fm_jac_omi2(
 @require_muses_py_fm
 def test_residual_fm_jac_tropomi2(
     isolated_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_obs_step_12,
     joint_tropomi_test_in_dir,
 ):
@@ -443,7 +439,7 @@ def test_residual_fm_jac_tropomi2(
     work to maintain this old compatibility function than it is worth.
     """
     rrefractor = joint_tropomi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
+        ifile_hlp, joint_tropomi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -456,7 +452,7 @@ def test_residual_fm_jac_tropomi2(
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        joint_tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        joint_tropomi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(

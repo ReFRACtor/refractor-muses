@@ -1,6 +1,5 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
-from .tes_file import TesFile
 import collections.abc
 import numpy as np
 import scipy
@@ -12,11 +11,12 @@ from functools import cache
 from loguru import logger
 import re
 from .identifier import StateElementIdentifier, RetrievalType
+from .tes_file import TesFile
 import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_array import RetrievalGridArray, FullGridMappedArray
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 
 class RangeFind:
@@ -119,26 +119,15 @@ class OspFileHandle:
 
     def __init__(
         self,
-        osp_dir: str | os.PathLike[str] | None = None,
-        nlevel: int = 4,
-        ref_path: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper,
     ) -> None:
-        if osp_dir is None:
-            if ref_path is None:
-                raise RuntimeError("Need to supply either osp_dir or ref_path")
-            # Assume a directory structure,
-            p = Path(ref_path)
-            for i in range(nlevel):
-                p = p.parent
-            self.osp_dir = p
-        else:
-            self.osp_dir = Path(osp_dir).absolute()
+        self.ifile_hlp = ifile_hlp
 
-    def _abs_path(self, v: str) -> Path:
+    def _abs_path(self, v: str) -> InputFilePath:
         m = re.match(r"^\.\./OSP/(.*)", v)
         if m:
-            return self.osp_dir / m[1]
-        return self.osp_dir / v
+            return self.ifile_hlp.osp_dir / m[1]
+        return self.ifile_hlp.osp_dir / v
 
 
 class OspDiagonalUncertainityReader:
@@ -201,7 +190,7 @@ class OspDiagonalUncertainityReader:
         We also take the view type (NADIR, LIMB), although I think this is always
         NADIR.
         """
-        tf = TesFile(self.filename_data[sid][stype][vtype][latitude], self.ifile_hlp)
+        tf = self.ifile_hlp.open_tes(self.filename_data[sid][stype][vtype][latitude])
         d = np.array(tf.table)
         return d * d
 
@@ -271,8 +260,8 @@ class OspCovarianceMatrixReader:
         # column with map type, and then the data. So we just subset for that
         if poltype is None:
             poltype = ""
-        tf = TesFile(
-            self.filename_data[sid][poltype][map_type.lower()][latitude], self.ifile_hlp
+        tf = self.ifile_hlp.open_tes(
+            self.filename_data[sid][poltype][map_type.lower()][latitude]
         )
         d = np.array(tf.table)[:, 3:].astype(float)
         pressure_sa = np.array(tf.table)[:, 1].astype(float)
@@ -292,9 +281,8 @@ class OspSpeciesReader(OspFileHandle):
 
     def __init__(
         self,
-        species_directory: str | os.PathLike[str],
+        species_directory: InputFilePath,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         """This looks through the given directory (e.g.,
         OSP/Strategy_Tables/ops/OSP-OMI-AIRS-v10/Species-66) and maps
@@ -302,8 +290,7 @@ class OspSpeciesReader(OspFileHandle):
         look up the file to read for a particular StateElement
 
         """
-        super().__init__(osp_dir=osp_dir, ref_path=species_directory, nlevel=4)
-        self.ifile_hlp = ifile_hlp
+        super().__init__(ifile_hlp)
         self.filename_data: dict[
             StateElementIdentifier,
             dict[StateElementIdentifier | None, dict[RetrievalType, Path]],
@@ -311,7 +298,7 @@ class OspSpeciesReader(OspFileHandle):
         self._default_cache: dict[
             StateElementIdentifier, dict[StateElementIdentifier | None, np.ndarray]
         ] = {}
-        for fname in Path(species_directory).glob("*.asc"):
+        for fname in species_directory.glob("*.asc"):
             m = re.match(
                 r"""
             ([A-Z0-9]+)           # First species name
@@ -380,25 +367,18 @@ class OspSpeciesReader(OspFileHandle):
                 # Constraint_Matrix_TATM_NADIR_LINEAR_90S_90N_30.asc if we have 30 levels
                 fname = self._abs_path(t["constraintFilename"])
                 # Cross terms have two 87s, both get replaced with the same number
-                fname = Path(
-                    re.sub(
-                        r"_87_87.asc$",
-                        f"_{num_retrieval}_{num_retrieval}.asc",
-                        str(self._abs_path(t["constraintFilename"])),
-                    )
+                fname = self._abs_path(t["constraintFilename"]).sub_fname(
+                    r"_87_87.asc$",
+                    f"_{num_retrieval}_{num_retrieval}.asc",
                 )
                 # Other terms have one 87 that gets replaced
                 if poltype is None:
-                    fname = Path(
-                        re.sub(r"_87.asc$", f"_{num_retrieval}.asc", str(fname))
-                    )
+                    fname = fname.sub_fname(r"_87.asc$", f"_{num_retrieval}.asc")
                 else:
-                    fname = Path(
-                        re.sub(
-                            r"_87.asc$", f"_{num_retrieval}_{poltype}.asc", str(fname)
-                        )
+                    fname = fname.sub_fname(
+                        r"_87.asc$", f"_{num_retrieval}_{poltype}.asc"
                     )
-                d = TesFile(fname, self.ifile_hlp)
+                d = self.ifile_hlp.open_tes(fname)
                 # First column is name of species, second is pressure, third is map type.
                 # We chop off just to get the data
                 cov = np.array(d.table)[:, 3:].astype(float)
@@ -422,8 +402,8 @@ class OspSpeciesReader(OspFileHandle):
                     )
                 else:
                     d2 = np.array(
-                        TesFile(
-                            self._abs_path(t["sSubaFilename"]), self.ifile_hlp
+                        self.ifile_hlp.open_tes(
+                            self._abs_path(t["sSubaFilename"])
                         ).table
                     )
                     # First column is name of species, second is pressure, third is map type.
@@ -488,11 +468,13 @@ class OspSpeciesReader(OspFileHandle):
 
     @cache
     def _tes_file(self, fname: Path) -> TesFile:
-        return TesFile(fname, None)
+        return TesFile(fname)
 
     @classmethod
     @cache
-    def read_dir(cls, species_directory: Path, ifile_hlp: InputFileHelper) -> Self:
+    def read_dir(
+        cls, species_directory: InputFilePath, ifile_hlp: InputFileHelper
+    ) -> Self:
         return cls(species_directory, ifile_hlp)
 
     def make_interpolation_matrix_susan(
@@ -533,7 +515,7 @@ class OspSpeciesReader(OspFileHandle):
         i_mapToParameters: np.ndarray,
         i_pressureFM: np.ndarray,
         i_pressure: np.ndarray,
-        i_filename: Path,
+        i_filename: InputFilePath,
     ) -> np.ndarray:
         # Set up sizes.
         num_retrievalPressures = len(i_pressure)
@@ -542,7 +524,7 @@ class OspSpeciesReader(OspFileHandle):
             shape=(num_retrievalPressures, num_retrievalPressures), dtype=np.float64
         )
 
-        t = TesFile(i_filename, self.ifile_hlp)
+        t = self.ifile_hlp.open_tes(i_filename)
         assert t.table is not None
         pressureSa = np.array(t.table["Pressure"]).astype(np.float32)
         sSubaMatrix = np.array(t.table)[:, 3:].astype(np.float32)
@@ -627,10 +609,9 @@ class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
         self,
         fname: str | os.PathLike[str],
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
     ):
-        OspFileHandle.__init__(self, osp_dir=osp_dir, ref_path=fname, nlevel=4)
-        self._file = TesFile(fname, ifile_hlp)
+        OspFileHandle.__init__(self, ifile_hlp)
+        self._file = ifile_hlp.open_tes(fname)
         self._sid_to_type: dict[StateElementIdentifier, str] = {}
         typ = [
             "Zero",
@@ -656,7 +637,7 @@ class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
 
     # Make other parts of the file available as a dict like object
 
-    def __getitem__(self, ky: str) -> str | Path | None:
+    def __getitem__(self, ky: str) -> str | InputFilePath | None:
         res = self._file[ky]
         if res == "-":
             return None
@@ -680,14 +661,12 @@ class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
         cls,
         initial_guess_setup_directory: Path,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
     ) -> Self:
         # muses-py uses a hardcoded file name given the "initialGuessSetupDirectory"
         # found in the target file.
         return cls(
             initial_guess_setup_directory / "L2_Setup_Control_Initial.asc",
             ifile_hlp,
-            osp_dir,
         )
 
 

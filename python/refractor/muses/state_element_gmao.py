@@ -9,8 +9,6 @@ from .state_element import (
     StateElementHandleSet,
 )
 from .priority_handle_set import NoHandleFound
-from .tes_file import TesFile
-from pathlib import Path
 import numpy as np
 from typing import Any, Self
 import typing
@@ -171,21 +169,13 @@ class StateElementFromGmaoPressure(StateElementOspFile):
             raise RuntimeError("Need retrieval_config")
         # Pressure starts from the atmospheric profile, augmented with the
         # surface pressure from gmao
-        fatm = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc",
-            retrieval_config.input_file_helper,
+        fatm = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_AtmProfiles.asc"
         )
         pressure0 = np.array(fatm.checked_table["Pressure"])
-        gmao_dir = (
-            retrieval_config.gmao_dir
-            if retrieval_config.gmao_dir is not None
-            else retrieval_config["GMAO_Directory"]
-        )
         if sounding_metadata is None:
             return None
-        gmao = GmaoReader(
-            sounding_metadata, gmao_dir, retrieval_config.input_file_helper
-        )
+        gmao = GmaoReader(sounding_metadata, retrieval_config.input_file_helper)
         # TODO Verify that this calculation is correct. It matches what muses-py does,
         # but the height of zero instead of sounding_metadata.surface_altitude.value looks
         # a little suspicious
@@ -213,8 +203,8 @@ class StateElementFromGmaoPressure(StateElementOspFile):
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
             retrieval_config.input_file_helper,
-            Path(retrieval_config["speciesDirectory"]),
-            Path(retrieval_config["covarianceDirectory"]),
+            retrieval_config["speciesDirectory"],
+            retrieval_config["covarianceDirectory"],
             selem_wrapper=selem_wrapper,
         )
 
@@ -291,16 +281,10 @@ class StateElementFromGmaoPsur(StateElementOspFile):
         if state_info is None:
             return None
         p = state_info[StateElementIdentifier("pressure")]
-        gmao_dir = (
-            retrieval_config.gmao_dir
-            if retrieval_config.gmao_dir is not None
-            else retrieval_config["GMAO_Directory"]
-        )
         if sounding_metadata is None:
             return None
         gmao = GmaoReader(
             sounding_metadata,
-            gmao_dir,
             retrieval_config.input_file_helper,
             pressure_in=p.value_fm,
         )
@@ -321,8 +305,8 @@ class StateElementFromGmaoPsur(StateElementOspFile):
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
             retrieval_config.input_file_helper,
-            Path(retrieval_config["speciesDirectory"]),
-            Path(retrieval_config["covarianceDirectory"]),
+            retrieval_config["speciesDirectory"],
+            retrieval_config["covarianceDirectory"],
             selem_wrapper=selem_wrapper,
             metadata={"gmao_data": gmao},
         )

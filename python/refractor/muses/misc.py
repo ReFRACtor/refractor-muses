@@ -1,5 +1,6 @@
 from __future__ import annotations
 from contextlib import contextmanager
+from .input_file_helper import InputFileHelper
 import tempfile
 import os
 import math
@@ -10,9 +11,10 @@ import copy
 from typing import Generator, Any, Iterator
 
 
+# TODO Once we clean up input, get rid of this function
 @contextmanager
 def osp_setup(
-    osp_dir: str | os.PathLike[str] | None = None,
+    ifile_hlp: InputFileHelper | None = None,
 ) -> Generator[None, None, None]:
     """Some of the readers assume the OSP is available as "../OSP". We
     are trying to get away from assuming we are in a run directory
@@ -24,15 +26,13 @@ def osp_setup(
     We can perhaps just move the muses-py code over at some point and
     handle this more cleanly, but for now we do this.
     """
-    if osp_dir is None:
-        dname = os.path.abspath("../OSP")
-    else:
-        dname = os.path.abspath(str(osp_dir))
+    if ifile_hlp is None:
+        ifile_hlp = InputFileHelper()
     curdir = os.path.abspath(os.path.curdir)
     try:
         with tempfile.TemporaryDirectory() as tname:
             os.chdir(tname)
-            os.symlink(dname, "OSP")
+            os.symlink(str(ifile_hlp.osp_dir), "OSP")
             os.mkdir("subdir")
             os.chdir("./subdir")
             yield

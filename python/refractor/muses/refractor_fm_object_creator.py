@@ -4,7 +4,6 @@ from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .identifier import StateElementIdentifier
 import refractor.framework as rf  # type: ignore
-import os
 from pathlib import Path
 from loguru import logger
 import numpy as np
@@ -20,6 +19,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
     from .retrieval_configuration import RetrievalConfiguration
+    from .input_file_helper import InputFilePath
 
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
@@ -64,7 +64,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         use_raman: bool = True,
         skip_observation_add: bool = False,
         match_py_retrieve: bool = False,
-        osp_dir: str | os.PathLike[str] | None = None,
         absorption_gases: list[str] = [
             "O3",
         ],
@@ -134,11 +133,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.oza = self.observation.observation_zenith
         self.raz = self.observation.relative_azimuth
 
-        self.osp_dir = Path(
-            osp_dir
-            if osp_dir is not None
-            else os.environ.get("MUSES_OSP_PATH", "../OSP")
-        ).absolute()
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
@@ -534,7 +528,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.observation,
             ils_params_list,
             self.ifile_hlp,
-            self.osp_dir,
         )
 
     @cached_property
@@ -573,8 +566,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return flist[0]
 
     @property
-    def absco_base_path(self) -> Path:
-        return self.osp_dir / "ABSCO"
+    def absco_base_path(self) -> InputFilePath:
+        return self.ifile_hlp.osp_dir / "ABSCO"
 
     def absco_filename(self, gas: str) -> Path | None:
         if gas != "O3":

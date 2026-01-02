@@ -327,16 +327,14 @@ class RefractorTropOrOmiFmBase:
         self,
         pickle_file,
         path=".",
-        osp_dir=None,
-        gmao_dir=None,
+        ifile_hlp=None,
     ):
         """This goes with uip_from_muses_retrieval_step, it turns around
         and calls tropomi_fm/omi_fm with the saved data."""
         rf_uip = RefractorUip.load_uip(
             pickle_file,
             path=path,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            ifile_hlp=ifile_hlp
         )
         self.basis_matrix = rf_uip.basis_matrix
         self.run_dir = rf_uip.run_dir
@@ -348,7 +346,7 @@ class RefractorTropOrOmiFmBase:
             include_pyoss=True,
             change_to_rundir=True,
         ):
-            with osswrapper(rf_uip.uip):
+            with osswrapper(rf_uip.uip, ifile_hlp):
                 if self.func_name == "tropomi_fm":
                     return self.tropomi_fm(rf_uip.uip_all("TROPOMI"))
                 else:

@@ -77,7 +77,7 @@ def test_species_basis(tropomi_uip_step_2):
 @pytest.mark.old_py_retrieve_test
 @require_muses_py_fm
 def test_refractor_joint_tropomi_create_uip(
-    joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12, osp_dir
+    joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12, ifile_hlp
 ):
     rstep = joint_tropomi_muses_retrieval_step_12
     os.chdir(rstep.run_retrieval_path)
@@ -96,7 +96,7 @@ def test_refractor_joint_tropomi_create_uip(
     sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+        "Table.asc", ifile_hlp=ifile_hlp
     )
     filter_list_dict = {
         InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
@@ -148,7 +148,7 @@ def test_refractor_joint_tropomi_create_uip(
 @pytest.mark.old_py_retrieve_test
 @require_muses_py_fm
 def test_refractor_tropomi_create_uip(
-    tropomi_muses_retrieval_step_2, tropomi_uip_step_2, osp_dir
+    tropomi_muses_retrieval_step_2, tropomi_uip_step_2, ifile_hlp
 ):
     rstep = tropomi_muses_retrieval_step_2
     os.chdir(rstep.run_retrieval_path)
@@ -167,7 +167,7 @@ def test_refractor_tropomi_create_uip(
     sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+        "Table.asc", ifile_hlp=ifile_hlp
     )
     filter_list_dict = {
         InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
@@ -216,7 +216,7 @@ def test_refractor_tropomi_create_uip(
 @pytest.mark.old_py_retrieve_test
 @require_muses_py_fm
 def test_refractor_joint_omi_create_uip(
-    joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8, osp_dir
+    joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8, ifile_hlp
 ):
     rstep = joint_omi_muses_retrieval_step_8
     os.chdir(rstep.run_retrieval_path)
@@ -235,7 +235,7 @@ def test_refractor_joint_omi_create_uip(
     sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+        "Table.asc", ifile_hlp=ifile_hlp
     )
     filter_list_dict = {
         InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
@@ -286,7 +286,9 @@ def test_refractor_joint_omi_create_uip(
 
 @pytest.mark.old_py_retrieve_test
 @require_muses_py_fm
-def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, osp_dir):
+def test_refractor_omi_create_uip(
+    omi_muses_retrieval_step_2, omi_uip_step_2, ifile_hlp
+):
     rstep = omi_muses_retrieval_step_2
     os.chdir(rstep.run_retrieval_path)
     i_stateInfo = rstep.params["i_stateInfo"]
@@ -304,7 +306,7 @@ def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, os
     sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+        "Table.asc", ifile_hlp=ifile_hlp
     )
     filter_list_dict = {
         InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],

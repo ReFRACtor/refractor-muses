@@ -4,13 +4,12 @@ from pytest import approx
 import numpy.testing as npt
 
 
-def test_error_analysis(isolated_dir, joint_tropomi_test_in_dir, osp_dir, gmao_dir):
+def test_error_analysis(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
     rs, rstep, _ = set_up_run_to_location(
         joint_tropomi_test_in_dir,
         10,
         "retrieval step",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
     )
     e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
     if False:

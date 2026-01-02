@@ -73,7 +73,7 @@ def test_current_state_dict():
 
 
 @require_muses_py_fm
-def test_current_state_uip(joint_tropomi_step_12, osp_dir):
+def test_current_state_uip(joint_tropomi_step_12):
     rs, rstep, _ = joint_tropomi_step_12
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
@@ -109,13 +109,11 @@ def test_current_state_uip(joint_tropomi_step_12, osp_dir):
     print(mp.retrieval_indexes)
 
 
-def test_current_state(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
+def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     try:
         with all_output_disabled():
-            r = MusesRunDir(
-                joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix="."
-            )
-            rs = RetrievalStrategy(r.run_dir / "Table.asc")
+            r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp, path_prefix=".")
+            rs = RetrievalStrategy(r.run_dir / "Table.asc", ifile_hlp=ifile_hlp)
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())

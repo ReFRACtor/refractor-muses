@@ -7,9 +7,8 @@ from .mpy import (
     mpy_fm_oss_windows,
     mpy_fm_oss_delete,
 )
-from pathlib import Path
 import itertools
-from refractor.muses import suppress_replacement
+from refractor.muses import suppress_replacement, InputFileHelper
 import os
 from contextlib import contextmanager
 import sys
@@ -105,14 +104,12 @@ class osswrapper:
     have_oss = False
     first_oss_initialize = True
 
-    def __init__(
-        self, uip: dict[str, Any], osp_dir: str | os.PathLike[str] | None = None
-    ) -> None:
+    def __init__(self, uip: dict[str, Any], ifile_hlp: InputFileHelper) -> None:
         if hasattr(uip, "as_dict"):
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
-        self.osp_dir = Path(osp_dir) if osp_dir is not None else None
+        self.ifile_hlp = ifile_hlp
         self.need_cleanup = False
 
     @classmethod
@@ -127,7 +124,7 @@ class osswrapper:
         if not osswrapper.have_oss:
             for inst in ("CRIS", "AIRS", "TES"):
                 # I don't think the logic here is correct if we have multiple
-                # instruments. But I don't think we error have more than one,
+                # instruments. But I don't think we ever have more than one,
                 # so we can just assume that here. Revisit if needed.
                 if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
@@ -154,7 +151,7 @@ class osswrapper:
                                     mpy_fm_oss_init(
                                         AttrDictAdapter(uip_all),
                                         inst,
-                                        i_osp_dir=self.osp_dir,
+                                        i_osp_dir=self.ifile_hlp.osp_dir,
                                     )
                                 )
                             # This can potentially change oss_frequencyList.
@@ -172,7 +169,9 @@ class osswrapper:
                             osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
                             (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
-                                AttrDictAdapter(uip_all), inst, i_osp_dir=self.osp_dir
+                                AttrDictAdapter(uip_all),
+                                inst,
+                                i_osp_dir=self.ifile_hlp.osp_dir,
                             )
                             self.uip["oss_jacobianList"] = jacobianList
                         # This can potentially change oss_frequencyList.
@@ -196,6 +195,11 @@ class osswrapper:
             self.uip["oss_jacobianList"] = self.oss_jacobianList
             self.uip["oss_frequencyList"] = self.oss_frequencyList
             self.uip["oss_frequencyListFull"] = self.oss_frequencyListFull
+            # List of files used by fm_oss_init
+            for t in ("sel_file", "od_file", "sol_file", "fix_file", "chsel_file"):
+                fname = uip_all[t]
+                if fname != "NULL":
+                    self.ifile_hlp.notify_file_input(fname)
         else:
             self.oss_dir_lut = None
             self.oss_jacobianList = None

@@ -28,7 +28,7 @@ import numpy as np
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+def test_muses_airs_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     """This compares MusesAirsObservation against the old py-retrieve code.
     We don't actually use the old py-retrieve code anymore.
 
@@ -45,10 +45,10 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
         / "AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
     )
     obs = MusesAirsObservation.create_from_filename(
-        fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir
+        fname, granule, xtrack, atrack, channel_list, ifile_hlp=ifile_hlp
     )
     rrefractor = joint_omi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+        ifile_hlp, joint_omi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -62,10 +62,10 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, ifile_hlp)
     obs.spectral_window = swin_dict[InstrumentIdentifier("AIRS")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
@@ -91,9 +91,7 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_muses_tropomi_observation(
-    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
-):
+def test_muses_tropomi_observation(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     """This compares MusesTropomiObservation against the old py-retrieve code.
     We don't actually use the old py-retrieve code anymore.
 
@@ -121,10 +119,15 @@ def test_muses_tropomi_observation(
         "BAND3",
     ]
     obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
+        filename_dict,
+        xtrack_dict,
+        atrack_dict,
+        utc_time,
+        filter_list,
+        ifile_hlp=ifile_hlp,
     )
     rrefractor = joint_tropomi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
+        ifile_hlp, joint_tropomi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -152,10 +155,10 @@ def test_muses_tropomi_observation(
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, ifile_hlp)
     obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
@@ -198,7 +201,7 @@ def test_muses_tropomi_observation(
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+def test_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     """This compares MusesOmiObservation against the old py-retrieve code.
     We don't actually use the old py-retrieve code anymore.
 
@@ -218,7 +221,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
         / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     )
     utc_time = "2016-04-01T23:07:33.676106Z"
-    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    calibration_filename = ifile_hlp.osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     obs = MusesOmiObservation.create_from_filename(
         filename,
         xtrack_uv1,
@@ -228,10 +231,10 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
         calibration_filename,
         [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
         cld_filename=cld_filename,
-        osp_dir=osp_dir,
+        ifile_hlp=ifile_hlp,
     )
     rrefractor = joint_omi_residual_fm_jac(
-        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+        ifile_hlp, joint_omi_test_in_dir, path="refractor"
     )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
@@ -254,10 +257,10 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, ifile_hlp)
     obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)

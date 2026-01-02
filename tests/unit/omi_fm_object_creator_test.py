@@ -109,7 +109,6 @@ def test_fm_run_step2(omi_fm_object_creator_step_1):
             ],
             None,
         ),
-        osp_dir=omi_fm_object_creator_step_1.osp_dir,
         use_pca=True,
         use_lrad=False,
         lrad_second_order=False,

@@ -36,7 +36,7 @@ class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
 @require_muses_py_fm
-def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
+def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1):
     obj_creator = tropomi_fm_object_creator_step_1
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
@@ -65,7 +65,6 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
             obj_creator.ils_params(0),
         ],
         obj_creator.retrieval_config.input_file_helper,
-        osp_dir,
     )
 
     print(mod2)

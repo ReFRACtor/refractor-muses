@@ -1,8 +1,85 @@
+from __future__ import annotations
 from pathlib import Path
+from .tes_file import TesFile
+from loguru import logger
 import os
 import netCDF4
+import re
 import h5py  # type: ignore
-from typing import Self
+from typing import Self, Any, Iterator
+
+
+class InputFilePath:
+    """This is just a pathlib.Path for the OSP or GMAO base path. But
+    we pull this out, because we may end up wanting to support other
+    path like objects such as cloudpathlib
+    (https://github.com/drivendataorg/cloudpathlib), or zipfile.Path.
+    These are very much like the pathlib interface, but have differences
+    because not all pathlib.Path functions are supported (see for example
+    https://cloudpathlib.drivendata.org/stable/#supported-methods-and-properties).
+
+    We only need a small number of functions supported. We pull these out
+    here, even though this is just a thin wrapper around pathlib.Path. We can
+    then know exactly what functionality we need for supporting other path like
+    interfaces.
+    """
+
+    def __init__(
+        self,
+        base_path: str | os.PathLike[str] | InputFilePath,
+        rel_path: str | os.PathLike[str] = ".",
+    ) -> None:
+        if isinstance(base_path, InputFilePath):
+            self._base_path: Path = Path(base_path._base_path)
+            self._rel_path: Path = Path(base_path._rel_path)
+        else:
+            self._base_path = Path(base_path).absolute()
+            self._rel_path = Path(rel_path)
+
+    # Want to be hashable
+    def __eq__(self, x) -> bool:
+        return str(self) == str(x)
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+    
+    def __truediv__(self, rel_path: str | os.PathLike[str]) -> InputFilePath:
+        return InputFilePath(self._base_path, self._rel_path / rel_path)
+
+    def exists(self) -> bool:
+        return (self._base_path / self._rel_path).exists()
+
+    @property
+    def parent(self) -> InputFilePath:
+        return InputFilePath(self._base_path, self._rel_path.parent)
+
+    def absolute(self) -> Self:
+        # File is already absolute, so just return self.
+        # Note, only called in muses-py, but supply so we don't need to change that code.
+        return self
+
+    def resolve(self) -> Self:
+        # Similar for resolve
+        # Note, only called in muses-py, but supply so we don't need to change that code.
+        return self
+
+    def as_posix(self) -> str:
+        return str(self)
+
+    def glob(self, pattern: str, **kwargs: Any) -> Iterator[Path]:
+        return (self._base_path / self._rel_path).glob(pattern, **kwargs)
+
+    def __str__(self) -> str:
+        return str(self._base_path / self._rel_path)
+
+    @property
+    def name(self) -> str:
+        return (self._base_path / self._rel_path).name
+
+    def sub_fname(self, pattern: str, repl: str) -> InputFilePath:
+        return InputFilePath(
+            self._base_path, Path(re.sub(pattern, repl, str(self._rel_path)))
+        )
 
 
 class InputFileHelper:
@@ -44,23 +121,40 @@ class InputFileHelper:
     now.
     """
 
-    def notify_file_input(self, fname: Path) -> None:
-        pass
+    def __init__(
+        self,
+        osp_dir: str | os.PathLike[str] | None = None,
+        gmao_dir: str | os.PathLike[str] | None = None,
+    ) -> None:
+        self.osp_dir = InputFilePath(
+            osp_dir
+            if osp_dir is not None
+            else os.environ.get("MUSES_OSP_PATH", "../OSP")
+        )
+        self.gmao_dir = InputFilePath(
+            gmao_dir
+            if gmao_dir is not None
+            else os.environ.get("MUSES_GMAO_PATH", "../GMAO")
+        )
 
-    @classmethod
+    def notify_file_input(self, fname: str | os.PathLike[str] | InputFilePath) -> None:
+        if False:
+            logger.debug(f"input file {fname}")
+
     def open_ncdf(
-        cls, fname: str | os.PathLike[str], ifile_mon: Self | None
+        self, fname: str | os.PathLike[str] | InputFilePath
     ) -> netCDF4.Dataset:
         """Small wrapper to call notify_file_input if InputFileMonitor is not None"""
-        if ifile_mon is not None:
-            ifile_mon.notify_file_input(Path(fname))
-        return netCDF4.Dataset(fname, "r")
+        self.notify_file_input(fname)
+        return netCDF4.Dataset(
+            str(fname) if isinstance(fname, InputFilePath) else fname, "r"
+        )
 
-    @classmethod
-    def open_h5(
-        cls, fname: str | os.PathLike[str], ifile_mon: Self | None
-    ) -> h5py.File:
+    def open_h5(self, fname: str | os.PathLike[str] | InputFilePath) -> h5py.File:
         """Small wrapper to call notify_file_input if InputFileMonitor is not None"""
-        if ifile_mon is not None:
-            ifile_mon.notify_file_input(Path(fname))
-        return h5py.File(fname, "r")
+        self.notify_file_input(fname)
+        return h5py.File(str(fname) if isinstance(fname, InputFilePath) else fname, "r")
+
+    def open_tes(self, fname: str | os.PathLike[str] | InputFilePath) -> TesFile:
+        self.notify_file_input(fname)
+        return TesFile(str(fname) if isinstance(fname, InputFilePath) else fname)

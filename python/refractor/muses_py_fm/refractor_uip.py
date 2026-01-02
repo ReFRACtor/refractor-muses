@@ -27,9 +27,10 @@ from refractor.muses import (
     FakeStateInfo,
     FakeRetrievalInfo,
     RetrievalConfiguration,
-    MeasurementId,
+    AdapterRetrievalConfiguration,
     CurrentState,
     MusesObservation,
+    InputFileHelper,
 )
 from .muses_py_call import muses_py_call
 import refractor.framework as rf  # type: ignore
@@ -398,8 +399,7 @@ class RefractorUip:
         save_pickle_file: str,
         path: str = ".",
         change_to_dir: bool = False,
-        osp_dir: str | None = None,
-        gmao_dir: str | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> RefractorUip:
         """This is the pair to create_from_table, it loads a RefractorUip
         from a pickle file, extracts the saved directory, and optionally
@@ -408,11 +408,12 @@ class RefractorUip:
         # In testing, we may have already created the directory. If it there, skip
         # setting up
         if not uip.capture_directory.runbase.exists():
+            ifile_hlp = InputFileHelper() if ifile_hlp is None else ifile_hlp
             uip.capture_directory.extract_directory(
                 path=path,
                 change_to_dir=change_to_dir,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
+                osp_dir=str(ifile_hlp.osp_dir),
+                gmao_dir=str(ifile_hlp.gmao_dir),
             )
         else:
             # Side effect of extract_directory is to set run_dir to absolute path. If
@@ -1630,7 +1631,7 @@ class RefractorUip:
         cls,
         obs_list: list[MusesObservation],
         cstate: CurrentState,
-        rconf: MeasurementId | RetrievalConfiguration,
+        rconf: RetrievalConfiguration,
         pointing_angle: rf.DoubleWithUnit | None = None,
         vlidort_dir: None | str | os.PathLike[str] = None,
     ) -> RefractorUip:
@@ -1669,7 +1670,7 @@ class RefractorUip:
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {
-            "preferences": rconf,
+            "preferences": AdapterRetrievalConfiguration(rconf),
             "vlidort_dir": str(cstate.step_directory / "vlidort") + "/"
             if vlidort_dir is None
             else str(Path(vlidort_dir).absolute()) + "/",

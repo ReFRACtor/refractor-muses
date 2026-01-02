@@ -125,8 +125,7 @@ class MusesRetrievalStep:
         save_pickle_file,
         path=".",
         change_to_dir=False,
-        osp_dir=None,
-        gmao_dir=None,
+        ifile_hlp=None,
     ):
         """This is the pair to create_from_table, it loads a MusesRetrievalStep
         from a pickle file, extracts the saved directory, and optionally
@@ -137,8 +136,8 @@ class MusesRetrievalStep:
         res.capture_directory.extract_directory(
             path=path,
             change_to_dir=change_to_dir,
-            osp_dir=osp_dir,
-            gmao_dir=gmao_dir,
+            osp_dir=str(ifile_hlp.osp_dir),
+            gmao_dir=str(ifile_hlp.gmao_dir),
             include_osp=True,
         )
         _, d = mpy.read_all_tes(

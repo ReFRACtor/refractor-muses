@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
     from .sounding_metadata import SoundingMetadata
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 
 class ExtraL2Output:
@@ -128,13 +128,13 @@ class RetrievalOutput:
         # could in principle be different. So we calculate this the same way
         # muses-py does
         return (
-            Path(self.retrieval_config["outputDirectory"])
+            self.retrieval_config["outputDirectory"]
             / self.retrieval_config["sessionID"]
         )
 
     @property
-    def lite_directory(self) -> Path:
-        return Path(self.retrieval_config["liteDirectory"])
+    def lite_directory(self) -> InputFilePath:
+        return self.retrieval_config["liteDirectory"]
 
     @property
     def special_tag(self) -> str:
@@ -993,7 +993,7 @@ class CdfWriteTes:
         filenameIn: str,
         current_state: CurrentState,
         instrument: list[InstrumentIdentifier],
-        lite_directory: Path,
+        lite_directory: InputFilePath,
         ifile_hlp: InputFileHelper,
         data1In: dict,
         data2: dict | None = None,

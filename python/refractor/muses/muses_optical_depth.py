@@ -4,10 +4,10 @@ import math
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
 from .input_file_helper import InputFileHelper
-import os
 import scipy
 from functools import cache
 import pandas
+import h5py  # type: ignore
 from pathlib import Path
 from typing import Any
 import typing
@@ -33,11 +33,9 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         obs: MusesObservation,
         ils_params_list: list[dict],
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str],
     ) -> None:
         """Creator"""
         # Dummy since we are overwriting the optical_depth function
-        self.osp_dir = Path(osp_dir)
         self.ifile_hlp = ifile_hlp
         self.obs = obs
         self.ils_params_list = ils_params_list
@@ -156,7 +154,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         i_tropomifreqIndex: int,
         i_o3_col: np.ndarray,
     ) -> dict[str, Any]:
-        fn = self.osp_dir / "TROPOMI/Ozone_Xsec/serdyuchenkoo3temp.dat"
+        fn = self.ifile_hlp.osp_dir / "TROPOMI/Ozone_Xsec/serdyuchenkoo3temp.dat"
         self.ifile_hlp.notify_file_input(fn)
         (c0, c1, c2, temp_wav_all) = _tropomi_o3xsec(fn)
 
@@ -274,7 +272,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         i_omifreqIndex: np.ndarray,
         i_o3_col: np.ndarray,
     ) -> dict[str, Any]:
-        fn = self.osp_dir / "OMI/Ozone_Xsec/o3abs_brion_195_660_vacfinal.h5"
+        fn = self.ifile_hlp.osp_dir / "OMI/Ozone_Xsec/o3abs_brion_195_660_vacfinal.h5"
         self.ifile_hlp.notify_file_input(fn)
         c0, c1, c2, temp_wav_all = _omi_o3xsec(fn)
 
@@ -399,7 +397,7 @@ def _tropomi_o3xsec(fn: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.nd
     # We catch this file at a higher level
     header_skip = 20
     t = pandas.read_csv(
-        fn,
+        str(fn),
         skiprows=header_skip,
         header=None,
         names=["wav", "c0", "c1", "c2"],
@@ -411,7 +409,7 @@ def _tropomi_o3xsec(fn: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.nd
 @cache
 def _omi_o3xsec(fn: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # We catch this file at a higher level
-    with InputFileHelper.open_h5(fn, None) as f:
+    with h5py.File(str(fn)) as f:
         wav = f["WAV_ALL"][:]
         c0 = f["C0_ALL"][:]
         c1 = f["C1_ALL"][:]

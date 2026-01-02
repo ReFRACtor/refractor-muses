@@ -14,7 +14,7 @@ from fixtures.require_check import require_muses_py
 from fixtures.compare_run import compare_muses_py_dict
 
 
-def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+def test_muses_tes_observation(isolated_dir, ifile_hlp, tes_test_in_dir):
     channel_list = [
         FilterIdentifier("2B1"),
         FilterIdentifier("1B2"),
@@ -37,22 +37,22 @@ def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir)
         sequence,
         scan,
         channel_list,
-        osp_dir=osp_dir,
+        ifile_hlp=ifile_hlp,
     )
     print(obs)
 
 
-def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+def test_create_muses_tes_observation(isolated_dir, ifile_hlp, tes_test_in_dir):
     # This depends on files in Susan's OSP. Run if these are available, but
     # don't fail if they aren't
-    if not (osp_dir / "Strategy_Tables/ssund").exists():
+    if not (ifile_hlp.osp_dir / "Strategy_Tables/ssund").exists():
         pytest.skip("Don't have support files in osp_dir for TES data.")
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
-    r = MusesRunDir(tes_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(tes_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -69,11 +69,11 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
     # This is the microwindows file for step 0, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ssund/OSP-R14/MWDefinitions/Windows_Nadir_EMIS_CLOUDEXT_PAN_PREP.asc"
     )
     fmeta = FileFilterMetadata(
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ssund/Defaults/Default_Spectral_Windows_Definition_File_Filters.asc",
         rconfig.input_file_helper,
     )
@@ -87,7 +87,6 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
         swin_dict[InstrumentIdentifier("TES")],
         None,
         rconfig.input_file_helper,
-        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -96,7 +95,7 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
 
 
 @require_muses_py
-def test_tes_steps(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+def test_tes_steps(isolated_dir, ifile_hlp, tes_test_in_dir):
     import refractor.muses_py as mpy
 
     filename = (
@@ -117,10 +116,10 @@ def test_tes_steps(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
         "TES_filename_L1B_Index": l1b_index,
         "TES_L1B_Average_Flag": l1b_avgflag,
     }
-    with osp_setup(osp_dir):
+    with osp_setup(ifile_hlp):
         o_tes = mpy.read_tes_l1b(i_fileid, windows)
     o_tes2 = MusesTesObservation.read_tes(
-        filename, l1b_index, l1b_avgflag, windows, osp_dir
+        filename, l1b_index, l1b_avgflag, windows, ifile_hlp
     )
 
     compare_muses_py_dict(o_tes2, o_tes, "read_tes")

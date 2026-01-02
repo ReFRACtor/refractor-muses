@@ -12,6 +12,8 @@ from refractor.muses import (
     FilterIdentifier,
     RetrievalType,
     CurrentState,
+    InputFilePath,
+    InputFileHelper,
 )
 from contextlib import contextmanager
 import os
@@ -26,12 +28,12 @@ class StrategyTable:
     def __init__(
         self,
         filename: str | os.PathLike[str],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ):
         """Read the given strategy table.  Note that the strategy
         table file tends to use a lot of relative paths. We either
         assume that the directory structure is set up, changing to the
-        directory of table file name. Or if the osp_dir is supplied,
+        directory of table file name. Or if the ifile_hlp is supplied,
         we set up a temporary directory for reading this file (useful
         for example to read a file sitting in the refractor_test_data
         directory).
@@ -39,7 +41,7 @@ class StrategyTable:
         """
         self.filename = Path(filename).absolute()
         self._table_step = -1
-        self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
+        self.ifile_hlp: InputFileHelper | None = ifile_hlp
         t = os.environ.get("strategy_table_dir")
         with self.chdir_run_dir():
             try:
@@ -112,11 +114,12 @@ class StrategyTable:
             res = "POSTCONV"
         return res
 
-    def abs_filename(self, filename: str | os.PathLike[str]) -> Path:
+    def abs_filename(self, filename: str | os.PathLike[str]) -> InputFilePath:
         """Translate a relative path found in the StrategyTable to a
         absolute path."""
-        reldir = self.osp_dir if self.osp_dir is not None else self.filename.parent
-        return Path(reldir, filename)
+        if self.ifile_hlp:
+            return self.ifile_hlp.osp_dir / filename
+        return InputFilePath(filename)
 
     @contextmanager
     def chdir_run_dir(self):
@@ -124,14 +127,14 @@ class StrategyTable:
         that the strategy table lives in. This gives a nice way to ensure
         that is the case. Uses this as a context manager
         """
-        # If we have an osp_dir, then set up a temporary directory with the OSP
+        # If we have an ifile_hlp, then set up a temporary directory with the OSP
         # set up.
         # TODO Would be nice to remove this. I think we'll need to look into
         # py-retrieval to do this, but this temporary directory is really an
         # kludge - it would be nice to handle relative paths in the strategy
         # table directly.
-        if self.osp_dir is not None:
-            with osp_setup(osp_dir=self.osp_dir):
+        if self.ifile_hlp is not None:
+            with osp_setup(ifile_hlp=self.ifile_hlp):
                 yield
         else:
             # Otherwise we assume that this is in a run directory

@@ -1,8 +1,8 @@
 from refractor.muses import RetrievalConfiguration
 
 
-def test_retrieval_configuration(osp_dir, omi_test_in_dir):
+def test_retrieval_configuration(ifile_hlp, omi_test_in_dir):
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     print(dict(rconf))

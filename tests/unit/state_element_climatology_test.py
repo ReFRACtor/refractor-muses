@@ -51,7 +51,7 @@ def test_read_climatology_2022(airs_omi_shandle, unit_test_expected_dir):
         StateElementIdentifier("PAN"),
         p.value_fm,
         False,
-        Path(rconfig.osp_dir) / "Climatology/Climatology_files",
+        rconfig.input_file_helper.osp_dir / "Climatology/Climatology_files",
         smeta,
         rconfig.input_file_helper,
     )
@@ -59,7 +59,7 @@ def test_read_climatology_2022(airs_omi_shandle, unit_test_expected_dir):
         StateElementIdentifier("PAN"),
         p.value_fm,
         True,
-        Path(rconfig.osp_dir) / "Climatology/Climatology_files",
+        rconfig.input_file_helper.osp_dir / "Climatology/Climatology_files",
         smeta,
         rconfig.input_file_helper,
     )

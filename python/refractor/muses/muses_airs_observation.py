@@ -60,12 +60,12 @@ class MusesAirsObservation(MusesObservationImp):
         xtrack: int,
         atrack: int,
         filter_list: list[str],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         i_window = []
         for cname in filter_list:
             i_window.append({"filter": cname})
-        o_airs = cls.read_airs(filename, xtrack, atrack, osp_dir)
+        o_airs = cls.read_airs(filename, xtrack, atrack, ifile_hlp)
         sdesc = {
             "AIRS_GRANULE": np.int16(granule),
             "AIRS_ATRACK_INDEX": np.int16(atrack),
@@ -80,12 +80,12 @@ class MusesAirsObservation(MusesObservationImp):
         filename: str | os.PathLike[str],
         xtrack: int,
         atrack: int,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
         """This is probably a bit over complicated, we don't really need the full
         o_airs structure. But for now, just duplicate the old muses-py code so we
         have a starting point for possibly cleaning up."""
-        with osp_setup(osp_dir):
+        with osp_setup(ifile_hlp):
             o_airs = mpy_read_airs_l1b(os.path.abspath(str(filename)), xtrack, atrack)
         radiance = o_airs["radiance"]
         frequency = o_airs["frequency"]
@@ -129,7 +129,7 @@ class MusesAirsObservation(MusesObservationImp):
         xtrack: int,
         atrack: int,
         filter_list: list[FilterIdentifier],
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -145,7 +145,7 @@ class MusesAirsObservation(MusesObservationImp):
             xtrack,
             atrack,
             [str(i) for i in filter_list],
-            osp_dir=osp_dir,
+            ifile_hlp=ifile_hlp,
         )
         return cls(o_airs, sdesc)
 
@@ -158,7 +158,6 @@ class MusesAirsObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> Self:
         """Create from a MeasurementId. If this depends on any state
@@ -188,7 +187,7 @@ class MusesAirsObservation(MusesObservationImp):
                 xtrack,
                 atrack,
                 [str(i) for i in filter_list],
-                osp_dir=osp_dir,
+                ifile_hlp=ifile_hlp,
             )
             obs = cls(o_airs, sdesc)
         obs.spectral_window = (

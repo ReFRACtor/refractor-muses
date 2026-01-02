@@ -16,11 +16,10 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     stable = MusesStrategyStepList.create_from_strategy_file(
         rs.run_dir / "Table.asc",
         rs.retrieval_config.input_file_helper,
-        rs.osp_dir,
         rs.spectral_window_handle_set,
     )
     stable_old = MusesStrategyOldStrategyTable(
-        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
+        rs.run_dir / "Table.asc", rs.ifile_hlp, rs.spectral_window_handle_set
     )
     stable.notify_update_target(rs.measurement_id, rs.retrieval_config)
     stable_old.notify_update_target(rs.measurement_id, rs.retrieval_config)

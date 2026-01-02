@@ -31,8 +31,7 @@ match_py_retrieve = False
 @require_muses_py_fm
 @pytest.mark.long_test
 def test_retrieval_strategy_airs_omi(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     joint_omi_test_in_dir,
@@ -52,8 +51,7 @@ def test_retrieval_strategy_airs_omi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(
@@ -89,14 +87,10 @@ def test_retrieval_strategy_airs_omi(
 
 
 @require_muses_py_fm
-def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
+def test_load_step(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     logger.remove()
-    r = MusesRunDir(
-        joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
-    )
-    rs = RetrievalStrategy(None, osp_dir=osp_dir)
+    r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
@@ -142,7 +136,7 @@ def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
 
 
 @require_muses_py_fm
-def test_run_pickle_1(end_to_end_run_dir, osp_dir, gmao_dir):
+def test_run_pickle_1(end_to_end_run_dir, ifile_hlp):
     """Test loading the pickle files saved in test_retrieval_strategy_airs_omi, rerunning
     step 5. This is an example of how you might run to debug a problem. This is similar
     to the current_state_record.pkl / retrieval_state_step_*.json.gz test above. However
@@ -162,14 +156,13 @@ def test_run_pickle_1(end_to_end_run_dir, osp_dir, gmao_dir):
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
         pfile,
         end_to_end_run_dir / "retrieval_strategy_airs_omi_pickle",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     # Run step 5, and then stop
     rs.continue_retrieval(stop_after_step=6)
 
 
-def test_run_pickle_2(end_to_end_run_dir, osp_dir, gmao_dir):
+def test_run_pickle_2(end_to_end_run_dir, ifile_hlp):
     """Test loading the pickle files saved in test_retrieval_strategy_airs_omi, at the
     end of step 5. Examine the results.
     """
@@ -185,8 +178,7 @@ def test_run_pickle_2(end_to_end_run_dir, osp_dir, gmao_dir):
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
         pfile,
         end_to_end_run_dir / "retrieval_strategy_airs_omi_pickle_2",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
+        ifile_hlp=ifile_hlp,
     )
     # This get passed on by the notify when we pickle this step. This is the same message
     # that goes to RetrievalOutput. Just check here that we can access this, but you can

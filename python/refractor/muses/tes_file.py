@@ -3,7 +3,6 @@ from .mpy import mpy_read_all_tes
 import collections.abc
 import re
 import pandas as pd
-from pathlib import Path
 import io
 import os
 from functools import lru_cache
@@ -12,7 +11,7 @@ from typing import Iterator, Any, Self
 from loguru import logger
 
 if typing.TYPE_CHECKING:
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFilePath
 
 
 class TesFile(collections.abc.Mapping):
@@ -33,8 +32,7 @@ class TesFile(collections.abc.Mapping):
 
     def __init__(
         self,
-        fname: str | os.PathLike[str],
-        ifile_hlp: InputFileHelper | None,
+        fname: str | os.PathLike[str] | InputFilePath,
         use_mpy: bool = False,
     ) -> None:
         """Open the given file, and read the keyword/value pairs plus
@@ -49,13 +47,13 @@ class TesFile(collections.abc.Mapping):
         for now it is useful to test that we implement the reading
         correctly.
         """
-        self.file_name = Path(fname)
+        from .input_file_helper import InputFilePath
+
+        self.file_name = InputFilePath(fname)
         # Kind of noisy, so we don't normally log this. But can be useful occasionally to turn
         # on
         if False:
             logger.debug(f"Reading file {self.file_name}")
-        if ifile_hlp is not None:
-            ifile_hlp.notify_file_input(self.file_name)
         if use_mpy:
             _, d = mpy_read_all_tes(str(fname))
             self.mpy_d = d
@@ -69,7 +67,7 @@ class TesFile(collections.abc.Mapping):
                 self.table = None
             return
 
-        fdata = open(fname).read()
+        fdata = open(str(fname)).read()
 
         # Make sure we find the end of the header
         if not re.search(
@@ -170,7 +168,7 @@ class TesFile(collections.abc.Mapping):
     @typing.no_type_check
     @classmethod
     @lru_cache(maxsize=50)
-    def _create(cls, fname: str | os.PathLike[str]) -> Self:
+    def _create(cls, fname: str | os.PathLike[str] | InputFilePath) -> Self:
         """This creates a TesFile that reads the given file. Because we often
         open the same file multiple times in different contexts, this adds caching so
         open the same file a second time just returns the existing TesFile object.
@@ -178,11 +176,7 @@ class TesFile(collections.abc.Mapping):
         return cls(fname, None)
 
     @classmethod
-    def create(
-        cls, fname: str | os.PathLike[str], ifile_hlp: InputFileHelper | None
-    ) -> Self:
-        if ifile_hlp is not None:
-            ifile_hlp.notify_file_input(Path(fname))
+    def create(cls, fname: str | os.PathLike[str] | InputFilePath) -> Self:
         return cls._create(fname)
 
 

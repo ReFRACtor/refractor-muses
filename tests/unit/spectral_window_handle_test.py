@@ -13,11 +13,11 @@ from refractor.muses import (
 
 
 def test_muses_py_spectral_window_handle(
-    osp_dir, isolated_dir, gmao_dir, joint_omi_test_in_dir
+    ifile_hlp, isolated_dir, gmao_dir, joint_omi_test_in_dir
 ):
-    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        f"{r.run_dir}/Table.asc", osp_dir=osp_dir
+        f"{r.run_dir}/Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {
         InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
@@ -62,12 +62,12 @@ def test_muses_py_spectral_window_handle(
 
 
 def test_muses_py_spectral_window_handle_empty_band(
-    osp_dir, isolated_dir, gmao_dir, joint_omi_test_in_dir
+    ifile_hlp, isolated_dir, gmao_dir, joint_omi_test_in_dir
 ):
     """Test step 3, which has an empty OMI band, to make sure it is handled correctly"""
-    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        f"{r.run_dir}/Table.asc", osp_dir=osp_dir
+        f"{r.run_dir}/Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {
         InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],

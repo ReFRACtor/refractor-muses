@@ -1,8 +1,7 @@
 from __future__ import annotations
-from .tes_file import TesFile
 import abc
 import os
-from pathlib import Path
+from .input_file_helper import InputFilePath
 import typing
 
 if typing.TYPE_CHECKING:
@@ -64,11 +63,17 @@ class FileFilterMetadata(FilterMetadata):
 
     """
 
-    def __init__(self, filename: str | os.PathLike[str], ifile_mon: InputFileHelper):
-        self.filename = Path(filename)
-        f = TesFile.create(filename, ifile_mon)
+    def __init__(
+        self,
+        filename: str | os.PathLike[str] | InputFilePath,
+        ifile_mon: InputFileHelper,
+    ):
+        self.filename = InputFilePath(filename)
+        f = ifile_mon.open_tes(filename)
         self.metadata = {}
-        for row in f.checked_table.iloc:
+        # Type is actually correct, by mypy confused. Problem is with pandas
+        # typing of iloc, not an actual issue.
+        for row in f.checked_table.iloc:  # type:ignore[attr-defined]
             res = {}
             res["monoextend"] = float(row["MONO_BOUND_EXTENS"])
             res["monoSpacing"] = float(row["MONO_FRQ_SPC"])

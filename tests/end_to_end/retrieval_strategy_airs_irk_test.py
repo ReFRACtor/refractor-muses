@@ -22,8 +22,7 @@ match_py_retrieve = False
 @pytest.mark.long_test
 @require_muses_py_fm
 def test_retrieval_strategy_airs_irk(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     airs_irk_test_in_dir,
@@ -49,8 +48,7 @@ def test_retrieval_strategy_airs_irk(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         airs_irk_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(r.run_dir / "Table.asc")

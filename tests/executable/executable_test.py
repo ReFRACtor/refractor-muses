@@ -7,9 +7,7 @@ from refractor.muses import MusesRunDir
 
 
 @pytest.mark.long_executable_test
-def test_py_retrieve_airs_omi(
-    osp_dir, gmao_dir, joint_omi_test_in_dir, end_to_end_run_dir
-):
+def test_py_retrieve_airs_omi(ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir):
     """Full run of the old py-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking the output.
     That is done at lower levels of testing.
@@ -17,7 +15,7 @@ def test_py_retrieve_airs_omi(
     dir = end_to_end_run_dir / "py_retrieve_airs_omi"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
-        joint_omi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir, osp_sym_link=True
+        joint_omi_test_in_dir, ifile_hlp, path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
         f"py-retrieve --targets {r.run_dir}",
@@ -28,7 +26,7 @@ def test_py_retrieve_airs_omi(
 
 @pytest.mark.long_executable_test
 def test_py_retrieve_cris_tropomi(
-    osp_dir, gmao_dir, joint_tropomi_test_in_dir, end_to_end_run_dir
+    ifile_hlp, joint_tropomi_test_in_dir, end_to_end_run_dir
 ):
     """Full run of the old py-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking the output.
@@ -37,7 +35,7 @@ def test_py_retrieve_cris_tropomi(
     dir = end_to_end_run_dir / "py_retrieve_cris_tropomi"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
-        joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir, osp_sym_link=True
+        joint_tropomi_test_in_dir, ifile_hlp, path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
         f"py-retrieve --targets {r.run_dir}",
@@ -48,7 +46,7 @@ def test_py_retrieve_cris_tropomi(
 
 @pytest.mark.long_executable_test
 def test_refractor_py_retrieve_airs_omi(
-    osp_dir, gmao_dir, joint_omi_test_in_dir, end_to_end_run_dir
+    ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir
 ):
     """Full run of the refractor-retrieve code, using the old
     py-retrieve forward models. used to make sure we didn't break
@@ -60,8 +58,7 @@ def test_refractor_py_retrieve_airs_omi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     subprocess.run(f"refractor-retrieve --targets {r.run_dir}", shell=True, check=True)
@@ -69,7 +66,7 @@ def test_refractor_py_retrieve_airs_omi(
 
 @pytest.mark.long_executable_test
 def test_refractor_py_retrieve_cris_tropomi(
-    osp_dir, gmao_dir, joint_tropomi_test_in_dir, end_to_end_run_dir
+    ifile_hlp, joint_tropomi_test_in_dir, end_to_end_run_dir
 ):
     """Full run of the refractor-retrieve code, using the old
     py-retrieve forward models. used to make sure we didn't break
@@ -81,8 +78,7 @@ def test_refractor_py_retrieve_cris_tropomi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     subprocess.run(f"refractor-retrieve --targets {r.run_dir}", shell=True, check=True)
@@ -90,7 +86,7 @@ def test_refractor_py_retrieve_cris_tropomi(
 
 @pytest.mark.long_executable_test
 def test_refractor_retrieve_airs_omi(
-    osp_dir, gmao_dir, joint_omi_test_in_dir, end_to_end_run_dir, refractor_config_file
+    ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir, refractor_config_file
 ):
     """Full run of the refractor-retrieve code, using the
     ReFRACtor forward models. used to make sure we didn't break
@@ -102,8 +98,7 @@ def test_refractor_retrieve_airs_omi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     subprocess.run(
@@ -115,8 +110,7 @@ def test_refractor_retrieve_airs_omi(
 
 @pytest.mark.long_executable_test
 def test_refractor_retrieve_cris_tropomi(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     joint_tropomi_test_in_dir,
     end_to_end_run_dir,
     refractor_config_file,
@@ -131,8 +125,7 @@ def test_refractor_retrieve_cris_tropomi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     subprocess.run(

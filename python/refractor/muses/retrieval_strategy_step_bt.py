@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
-from .tes_file import TesFile
 from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
 from loguru import logger
@@ -118,9 +117,8 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             cstate.set_brightness_temperature_data(step, btdata)
             return
 
-        cfile = TesFile(
+        cfile = retrieval_config.input_file_helper.open_tes(
             retrieval_config["CloudParameterFilename"],
-            retrieval_config.input_file_helper,
         )
         BTLow = np.array(cfile.checked_table["BT_low"])
         BTHigh = np.array(cfile.checked_table["BT_high"])

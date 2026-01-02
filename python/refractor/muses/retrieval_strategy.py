@@ -21,6 +21,7 @@ from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
+from .input_file_helper import InputFileHelper
 from .mpy import mpy_register_replacement_function
 from loguru import logger
 import os
@@ -111,8 +112,7 @@ class RetrievalStrategy:
         filename: str | os.PathLike[str],
         writeOutput: bool = False,
         writePlots: bool = False,
-        osp_dir: str | os.PathLike[str] | None = None,
-        gmao_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
         **kwargs: Any,
     ) -> None:
         logger.info(f"Strategy table filename {filename}")
@@ -128,14 +128,7 @@ class RetrievalStrategy:
         )
         self._kwargs: dict[str, Any] = kwargs
 
-        self.osp_dir = osp_dir
-        if self.osp_dir is None:
-            self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
-
-        self.gmao_dir = gmao_dir
-        if self.gmao_dir is None:
-            self.gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
-
+        self.ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
         self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
         self._retrieval_strategy_step_set = (
             self.strategy_executor.retrieval_strategy_step_set
@@ -200,7 +193,8 @@ class RetrievalStrategy:
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
-            self.strategy_table_filename, osp_dir=self.osp_dir, gmao_dir=self.gmao_dir
+            self.strategy_table_filename,
+            self.ifile_hlp,
         )
         self._measurement_id = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
@@ -440,23 +434,20 @@ class RetrievalStrategy:
         save_pickle_file: str | os.PathLike[str],
         path: str | os.PathLike[str] = ".",
         change_to_dir: bool = False,
-        osp_dir: str | os.PathLike[str] | None = None,
-        gmao_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[RetrievalStrategy, dict]:
         """This pairs with save_pickle.
 
         This is pretty direct to use, but as an example we can do
         something like:
 
-        osp_dir = os.environ["MUSES_OSP_PATH"]
-        gmao_dir = os.environ["MUSES_GMAO_PATH"]
         subprocess.run("rm -r ./try_it", shell=True)
         dir_in = "./retrieval_strategy_cris_tropomi/20190807_065_04_08_5"
         step_number=10
         rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
             f"{dir_in}/retrieval_step_{step_number}.pkl",
             path="./try_it",
-            osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=True)
+            change_to_dir=True)
         rs.continue_retrieval()
 
         """
@@ -466,10 +457,8 @@ class RetrievalStrategy:
         )
         res._filename = res.run_dir / res.strategy_table_filename.name
         res._strategy_executor.strategy_table_filename = res._filename
-        res.osp_dir = osp_dir
-        res.gmao_dir = gmao_dir
-        res._retrieval_config.osp_dir = osp_dir
-        res._retrieval_config.gmao_dir = gmao_dir
+        res.ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
+        res._retrieval_config.ifile_hlp = res.ifile_hlp
         res._retrieval_config.base_dir = res.run_dir
         res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)
         return res, kwargs

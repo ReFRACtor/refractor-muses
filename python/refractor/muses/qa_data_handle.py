@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
-from .tes_file import TesFile
 from .fake_state_info import FakeStateInfo
 from loguru import logger
 import abc
@@ -54,7 +53,7 @@ class QaFlagValueFile(QaFlagValue):
     # is just a placeholder, we are using the old muses-py to do the QA calculation
     # but we can revisit this if needed, and perhaps change this interface.
     def __init__(self, fname: str | os.PathLike[str], ifile_hlp: InputFileHelper):
-        self.d = TesFile(fname, ifile_hlp)
+        self.d = ifile_hlp.open_tes(fname)
         self.tbl: pd.DataFrame = self.d.checked_table
 
     @property
@@ -146,10 +145,10 @@ class MusesPyQaDataHandle(QaDataHandle):
         # We'll add grabbing the stuff out of RetrievalConfiguration
         # in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        self.run_dir = Path(
-            measurement_id["outputDirectory"], measurement_id["sessionID"]
+        self.run_dir = (
+            retrieval_config["outputDirectory"] / retrieval_config["sessionID"]
         )
-        self.viewing_mode = measurement_id["viewingMode"]
+        self.viewing_mode = retrieval_config["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
         self.ifile_hlp = retrieval_config.input_file_helper
 
@@ -162,7 +161,7 @@ class MusesPyQaDataHandle(QaDataHandle):
 
         # Name is derived from the microwindows file name
         mwfname = current_strategy_step.muses_microwindows_fname()
-        quality_fname = os.path.basename(mwfname)
+        quality_fname = mwfname.name
         quality_fname = quality_fname.replace("Microwindows_", "QualityFlag_Spec_")
         quality_fname = quality_fname.replace("Windows_", "QualityFlag_Spec_")
         quality_fname = f"{self.qa_flag_directory}/{quality_fname}"

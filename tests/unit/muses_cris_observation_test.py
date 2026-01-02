@@ -13,14 +13,14 @@ from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_create_muses_cris_observation(
-    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
+    isolated_dir, ifile_hlp, joint_tropomi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
-    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -38,7 +38,7 @@ def test_create_muses_cris_observation(
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
@@ -51,7 +51,6 @@ def test_create_muses_cris_observation(
         swin_dict[InstrumentIdentifier("CRIS")],
         None,
         rconfig.input_file_helper,
-        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -60,7 +59,7 @@ def test_create_muses_cris_observation(
 
 
 @require_muses_py
-def test_cris_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
+def test_cris_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     import refractor.muses_py as mpy
 
     filename = (
@@ -77,9 +76,9 @@ def test_cris_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
         "CRIS_ATrack_Index": atrack,
         "CRIS_Pixel_Index": pixel_index,
     }
-    with osp_setup(osp_dir):
+    with osp_setup(ifile_hlp):
         o_cris = mpy.read_nasa_cris_fsr(i_fileid)
     o_cris2 = MusesCrisObservation.read_cris(
-        filename, xtrack, atrack, pixel_index, osp_dir
+        filename, xtrack, atrack, pixel_index, ifile_hlp
     )
     compare_muses_py_dict(o_cris2, o_cris, "read_cris")

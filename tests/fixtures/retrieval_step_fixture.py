@@ -10,6 +10,7 @@ from refractor.muses import (
     MusesCrisObservation,
     MusesTesObservation,
     InstrumentIdentifier,
+    InputFileHelper,
 )
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
@@ -39,8 +40,7 @@ def set_up_run_to_location(
     dir: str | Path,
     step_number: int,
     location: str | ProcessLocation,
-    osp_dir: str | Path,
-    gmao_dir: str | Path,
+    ifile_hlp: InputFileHelper,
     include_ret_state=True,
     osp_sym_link: bool = False,
     include_run_dir=True,
@@ -77,11 +77,11 @@ def set_up_run_to_location(
     # We would like to be able to run things without needing a run directory. To
     # test this, we can skip creating the run directory.
     if include_run_dir:
-        r = MusesRunDir(dir, osp_dir, gmao_dir, osp_sym_link=osp_sym_link)
+        r = MusesRunDir(dir, ifile_hlp, osp_sym_link=osp_sym_link)
         run_dir = r.run_dir
     else:
         run_dir = dir
-    rs = RetrievalStrategy(None, osp_dir=osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
@@ -158,45 +158,41 @@ def run_step_to_location(
 
 
 @pytest.fixture(scope="function")
-def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
+def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir
+        joint_omi_test_in_dir, 8, "retrieval input", ifile_hlp
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def joint_omi_step_8_no_run_dir(joint_omi_test_in_dir, osp_dir, gmao_dir):
+def joint_omi_step_8_no_run_dir(joint_omi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_omi_test_in_dir,
         8,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_run_dir=False,
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def joint_omi_step_8_osp_sym_link(
-    isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir
-):
+def joint_omi_step_8_osp_sym_link(isolated_dir, joint_omi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_omi_test_in_dir,
         8,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         osp_sym_link=True,
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
+def omi_step_0(isolated_dir, omi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
-        omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir
+        omi_test_in_dir, 0, "retrieval input", ifile_hlp
     )
     return rs, rstep, kwargs
 
@@ -205,27 +201,21 @@ def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
 def joint_tropomi_step_12(
     isolated_dir,
     joint_tropomi_test_in_dir,
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir
+        joint_tropomi_test_in_dir, 12, "retrieval input", ifile_hlp
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def joint_tropomi_step_12_no_run_dir(
-    joint_tropomi_test_in_dir,
-    osp_dir,
-    gmao_dir,
-):
+def joint_tropomi_step_12_no_run_dir(joint_tropomi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir,
         12,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_run_dir=False,
     )
     return rs, rstep, kwargs
@@ -233,51 +223,37 @@ def joint_tropomi_step_12_no_run_dir(
 
 @pytest.fixture(scope="function")
 def joint_tropomi_step_12_osp_sym_link(
-    isolated_dir,
-    joint_tropomi_test_in_dir,
-    osp_dir,
-    gmao_dir,
+    isolated_dir, joint_tropomi_test_in_dir, ifile_hlp
 ):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir,
         12,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         osp_sym_link=True,
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def joint_tropomi_step_12_output(
-    isolated_dir,
-    joint_tropomi_test_in_dir,
-    osp_dir,
-    gmao_dir,
-):
+def joint_tropomi_step_12_output(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval step", osp_dir, gmao_dir
+        joint_tropomi_test_in_dir, 12, "retrieval step", ifile_hlp
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def airs_irk_step_6(
-    isolated_dir,
-    airs_irk_test_in_dir,
-    osp_dir,
-    gmao_dir,
-):
+def airs_irk_step_6(isolated_dir, airs_irk_test_in_dir, ifile_hlp):
     rs, rstep, kwargs = set_up_run_to_location(
-        airs_irk_test_in_dir, 6, "IRK step", osp_dir, gmao_dir
+        airs_irk_test_in_dir, 6, "IRK step", ifile_hlp
     )
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_0(
-    request, isolated_dir, osp_dir, gmao_dir, tropomi_test_in_dir
+    request, isolated_dir, ifile_hlp, tropomi_test_in_dir
 ):
     """Fixture for TropomiFmObjectCreator, at the start of step 1"""
 
@@ -290,8 +266,7 @@ def tropomi_fm_object_creator_step_0(
         tropomi_test_in_dir,
         0,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_ret_state=False,
     )
     obs = rs.observation_handle_set.observation(
@@ -307,7 +282,6 @@ def tropomi_fm_object_creator_step_0(
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing
@@ -368,16 +342,13 @@ def tropomi_fm_object_creator_swir_step(
 
 
 @pytest.fixture(scope="function")
-def tropomi_fm_object_creator_step_1(
-    isolated_dir, osp_dir, gmao_dir, tropomi_test_in_dir
-):
+def tropomi_fm_object_creator_step_1(isolated_dir, ifile_hlp, tropomi_test_in_dir):
     """Fixture for TropomiFmObjectCreator, at the start of step 1"""
     rs, rstep, _ = set_up_run_to_location(
         tropomi_test_in_dir,
         1,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_ret_state=False,
     )
     obs = rs.observation_handle_set.observation(
@@ -392,7 +363,6 @@ def tropomi_fm_object_creator_step_1(
         rs.measurement_id,
         rs.retrieval_config,
         obs,
-        osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing
@@ -403,14 +373,13 @@ def tropomi_fm_object_creator_step_1(
 
 
 @pytest.fixture(scope="function")
-def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
+def omi_fm_object_creator_step_0(isolated_dir, ifile_hlp, omi_test_in_dir):
     """Fixture for OmiFmObjectCreator, at the start of step 0"""
     rs, rstep, _ = set_up_run_to_location(
         omi_test_in_dir,
         0,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_ret_state=False,
     )
     obs = rs.observation_handle_set.observation(
@@ -425,7 +394,6 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         rs.measurement_id,
         rs.retrieval_config,
         obs,
-        osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing
@@ -436,14 +404,13 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
 
 
 @pytest.fixture(scope="function")
-def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
+def omi_fm_object_creator_step_1(isolated_dir, ifile_hlp, omi_test_in_dir):
     """Fixture for OmiFmObjectCreator, at the start of step 0"""
     rs, rstep, _ = set_up_run_to_location(
         omi_test_in_dir,
         1,
         "retrieval input",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_ret_state=False,
     )
     obs = rs.observation_handle_set.observation(
@@ -457,7 +424,6 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         rs.measurement_id,
         rs.retrieval_config,
         obs,
-        osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing

@@ -17,8 +17,7 @@ match_py_retrieve = False
 @pytest.mark.long_test
 @require_muses_py_fm
 def test_retrieval_strategy_tes(
-    osp_dir,
-    gmao_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     tes_test_in_dir,
@@ -37,8 +36,7 @@ def test_retrieval_strategy_tes(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         tes_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(

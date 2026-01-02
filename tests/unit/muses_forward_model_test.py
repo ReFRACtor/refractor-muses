@@ -12,7 +12,7 @@ import pickle
 
 
 @require_muses_py_fm
-def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
+def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
@@ -21,7 +21,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         None,
     )
     obs_cris.spectral_window.include_bad_sample = True
-    fm = MusesCrisForwardModel(rs.current_state, obs_cris, rs.measurement_id)
+    fm = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
     print(pickle.loads(pickle.dumps(obs_cris)))
     print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
@@ -50,7 +50,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
 
 
 @require_muses_py_fm
-def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
+def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
@@ -62,7 +62,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
     fm = MusesTropomiForwardModel(
         rs.current_state,
         obs_tropomi,
-        rs.measurement_id,
+        rs.retrieval_config,
     )
     s = fm.radiance(0)
     rad = s.spectral_range.data
@@ -90,7 +90,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
 
 
 @require_muses_py_fm
-def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
+def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
@@ -99,7 +99,7 @@ def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         None,
     )
     obs_airs.spectral_window.include_bad_sample = True
-    fm = MusesAirsForwardModel(rs.current_state, obs_airs, rs.measurement_id)
+    fm = MusesAirsForwardModel(rs.current_state, obs_airs, rs.retrieval_config)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -126,7 +126,7 @@ def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
 
 
 @require_muses_py_fm
-def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
+def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
@@ -135,7 +135,7 @@ def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         None,
     )
     obs_omi.spectral_window.include_bad_sample = True
-    fm = MusesOmiForwardModel(rs.current_state, obs_omi, rs.measurement_id)
+    fm = MusesOmiForwardModel(rs.current_state, obs_omi, rs.retrieval_config)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

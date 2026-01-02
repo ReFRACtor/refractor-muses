@@ -8,7 +8,6 @@ from refractor.muses import (
     SurfaceAlbedo,
     InstrumentIdentifier,
     StateElementIdentifier,
-    InputFileHelper,
 )
 from functools import cache
 import refractor.framework as rf  # type: ignore
@@ -17,6 +16,7 @@ import numpy as np
 import re
 from pathlib import Path
 from typing import Any
+import h5py  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
@@ -466,7 +466,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     ) -> dict[str, Any]:
         # ILS files
         ils_dir_bands_1_6 = (
-            self.osp_dir / "TROPOMI/isrf_release/isrf/binned_uvn_spectral_unsampled/"
+            self.ifile_hlp.osp_dir
+            / "TROPOMI/isrf_release/isrf/binned_uvn_spectral_unsampled/"
         )
         fn_1_6 = (
             ils_dir_bands_1_6
@@ -474,7 +475,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         )
 
         ils_dir_bands_7_8 = (
-            self.osp_dir / "TROPOMI/isrf_release/isrf/binned_uvn_swir_sampled/"
+            self.ifile_hlp.osp_dir
+            / "TROPOMI/isrf_release/isrf/binned_uvn_swir_sampled/"
         )
         fn_7_8 = (
             ils_dir_bands_7_8
@@ -497,14 +499,14 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         use_bands_7_8_flag = np.max(band_index_list) >= 7
 
         if use_bands_1_6_flag:
-            with InputFileHelper.open_h5(fn_1_6, self.ifile_hlp) as f:
+            with self.ifile_hlp.open_h5(fn_1_6) as f:
                 for i_band in range(6):
                     FilterBand_group = f"band_{i_band + 1}"
                     isrf_var = f[FilterBand_group]["isrf"]
                     band_num_delta_wavelengths[i_band] = isrf_var.shape[2]
 
         if use_bands_7_8_flag:
-            with InputFileHelper.open_h5(fn_7_8, self.ifile_hlp) as f:
+            with self.ifile_hlp.open_h5(fn_7_8) as f:
                 for i_band in range(6, num_bands):
                     FilterBand_group = f"band_{i_band + 1}"
                     delta_wavelength_var = f[FilterBand_group]["delta_wavelength"]
@@ -959,7 +961,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
 @cache
 def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # We catch this file at a higher level
-    with InputFileHelper.open_h5(i_fn, None) as f:
+    with h5py.File(str(i_fn)) as f:
         FilterBand_group = f"band_{i_band}"
         if i_band < 7:
             wav = f[FilterBand_group]["wavelength"][...]

@@ -7,7 +7,6 @@ from .state_element import (
     StateElementHandleSet,
 )
 from .retrieval_array import FullGridMappedArray
-from .tes_file import TesFile
 from .input_file_helper import InputFileHelper
 from pathlib import Path
 import numpy as np
@@ -93,9 +92,7 @@ class StateElementFromClimatology(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        clim_dir = Path(
-            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
-        )
+        clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         value_fm, _ = cls.read_climatology_2022(
             sid,
             pressure_list_fm,
@@ -137,7 +134,7 @@ class StateElementFromClimatology(StateElementOspFile):
                 filename = climate_dir / f"climatology_{sid}.nc"
         else:
             filename = climate_dir / f"climatology_{sid}.nc"
-        f = InputFileHelper.open_h5(filename, ifile_hlp)
+        f = ifile_hlp.open_h5(filename)
         pressure = f["pressure"][:]
         if "vmr" in f or "type_index" in f:
             # 1 = January
@@ -331,9 +328,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         sounding_metadata: SoundingMetadata,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        clim_dir = Path(
-            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
-        )
+        clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         value_fm, _ = cls.read_climatology_2022(
             sid,
             pressure_list_fm,
@@ -363,10 +358,8 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             StateElementIdentifier(i)
             for i in retrieval_config["Species_List_From_Climatology"].split(",")
         ]:
-            fatm = TesFile(
-                Path(retrieval_config["Single_State_Directory"])
-                / "State_AtmProfiles.asc",
-                retrieval_config.input_file_helper,
+            fatm = retrieval_config.input_file_helper.open_tes(
+                retrieval_config["Single_State_Directory"] / "State_AtmProfiles.asc"
             )
             value_fm = np.array(fatm.checked_table["CH3OH"]).view(FullGridMappedArray)
             pressure = fatm.checked_table["Pressure"]
@@ -488,9 +481,7 @@ class StateElementFromClimatologyHdo(StateElementFromClimatology):
         state_info: StateInfo,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        clim_dir = Path(
-            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
-        )
+        clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         value_fm, _ = cls.read_climatology_2022(
             sid,
             pressure_list_fm,
@@ -583,9 +574,7 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
                 break
         if nh3type is None:
             nh3type = "MOD"
-        clim_dir = Path(
-            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
-        )
+        clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         # TODO Check if this is actually correct
         # Oddly the initial value comes from the prior file (so is_constraint is
         # True). Not sure if this is what was intended, but it is what muses_py
@@ -863,9 +852,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
                 break
         if hcoohtype is None:
             hcoohtype = "MOD"
-        clim_dir = Path(
-            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
-        )
+        clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         # TODO Check if this is actually correct
         # Oddly the initial value comes from the prior file (so is_constraint is
         # True). Not sure if this is what was intended, but it is what muses_py

@@ -14,6 +14,7 @@ from refractor.muses import (
     SoundingMetadata,
     MusesStrategyStepList,
     RetrievalConfiguration,
+    InputFileHelper,
     StateInfo,
 )
 from loguru import logger
@@ -21,19 +22,19 @@ import sys
 
 
 @pytest.fixture(scope="function")
-def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_dir):
+def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
     )
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
+        tfilename,
+        ifile_hlp,
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+        tfilename, rconfig.input_file_helper
     )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
@@ -78,7 +79,7 @@ def tropomi_swir_shandle(
     )
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=josh_osp_dir, gmao_dir=gmao_dir
+        tfilename, InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir)
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
@@ -115,19 +116,16 @@ def tropomi_swir_shandle(
 
 
 @pytest.fixture(scope="function")
-def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
+def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     r = MusesRunDir(
         joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
     )
     tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+        tfilename, rconfig.input_file_helper
     )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
@@ -167,19 +165,13 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
 
 
 @pytest.fixture(scope="function")
-def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
-    r = MusesRunDir(
-        tes_test_in_dir,
-        osp_dir,
-        gmao_dir,
-    )
+def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
+    r = MusesRunDir(tes_test_in_dir, ifile_hlp)
     tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, osp_dir=osp_dir
+        tfilename, rconfig.input_file_helper
     )
     strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict

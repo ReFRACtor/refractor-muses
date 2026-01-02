@@ -2,7 +2,6 @@ from __future__ import annotations
 from .observation_handle import ObservationHandle
 from .muses_spectral_window import MusesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
-from .tes_file import TesFile
 from contextlib import contextmanager
 import os
 from pathlib import Path
@@ -74,10 +73,6 @@ class MeasurementId(collections.abc.Mapping):
     def __len__(self) -> int:
         raise NotImplementedError
 
-    @property
-    def osp_abs_dir(self) -> Path | None:
-        return None
-
 
 class MeasurementIdDict(MeasurementId):
     """Implementation of MeasurementId that uses a dict"""
@@ -86,15 +81,9 @@ class MeasurementIdDict(MeasurementId):
         self,
         measurement_dict: dict,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
-        osp_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         self.measurement_dict = measurement_dict
         self._filter_list_dict = filter_list_dict
-        self.osp_dir = Path(osp_dir).absolute() if osp_dir is not None else None
-
-    @property
-    def osp_abs_dir(self) -> Path | None:
-        return self.osp_dir
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -132,13 +121,9 @@ class MeasurementIdFile(MeasurementId):
     ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
-        self._p = TesFile(self.fname, retrieval_config.input_file_helper)
+        self._p = retrieval_config.input_file_helper.open_tes(self.fname)
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
-
-    @property
-    def osp_abs_dir(self) -> Path | None:
-        return self._retrieval_config.osp_abs_dir
 
     def __hash__(self) -> int:
         # We need a unique hash to separate MeasurementIds. I think just using the
@@ -864,7 +849,6 @@ class MusesObservationHandle(ObservationHandle):
             spec_win,
             fm_sv,
             self.retrieval_config.input_file_helper,
-            osp_dir=self.measurement_id.osp_abs_dir,
             **kwargs,
         )
         if self.existing_obs is None:

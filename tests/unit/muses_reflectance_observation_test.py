@@ -16,14 +16,14 @@ from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_create_muses_tropomi_observation(
-    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
+    isolated_dir, ifile_hlp, joint_tropomi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
-    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -41,7 +41,7 @@ def test_create_muses_tropomi_observation(
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
@@ -64,7 +64,6 @@ def test_create_muses_tropomi_observation(
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
         rconfig.input_file_helper,
-        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -72,15 +71,13 @@ def test_create_muses_tropomi_observation(
     print(obs.surface_altitude)
 
 
-def test_create_muses_omi_observation(
-    isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir
-):
+def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
-    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", osp_dir=osp_dir
+        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -98,7 +95,7 @@ def test_create_muses_omi_observation(
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
@@ -124,7 +121,6 @@ def test_create_muses_omi_observation(
         swin_dict[InstrumentIdentifier("OMI")],
         None,
         rconfig.input_file_helper,
-        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -132,7 +128,7 @@ def test_create_muses_omi_observation(
     print(obs.surface_altitude)
 
 
-def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+def test_omi_bad_sample(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     xtrack_uv1 = 10
     xtrack_uv2 = 20
     atrack = 1139
@@ -145,7 +141,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
         / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     )
     utc_time = "2016-04-01T23:07:33.676106Z"
-    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    calibration_filename = ifile_hlp.osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     obs = MusesOmiObservation.create_from_filename(
         filename,
         xtrack_uv1,
@@ -155,7 +151,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
         calibration_filename,
         [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
         cld_filename=cld_filename,
-        osp_dir=osp_dir,
+        ifile_hlp=ifile_hlp,
     )
     sv = rf.StateVector()
     sv.add_observer(obs)
@@ -164,10 +160,10 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
-        osp_dir
+        ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, None)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, ifile_hlp)
     obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(1).data)
@@ -177,7 +173,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
 
 
 @require_muses_py
-def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
+def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     import refractor.muses_py as mpy
 
     filename_dict = {
@@ -200,11 +196,11 @@ def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
     utc_time = "2019-08-07T06:24:33.584090Z"
     erad = mpy.combine_tropomi_erad(filename_dict, xtrack_dict, atrack_dict, windows)
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
-        filename_dict, xtrack_dict, atrack_dict, windows, None
+        filename_dict, xtrack_dict, atrack_dict, windows, ifile_hlp
     )
     compare_muses_py_dict(erad2, erad, "erad")
 
-    with osp_setup(osp_dir):
+    with osp_setup(ifile_hlp):
         o_tropomi = mpy.read_tropomi(
             filename_dict, xtrack_dict, atrack_dict, utc_time, windows
         )
@@ -218,13 +214,13 @@ def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
             )
 
     o_tropomi2 = MusesTropomiObservation.read_tropomi(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, windows, osp_dir=osp_dir
+        filename_dict, xtrack_dict, atrack_dict, utc_time, windows, ifile_hlp=ifile_hlp
     )
     compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
 
 
 @require_muses_py
-def test_omi_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+def test_omi_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     import refractor.muses_py as mpy
 
     filename = (
@@ -238,9 +234,9 @@ def test_omi_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     xtrack_uv2 = 20
     atrack = 1139
     utc_time = "2016-04-01T23:07:33.676106Z"
-    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    calibration_filename = ifile_hlp.osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
 
-    with osp_setup(osp_dir):
+    with osp_setup(ifile_hlp):
         o_omi = mpy.read_omi(
             str(filename),
             xtrack_uv2,
@@ -256,7 +252,7 @@ def test_omi_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
         utc_time,
         calibration_filename,
         cld_filename,
-        osp_dir,
+        ifile_hlp,
     )
 
     compare_muses_py_dict(o_omi2, o_omi, "read_omi")

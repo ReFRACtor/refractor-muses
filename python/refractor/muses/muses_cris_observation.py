@@ -58,9 +58,9 @@ class MusesCrisObservation(MusesObservationImp):
         xtrack: int,
         atrack: int,
         pixel_index: int,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        o_cris = cls.read_cris(filename, xtrack, atrack, pixel_index, osp_dir)
+        o_cris = cls.read_cris(filename, xtrack, atrack, pixel_index, ifile_hlp)
         # Add in RADIANCESTRUCT. Not sure if this is used, but easy enough to put in
         radiance = o_cris["RADIANCE"]
         frequency = o_cris["FREQUENCY"]
@@ -92,7 +92,7 @@ class MusesCrisObservation(MusesObservationImp):
         xtrack: int,
         atrack: int,
         pixel_index: int,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
         i_fileid = {
             "CRIS_filename": os.path.abspath(str(filename)),
@@ -101,7 +101,7 @@ class MusesCrisObservation(MusesObservationImp):
             "CRIS_Pixel_Index": pixel_index,
         }
         filename = os.path.abspath(str(filename))
-        with osp_setup(osp_dir):
+        with osp_setup(ifile_hlp):
             if cls.l1b_type_from_filename(filename) in ("snpp_fsr", "noaa_fsr"):
                 o_cris = mpy_read_noaa_cris_fsr(i_fileid)
             else:
@@ -171,7 +171,7 @@ class MusesCrisObservation(MusesObservationImp):
         xtrack: int,
         atrack: int,
         pixel_index: int,
-        osp_dir: str | os.PathLike[str] | None = None,
+        ifile_hlp: InputFileHelper | None = None,
     ) -> Self:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -182,7 +182,7 @@ class MusesCrisObservation(MusesObservationImp):
 
         """
         o_cris, sdesc = cls._read_data(
-            str(filename), granule, xtrack, atrack, pixel_index, osp_dir=osp_dir
+            str(filename), granule, xtrack, atrack, pixel_index, ifile_hlp=ifile_hlp
         )
         return cls(o_cris, sdesc)
 
@@ -195,7 +195,6 @@ class MusesCrisObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         ifile_hlp: InputFileHelper,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> Self:
         """Create from a MeasurementId. If this depends on any state
@@ -219,7 +218,7 @@ class MusesCrisObservation(MusesObservationImp):
             atrack = int(mid["CRIS_ATrack_Index"])
             pixel_index = int(mid["CRIS_Pixel_Index"])
             o_cris, sdesc = cls._read_data(
-                filename, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir
+                filename, granule, xtrack, atrack, pixel_index, ifile_hlp=ifile_hlp
             )
             obs = cls(o_cris, sdesc)
         obs.spectral_window = (

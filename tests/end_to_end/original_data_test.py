@@ -17,7 +17,7 @@ from refractor.muses import MusesRunDir
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_original_retrieval_cris_tropomi(
-    osp_dir, gmao_dir, end_to_end_run_dir, joint_tropomi_test_in_dir
+    ifile_hlp, end_to_end_run_dir, joint_tropomi_test_in_dir
 ):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -33,8 +33,7 @@ def test_original_retrieval_cris_tropomi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     # rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
@@ -51,7 +50,7 @@ def test_original_retrieval_cris_tropomi(
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_original_retrieval_airs_omi(
-    osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_test_in_dir
+    ifile_hlp, end_to_end_run_dir, joint_omi_test_in_dir
 ):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -67,8 +66,7 @@ def test_original_retrieval_airs_omi(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_omi_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     # rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
@@ -78,7 +76,7 @@ def test_original_retrieval_airs_omi(
 
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_original_retrieval_tes(osp_dir, gmao_dir, end_to_end_run_dir, test_base_path):
+def test_original_retrieval_tes(ifile_hlp, end_to_end_run_dir, test_base_path):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -89,8 +87,7 @@ def test_original_retrieval_tes(osp_dir, gmao_dir, end_to_end_run_dir, test_base
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         test_base_path / "tes/in/sounding_1",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     r.run_retrieval()
@@ -98,9 +95,7 @@ def test_original_retrieval_tes(osp_dir, gmao_dir, end_to_end_run_dir, test_base
 
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_original_retrieval_airs_irk(
-    osp_dir, gmao_dir, end_to_end_run_dir, test_base_path
-):
+def test_original_retrieval_airs_irk(ifile_hlp, end_to_end_run_dir, test_base_path):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -113,8 +108,7 @@ def test_original_retrieval_airs_irk(
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         test_base_path / "airs_omi/in/sounding_1_irk",
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     r.run_retrieval()

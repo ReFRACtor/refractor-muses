@@ -12,7 +12,6 @@ from .retrieval_array import (
 )
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier, RetrievalType
-from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
 import scipy
@@ -240,10 +239,8 @@ class StateElementEmis(StateElementFreqShared):
         sounding_metadata: SoundingMetadata,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        f = TesFile(
-            Path(retrieval_config["Single_State_Directory"])
-            / "State_Emissivity_IR.asc",
-            retrieval_config.input_file_helper,
+        f = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_Emissivity_IR.asc",
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -262,7 +259,6 @@ class StateElementEmis(StateElementFreqShared):
             sounding_metadata.month,
             spectral_domain.data,
             retrieval_config.input_file_helper,
-            retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
         )
@@ -381,10 +377,8 @@ class StateElementNativeEmis(StateElementFreqShared):
         sounding_metadata: SoundingMetadata,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        f = TesFile(
-            Path(retrieval_config["Single_State_Directory"])
-            / "State_Emissivity_IR.asc",
-            retrieval_config.input_file_helper,
+        f = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_Emissivity_IR.asc",
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -408,7 +402,6 @@ class StateElementNativeEmis(StateElementFreqShared):
             sounding_metadata.month,
             spectral_domain_in.data,
             retrieval_config.input_file_helper,
-            retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
         )
@@ -433,9 +426,8 @@ class StateElementCloudExt(StateElementFreqShared):
         retrieval_config: RetrievalConfiguration,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        f = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc",
-            retrieval_config.input_file_helper,
+        f = retrieval_config.input_file_helper.open_tes(
+            retrieval_config["Single_State_Directory"] / "State_Cloud_IR.asc",
         )
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(

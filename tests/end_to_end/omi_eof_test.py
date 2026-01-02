@@ -14,7 +14,7 @@ from loguru import logger
 
 
 @pytest.mark.long_test
-def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
+def test_eof_omi(ifile_hlp, omi_test_in_dir, end_to_end_run_dir):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -22,7 +22,7 @@ def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
     Data goes in the local directory, rather than an isolated one."""
     dir = end_to_end_run_dir / "omi_eof"
     subprocess.run(["rm", "-r", str(dir)])
-    r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir)
+    r = MusesRunDir(omi_test_in_dir, ifile_hlp, path_prefix=dir)
     rs = RetrievalStrategy(None)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
@@ -83,7 +83,7 @@ def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
 # Still failing, issue with microwindows. We'll continue working on this in a bit
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_eof_test_in_dir):
+def test_eof_airs_omi(ifile_hlp, end_to_end_run_dir, joint_omi_eof_test_in_dir):
     """Full run of AIRS/OMI that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -97,8 +97,7 @@ def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_eof_test_
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
         joint_omi_eof_test_in_dir,
-        osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
     rs = RetrievalStrategy(

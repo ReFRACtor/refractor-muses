@@ -4,7 +4,7 @@ from fixtures.require_check import require_muses_py_fm
 
 
 @require_muses_py_fm
-def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
+def test_fm_obs_creator_tropomi(joint_tropomi_step_12):
     rs, rstep, _ = joint_tropomi_step_12
     obs = [
         rs.observation_handle_set.observation(
@@ -35,7 +35,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
 
 
 @require_muses_py_fm
-def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
+def test_fm_obs_creator_omi(joint_omi_step_8):
     rs, rstep, _ = joint_omi_step_8
     obs = [
         rs.observation_handle_set.observation(
