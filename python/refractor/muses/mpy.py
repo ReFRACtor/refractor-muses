@@ -17,7 +17,7 @@ from typing import Any
 # TODO - Clean up the calls where we don't want the dependency on muses-py
 
 have_muses_py = muses_py.have_muses_py
-
+# have_muses_py = False
 
 def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     if not have_muses_py:
@@ -90,9 +90,6 @@ mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
 
 # ---- Below are things to replace ----
 
-# retrieval_array, should replace
-mpy_make_maps = partial(muses_py_wrapper, "make_maps")
-
 
 # Used in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
@@ -131,7 +128,6 @@ __all__ = [
 __all__.extend(
     [
         "mpy_cdf_read_tes_frequency",
-        "mpy_make_maps",
         "mpy_radiance_apodize",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",

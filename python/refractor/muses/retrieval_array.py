@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_make_maps
+import refractor.muses_py as muses_py  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy as np
 
@@ -135,6 +135,131 @@ class FullGridMappedArray(np.ndarray):
         return v
 
 
+def _make_maps(cls: type[rf.StateMappingBasisMatrix],
+               pressureIn, i_levels, i_linearFlag=False, i_averageFlag=None):
+    # IDL_LEGACY_NOTE: This function make_maps is the same as make_maps in TWPR_TOOLS/make_maps.pro file.
+    
+    #
+    # Create maps to map from FM to retrieval grid and back.
+    # Returns a structure, where
+    #    toPars: map to retrieval grid (e.g. ret = maps.toPars @ fm)
+    #    toState: map to FM grid (e.g. fm = maps.toState @ ret)
+    function_name = "make_maps: "
+
+    utilLevels = muses_py.UtilLevels()
+
+    o_maps = None
+    toPars = None
+    toState = None
+
+    # AT_LINE 59 TWPR_TOOLS/make_maps.pro
+    if i_averageFlag is not None and i_averageFlag is True:
+        min_pressure = np.min(pressureIn[i_levels])
+        max_pressure = np.max(pressureIn[i_levels])
+
+        ind = []
+        for ii in range(len(pressureIn)):
+            if (pressureIn[ii] > min_pressure and pressureIn[ii] <= max_pressure):
+                ind.append(ii)
+        
+        n = len(pressureIn)
+        toState = np.zeros(shape=(1, n), dtype=np.int32)
+        toState[0, ind] = 1
+
+        print(function_name, "i_averageFlag TRUE not implemented yet.")
+        assert False
+    else:
+        pressure = pressureIn
+        if not i_linearFlag:
+            pressure = np.log(pressure)
+
+        if pressure[1] < pressure[0]:
+            pressure = -pressure
+
+        # PYTHON_NOTE: It is possible that some values in i_levels may index passed the size of pressure.
+        # The size of pressure may be 63 and one indices may be 64.
+        any_values_greater_than_size = (i_levels > pressure.size).any()
+        if any_values_greater_than_size:
+            o_cleaned_retrievalParameters = utilLevels.RemoveIndicesTooBig(i_levels, pressure, function_name)
+            # Reassign i_levels to o_cleaned_retrievalParameters so it will contain indices that are within size of pressure.
+            i_levels = o_cleaned_retrievalParameters
+
+        # AT_LINE 78 TWPR_TOOLS/make_maps.pro
+        m = len(i_levels)
+        n = len(pressure)
+
+        # IDL:
+        # toPars = DBLARR(n,m)
+        # toState = DBLARR(m,n)
+
+        # TODO: IDL is column x row, Python is row x column
+        # These arrays should not be as in IDL. m and n should be switched
+        # but now it affects too much logic that follows so leave it as is
+        toPars = np.zeros(shape=(n, m), dtype=np.float64)
+        toState = np.zeros(shape=(m, n), dtype=np.float64)
+
+        if i_levels[m-1] > len(pressure):
+            i_levels[m-1] = len(pressure)
+
+        retFreq = pressure[i_levels-1]
+        freq = pressure
+
+        # AT_LINE 88 TWPR_TOOLS/make_maps.pro
+        m = len(retFreq)
+        n = len(freq)
+
+        num_elements_processed = 0
+
+        # AT_LINE 90 TWPR_TOOLS/make_maps.pro
+        for jj in range(0, m-1): # For the loop goes from 0 to m-1 since Python does not include end range.
+            ind1 = np.where(freq >= retFreq[jj])[0]
+            ind2 = np.where(freq <= retFreq[jj+1])[0]
+
+            # AT_LINE 94 TWPR_TOOLS/make_maps.pro
+            # PYTHON_NOTE: The for loop goes from min(ind1) to max(ind2)+1 since in Python, it does not include the end range.
+            for kk in range(min(ind1), max(ind2) + 1):
+                freq1 = retFreq[jj]
+                freq2 = retFreq[jj+1]
+                
+                # Do a sanity check so we won't be dividing by zero with (freq2 - freq1) below.
+                if freq1 == freq2:
+                    print(function_name, 'Check retrieval lvls for duplicates ', i_levels)
+                    assert False 
+
+                coef = np.float32(freq2 - freq[kk]) / np.float32(freq2 - freq1)
+                toState[jj, kk] = coef
+                toState[jj+1, kk] = 1.0 - coef
+
+                num_elements_processed = num_elements_processed + 1
+            # end for kk in range(min(ind1),max(ind2)+1)
+        # end for jj in range(0, m-1):
+
+        # TODO: We should really do this here
+        # toState = toState.T
+        # toPars = toPars.T
+
+        # IDL: 
+        # a = toState
+        # toPars = invert(transpose(a)##a)##transpose(a)
+        
+        # NOTE: due to toState having switched rows and columns.
+        # If using toState.T and toPars.T the calculation will be identical to IDL:
+        # toPars[:, :] = np.linalg.inv(a.T @ a) @ a.T
+
+        # Keep using wrong toState and toPars for now        
+        a = np.copy(toState)
+        toPars[:, :] = a.T @ np.linalg.inv(a @ a.T)
+    # end else part of if i_averageFlag is not None and i_averageFlag is True:
+
+    o_maps = {
+        'toPars': toPars,
+        'toState': toState
+    }
+
+    return o_maps
+
+rf.StateMappingBasisMatrix.make_maps = classmethod(_make_maps)
+
 def _from_x_subset(
     cls: type[rf.StateMappingBasisMatrix],
     x: FullGridMappedArray,
@@ -150,7 +275,7 @@ def _from_x_subset(
     You can select x interpolation by passing log_interp as False."""
     # Temp
     lv = ind + 1
-    t = mpy_make_maps(x, lv, i_linearFlag=(not log_interp))
+    t = cls.make_maps(x, lv, i_linearFlag=(not log_interp))
     return rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
 
 
@@ -169,7 +294,7 @@ def _from_x_subset_exclude_gap(
     far from where we are actually retrieving we are better just leaving the
     data as is rather than interpolating through where we are far from the points"""
     lv = ind + 1
-    t = mpy_make_maps(x, lv, i_linearFlag=(not log_interp))
+    t = cls.make_maps(x, lv, i_linearFlag=(not log_interp))
     x_ret = x[ind]
     m = t["toState"]
     ind = np.searchsorted(x_ret, x)
