@@ -19,6 +19,7 @@ from typing import Any
 have_muses_py = muses_py.have_muses_py
 # have_muses_py = False
 
+
 def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     if not have_muses_py:
         raise NameError(

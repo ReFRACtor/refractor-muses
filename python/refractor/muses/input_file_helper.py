@@ -37,12 +37,12 @@ class InputFilePath:
             self._rel_path = Path(rel_path)
 
     # Want to be hashable
-    def __eq__(self, x) -> bool:
-        return str(self) == str(x)
+    def __eq__(self, x: object) -> bool:
+        return isinstance(x, InputFilePath) and str(self) == str(x)
 
     def __hash__(self) -> int:
         return hash(str(self))
-    
+
     def __truediv__(self, rel_path: str | os.PathLike[str]) -> InputFilePath:
         return InputFilePath(self._base_path, self._rel_path / rel_path)
 

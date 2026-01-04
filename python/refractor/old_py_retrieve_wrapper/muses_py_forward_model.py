@@ -331,11 +331,7 @@ class RefractorTropOrOmiFmBase:
     ):
         """This goes with uip_from_muses_retrieval_step, it turns around
         and calls tropomi_fm/omi_fm with the saved data."""
-        rf_uip = RefractorUip.load_uip(
-            pickle_file,
-            path=path,
-            ifile_hlp=ifile_hlp
-        )
+        rf_uip = RefractorUip.load_uip(pickle_file, path=path, ifile_hlp=ifile_hlp)
         self.basis_matrix = rf_uip.basis_matrix
         self.run_dir = rf_uip.run_dir
         with muses_py_call(
