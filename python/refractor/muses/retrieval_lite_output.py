@@ -663,7 +663,7 @@ class CdfWriteLiteTes:
 
                 # get range of validity for retrieval around l1 and l2 points
                 ak_row_l1 = rtvak[:, l1]
-                p_bound = get_half_ak_points(ak_row_l1, pm_sub)
+                p_bound = self.get_half_ak_points(ak_row_l1, pm_sub)
 
                 o_p_bot[0] = p_bound[0]
                 o_p_top[0] = p_bound[1]
@@ -671,7 +671,7 @@ class CdfWriteLiteTes:
                     o_p_bot[0] = pm_sub[0]
 
                 ak_row_l2 = rtvak[:, l2]
-                p_bound = get_half_ak_points(ak_row_l2, pm_sub)
+                p_bound = self.get_half_ak_points(ak_row_l2, pm_sub)
                 o_p_bot[1] = p_bound[0]
                 o_p_top[1] = p_bound[1]
             else:  # dofs lt dof_thr
@@ -697,7 +697,7 @@ class CdfWriteLiteTes:
 
                 # get range of validity for retrieval around l1
                 ak_row_l1 = rtvak[:, l1]
-                p_bound = get_half_ak_points(ak_row_l1, pm_sub)
+                p_bound = self.get_half_ak_points(ak_row_l1, pm_sub)
                 o_p_bot = p_bound[0]
                 o_p_top = p_bound[1]
                 if o_p_bot > pm_sub[0]:
@@ -1610,7 +1610,7 @@ class CdfWriteLiteTes:
             # but don't do for fill
             name_list = ["species".upper()]
             pressureList = ["pressure".upper()]
-            dataIn = add_column(
+            dataIn = self.add_column(
                 dataIn, "column750".upper(), 750, 0.0, name_list, pressureList
             )
 
@@ -2333,7 +2333,7 @@ class CdfWriteLiteTes:
 
         return o_dataCorr
 
-    def add_column_bad(
+    def add_column(
         self,
         dataIn: dict[str, Any],
         i_name: str,
@@ -2345,6 +2345,9 @@ class CdfWriteLiteTes:
         # Temp
         from refractor.muses_py import calculate_xco2, UtilGeneral
 
+        # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
+        function_name = "add_column: "
+
         utilGeneral = UtilGeneral()
 
         # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
@@ -2352,9 +2355,11 @@ class CdfWriteLiteTes:
 
         # AT_LINE 15 src_ms-2018-12-10/TOOLS/add_column.pro add_column
         if i_pressureMin > 0:
-            raise RuntimeError(
-                "Error need to update code so that calculate_xco2 works for pressureMin <>0"
+            print(
+                function_name,
+                "Error need to update code so that calculate_xco2 works for pressureMin <>0",
             )
+            assert False
 
         # add name+'_pwf'
         PWF_TOKEN = "_pwf".upper()
@@ -2482,7 +2487,7 @@ class CdfWriteLiteTes:
                 value = dataIn[i_nameList[kk]]
                 indp = np.where(
                     (pressure <= i_pressureMax) & (pressure >= i_pressureMin)
-                )
+                )[0]
 
                 # interpolate to a fine grid on log() scale or linear() if
                 # linear type specified
@@ -2573,9 +2578,13 @@ class CdfWriteLiteTes:
                             )
 
                         if indx1 < 0:
-                            raise RuntimeError(
-                                f"AK not found: {i_nameList[kk]}_AVERAGINGKERNEL"
+                            print(
+                                function_name,
+                                "'Warning!  AK not found: '"
+                                + i_nameList[kk]
+                                + "_averagingkernel".upper(),
                             )
+                            assert False
                         else:
                             aa = dataIn[i_nameList[kk] + "_averagingkernel".upper()]
 
@@ -2596,12 +2605,14 @@ class CdfWriteLiteTes:
                         )  # Change aa shape from (67, 67, 1) to ((67, 67,)
 
                     # AT_LINE 183 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                    # TODO The typing here for indp looks weird. I'm not sure if this
+                    # logic is correct, although it is what is in py-retrieve
                     if indx1 >= 0 and ((np.where(aa > -990))[0])[0] >= 0:
                         pp = pressure
-                        indp = np.where((aa[9, :] >= -990) & (pp >= -990))
+                        indp = np.where((aa[9, :] >= -990) & (pp >= -990))  # type:ignore[assignment]
                         if len(indp) == 0:
                             if len(aa[9, :] > 9):
-                                indp = np.where((aa[10, :] >= -990) & (pp >= -999))
+                                indp = np.where((aa[10, :] >= -990) & (pp >= -999))[0]
 
                         # IF indp[0] LT 0 AND N_ELEMENTS(aa[9,*]) GT 9 THEN indp = where(aa[10,*] GE -990 AND pp GE -990)
                         valid_pressure_index = np.where(pp >= -990)[0]
@@ -2630,11 +2641,9 @@ class CdfWriteLiteTes:
 
                         # has issues at very top, where values are very small and
                         # pwf is very small
-                        ind = np.where(
+                        ak_column[
                             (np.abs(ak_column0) < 0.002) & (np.abs(ak_column) >= 0.5)
-                        )[0]
-                        if len(ind) > 0:
-                            ak_column[ind] = 0.0
+                        ] = 0.0
                         ind = -1
                         if (myname + "_averagingkernel").upper() in dataIn:
                             ind = list(dataIn.keys()).index(
@@ -2712,423 +2721,41 @@ class CdfWriteLiteTes:
         # We return dataIn because we had modified it in this function.
         return dataIn
 
+    def get_half_ak_points(self, ak_row: np.ndarray, pm_sub: np.ndarray) -> np.ndarray:
+        # This function returns pm_sub values interpolated to the locations of max(ak_row) / 2.
+        # It can be used whenever one wants to find the coordinates (pm_sub) of the half-maximum
+        # values of an array (ak_row), IF the array varies smoothly and has only one peak
 
-def get_half_ak_points(ak_row, pm_sub):
-    # Temp
-    from refractor.muses_py import idl_interpol_1d
+        p_bound = np.zeros(shape=(2), dtype=np.float32)
 
-    # This function returns pm_sub values interpolated to the locations of max(ak_row) / 2.
-    # It can be used whenever one wants to find the coordinates (pm_sub) of the half-maximum
-    # values of an array (ak_row), IF the array varies smoothly and has only one peak
+        max_id = np.argmax(ak_row)
+        ak_2 = 0.5 * np.amax(ak_row)
+        num_points = pm_sub.size
 
-    p_bound = np.zeros(shape=(2), dtype=np.float32)
+        # Find half-value on left side of peak
+        p_bound[0] = pm_sub[0]
+        for ip in range(
+            0, max_id + 1
+        ):  # PYTHON_NOTE: We add 1 to max_id because PYTHON's slice does not include the end.
+            if (ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip + 1]):
+                p_bound[0] = self.idl_interpol_1d(
+                    pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
+                )  # PYTHON_NOTE: We add 1 to ip+1 because PYTHON's slice does not include the end.
+                break
+            # end if ((ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip+1])):
+        # end for ip in range(0, max_id+1)
 
-    max_id = np.argmax(ak_row)
-    ak_2 = 0.5 * np.amax(ak_row)
-    num_points = pm_sub.size
-
-    # Find half-value on left side of peak
-    p_bound[0] = pm_sub[0]
-    for ip in range(
-        0, max_id + 1
-    ):  # PYTHON_NOTE: We add 1 to max_id because PYTHON's slice does not include the end.
-        if (ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip + 1]):
-            p_bound[0] = idl_interpol_1d(
-                pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
-            )  # PYTHON_NOTE: We add 1 to ip+1 because PYTHON's slice does not include the end.
-            break
-        # end if ((ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip+1])):
-    # end for ip in range(0, max_id+1)
-
-    # Find half-value on right side of peak
-    for ip in range(max_id, num_points - 1):
-        if (ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip + 1]):
-            p_bound[1] = idl_interpol_1d(
-                pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
-            )
-            break
-        # end if ((ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip+1])):
-    # end for ip in range(max_id, num_points):
-
-    return p_bound
-
-
-def add_column(
-    dataIn,
-    i_name,
-    i_pressureMax,
-    i_pressureMin,
-    i_nameList=[],
-    i_pressureList=[],
-    linearFlag=False,
-    i_pwflevel=[],
-):
-    # Temp
-    from refractor.muses_py import calculate_xco2, UtilGeneral
-
-    # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
-    function_name = "add_column: "
-
-    utilGeneral = UtilGeneral()
-
-    # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
-    nn = 1
-
-    # AT_LINE 15 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-    if i_pressureMin > 0:
-        print(
-            function_name,
-            "Error need to update code so that calculate_xco2 works for pressureMin <>0",
-        )
-        assert False
-
-    # add name+'_pwf'
-    PWF_TOKEN = "_pwf".upper()
-
-    for kk in range(0, len(i_nameList)):
-        myname = i_name + "_" + i_nameList[kk]
-        if i_nameList[kk].lower() == "species":
-            myname = i_name
-
-        ind = -1
-        if i_pressureList[kk] in dataIn:
-            ind = list(dataIn.keys()).index(i_pressureList[kk])
-
-        num_points = len(dataIn[i_pressureList[kk].upper()])
-
-        if myname not in dataIn:
-            dataIn[myname] = np.zeros(shape=(nn), dtype=np.float32)
-
-        if myname + PWF_TOKEN not in dataIn:
-            dataIn[myname + PWF_TOKEN] = np.zeros(shape=(num_points), dtype=np.float32)
-
-        if myname + "_averagingkernel".upper() not in dataIn:
-            dataIn[myname + "_averagingkernel".upper()] = np.zeros(
-                shape=(num_points), dtype=np.float32
-            )
-
-        if myname + "_constraintvector".upper() not in dataIn:
-            dataIn[myname + "_constraintvector".upper()] = np.zeros(
-                shape=(num_points), dtype=np.float32
-            )
-
-        if myname + "_initial".upper() not in dataIn:
-            dataIn[myname + "_initial".upper()] = np.zeros(shape=(nn), dtype=np.float32)
-    # end for kk in range(0,len(speciesList)):
-
-    if "OBSERVATIONERRORCOVARIANCE" in dataIn:
-        if i_name + "_ObservationError".upper() not in dataIn:
-            dataIn[i_name + "_ObservationError".upper()] = np.zeros(
-                shape=(nn), dtype=np.float32
-            )
-
-        if i_name + "_Error".upper() not in dataIn:
-            dataIn[i_name + "_Error".upper()] = np.zeros(shape=(nn), dtype=np.float32)
-    # end if 'OBSERVATIONERRORCOVARIANCE' in dataIn:
-
-    # AT_LINE 59 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-    # AT_LINE 92 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-    indx = np.where(dataIn["pressure".upper()] > 0)[0]
-    if len(indx) > 3:
-        for kk in range(0, len(i_nameList)):
-            # AT_LINE 98 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-            myname = i_name + "_" + i_nameList[kk]
-            if i_nameList[kk].lower() == "species":
-                myname = i_name
-
-            indloc_key_name = ""
-            indlocOut_key_name = ""
-
-            if i_nameList[kk] in dataIn:
-                indloc_key_name = i_nameList[kk]
-
-            if myname in dataIn:
-                indlocOut_key_name = myname
-
-            # indloc = tag_loc(data, i_nameList[kk])
-            # indlocp = tag_loc(data, i_pressureList[kk])
-            # indlocOut = tag_loc(data, myname)
-
-            indlocPrior = -1
-            indlocInitial = -1
-            indlocPrior_key_name = ""
-            indlocInitial_key_name = ""
-            indlocPriorOut_key_name = ""
-            indlocInitialOut_key_name = ""
-            if i_nameList[kk].lower() == "species":
-                if "constraintvector".upper() in dataIn:
-                    indlocPrior = list(dataIn.keys()).index("constraintvector".upper())
-                    indlocPrior_key_name = "constraintvector".upper()
-
-                if "initial".upper() in dataIn:
-                    indlocInitial = list(dataIn.keys()).index("initial".upper())
-                    indlocInitial_key_name = "initial".upper()
-
-                if (myname + "_constraintvector").upper() in dataIn:
-                    indlocPriorOut_key_name = (myname + "_constraintvector").upper()
-
-                if (myname + "_initial").upper() in dataIn:
-                    indlocInitialOut_key_name = (myname + "_initial").upper()
-            else:
-                if i_nameList[kk] + "constraintvector".upper() in dataIn:
-                    indlocPrior = list(dataIn.keys()).index(
-                        i_nameList[kk] + "_constraintvector".upper()
-                    )
-                    indlocPrior_key_name = i_nameList[kk] + "constraintvector".upper()
-
-                if i_nameList[kk] + "initial".upper() in dataIn:
-                    indlocInitial = list(dataIn.keys()).index(
-                        i_nameList[kk] + "_initial".upper()
-                    )
-                    indlocInitial_key_name = i_nameList[kk] + "initial".upper()
-
-                if (myname + "_constraintvector").upper() in dataIn:
-                    indlocPriorOut_key_name = (myname + "_constraintvector").upper()
-
-                if (myname + "_initial").upper() in dataIn:
-                    indlocInitialOut_key_name = (myname + "_initial").upper()
-
-            # AT_LINE 117 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-            pressure = dataIn[i_pressureList[kk]]
-
-            # For some strange reason, the shape of pressure can be 2-dimensions.  If that is the case, reduce to 1.
-            if len(pressure.shape) == 2 and pressure.shape[1] == 1:
-                pressure = np.reshape(pressure, (pressure.shape[0]))
-
-            value = dataIn[i_nameList[kk]]
-            indp = np.where((pressure <= i_pressureMax) & (pressure >= i_pressureMin))[
-                0
-            ]
-
-            # interpolate to a fine grid on log() scale or linear() if
-            # linear type specified
-            # AT_LINE 128 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-            if len(indp) > 1:
-                # AT_LINE 134 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                # use pressureMax in calculate_xco2 but need to ensure
-                # that pressureMin == 0
-
-                indxx = np.where(pressure >= 0)[0]
-                pwfLayer = []
-
-                # AT_LINE 138 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                # x = calculate_xco2(value[indxx], pressure[indxx], pwfLevel = pwfLevel, pressureMax = pressureMax)
-
-                # Something seems odd.  Sometimes the shape of value here is (67, 1).
-                # Check to see if the 2nd index is 1, we use index of [0] to get all values.
-                if len(value.shape) == 2 and value.shape[1] == 1:
-                    value = np.reshape(
-                        value, (value.shape[0])
-                    )  # Change shape from (67,1) to (67,)
-
-                # AT_LINE 139 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                (x, pwfLevel, pwfLayer) = calculate_xco2(
-                    value[indxx], pressure[indxx], i_pressureMax
+        # Find half-value on right side of peak
+        for ip in range(max_id, num_points - 1):
+            if (ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip + 1]):
+                p_bound[1] = self.idl_interpol_1d(
+                    pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
                 )
-                dataIn[indlocOut_key_name] = x
+                break
+            # end if ((ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip+1])):
+        # end for ip in range(max_id, num_points):
 
-                # AT_LINE 143 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                ind = -1
-                if (myname + "_pwf").upper() in dataIn:
-                    ind = list(dataIn.keys()).index((myname + "_pwf").upper())
-                dataIn[(myname + "_pwf").upper()][indx] = pwfLevel[:]
+        return p_bound
 
-                # initial and constraint
-                # AT_LINE 146 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                if indlocPrior >= 0:
-                    value = dataIn[indlocPrior_key_name]
-                    # Something seems odd.  Sometimes the shape of value here is (67, 1).
-                    # Check to see if the 2nd index is 1, we use index of [0] to get all values.
-                    if len(value.shape) == 2 and value.shape[1] == 1:
-                        value = np.reshape(
-                            value, (value.shape[0])
-                        )  # Change shape from (67,1) to (67,)
-
-                    (x, pwfLevel, pwfLayer) = calculate_xco2(
-                        value[indxx], pressure[indxx], i_pressureMax
-                    )
-                    dataIn[indlocPriorOut_key_name] = x
-                # if indlocPrior >= 0:
-
-                # AT_LINE 153 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                if indlocInitial >= 0:
-                    value = dataIn[indlocInitial_key_name]
-                    # Something seems odd.  Sometimes the shape of value here is (67, 1).
-                    # Check to see if the 2nd index is 1, we use index of [0] to get all values.
-                    if len(value.shape) == 2 and value.shape[1] == 1:
-                        value = np.reshape(
-                            value, (value.shape[0])
-                        )  # Change shape from (67,1) to (67,)
-
-                    (x, pwfLevel, pwfLayer) = calculate_xco2(
-                        value[indxx], pressure[indxx], i_pressureMax
-                    )
-                    # Not sure if this is correct.
-                    dataIn[indlocInitialOut_key_name] = x
-                # end if indlocInitial >= 0:
-
-                # AT_LINE 159 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                # aa = [-999]  # We need a list of at least one in case we need to get the length of aa.
-                aa = np.zeros(
-                    shape=(1, 1), dtype=np.float32
-                )  # We need a matrix of list of at least one by 1 in case we need to get the length of aa.
-                aa.fill(-999)
-
-                # add column averaging kernel
-                # first get full AK and pressure and pwf
-                if i_nameList[kk].lower() == "species":
-                    aa = dataIn["averagingkernel".upper()]
-                    pwf = dataIn["column750_pwf".upper()]
-                    indx1 = 0
-                else:
-                    # indx1 = tag_loc(data, list[kk]+'_averagingkernel')
-                    indx1 = -1
-                    if i_nameList[kk] + "_averagingkernel".upper() in dataIn:
-                        indx1 = list(dataIn.keys()).index(
-                            i_nameList[kk] + "_averagingkernel".upper()
-                        )
-
-                    if indx1 < 0:
-                        print(
-                            function_name,
-                            "'Warning!  AK not found: '"
-                            + i_nameList[kk]
-                            + "_averagingkernel".upper(),
-                        )
-                        assert False
-                    else:
-                        aa = dataIn[i_nameList[kk] + "_averagingkernel".upper()]
-
-                        if i_pressureList[kk].lower() != "pressure":
-                            # indx2 = tag_loc(data, myname + '_pwf')
-                            # pwf = data[jj].(indx2)
-                            pwf = dataIn[(myname + "_pwf").upper()]
-                        else:
-                            # indx2 = tag_loc(data, name + '_pwf')
-                            pwf = dataIn[(i_name + "_pwf").upper()]
-                        # end else portion of if i_pressureList[kk]) != 'pressure':
-                    # end else portion of if indx1 < 0:
-                # end else portion of if i_nameList[kk].lower() == 'species':
-
-                if len(aa.shape) == 3 and aa.shape[2] == 1:
-                    aa = np.reshape(
-                        aa, (aa.shape[0], aa.shape[1])
-                    )  # Change aa shape from (67, 67, 1) to ((67, 67,)
-
-                # AT_LINE 183 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                if indx1 >= 0 and ((np.where(aa > -990))[0])[0] >= 0:
-                    pp = pressure
-                    indp = np.where((aa[9, :] >= -990) & (pp >= -990))
-                    if len(indp) == 0:
-                        if len(aa[9, :] > 9):
-                            indp = np.where((aa[10, :] >= -990) & (pp >= -999))[0]
-
-                    # IF indp[0] LT 0 AND N_ELEMENTS(aa[9,*]) GT 9 THEN indp = where(aa[10,*] GE -990 AND pp GE -990)
-                    valid_pressure_index = np.where(pp >= -990)[0]
-                    aa = utilGeneral.ManualArrayGetWithRHSIndices(
-                        aa, indp[0], valid_pressure_index
-                    )
-
-                    pp = pp[indp[0]]
-                    pwf = pwf[indp[0]]
-
-                    # AT_LINE 192 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                    # need pwf for whole profile
-
-                    # (uu, pwfLevel, pwfLayer) = calculate_xco2(pp*0+1700.0,pressure[indxx])
-                    # The line above is a bug, comment out and put corrected code in next line.
-                    (uu, pwfLevel, pwfLayer) = calculate_xco2(pp * 0 + 1700.0, pp)
-
-                    indpx = np.where(pp <= 750)[0]
-
-                    fraction = np.sum(pwfLevel[indpx]) / np.sum(pwfLevel)
-
-                    # ak_column = (pwf ## aa)/(pwflevel)*fraction
-                    # ak_column0 = (pwf ## aa)
-                    ak_column = np.matmul(aa, pwf) / (pwfLevel) * fraction
-                    ak_column0 = np.matmul(aa, pwf)
-
-                    # has issues at very top, where values are very small and
-                    # pwf is very small
-                    ind = np.where(
-                        (np.abs(ak_column0) < 0.002) & (np.abs(ak_column) >= 0.5)
-                    )[0]
-                    if len(ind) > 0:
-                        ak_column[ind] = 0.0
-
-                    ind = -1
-                    if (myname + "_averagingkernel").upper() in dataIn:
-                        ind = list(dataIn.keys()).index(
-                            myname + "_averagingkernel".upper()
-                        )
-                    if (ind) >= 0:
-                        dataIn[myname + "_averagingkernel".upper()][indp[0]] = (
-                            ak_column[:]
-                        )
-
-                    # calculate column error
-                    if "OBSERVATIONERRORCOVARIANCE" in dataIn:
-                        # get VMR
-                        value = dataIn[indloc_key_name]
-
-                        # get column value
-                        valueColumn = dataIn[indlocOut_key_name]
-
-                        # get pwf
-                        # test = calculate_xco2(value[indp], pressure[indp], pwfLevel = pwfLevel)
-                        (test, pwfLevel, pwfLayer) = calculate_xco2(
-                            value[indp[0]], pressure[indxx]
-                        )
-
-                        # calculate errorObs
-                        # errorObs = sqrt(pwfLevel ## data[jj].Observationerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
-                        temp_obs_cov = utilGeneral.ManualArrayGetWithRHSIndices(
-                            dataIn["Observationerrorcovariance".upper()],
-                            indp[0],
-                            indp[0],
-                        )
-                        errorObs = (
-                            np.sqrt(
-                                np.matmul(
-                                    np.matmul(np.transpose(pwfLevel), temp_obs_cov),
-                                    pwfLevel,
-                                )
-                            )
-                            * valueColumn
-                        )
-                        if not np.all(np.isfinite(errorObs)):
-                            errorObs = 2
-
-                        # if finite(errorObs) EQ 0 THEN errorObs = 2
-                        ind = -1
-                        if (i_name + "_ObservationError").upper() in dataIn:
-                            dataIn[i_name + "_ObservationError".upper()] = errorObs
-
-                        # calculate error (total error)
-                        # error = sqrt(pwfLevel ## data[jj].totalerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
-                        temp_total_cov = utilGeneral.ManualArrayGetWithRHSIndices(
-                            dataIn["totalerrorcovariance".upper()], indp[0], indp[0]
-                        )
-                        error = (
-                            np.sqrt(
-                                np.matmul(
-                                    np.matmul(np.transpose(pwfLevel), temp_total_cov),
-                                    pwfLevel,
-                                )
-                            )
-                            * valueColumn
-                        )
-                        if not np.all(np.isfinite(errorObs)):
-                            error = 10
-                        dataIn[(i_name + "_Error").upper()] = error
-                    # end if 'OBSERVATIONERRORCOVARIANCE' in dataIn:
-                # end if indx1 >= 0 and ((np.where(aa > -990))[0])[0] >= 0:
-            # end if len(indp) > 1:
-            # AT_LINE 237 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-        # end for kk in range(0,len(i_nameList))
-    # end if len(indx) > 3:
-
-    # We return dataIn because we had modified it in this function.
-    return dataIn
 
 __all__ = ["CdfWriteLiteTes"]
