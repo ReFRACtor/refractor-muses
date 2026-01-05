@@ -344,3 +344,67 @@ class CostFunction(rf.NLLSMaxAPosteriori):
             for fm in self.fm_list:
                 logger.debug(f"Forward model: {fm}")
         return (uip, residual, jac_residual, radiance_fm, jac_fm, stop_flag)
+
+    def new_residual_fm_jacobian(  # type: ignore
+        self, uip, ret_info, retrieval_vec, iterNum, oco_info={}
+    ):
+        """New version of this we use using in MusesLevmarSolver. We may just pull this
+        completely away, but for now just have a version we can massage."""
+        # In addition, ret_info has obs_rad and meas_err
+        # updated for OMI and TROPOMI. This seems kind of bad to me,
+        # but the values get used in run_retrieval of muses-py, so
+        # we need to update this.
+        # Stub out the UIP, it isn't actually needed for anything. We can have this as None,
+        # just because levmar_nllsq_elanor expects to pass in this argument
+        if self.expected_parameter_size != len(retrieval_vec):
+            raise RuntimeError(
+                "We aren't expecting parameters the size of retrieval_vec."
+            )
+        if False:
+            logger.info("Setting parameters in cost function")
+            logger.info(f"{retrieval_vec}")
+        self.parameters = retrieval_vec
+        # obs_rad and meas_err includes bad samples, so we can't use
+        # cfunc.max_a_posteriori.measurement here which filters out
+        # bad samples. Instead we access the observation list we stashed
+        # when we created the cost function directly
+        d = []
+        u = []
+        for obs in self.obs_list:
+            s = obs.radiance_all_extended(include_bad_sample=True)
+            d.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+        ret_info["obs_rad"] = np.concatenate(d)
+        ret_info["meas_err"] = np.concatenate(u)
+        residual = self.residual
+        jac_residual = self.jacobian.transpose()
+
+        # TODO Determine what exactly we want to do with bad samples
+
+        # self.max_a_posteriori.model only contains the good samples.
+        # The existing muses-py actually just runs the forward model
+        # on all points, including bad data. It isn't clear what we want
+        # to do here. For now, create the proper size output but use a fill
+        # value of -999 for bad data. Do the same for the jacobian, but
+        # at least for now with the fill value of 0
+
+        radiance_fm = np.full(ret_info["meas_err"].shape, -999.0)
+        gpt = ret_info["meas_err"] >= 0
+        radiance_fm[gpt] = self.max_a_posteriori.model
+        jac_fm_gpt = self.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
+        jac_fm = np.full((jac_fm_gpt.shape[0], ret_info["meas_err"].shape[0]), -999.0)
+        jac_fm[:, gpt] = jac_fm_gpt
+        # Need to add handling for bad samples
+        stop_flag = 0
+        # Muses-py prefers that we just fail if we get nans here. Otherwise we
+        # get a pretty obscure error buried in levmar_nllsq_elanor (basically we
+        # end up with a rank zero matrix at some point. results in a TypeError).
+        # Just cleaner to say we fail because our radiance or jacobian has nans
+        if not np.all(np.isfinite(residual)):
+            raise RuntimeError("Radiance is not finite")
+        if not np.all(np.isfinite(jac_fm)):
+            raise RuntimeError("Jacobian is not finite")
+        if False:
+            for fm in self.fm_list:
+                logger.debug(f"Forward model: {fm}")
+        return (uip, residual, jac_residual, radiance_fm, jac_fm, stop_flag)

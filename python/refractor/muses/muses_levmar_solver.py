@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .cost_function import CostFunction
 import numpy as np
-from .replace_function_helper import register_replacement_function_in_block
 import os
 from pathlib import Path
 from typing import Any
@@ -549,51 +548,47 @@ class MusesLevmarSolver:
         # needed.
         if self.log_file is not None:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        with register_replacement_function_in_block("update_uip", self.cfunc):
-            with register_replacement_function_in_block(
-                "residual_fm_jacobian", self.cfunc
-            ):
-                # We want some of these to go away
-                (
-                    xret,
-                    self.diag_lambda_rho_delta,
-                    self.stopcrit,
-                    self.resdiag,
-                    self.x_iter,
-                    res_iter,
-                    radiance_fm,
-                    self.radiance_iter,
-                    jacobian_fm,
-                    self.iter_num,
-                    self.stop_code,
-                    self.success_flag,
-                ) = self.levmar_nllsq_elanor(
-                    self.cfunc.parameters,
-                    None,
-                    None,
-                    {},
-                    self.max_iter,
-                    verbose=self.verbose,
-                    delta_value=self.delta_value,
-                    ConvTolerance=self.conv_tolerance,
-                    Chi2Tolerance=self.chi2_tolerance,
-                    logWrite=self.log_file is not None,
-                    logFile=str(self.log_file),
-                )
-            # Since xret is the best iteration, which might not be the last,
-            # set the cost function to this. Note the cost function does internal
-            # caching, so if this is the last one then we don't recalculate
-            # residual and jacobian.
-            self.cfunc.parameters = xret
-            # Find iteration used, only keep the best iteration
-            rms = np.array(
-                [
-                    np.sqrt(np.sum(res_iter[i, :] * res_iter[i, :]) / res_iter.shape[1])
-                    for i in range(self.iter_num + 1)
-                ]
-            )
-            self.best_iter = int(np.argmin(rms))
-            self.residual_rms = rms
+        # We want some of these to go away
+        (
+            xret,
+            self.diag_lambda_rho_delta,
+            self.stopcrit,
+            self.resdiag,
+            self.x_iter,
+            res_iter,
+            radiance_fm,
+            self.radiance_iter,
+            jacobian_fm,
+            self.iter_num,
+            self.stop_code,
+            self.success_flag,
+        ) = self.levmar_nllsq_elanor(
+            self.cfunc.parameters,
+            None,
+            None,
+            {},
+            self.max_iter,
+            verbose=self.verbose,
+            delta_value=self.delta_value,
+            ConvTolerance=self.conv_tolerance,
+            Chi2Tolerance=self.chi2_tolerance,
+            logWrite=self.log_file is not None,
+            logFile=str(self.log_file),
+        )
+        # Since xret is the best iteration, which might not be the last,
+        # set the cost function to this. Note the cost function does internal
+        # caching, so if this is the last one then we don't recalculate
+        # residual and jacobian.
+        self.cfunc.parameters = xret
+        # Find iteration used, only keep the best iteration
+        rms = np.array(
+            [
+                np.sqrt(np.sum(res_iter[i, :] * res_iter[i, :]) / res_iter.shape[1])
+                for i in range(self.iter_num + 1)
+            ]
+        )
+        self.best_iter = int(np.argmin(rms))
+        self.residual_rms = rms
 
     def levmar_nllsq_elanor(
         self,
@@ -616,8 +611,6 @@ class MusesLevmarSolver:
     ):
         # Temp
         from refractor.muses_py import (
-            update_uip,
-            residual_fm_jacobian,
             rank_revealing_qr,
             rrqr_q_mult_a,
             rrqr_get_rn,
@@ -699,13 +692,10 @@ class MusesLevmarSolver:
         #  xInit.
         #
 
-        # UPDATE UIP BASED ON NEW RETRIEVAL VECTOR
-        # AT_LINE 504 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-
-        (uip, o_x_vector) = update_uip(uip, ret_info, o_x_vector)
-
         (uip, residualNext, jacobian_ret, radiance_fm, o_jacobian_fm, stop_flag) = (
-            residual_fm_jacobian(uip, ret_info, o_x_vector, iterNum, oco_info)
+            self.cfunc.new_residual_fm_jacobian(
+                uip, ret_info, o_x_vector, iterNum, oco_info
+            )
         )
 
         if stop_flag:
@@ -1415,8 +1405,6 @@ class MusesLevmarSolver:
             # AT_LINE 1111 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
             v_vector = o_x_vector + p_vector
 
-            (uip, v_vector) = update_uip(uip, ret_info, v_vector)
-
             p_vector = v_vector - o_x_vector
 
             # AT_LINE 1118 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
@@ -1427,7 +1415,7 @@ class MusesLevmarSolver:
                 o_radiance_fm_next,
                 jacobian_fm_next,
                 stop_flag,
-            ) = residual_fm_jacobian(uip, ret_info, v_vector, iterNum)
+            ) = self.cfunc.new_residual_fm_jacobian(uip, ret_info, v_vector, iterNum)
 
             if stop_flag:
                 logger.info(function_name, "residual_fm_jacobian failed!")
@@ -1788,11 +1776,6 @@ class MusesLevmarSolver:
             resNorm2 = resNextNorm2
 
         # This is odd: Not sure why residual and resNorm2 were calculated above.  Nobody uses them after the assignment.
-
-        # Updates the uip so that the atmospheric parameters are consistent with the last accepted state vector.
-        (uip, o_x_vector) = update_uip(uip, ret_info, o_x_vector)
-
-        # PYTHON_NOTE: In IDL, there is the radiance_fm = radiance_fm_next in the function signature.
 
         return (
             o_x_vector,
