@@ -346,8 +346,8 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         return (uip, residual, jac_residual, radiance_fm, jac_fm, stop_flag)
 
     def new_residual_fm_jacobian(  # type: ignore
-        self, retrieval_vec
-    ):
+        self, retrieval_vec: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """New version of this we use using in MusesLevmarSolver. We may just pull this
         completely away, but for now just have a version we can massage."""
         if self.expected_parameter_size != len(retrieval_vec):
@@ -379,15 +379,10 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         radiance_fm = np.full(meas_err.shape, -999.0)
         gpt = meas_err >= 0
         radiance_fm[gpt] = self.max_a_posteriori.model
-        jac_fm_gpt = self.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
-        jac_fm = np.full((jac_fm_gpt.shape[0], meas_err.shape[0]), -999.0)
-        jac_fm[:, gpt] = jac_fm_gpt
         # Muses-py prefers that we just fail if we get nans here. Otherwise we
         # get a pretty obscure error buried in levmar_nllsq_elanor (basically we
         # end up with a rank zero matrix at some point. results in a TypeError).
         # Just cleaner to say we fail because our radiance or jacobian has nans
         if not np.all(np.isfinite(residual)):
             raise RuntimeError("Radiance is not finite")
-        if not np.all(np.isfinite(jac_fm)):
-            raise RuntimeError("Jacobian is not finite")
-        return (residual, jac_residual, radiance_fm, jac_fm)
+        return (residual, jac_residual, radiance_fm)

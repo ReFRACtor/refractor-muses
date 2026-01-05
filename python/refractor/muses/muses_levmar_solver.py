@@ -551,31 +551,11 @@ class MusesLevmarSolver:
         # needed.
         if self.log_file is not None:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        # We want some of these to go away
-        (
-            xret,
-            res_iter,
-            radiance_fm,
-            jacobian_fm,
-        ) = self.levmar_nllsq_elanor()
-        # Since xret is the best iteration, which might not be the last,
-        # set the cost function to this. Note the cost function does internal
-        # caching, so if this is the last one then we don't recalculate
-        # residual and jacobian.
-        self.cfunc.parameters = xret
-        # Find iteration used, only keep the best iteration
-        rms = np.array(
-            [
-                np.sqrt(np.sum(res_iter[i, :] * res_iter[i, :]) / res_iter.shape[1])
-                for i in range(self.iter_num + 1)
-            ]
-        )
-        self.best_iter = int(np.argmin(rms))
-        self.residual_rms = rms
+        self.levmar_nllsq_elanor()
 
     def levmar_nllsq_elanor(
         self,
-    ):
+    ) -> None:
         # Temp
         from refractor.muses_py import (
             rank_revealing_qr,
@@ -586,11 +566,6 @@ class MusesLevmarSolver:
             givens,
         )  # type: ignore
 
-        # Output variables.
-        o_x_vector = None
-        o_res_iter = None
-        o_jacobian_fm = None
-
         self.stop_code = 0
 
         if self.log_file is not None:
@@ -599,7 +574,7 @@ class MusesLevmarSolver:
 
         # AT_LINE 482 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
         # Give this variable a more descriptive name to 'o_x_vector' so we can find it instead of just 'x'.
-        o_x_vector = (np.asarray(self.cfunc.parameters)).astype(np.float64)
+        x_vector = (np.asarray(self.cfunc.parameters)).astype(np.float64)
 
         #  Initialize Stop criteria diagnostics.
 
@@ -625,8 +600,8 @@ class MusesLevmarSolver:
         #  self.cfunc.parameters.
         #
 
-        (residualNext, jacobian_ret, radiance_fm, o_jacobian_fm) = (
-            self.cfunc.new_residual_fm_jacobian(o_x_vector)
+        (residualNext, jacobian_ret, radiance_fm) = (
+            self.cfunc.new_residual_fm_jacobian(x_vector)
         )
 
         #  A flag to signal the termination of the iterative process.
@@ -637,12 +612,12 @@ class MusesLevmarSolver:
         self.x_iter = np.zeros(
             shape=(self.max_iter + 1, len(self.cfunc.parameters)), dtype=np.float64
         )
-        self.x_iter[0, :] = o_x_vector[:]
+        self.x_iter[0, :] = x_vector[:]
 
-        o_res_iter = np.zeros(
+        res_iter = np.zeros(
             shape=(self.max_iter + 1, len(residualNext)), dtype=np.float64
         )
-        o_res_iter[0, :] = residualNext[:]  # Set the residual for the pre-iteration.
+        res_iter[0, :] = residualNext[:]  # Set the residual for the pre-iteration.
 
         # AT_LINE 521 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
         self.radiance_iter = np.zeros(
@@ -839,7 +814,7 @@ class MusesLevmarSolver:
                 logger.info(f"Start iteration# = {self.iter_num}")
                 if not self.newton_flag:
                     logger.info(f"Adaptive D       = {scaleDiag}")
-                logger.info(f"At x             = {o_x_vector}")
+                logger.info(f"At x             = {x_vector}")
                 logger.info(f"rank of jacobian = {rank}")
 
                 nTemp = min(nTerms, nPoints)
@@ -857,7 +832,7 @@ class MusesLevmarSolver:
                     print(f"Start iteration# = {self.iter_num}", file=f)
                     if not self.newton_flag:
                         print(f"Adaptive D       = {scaleDiag}", file=f)
-                    print(f"At x             = {o_x_vector}", file=f)
+                    print(f"At x             = {x_vector}", file=f)
                     print(f"rank of jacobian = {rank}", file=f)
 
                     nTemp = min(nTerms, nPoints)
@@ -1307,15 +1282,14 @@ class MusesLevmarSolver:
                 #
                 #  <<<<<<< END: IMPLEMENTATION OF ALGORITHM 5.5, MORE >>>>>>
 
-            v_vector = o_x_vector + p_vector
+            v_vector = x_vector + p_vector
 
-            p_vector = v_vector - o_x_vector
+            p_vector = v_vector - x_vector
 
             (
                 residualNext,
                 jacobNext,
-                o_radiance_fm_next,
-                jacobian_fm_next,
+                radiance_fm_next,
             ) = self.cfunc.new_residual_fm_jacobian(v_vector)
 
             # AT_LINE 1121 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
@@ -1327,14 +1301,14 @@ class MusesLevmarSolver:
             jacResNorm2 = np.sum(
                 (jacobian_ret @ residual) ** 2
             )  # jacobian_ret is IDL jacob
-            xNorm = np.sum(o_x_vector**2)
+            xNorm = np.sum(x_vector**2)
             pNorm = np.sum(p_vector**2)
 
             # AT_LINE 1128 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-            self.x_iter[self.iter_num, :] = o_x_vector + p_vector
+            self.x_iter[self.iter_num, :] = x_vector + p_vector
 
-            o_res_iter[self.iter_num, :] = residualNext[:]
-            self.radiance_iter[self.iter_num, :] = o_radiance_fm_next[:]
+            res_iter[self.iter_num, :] = residualNext[:]
+            self.radiance_iter[self.iter_num, :] = radiance_fm_next[:]
 
             #  <<<<<<<<<<<<<<<<<<<<<<< COMPUTE rho >>>>>>>>>>>>>>>>>>>>>>>>
             #  <<<<<<<<<<<<<<<<<< STEP b, ALGORITH 7.1 >>>>>>>>>>>>>>>>>>>>
@@ -1380,12 +1354,11 @@ class MusesLevmarSolver:
             # χ2ν < 1 indicates that the model is over-fitting the data; that is, the model is fitting the measurement noise.
             # χ2ν = χ2 / (m - n + 1), where m  = # of observations, n = # of parameters
             chi2 = resNextNorm2
-            dof = o_radiance_fm_next.shape[0] - p_vector.shape[0] + 1
+            dof = radiance_fm_next.shape[0] - p_vector.shape[0] + 1
             chi2_reduced = (chi2 / dof) if dof > 0 else chi2
 
             if rho > 0.0001:
-                o_x_vector = o_x_vector + p_vector
-                o_jacobian_fm = np.copy(jacobian_fm_next)
+                x_vector = x_vector + p_vector
                 jacobian_ret = np.copy(jacobNext)
 
                 if (self.stop_code == 0) and (resNextNorm2 < 1.0 - self.chi2_tolerance):
@@ -1540,7 +1513,7 @@ class MusesLevmarSolver:
 
                         if rho > 0.0001:
                             print("The step was accepted, and", file=f)
-                            print(f"x + p = {o_x_vector}", file=f)
+                            print(f"x + p = {x_vector}", file=f)
                         else:
                             print("The step was rejected.", file=f)
 
@@ -1563,7 +1536,7 @@ class MusesLevmarSolver:
 
                         print("", file=f)
                         print("After step p", file=f)
-                        print(f"x + p = {o_x_vector}", file=f)
+                        print(f"x + p = {x_vector}", file=f)
                     # end if not self.newton_flag:
 
             # AT_LINE 1297 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
@@ -1643,7 +1616,7 @@ class MusesLevmarSolver:
 
             # TODO: print only in self.verbose mode
             chi2 = resNextNorm2
-            dof = o_radiance_fm_next.shape[0] - p_vector.shape[0] + 1
+            dof = radiance_fm_next.shape[0] - p_vector.shape[0] + 1
             chi2_reduced = (chi2 / dof) if dof > 0 else chi2
 
             logger.info(
@@ -1665,14 +1638,21 @@ class MusesLevmarSolver:
             residual = np.copy(residualNext)
             resNorm2 = resNextNorm2
 
-        # This is odd: Not sure why residual and resNorm2 were calculated above.  Nobody uses them after the assignment.
+        # Since x_vector is the best iteration, which might not be the last,
+        # set the cost function to this. Note the cost function does internal
+        # caching, so if this is the last one then we don't recalculate
+        # residual and jacobian.
+        self.cfunc.parameters = x_vector
 
-        return (
-            o_x_vector,
-            o_res_iter,
-            o_radiance_fm_next,
-            o_jacobian_fm,
+        # Find iteration used, only keep the best iteration
+        rms = np.array(
+            [
+                np.sqrt(np.sum(res_iter[i, :] * res_iter[i, :]) / res_iter.shape[1])
+                for i in range(self.iter_num + 1)
+            ]
         )
+        self.best_iter = int(np.argmin(rms))
+        self.residual_rms = rms
 
 
 __all__ = ["SolverResult", "MusesLevmarSolver"]
