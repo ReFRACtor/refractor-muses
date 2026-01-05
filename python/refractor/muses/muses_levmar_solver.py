@@ -442,6 +442,9 @@ class MusesLevmarSolver:
         conv_tolerance: list[float],
         chi2_tolerance: float,
         log_file: str | os.PathLike[str] | None = None,
+        newton_flag: bool = False,
+        sigma: float = 0.1,
+        sing_tolerance: float = 1.0e-7,
         verbose: bool = False,
     ) -> None:
         self.cfunc = cfunc
@@ -450,8 +453,10 @@ class MusesLevmarSolver:
         self.conv_tolerance = conv_tolerance
         self.chi2_tolerance = chi2_tolerance
         self.log_file = Path(log_file) if log_file is not None else None
+        self.newton_flag = newton_flag
+        self.sigma = sigma
+        self.sing_tolerance = sing_tolerance
         # Defaults, so if we skip solve we have what is needed for output
-        self.success_flag = 1
         self.best_iter = 0
         self.residual_rms = np.asarray([0])
         self.x_iter = np.asarray([0])
@@ -482,7 +487,6 @@ class MusesLevmarSolver:
             "radiance_iter": self.radiance_iter.tolist(),
             "iter_num": self.iter_num,
             "stop_code": self.stop_code,
-            "success_flag": self.success_flag,
             "best_iter": self.best_iter,
             "residual_rms": self.residual_rms.tolist(),
         }
@@ -498,7 +502,6 @@ class MusesLevmarSolver:
         self.radiance_iter = np.array(d["radiance_iter"])
         self.iter_num = d["iter_num"]
         self.stop_code = d["stop_code"]
-        self.success_flag = d["success_flag"]
         self.best_iter = d["best_iter"]
         self.residual_rms = np.array(d["residual_rms"])
 
@@ -551,30 +554,10 @@ class MusesLevmarSolver:
         # We want some of these to go away
         (
             xret,
-            self.diag_lambda_rho_delta,
-            self.stopcrit,
-            self.resdiag,
-            self.x_iter,
             res_iter,
             radiance_fm,
-            self.radiance_iter,
             jacobian_fm,
-            self.iter_num,
-            self.stop_code,
-            self.success_flag,
-        ) = self.levmar_nllsq_elanor(
-            self.cfunc.parameters,
-            None,
-            None,
-            {},
-            self.max_iter,
-            verbose=self.verbose,
-            delta_value=self.delta_value,
-            ConvTolerance=self.conv_tolerance,
-            Chi2Tolerance=self.chi2_tolerance,
-            logWrite=self.log_file is not None,
-            logFile=str(self.log_file),
-        )
+        ) = self.levmar_nllsq_elanor()
         # Since xret is the best iteration, which might not be the last,
         # set the cost function to this. Note the cost function does internal
         # caching, so if this is the last one then we don't recalculate
@@ -592,22 +575,6 @@ class MusesLevmarSolver:
 
     def levmar_nllsq_elanor(
         self,
-        xInit: np.ndarray,
-        i_stepNumber: int | None,
-        uip: dict | None,
-        ret_info: dict,
-        maxIter: int,
-        verbose: bool,
-        newtonFlag: bool = False,
-        sigma: float | None = None,
-        delta_value: float | None = None,
-        tolerance: float | None = None,
-        singTolerance: float | None = None,
-        ConvTolerance: list[float] | None = None,
-        Chi2Tolerance: float | None = None,
-        logWrite: bool = False,
-        logFile: str | None = None,
-        oco_info: dict = {},
     ):
         # Temp
         from refractor.muses_py import (
@@ -619,67 +586,33 @@ class MusesLevmarSolver:
             givens,
         )  # type: ignore
 
-        function_name = "levmar_nllsq_elanor: "
-
         # Output variables.
         o_x_vector = None
-        o_Diag_lambda_rho_delta = None
-        o_stopcrit = None
-        o_resdiag = None
-        o_x_iter = None
         o_res_iter = None
-        o_radiance_iter = None
         o_jacobian_fm = None
 
-        o_success_flag = 1
+        self.stop_code = 0
 
-        iterNum = 0  # PYTHON_NOTE: iter is a keyword in Python.
-        stopCode = 0
-
-        # AT_LINE 452 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        if sigma is None:
-            sigma = 0.1
-
-        if delta_value is None:
-            delta_value = 1.0
-
-        if tolerance is None:
-            tolerance = 1.0e-7
-
-        if singTolerance is None:
-            singTolerance = 1.0e-7
-
-        if maxIter is None:
-            maxIter = 100
-
-        # AT_LINE 467 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        if ConvTolerance is None:
-            ConvTolerance = [tolerance, tolerance, tolerance]
-
-        if Chi2Tolerance is None:
-            Chi2Tolerance = tolerance
-
-        if logWrite:
-            assert logFile, "logWrite specified without logFile"
-            f = open(logFile, "w")
+        if self.log_file is not None:
+            f = open(self.log_file, "w")
             f.close()
 
         # AT_LINE 482 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
         # Give this variable a more descriptive name to 'o_x_vector' so we can find it instead of just 'x'.
-        o_x_vector = (np.asarray(xInit)).astype(np.float64)
+        o_x_vector = (np.asarray(self.cfunc.parameters)).astype(np.float64)
 
         #  Initialize Stop criteria diagnostics.
 
         # AT_LINE 486 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        o_stopcrit = np.zeros(shape=(maxIter + 1, 3), dtype=np.float64)
-        o_resdiag = np.zeros(shape=(maxIter + 1, 5), dtype=np.float64)
+        self.stopcrit = np.zeros(shape=(self.max_iter + 1, 3), dtype=np.float64)
+        self.resdiag = np.zeros(shape=(self.max_iter + 1, 5), dtype=np.float64)
 
         # Initialize linearity metrics
 
         # AT_LINE 491 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        o_Diag_lambda_rho_delta = np.zeros(
-            shape=(maxIter + 1, 3), dtype=np.float64
-        )  # dblarr(maxIter + 1, 3)
+        self.diag_lambda_rho_delta = np.zeros(
+            shape=(self.max_iter + 1, 3), dtype=np.float64
+        )  # dblarr(self.max_iter + 1, 3)
 
         # epsD is numerical precision tolerance
 
@@ -689,49 +622,33 @@ class MusesLevmarSolver:
 
         #  Compute jacobian (nTerms columns by nPoints rows) and residual
         #  (row vector with nPoints elements) based on the initial guess
-        #  xInit.
+        #  self.cfunc.parameters.
         #
 
-        (uip, residualNext, jacobian_ret, radiance_fm, o_jacobian_fm, stop_flag) = (
-            self.cfunc.new_residual_fm_jacobian(
-                uip, ret_info, o_x_vector, iterNum, oco_info
-            )
+        (residualNext, jacobian_ret, radiance_fm, o_jacobian_fm) = (
+            self.cfunc.new_residual_fm_jacobian(o_x_vector)
         )
 
-        if stop_flag:
-            o_radiance_fm_next = None
-            o_success_flag = 0
-            return (
-                o_x_vector,
-                o_Diag_lambda_rho_delta,
-                o_stopcrit,
-                o_resdiag,
-                o_x_iter,
-                o_res_iter,
-                o_radiance_fm_next,
-                o_radiance_iter,
-                o_jacobian_fm,
-                iterNum,
-                stopCode,
-                o_success_flag,
-            )
-
         #  A flag to signal the termination of the iterative process.
-        stopCode = 0
+        self.stop_code = 0
 
         resNextNorm2 = np.sum(residualNext**2)
 
-        o_x_iter = np.zeros(shape=(maxIter + 1, len(xInit)), dtype=np.float64)
-        o_x_iter[0, :] = o_x_vector[:]
+        self.x_iter = np.zeros(
+            shape=(self.max_iter + 1, len(self.cfunc.parameters)), dtype=np.float64
+        )
+        self.x_iter[0, :] = o_x_vector[:]
 
-        o_res_iter = np.zeros(shape=(maxIter + 1, len(residualNext)), dtype=np.float64)
+        o_res_iter = np.zeros(
+            shape=(self.max_iter + 1, len(residualNext)), dtype=np.float64
+        )
         o_res_iter[0, :] = residualNext[:]  # Set the residual for the pre-iteration.
 
         # AT_LINE 521 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        o_radiance_iter = np.zeros(
-            shape=(maxIter + 1, len(radiance_fm)), dtype=np.float64
+        self.radiance_iter = np.zeros(
+            shape=(self.max_iter + 1, len(radiance_fm)), dtype=np.float64
         )
-        o_radiance_iter[0, :] = radiance_fm[
+        self.radiance_iter[0, :] = radiance_fm[
             :
         ]  # Set the radiance for the pre-iteration.
 
@@ -739,7 +656,7 @@ class MusesLevmarSolver:
 
         #  nPoints must be greater than or equal to nTerms
 
-        nTerms = len(xInit)
+        nTerms = len(self.cfunc.parameters)
         nPoints = len(residualNext)
 
         #  Compute the L2 norm squared of each column of the jacobian,
@@ -765,7 +682,7 @@ class MusesLevmarSolver:
         #  If newton keyword is set, then just Newton's method is used,
         #  and there is no need to compute scaleDiag.
         #
-        if not newtonFlag:
+        if not self.newton_flag:
             scaleDiag = np.sqrt(jacobColumnL2Norm2)
             temp = np.where(scaleDiag == 0)[0]
             if len(temp) > 0:
@@ -776,7 +693,7 @@ class MusesLevmarSolver:
         #  Loop counter
         #
         # AT_LINE 569 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-        iterNum = 0  # PYTHON_NOTE: iter is a keyword in Python.
+        self.iter_num = 0  # PYTHON_NOTE: iter is a keyword in Python.
 
         #  The only reason that rho is set equal to 100 here is to make
         #  sure that the first IF statement in the WHILE loop will be
@@ -795,12 +712,12 @@ class MusesLevmarSolver:
         # AT_LINE 589 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
 
         # OPTIMIZATION_LOOP_BEGIN: Inside this loop (iteration), these variables are updated: p_vector,v_vector,x_vector,o_x_vector
-        while stopCode == 0:
+        while self.stop_code == 0:
             #  Update the loop counter
             #
-            iterNum = iterNum + 1
+            self.iter_num = self.iter_num + 1
 
-            # logger.debug('Iteration: %d, Max: %d' % (iterNum, maxIter))
+            # logger.debug('Iteration: %d, Max: %d' % (self.iter_num, self.max_iter))
 
             #  If rho is greater than 0.0001, then we know that the step p
             #  computed in the previous iteration was accepted, and the
@@ -838,7 +755,7 @@ class MusesLevmarSolver:
                 (R, pivots, rank) = rank_revealing_qr(
                     jacobian_ret,
                     columnL2Norm2=np.copy(jacobColumnL2Norm2),
-                    epsilon=singTolerance,
+                    epsilon=self.sing_tolerance,
                 )
 
                 # AT_LINE 636 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
@@ -870,7 +787,7 @@ class MusesLevmarSolver:
                 #  scaleDiag.
                 #
                 # AT_LINE 658 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-                if not newtonFlag:
+                if not self.newton_flag:
                     temp = np.sqrt(jacobColumnL2Norm2)
                     result = np.where(scaleDiag < temp)[0]
                     if len(result) > 0:
@@ -899,7 +816,7 @@ class MusesLevmarSolver:
                 # AT_LINE 683 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
                 (nPermutations, pNewton) = column_permute_undo(pNewton, pivots[0:rank])
 
-                if not newtonFlag:
+                if not self.newton_flag:
                     qNewton = scaleDiag * pNewton
                     qNormNewton = np.linalg.norm(qNewton)
                 else:
@@ -913,14 +830,14 @@ class MusesLevmarSolver:
 
             p_vector = np.copy(pNewton)
 
-            if not newtonFlag:
+            if not self.newton_flag:
                 q_vector = np.copy(qNewton)
             qNorm = qNormNewton
 
-            if verbose:
+            if self.verbose:
                 logger.info("***************************************************")
-                logger.info(f"Start iteration# = {iterNum}")
-                if not newtonFlag:
+                logger.info(f"Start iteration# = {self.iter_num}")
+                if not self.newton_flag:
                     logger.info(f"Adaptive D       = {scaleDiag}")
                 logger.info(f"At x             = {o_x_vector}")
                 logger.info(f"rank of jacobian = {rank}")
@@ -932,17 +849,13 @@ class MusesLevmarSolver:
                 logger.info(f"eigenvalues of R = {temp}")
                 logger.info(f"Newton step p    = {p_vector}")
                 logger.info("")
-            # end if verbose:
+            # end if self.verbose:
 
-            if logWrite:
-                with open(logFile, "a") as f:
+            if self.log_file:
+                with open(self.log_file, "a") as f:
                     print("***************************************************", file=f)
-                    print(f"Start iteration# = {iterNum}", file=f)
-                    if uip is not None:
-                        print(
-                            f"Species list = {np.asarray(uip.speciesList)}", file=f
-                        )  # use asarray to wrap this list more nicely
-                    if not newtonFlag:
+                    print(f"Start iteration# = {self.iter_num}", file=f)
+                    if not self.newton_flag:
                         print(f"Adaptive D       = {scaleDiag}", file=f)
                     print(f"At x             = {o_x_vector}", file=f)
                     print(f"rank of jacobian = {rank}", file=f)
@@ -954,7 +867,6 @@ class MusesLevmarSolver:
                     print(f"eigenvalues of R = {temp}", file=f)
                     print(f"Newton step p    = {p_vector}", file=f)
                     print("", file=f)
-            # end if logWrite:
 
             #  <<<<<<<<<<<<< ACCEPT NEWTON STEP OR FIND A NEW p >>>>>>>>>>>
             #  <<<<<<<<<<<< WHEN LEV. MAR. PARAMETER IS NOT ZERO >>>>>>>>>>
@@ -965,9 +877,9 @@ class MusesLevmarSolver:
             #  else compute another p using LevMar method.
             #
             # AT_LINE 742 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-            if qNormNewton <= (1 + sigma) * delta_value:
+            if qNormNewton <= (1 + self.sigma) * self.delta_value:
                 lambda_value = 0.0  # The word 'lambda' is a reserved keyword in Python.
-            else:  # end part of if (qNormNewton <= (1+sigma)*delta_value):
+            else:  # end part of if (qNormNewton <= (1+self.sigma)*self.delta_value):
                 #  Compute jacobTilde (More, 5.3)
                 #
                 # AT_LINE 751 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
@@ -987,7 +899,7 @@ class MusesLevmarSolver:
                 #  Find the initial upper bound, u0, (More, section 5)
                 #
                 # AT_LINE 767 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-                upper_bound = np.linalg.norm(jacobTilde @ residual) / delta_value
+                upper_bound = np.linalg.norm(jacobTilde @ residual) / self.delta_value
 
                 #  Find the initial lower bound, l0, (More, section 5).
                 #  There are two cases for the initial lower bound value,
@@ -1004,7 +916,7 @@ class MusesLevmarSolver:
                     #
 
                     # AT_LINE 785 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-                    phi0 = qNorm - delta_value
+                    phi0 = qNorm - self.delta_value
 
                     #  This code segment is an implementation of the formula
                     #  at the end of the section 5 of More's paper when
@@ -1192,7 +1104,7 @@ class MusesLevmarSolver:
                         )
 
                         # AT_LINE 959 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-                        if curAbsEigVal / maxAbsEigVal >= singTolerance:
+                        if curAbsEigVal / maxAbsEigVal >= self.sing_tolerance:
                             rev_loop_count = 0
 
                             # Note that for Python, we go from ii to 0 with negative step.  IDL goes from ii to 1 with negative step.
@@ -1277,9 +1189,9 @@ class MusesLevmarSolver:
 
                         qNorm = np.linalg.norm(q_vector)
 
-                        stopThisLoop = (qNorm >= (1.0 - sigma) * delta_value) and (
-                            qNorm <= (1.0 + sigma) * delta_value
-                        )
+                        stopThisLoop = (
+                            qNorm >= (1.0 - self.sigma) * self.delta_value
+                        ) and (qNorm <= (1.0 + self.sigma) * self.delta_value)
 
                     # AT_LINE 1017 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
                     else:
@@ -1300,7 +1212,7 @@ class MusesLevmarSolver:
                             tempMatrix[ii, ii + nTerms] = scaleDiagPi[ii] * lambda_sqrt
 
                         (Rj, pivotsj, rankj) = rank_revealing_qr(
-                            tempMatrix, None, epsilon=singTolerance
+                            tempMatrix, None, epsilon=self.sing_tolerance
                         )
 
                         tempMatrix.fill(0.0)
@@ -1350,7 +1262,7 @@ class MusesLevmarSolver:
                         #  <<<<<<<<<<<<<< STEP b, ALGORITHM 5.5 >>>>>>>>>>>>>>
                         #
                         # AT_LINE 1068 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-                        phi = qNorm - delta_value
+                        phi = qNorm - self.delta_value
                         temp = q_vector * scaleDiag
 
                         (nPermutations, temp) = column_permute(temp, pivots)
@@ -1375,7 +1287,7 @@ class MusesLevmarSolver:
                         #
                         # AT_LINE 1084 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
                         lambda_value = lambda_value - (
-                            (phi + delta_value) / delta_value
+                            (phi + self.delta_value) / self.delta_value
                         ) * (phi / phiPrime)
                         #
                         #  <<<<<<<<<<< END: STEP c, ALGORITHM 5.5 >>>>>>>>>>>>
@@ -1395,32 +1307,16 @@ class MusesLevmarSolver:
                 #
                 #  <<<<<<< END: IMPLEMENTATION OF ALGORITHM 5.5, MORE >>>>>>
 
-            # AT_LINE 1101 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-            # end else part of if (qNormNewton <= (1 + sigma) * delta_value):
-
-            # UPDATE UIP BASED ON NEW RETRIEVAL VECTOR
-            # make sure that updated vector, v, is not negative, if it is
-            # linear.  If it is negative, modify p.
-
-            # AT_LINE 1111 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
             v_vector = o_x_vector + p_vector
 
             p_vector = v_vector - o_x_vector
 
-            # AT_LINE 1118 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
             (
-                uip,
                 residualNext,
                 jacobNext,
                 o_radiance_fm_next,
                 jacobian_fm_next,
-                stop_flag,
-            ) = self.cfunc.new_residual_fm_jacobian(uip, ret_info, v_vector, iterNum)
-
-            if stop_flag:
-                logger.info(function_name, "residual_fm_jacobian failed!")
-                o_success_flag = 0
-                break
+            ) = self.cfunc.new_residual_fm_jacobian(v_vector)
 
             # AT_LINE 1121 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
             resNextNorm2 = np.sum(residualNext**2)
@@ -1435,10 +1331,10 @@ class MusesLevmarSolver:
             pNorm = np.sum(p_vector**2)
 
             # AT_LINE 1128 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-            o_x_iter[iterNum, :] = o_x_vector + p_vector
+            self.x_iter[self.iter_num, :] = o_x_vector + p_vector
 
-            o_res_iter[iterNum, :] = residualNext[:]
-            o_radiance_iter[iterNum, :] = o_radiance_fm_next[:]
+            o_res_iter[self.iter_num, :] = residualNext[:]
+            self.radiance_iter[self.iter_num, :] = o_radiance_fm_next[:]
 
             #  <<<<<<<<<<<<<<<<<<<<<<< COMPUTE rho >>>>>>>>>>>>>>>>>>>>>>>>
             #  <<<<<<<<<<<<<<<<<< STEP b, ALGORITH 7.1 >>>>>>>>>>>>>>>>>>>>
@@ -1453,7 +1349,7 @@ class MusesLevmarSolver:
             #  to some value greater than 0.0001D.
             #
 
-            if newtonFlag:
+            if self.newton_flag:
                 rho = 100.0
             elif resNextNorm2 > resNorm2:
                 rho = 0.0
@@ -1492,16 +1388,16 @@ class MusesLevmarSolver:
                 o_jacobian_fm = np.copy(jacobian_fm_next)
                 jacobian_ret = np.copy(jacobNext)
 
-                if (stopCode == 0) and (resNextNorm2 < 1.0 - Chi2Tolerance):
+                if (self.stop_code == 0) and (resNextNorm2 < 1.0 - self.chi2_tolerance):
                     # model is over-fitting the data; that is, the model is fitting the measurement noise.
-                    stopCode = 2
+                    self.stop_code = 2
 
-                if (stopCode == 0) and (
-                    (pThresh < ConvTolerance[1])
-                    and (JacThresh < ConvTolerance[2])
-                    and (costThresh < ConvTolerance[0])
+                if (self.stop_code == 0) and (
+                    (pThresh < self.conv_tolerance[1])
+                    and (JacThresh < self.conv_tolerance[2])
+                    and (costThresh < self.conv_tolerance[0])
                 ):
-                    stopCode = 3
+                    self.stop_code = 3
 
                 # VK: Add another convergence criteria for χ2 usingthe the reduced χ2, χ2ν = χ2 / (m − n + 1) < ϵ3 (quality of the fit).
                 # see: https://people.duke.edu/~hpgavin/ExperimentalSystems/lm.pdf, 4.1.3 Convergence criteria
@@ -1510,61 +1406,51 @@ class MusesLevmarSolver:
                 # 1.1 is too low. With the current FM / RTs (OSS or VLIDORT) we rarely get χ2ν (chi2_reduced) lower than 2.0.
                 epsilon3 = 1.1
                 if (
-                    (stopCode == 0)
+                    (self.stop_code == 0)
                     and (chi2_reduced >= 1)
                     and (chi2_reduced < epsilon3)
                 ):
-                    stopCode = 4
+                    self.stop_code = 4
             # end if (rho > 0.0001):
 
             #
             #  <<<<<<<<<<<<<<<< END: STEP c, ALGORITHM 7.1 >>>>>>>>>>>>>>>>
             # AT_LINE 1180 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
-            #  If the loop has repeated maxIter times then give up.
+            #  If the loop has repeated self.max_iter times then give up.
             #
-            if (stopCode == 0) and (iterNum >= maxIter):
-                stopCode = 1
+            if (self.stop_code == 0) and (self.iter_num >= self.max_iter):
+                self.stop_code = 1
 
             # Save off stopping criterion
             # AT_LINE 1187 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
 
-            o_stopcrit[iterNum, 0] = costThresh
-            o_stopcrit[iterNum, 1] = pThresh
-            o_stopcrit[iterNum, 2] = JacThresh
+            self.stopcrit[self.iter_num, 0] = costThresh
+            self.stopcrit[self.iter_num, 1] = pThresh
+            self.stopcrit[self.iter_num, 2] = JacThresh
 
             # Save residual diagnostics
             # AT_LINE 1193 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
 
-            o_resdiag[iterNum, 0] = np.sqrt(resNorm2) / np.sqrt(nPoints)
-            o_resdiag[iterNum, 1] = np.sqrt(resNextNorm2) / np.sqrt(nPoints)
-            o_resdiag[iterNum, 2] = np.sqrt(jacResNorm2) / np.sqrt(nPoints)
-            o_resdiag[iterNum, 3] = np.sqrt(jacResNextNorm2) / np.sqrt(nPoints)
-            o_resdiag[iterNum, 4] = pNorm / np.sqrt(nPoints)
+            self.resdiag[self.iter_num, 0] = np.sqrt(resNorm2) / np.sqrt(nPoints)
+            self.resdiag[self.iter_num, 1] = np.sqrt(resNextNorm2) / np.sqrt(nPoints)
+            self.resdiag[self.iter_num, 2] = np.sqrt(jacResNorm2) / np.sqrt(nPoints)
+            self.resdiag[self.iter_num, 3] = np.sqrt(jacResNextNorm2) / np.sqrt(nPoints)
+            self.resdiag[self.iter_num, 4] = pNorm / np.sqrt(nPoints)
 
             # Save linearity measures
             # AT_LINE 1200 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
 
-            o_Diag_lambda_rho_delta[iterNum, 0] = lambda_value
-            o_Diag_lambda_rho_delta[iterNum, 1] = rho
-            o_Diag_lambda_rho_delta[iterNum, 2] = delta_value
+            self.diag_lambda_rho_delta[self.iter_num, 0] = lambda_value
+            self.diag_lambda_rho_delta[self.iter_num, 1] = rho
+            self.diag_lambda_rho_delta[self.iter_num, 2] = self.delta_value
 
-            if logWrite:
-                with open(logFile, "a") as f:
+            if self.log_file:
+                with open(self.log_file, "a") as f:
                     print("jacobian_ret size", file=f)
                     print(
                         f"{len(jacobian_ret.shape)}   {jacobian_ret.shape}   {jacobian_ret.dtype}   {jacobian_ret.size}",
                         file=f,
                     )
-
-                    # print('jacobian_ret', file=f)
-                    # print(f'{jacobian_ret}', file=f)
-
-                    # print('residualNext', file=f)
-                    # print(f'{residualNext}', file=f)
-
-                    # print('resNextNorm2', file=f)
-                    # print(f'{resNextNorm2}', file=f)
-
                     print("", file=f)
 
                     print("Convergence Criteria:", file=f)
@@ -1575,14 +1461,14 @@ class MusesLevmarSolver:
                     )
                     print(f"{costThresh}", file=f)
 
-                    print("tolerance = ConvTolerance[0]", file=f)
-                    print(f"{ConvTolerance[0]}", file=f)
+                    print("tolerance = self.conv_tolerance[0]", file=f)
+                    print(f"{self.conv_tolerance[0]}", file=f)
 
                     print("pThresh = pNorm / (1 + xNorm)", file=f)
                     print(f"{pThresh}", file=f)
 
-                    print("tolerance = ConvTolerance[1]", file=f)
-                    print(f"{ConvTolerance[1]}", file=f)
+                    print("tolerance = self.conv_tolerance[1]", file=f)
+                    print(f"{self.conv_tolerance[1]}", file=f)
 
                     print(
                         "JacThresh = np.linalg.norm(jacobian_ret @ residualNext) / (1 + resNextNorm2)",
@@ -1590,17 +1476,20 @@ class MusesLevmarSolver:
                     )
                     print(f"{JacThresh}", file=f)
 
-                    print("tolerance = ConvTolerance[2]", file=f)
-                    print(f"{ConvTolerance[2]}", file=f)
+                    print("tolerance = self.conv_tolerance[2]", file=f)
+                    print(f"{self.conv_tolerance[2]}", file=f)
 
                     print("", file=f)
 
-                    if not newtonFlag:
-                        if qNormNewton <= (1 + sigma) * delta_value:
+                    if not self.newton_flag:
+                        if qNormNewton <= (1 + self.sigma) * self.delta_value:
                             print("Newton step is chosen.", file=f)
                             print("", file=f)
-                            print("qNorm    (1 + sigma) * delta", file=f)
-                            print(f"{qNorm}, {(1 + sigma) * delta_value}", file=f)
+                            print("qNorm    (1 + self.sigma) * delta", file=f)
+                            print(
+                                f"{qNorm}, {(1 + self.sigma) * self.delta_value}",
+                                file=f,
+                            )
                         else:
                             print(
                                 "Newton step is not good; LevMar step is chosen", file=f
@@ -1618,14 +1507,14 @@ class MusesLevmarSolver:
                             print("", file=f)
 
                             print(
-                                "(1 - sigma) * delta   qNorm   (1 + sigma) * delta",
+                                "(1 - self.sigma) * delta   qNorm   (1 + self.sigma) * delta",
                                 file=f,
                             )
                             print(
-                                f"{(1.0 - sigma) * delta_value} {qNorm} {(1.0 + sigma) * delta_value}",
+                                f"{(1.0 - self.sigma) * self.delta_value} {qNorm} {(1.0 + self.sigma) * self.delta_value}",
                                 file=f,
                             )
-                        # end if not newtonFlag:
+                        # end if not self.newton_flag:
 
                         print("", file=f)
 
@@ -1634,18 +1523,18 @@ class MusesLevmarSolver:
                             file=f,
                         )
                         print(
-                            "o_resdiag[iterNum, 0]  o_resdiag[iterNum, 1]  o_resdiag[iterNum, 2] o_resdiag[iterNum, 3] o_resdiag[iterNum, 4]",
+                            "self.resdiag[self.iter_num, 0]  self.resdiag[self.iter_num, 1]  self.resdiag[self.iter_num, 2] self.resdiag[self.iter_num, 3] self.resdiag[self.iter_num, 4]",
                             file=f,
                         )
                         print(
-                            f"{o_resdiag[iterNum, 0]} {o_resdiag[iterNum, 1]} {o_resdiag[iterNum, 2]} {o_resdiag[iterNum, 3]} {o_resdiag[iterNum, 4]}",
+                            f"{self.resdiag[self.iter_num, 0]} {self.resdiag[self.iter_num, 1]} {self.resdiag[self.iter_num, 2]} {self.resdiag[self.iter_num, 3]} {self.resdiag[self.iter_num, 4]}",
                             file=f,
                         )
 
                         print("", file=f)
 
                         print("lambda   rho   delta", file=f)
-                        print(f"{lambda_value}   {rho}   {delta_value}", file=f)
+                        print(f"{lambda_value}   {rho}   {self.delta_value}", file=f)
 
                         print("", file=f)
 
@@ -1668,15 +1557,14 @@ class MusesLevmarSolver:
                             file=f,
                         )
                         print(
-                            f"{o_resdiag[iterNum, 0]}   {o_resdiag[iterNum, 1]}   {o_resdiag[iterNum, 2]}   {o_resdiag[iterNum, 3]}",
+                            f"{self.resdiag[self.iter_num, 0]}   {self.resdiag[self.iter_num, 1]}   {self.resdiag[self.iter_num, 2]}   {self.resdiag[self.iter_num, 3]}",
                             file=f,
                         )
 
                         print("", file=f)
                         print("After step p", file=f)
                         print(f"x + p = {o_x_vector}", file=f)
-                    # end if not newtonFlag:
-            # end if logWrite:
+                    # end if not self.newton_flag:
 
             # AT_LINE 1297 Optimization/OPTIMIZATION/Levmar_NLLSQ.pro LevMar_NLLSq_Elanor
             #  Anything that must be updated at the end of the current
@@ -1684,7 +1572,7 @@ class MusesLevmarSolver:
             #  whether to go through another iteration or not does not
             #  depend on it, is updated in this if statement.
             #
-            if stopCode == 0:
+            if self.stop_code == 0:
                 #  Reminder: rho greater than 0.0001 means that the last
                 #  step was accepted and we have a new jacob(ian).
                 #
@@ -1700,8 +1588,8 @@ class MusesLevmarSolver:
                 #  only Newton's method is used for optimization, and there
                 #  is no need to compute delta.
                 #
-                if newtonFlag:
-                    delta_value = 0.0
+                if self.newton_flag:
+                    self.delta_value = 0.0
                 elif rho <= 0.25:
                     if resNextNorm2 <= resNorm2:
                         tempConst = 0.5
@@ -1725,25 +1613,27 @@ class MusesLevmarSolver:
                             tempConst = 0.5
                     # end else
 
-                    delta_value = tempConst * delta_value
-                    if (rho <= 0.0001) and (qNorm <= (1.0 + sigma) * delta_value):
-                        delta_value = 0.75 * (qNorm / (1 + sigma))
+                    self.delta_value = tempConst * self.delta_value
+                    if (rho <= 0.0001) and (
+                        qNorm <= (1.0 + self.sigma) * self.delta_value
+                    ):
+                        self.delta_value = 0.75 * (qNorm / (1 + self.sigma))
 
                 elif (rho >= 0.75) or (
                     (rho > 0.25) and (rho < 0.75) and (lambda_value == 0.0)
                 ):
-                    delta_value = 2.0 * qNorm
+                    self.delta_value = 2.0 * qNorm
                 # end elif
                 #
                 #  <<<<<<<<<<<<<<< END: STEP d, ALGORITHM 7.1 >>>>>>>>>>>>>>
-            # end if (stopCode == 0):
+            # end if (self.stop_code == 0):
 
             # Useful diagnostic while looking at muses-py/ReFRACtor. We
             # can take these out by changing True to False, but since
             # these were useful initially probably worth leaving in.
-            if verbose:
+            if self.verbose:
                 logger.info(f"rho: {rho}")
-                logger.info(f"stopCode: {stopCode}")
+                logger.info(f"stopCode: {self.stop_code}")
                 logger.info(f"pThresh: {pThresh}")
                 logger.info(f"costThresh: {costThresh}")
                 logger.info(f"JacThresh: {JacThresh}")
@@ -1751,15 +1641,15 @@ class MusesLevmarSolver:
                 logger.info(f"resNextNorm2: {resNextNorm2}")
                 logger.info(f"resNorm2: {resNorm2}")
 
-            # TODO: print only in verbose mode
+            # TODO: print only in self.verbose mode
             chi2 = resNextNorm2
             dof = o_radiance_fm_next.shape[0] - p_vector.shape[0] + 1
             chi2_reduced = (chi2 / dof) if dof > 0 else chi2
 
             logger.info(
-                f"iter: {iterNum:02}, max: {maxIter:02}, rho = {rho:10.5f}, chi2_reduced = {chi2_reduced:10.5f}, chi2 = {chi2:10.5f}"
+                f"iter: {self.iter_num:02}, max: {self.max_iter:02}, rho = {rho:10.5f}, chi2_reduced = {chi2_reduced:10.5f}, chi2 = {chi2:10.5f}"
             )
-        # end while (stopCode == 0):
+        # end while (self.stop_code == 0):
 
         # OPTIMIZATION_LOOP_END
 
@@ -1779,17 +1669,9 @@ class MusesLevmarSolver:
 
         return (
             o_x_vector,
-            o_Diag_lambda_rho_delta,
-            o_stopcrit,
-            o_resdiag,
-            o_x_iter,
             o_res_iter,
             o_radiance_fm_next,
-            o_radiance_iter,
             o_jacobian_fm,
-            iterNum,
-            stopCode,
-            o_success_flag,
         )
 
 
