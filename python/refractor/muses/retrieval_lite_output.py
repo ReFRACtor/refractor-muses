@@ -101,9 +101,6 @@ class CdfWriteLiteTes:
         return (dataNew, pressuresMax)
 
     def products_add_rtvmr(self, dataInOut: dict[str, Any], species_name: str) -> None:
-        # Temp
-        from refractor.muses_py import make_maps
-
         dof_thr = 0.0
         if species_name == "CH4":
             dof_thr = 1.6
@@ -190,35 +187,35 @@ class CdfWriteLiteTes:
 
                     my_index = np.array([np.argmin(np.abs(press - cv)) for cv in cgrid])
 
-                    my_map = make_maps(press, my_index + 1)
+                    my_map = rf.StateMappingBasisMatrix.from_x_subset(press, my_index)
 
                     new_prof = np.exp(
                         np.matmul(
                             np.log(dataInOut["species".upper()][pndex]),
-                            my_map["toPars"],
+                            my_map.inverse_basis_matrix.transpose(),
                         )
                     )
                     error_arr = np.matmul(
-                        np.matmul(np.transpose(my_map["toPars"]), meas_cov),
-                        my_map["toPars"],
+                        np.matmul(my_map.inverse_basis_matrix, meas_cov),
+                        my_map.inverse_basis_matrix.transpose(),
                     )
                     error_total_arr = np.matmul(
                         np.matmul(
-                            np.transpose(my_map["toPars"]),
+                            my_map.inverse_basis_matrix,
                             dataInOut["totalerrorcovariance".upper()][
                                 pndex[0] :, pndex[0] :
                             ],
                         ),
-                        my_map["toPars"],
+                        my_map.inverse_basis_matrix.transpose(),
                     )
                     error_observation_arr = np.matmul(
                         np.matmul(
-                            np.transpose(my_map["toPars"]),
+                            my_map.inverse_basis_matrix,
                             dataInOut["observationerrorcovariance".upper()][
                                 pndex[0] :, pndex[0] :
                             ],
                         ),
-                        my_map["toPars"],
+                        my_map.inverse_basis_matrix.transpose(),
                     )
 
                     dataInOut["rtvmr".upper()][2 - ntrop :] = new_prof[
@@ -244,9 +241,9 @@ class CdfWriteLiteTes:
                     dataInOut["rtvmr_errorobservation".upper()][2 - ntrop :] = np.sqrt(
                         np.diagonal(error_observation_arr[1 : ntrop + 1, 1 : ntrop + 1])
                     )
-                    dataInOut["rtvmr_map".upper()][2 - ntrop :, pndex] = my_map[
-                        "toState"
-                    ][:, :]
+                    dataInOut["rtvmr_map".upper()][2 - ntrop :, pndex] = (
+                        my_map.basis_matrix.transpose()
+                    )
                     dataInOut["rtvmr_mappressure".upper()][2 - ntrop :] = cgrid[:]
                 # end if len(cgrid) > 1):
             # end if len(indp) > 0:
@@ -872,12 +869,12 @@ class CdfWriteLiteTes:
             levelsIn, pressureIn, pressure_temp_array, nocut
         )
 
-        # make maps
-        linearFlag = False
-        averageFlag = None
 
-        maps = make_maps(pressure_temp_array, levels, linearFlag, averageFlag)
-        maps = AttrDictAdapter(maps)
+        maps_new = rf.StateMappingBasisMatrix.from_x_subset(pressure_temp_array, levels-1)
+        maps_old = make_maps(pressure_temp_array, levels, False, None)
+        #maps = AttrDictAdapter({"toState" : maps_new.basis_matrix.transpose(),
+        #                        "toPars" : maps_new.inverse_basis_matrix.transpose()})
+        maps = AttrDictAdapter(maps_old)
         startt = npp - len(levels)
 
         if startt < 0:

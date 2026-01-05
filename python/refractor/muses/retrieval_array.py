@@ -184,7 +184,6 @@ def _from_x_subset(
 
     For something like pressure, we work in log(x). For wavelength, we work in x.
     You can select x interpolation by passing log_interp as False."""
-    # Temp
     lv = ind + 1
     m_state, m_pars = cls.make_maps(x, lv, log_interp)
     return rf.StateMappingBasisMatrix(m_state.transpose(), m_pars.transpose())
