@@ -252,9 +252,7 @@ class CdfWriteLiteTes:
         self, lite_directory: InputFilePath, dataInOut: dict[str, Any]
     ) -> dict[str, Any]:
         # Temp
-        from refractor.muses_py import nc_read_variable, UtilGeneral
-
-        utilGeneral = UtilGeneral()
+        from refractor.muses_py import nc_read_variable
 
         # Note that all keys in dataInOut dictionary are uppercased.
 
@@ -447,14 +445,14 @@ class CdfWriteLiteTes:
             pwflevel = pwflevel / np.sum(pwflevel)
 
             # full column AK
-            AK0 = utilGeneral.ManualArrayGetWithRHSIndices(
-                dataInOut["averagingkernel".upper()], indp, indp
+            AK0 = dataInOut["averagingkernel".upper()][indp, :][:, indp].astype(
+                np.float64
             )
             dataInOut["xPAN_AK".upper()][indp] = np.matmul(AK0, pwflevel0) / pwflevel0
 
             # 800 to 200 column AK
-            AK = utilGeneral.ManualArrayGetWithRHSIndices(
-                dataInOut["averagingkernel".upper()], indp, indp
+            AK = dataInOut["averagingkernel".upper()][indp, :][:, indp].astype(
+                np.float64
             )
             AK[:, indpx] = 0
 
@@ -473,13 +471,11 @@ class CdfWriteLiteTes:
             derivative[indpx] = 0
 
             # errors
-            errorObs = utilGeneral.ManualArrayGetWithRHSIndices(
-                dataInOut["OBSERVATIONERRORCOVARIANCE"], indp, indp
+            errorObs = dataInOut["OBSERVATIONERRORCOVARIANCE"][indp, :][:, indp].astype(
+                np.float64
             )
             errorSmooth = (
-                utilGeneral.ManualArrayGetWithRHSIndices(
-                    dataInOut["TOTALERRORCOVARIANCE"], indp, indp
-                )
+                dataInOut["TOTALERRORCOVARIANCE"][indp, :][:, indp].astype(np.float64)
                 - errorObs
             )
 
@@ -719,7 +715,7 @@ class CdfWriteLiteTes:
         species_name: str,
     ) -> tuple[dict[str, Any], list[float]]:
         # Temp
-        from refractor.muses_py import make_maps, supplier_retrieval_levels_tes
+        from refractor.muses_py import supplier_retrieval_levels_tes
 
         o_dataOut = copy.deepcopy(dataIn)
 
@@ -869,12 +865,15 @@ class CdfWriteLiteTes:
             levelsIn, pressureIn, pressure_temp_array, nocut
         )
 
-
-        maps_new = rf.StateMappingBasisMatrix.from_x_subset(pressure_temp_array, levels-1)
-        maps_old = make_maps(pressure_temp_array, levels, False, None)
-        #maps = AttrDictAdapter({"toState" : maps_new.basis_matrix.transpose(),
-        #                        "toPars" : maps_new.inverse_basis_matrix.transpose()})
-        maps = AttrDictAdapter(maps_old)
+        maps_new = rf.StateMappingBasisMatrix.from_x_subset(
+            pressure_temp_array, levels - 1
+        )
+        maps = AttrDictAdapter(
+            {
+                "toState": maps_new.basis_matrix.transpose(),
+                "toPars": maps_new.inverse_basis_matrix.transpose(),
+            }
+        )
         startt = npp - len(levels)
 
         if startt < 0:
@@ -2228,11 +2227,6 @@ class CdfWriteLiteTes:
     def products_bias_correct(
         self, dataIn: dict[str, Any], biasIn: np.ndarray, hdoFlag: bool = False
     ) -> dict[str, Any]:
-        # IDL_LEGACY_NOTE: This function products_bias_correct is the same as products_bias_correct function in TOOLS/products_bias_correct.pro file.
-        from refractor.muses_py import UtilGeneral
-
-        utilGeneral = UtilGeneral()
-
         # PYTHON_NOTE: Because the 'species' field in dataIn sometimes has shape [x,1], we reshape it to [x] to make life easier down the road.
         if (
             len((dataIn["species".upper()]).shape) == 2
@@ -2269,10 +2263,8 @@ class CdfWriteLiteTes:
                 trueFlag = dataIn["species".upper()][indp]
                 delta_value = biasIn[indp]
 
-                # The next line is not correct.  Have to use UtilGeneral's function to set the values manually.
-                # ak = dataIn['averagingkernel'.upper()][indp, indp, 0]
-                ak = utilGeneral.ManualArrayGetWithRHSIndices(
-                    dataIn["averagingkernel".upper()], indp, indp
+                ak = dataIn["averagingkernel".upper()][indp, :][:, indp].astype(
+                    np.float64
                 )
                 o_dataCorr["species".upper()][indp] = np.exp(
                     np.log(trueFlag) - np.matmul(delta_value, ak)
@@ -2295,8 +2287,8 @@ class CdfWriteLiteTes:
 
                 # Note this is a bias correction in log, with taylor expansion.
                 trueFlag = dataIn["species".upper()][indp]
-                ak = utilGeneral.ManualArrayGetWithRHSIndices(
-                    dataIn["averagingkernel".upper()], indp, indp
+                ak = dataIn["averagingkernel".upper()][indp, :][:, indp].astype(
+                    np.float64
                 )
 
                 bias = np.copy(biasIn)
@@ -2327,9 +2319,7 @@ class CdfWriteLiteTes:
         i_pressureList: list[str] = [],
     ) -> dict[str, Any]:
         # Temp
-        from refractor.muses_py import calculate_xco2, UtilGeneral
-
-        utilGeneral = UtilGeneral()
+        from refractor.muses_py import calculate_xco2
 
         # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
         nn = 1
@@ -2591,9 +2581,7 @@ class CdfWriteLiteTes:
 
                         # IF indp[0] LT 0 AND N_ELEMENTS(aa[9,*]) GT 9 THEN indp = where(aa[10,*] GE -990 AND pp GE -990)
                         valid_pressure_index = np.where(pp >= -990)[0]
-                        aa = utilGeneral.ManualArrayGetWithRHSIndices(
-                            aa, indp[0], valid_pressure_index
-                        )
+                        aa = aa[indp[0], :][:, valid_pressure_index].astype(np.float64)
 
                         pp = pp[indp[0]]
                         pwf = pwf[indp[0]]
@@ -2645,11 +2633,9 @@ class CdfWriteLiteTes:
 
                             # calculate errorObs
                             # errorObs = sqrt(pwfLevel ## data[jj].Observationerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
-                            temp_obs_cov = utilGeneral.ManualArrayGetWithRHSIndices(
-                                dataIn["Observationerrorcovariance".upper()],
-                                indp[0],
-                                indp[0],
-                            )
+                            temp_obs_cov = dataIn["Observationerrorcovariance".upper()][
+                                indp[0], :
+                            ][:, indp[0]].astype(np.float64)
                             errorObs = (
                                 np.sqrt(
                                     np.matmul(
@@ -2669,9 +2655,9 @@ class CdfWriteLiteTes:
 
                             # calculate error (total error)
                             # error = sqrt(pwfLevel ## data[jj].totalerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
-                            temp_total_cov = utilGeneral.ManualArrayGetWithRHSIndices(
-                                dataIn["totalerrorcovariance".upper()], indp[0], indp[0]
-                            )
+                            temp_total_cov = dataIn["totalerrorcovariance".upper()][
+                                indp[0], :
+                            ][:, indp[0]].astype(np.float64)
                             error = (
                                 np.sqrt(
                                     np.matmul(
