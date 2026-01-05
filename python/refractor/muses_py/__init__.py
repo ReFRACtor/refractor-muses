@@ -50,6 +50,13 @@ if have_muses_py:
         if mname not in _broken:
             exec("from py_retrieve.app.omi.%s import *" % mname)
     from py_retrieve.app.optimization.optimization import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.rank_revealing_qr import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.rrqr_get_rn import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.rrqr_q_mult_a import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.column_permute import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.column_permute_undo import *  # type: ignore
+    from py_retrieve.app.optimization.optimization.givens import *  # type: ignore
+
     from py_retrieve.app.optimization.lib import *  # type: ignore
     from py_retrieve.app.refractor.replace_function import *  # type: ignore
     from py_retrieve.app.tools.cdf_var_add_strings import *  # type: ignore

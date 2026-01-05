@@ -2234,8 +2234,6 @@ class CdfWriteLiteTes:
         # IDL_LEGACY_NOTE: This function products_bias_correct is the same as products_bias_correct function in TOOLS/products_bias_correct.pro file.
         from refractor.muses_py import UtilGeneral
 
-        function_name = "products_bias_correct: "
-
         utilGeneral = UtilGeneral()
 
         # PYTHON_NOTE: Because the 'species' field in dataIn sometimes has shape [x,1], we reshape it to [x] to make life easier down the road.
@@ -2261,14 +2259,6 @@ class CdfWriteLiteTes:
             biasIn = np.reshape(biasIn, (biasIn.shape[0]))
 
         o_dataCorr = None
-
-        if not isinstance(dataIn, dict):
-            print(
-                function_name,
-                "ERROR: This function only support type of dataIn as dict.  type(dataIn)",
-                type(dataIn),
-            )
-            assert False
 
         # AT_LINE 54 TOOLS/products_bias_correct.pro
         indp = np.asarray([])
@@ -2326,10 +2316,7 @@ class CdfWriteLiteTes:
                 )
 
                 if max(o_dataCorr["species".upper()]) > 2000:
-                    print(function_name, "max(o_dataCorr['species'.upper()]) > 2000")
-                    assert False, "max(o_dataCorr['species'.upper()]) > 2000"
-            # end if len(indp) > 0:
-        # end if hdoFlag:
+                    raise RuntimeError("max(o_dataCorr['species'.upper()]) > 2000")
 
         return o_dataCorr
 
@@ -2345,9 +2332,6 @@ class CdfWriteLiteTes:
         # Temp
         from refractor.muses_py import calculate_xco2, UtilGeneral
 
-        # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
-        function_name = "add_column: "
-
         utilGeneral = UtilGeneral()
 
         # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
@@ -2355,11 +2339,9 @@ class CdfWriteLiteTes:
 
         # AT_LINE 15 src_ms-2018-12-10/TOOLS/add_column.pro add_column
         if i_pressureMin > 0:
-            print(
-                function_name,
-                "Error need to update code so that calculate_xco2 works for pressureMin <>0",
+            raise RuntimeError(
+                "Error need to update code so that calculate_xco2 works for pressureMin <>0"
             )
-            assert False
 
         # add name+'_pwf'
         PWF_TOKEN = "_pwf".upper()
@@ -2578,13 +2560,9 @@ class CdfWriteLiteTes:
                             )
 
                         if indx1 < 0:
-                            print(
-                                function_name,
-                                "'Warning!  AK not found: '"
-                                + i_nameList[kk]
-                                + "_averagingkernel".upper(),
+                            raise RuntimeError(
+                                f"AK not found: {i_nameList[kk]}_AVERAGINGKERNEL"
                             )
-                            assert False
                         else:
                             aa = dataIn[i_nameList[kk] + "_averagingkernel".upper()]
 
