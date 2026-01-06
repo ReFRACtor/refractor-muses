@@ -1,5 +1,6 @@
 # These are the arguments passed to cli function that loads this code.
 from refractor.muses import RetrievalStrategy, RetrievalStrategyCaptureObserver
+import refractor.muses_py_fm
 from refractor.tropomi import TropomiForwardModelHandle
 from refractor.omi import OmiForwardModelHandle
 import refractor.framework as rf

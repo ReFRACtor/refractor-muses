@@ -108,7 +108,7 @@ class RetrievalStrategy:
     # can probably do that by just adding Observers
     def __init__(
         self,
-        filename: str | os.PathLike[str],
+        filename: str | os.PathLike[str] | None,
         writeOutput: bool = False,
         writePlots: bool = False,
         ifile_hlp: InputFileHelper | None = None,
