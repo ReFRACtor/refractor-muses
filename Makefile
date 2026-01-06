@@ -15,8 +15,11 @@ update-init:
 # Don't normally run this, we have to manually add a number of # type:ignore messages
 # for old code. Have a separate update-old-init for this
 #	cd python/refractor/old_py_retrieve_wrapper && mkinit . -w --black --nomods --relative
-	cd python/refractor/muses_py_fm && mkinit . -w --black --nomods --relative
 	cd python/refractor/muses && mkinit . -w --black --nomods --relative
+	cd python/refractor/muses_py_fm && mkinit . -w --black --nomods --relative
+	cd python/refractor/omi && mkinit . -w --black --nomods --relative
+#	cd python/refractor/osr_ml && mkinit . -w --black --nomods --relative
+	cd python/refractor/tropomi && mkinit . -w --black --nomods --relative
 
 update-old-init:
 	@echo "Note you need to manually add '# type:ignore messages' to generated"

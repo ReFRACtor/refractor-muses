@@ -70,6 +70,7 @@ mpy_make_uip_oco2 = partial(muses_py_wrapper_keep, "make_uip_oco2")
 
 # Functions we can keep
 __all__ = [
+    "have_muses_py",
     "mpy_atmosphere_level",
     "mpy_cli_options",
     "mpy_fm_oss_delete",
