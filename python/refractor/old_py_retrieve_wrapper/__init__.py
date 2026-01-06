@@ -7,6 +7,10 @@ from .current_state_state_info_old import (
 )
 from .misc_support import (
     create_retrieval_output_json,
+    muses_microwindows_fname_from_muses_py,
+    muses_microwindows_from_muses_py,
+    muses_py_radiance_data,
+    muses_py_radiance_get_indices,
 )
 from .muses_altitude import (
     MusesAltitude,
@@ -150,6 +154,10 @@ __all__ = [
     "TropomiRadianceRefractor",
     "WatchUipUpdate",
     "create_retrieval_output_json",
+    "muses_microwindows_fname_from_muses_py",
+    "muses_microwindows_from_muses_py",
+    "muses_py_radiance_data",
+    "muses_py_radiance_get_indices",
     "state_element_old_wrapper_handle",
     "watch_uip",
 ]

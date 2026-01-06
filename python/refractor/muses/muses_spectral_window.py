@@ -13,11 +13,6 @@ from .identifier import (
     RetrievalType,
 )
 from .input_file_helper import InputFilePath
-from .mpy import (
-    mpy_table_get_spectral_filename,
-    mpy_table_new_mw_from_step,
-    mpy_radiance_get_indices,
-)
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
@@ -575,30 +570,19 @@ class MusesSpectralWindow(rf.SpectralWindow):
         determine the microwindow file name use. This can be used to verify that
         we are finding the right name. This shouldn't be used for real code,
         instead use the SpectralWindowHandleSet."""
-        # creates a dummy strategy_table dict with the values it expects to find
-        stable: dict[str, Any] = {}
-        stable["preferences"] = {
-            "viewingMode": viewing_mode,
-            "spectralWindowDirectory": str(spectral_window_directory),
-        }
-        t1 = [
-            ",".join([str(i) for i in retrieval_elements])
-            if len(retrieval_elements) > 0
-            else "-",
+        from refractor.old_py_retrieve_wrapper import (
+            muses_microwindows_fname_from_muses_py,
+        )
+
+        return muses_microwindows_fname_from_muses_py(
+            cls,
+            viewing_mode,
+            spectral_window_directory,
+            retrieval_elements,
             step_name,
-            str(retrieval_type),
-        ]
-        t2 = ["retrievalElements", "stepName", "retrievalType"]
-        if spec_file is not None:
-            t1.append(str(spec_file))
-            t2.append("specFile")
-        stable["data"] = [
-            " ".join(t1),
-        ]
-        stable["labels1"] = " ".join(t2)
-        stable["numRows"] = 1
-        stable["numColumns"] = len(t2)
-        return mpy_table_get_spectral_filename(stable, 0)
+            retrieval_type,
+            spec_file,
+        )  # type: ignore[arg-type]
 
     @classmethod
     def muses_microwindows_from_muses_py(
@@ -614,32 +598,18 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
-        # Wrap arguments into format expected by table_new_mw_from_step. This
-        # creates a dummy strategy_table dict with the values it expects to find
-        stable: dict[str, Any] = {}
-        stable["preferences"] = {
-            "defaultSpectralWindowsDefinitionFilename": str(
-                default_spectral_window_fname
-            ),
-            "viewingMode": viewing_mode,
-            "spectralWindowDirectory": str(spectral_window_directory),
-        }
-        t1 = [
-            ",".join([str(i) for i in retrieval_elements]),
+        from refractor.old_py_retrieve_wrapper import muses_microwindows_from_muses_py
+
+        return muses_microwindows_from_muses_py(
+            cls,
+            default_spectral_window_fname,
+            viewing_mode,
+            spectral_window_directory,
+            retrieval_elements,
             step_name,
-            str(retrieval_type),
-        ]
-        t2 = ["retrievalElements", "stepName", "retrievalType"]
-        if spec_file is not None:
-            t1.append(str(spec_file))
-            t2.append("specFile")
-        stable["data"] = [
-            " ".join(t1),
-        ]
-        stable["labels1"] = " ".join(t2)
-        stable["numRows"] = 1
-        stable["numColumns"] = len(t2)
-        return mpy_table_new_mw_from_step(stable, 0)
+            retrieval_type,
+            spec_file,
+        )  # type: ignore[arg-type]
 
 
 class TesSpectralWindow(MusesSpectralWindow):
@@ -685,9 +655,11 @@ class TesSpectralWindow(MusesSpectralWindow):
         # or include_bad_sample. So just return results otherwise
         if self._spec_win is None or self.full_band or self.do_raman_ext:
             return super().grid_indexes(grid, spec_index)
+        from refractor.old_py_retrieve_wrapper import muses_py_radiance_get_indices
+
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
-        muses_gindex = mpy_radiance_get_indices(
+        muses_gindex = muses_py_radiance_get_indices(
             self._obs.muses_py_dict["radianceStruct"], self.muses_microwindows()
         )
         if self.include_bad_sample:

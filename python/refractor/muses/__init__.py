@@ -100,12 +100,8 @@ from .mpy import (
     mpy_ordered_species_list,
     mpy_plot_radiance,
     mpy_plot_results,
-    mpy_radiance_data,
-    mpy_radiance_get_indices,
     mpy_read_all_tes,
     mpy_register_replacement_function,
-    mpy_table_get_spectral_filename,
-    mpy_table_new_mw_from_step,
 )
 from .muses_airs_observation import (
     MusesAirsObservation,

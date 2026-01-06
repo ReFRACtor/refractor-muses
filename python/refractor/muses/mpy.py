@@ -31,17 +31,6 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 # Synonym, just to make it clear where we have dependencies we intend to keep
 muses_py_wrapper_keep = muses_py_wrapper
 
-# Used in cost_function. Note that this is only used in old_py_retrieve_wrapper, so we
-# don't actually need to replace this. Fine that we depend on muses_py here.
-mpy_radiance_data = partial(muses_py_wrapper_keep, "radiance_data")
-
-# Used in muses_spectral_window - these are used for comparison code only and can stay
-mpy_table_get_spectral_filename = partial(
-    muses_py_wrapper_keep, "table_get_spectral_filename"
-)
-mpy_table_new_mw_from_step = partial(muses_py_wrapper_keep, "table_new_mw_from_step")
-mpy_radiance_get_indices = partial(muses_py_wrapper_keep, "radiance_get_indices")
-
 # Used by order_species, we can keep this as we have a work around for
 # muses_py not being available
 mpy_ordered_species_list = partial(muses_py_wrapper_keep, "ordered_species_list")
@@ -82,6 +71,7 @@ def mpy_bilinear(*args: Any, **kwargs: Any) -> Any:
 
 # Used in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
+mpy_radiance_data = partial(muses_py_wrapper, "radiance_data")
 mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
 mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
 mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
@@ -102,18 +92,15 @@ __all__ = [
     "mpy_ordered_species_list",
     "mpy_plot_radiance",
     "mpy_plot_results",
-    "mpy_radiance_data",
-    "mpy_radiance_get_indices",
     "mpy_read_all_tes",
     "mpy_register_replacement_function",
-    "mpy_table_get_spectral_filename",
-    "mpy_table_new_mw_from_step",
 ]
 # Ones we want to replace
 __all__.extend(
     [
         "mpy_cdf_read_tes_frequency",
         "mpy_radiance_apodize",
+        "mpy_radiance_data",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",
         "mpy_read_noaa_cris_fsr",

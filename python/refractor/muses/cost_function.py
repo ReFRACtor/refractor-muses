@@ -1,6 +1,5 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .mpy import mpy_radiance_data
 import numpy as np
 from loguru import logger
 import typing
@@ -219,6 +218,8 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         replacement for mpy.fm_wrapper but possibly using ReFRACtor objects
         and 2) make a more direct comparison between ReFRACtor and muses-py
         (e.g., for testing)"""
+        from refractor.old_py_retrieve_wrapper import muses_py_radiance_data
+
         if hasattr(i_uip, "currentGuessList"):
             p = i_uip.currentGuessListFM
         else:
@@ -245,18 +246,11 @@ class CostFunction(rf.NLLSMaxAPosteriori):
 
         # Seems to by indexed by detector, of which we only have one
         # dummy one
-        detectors = [-1]
         radiance_fm = np.array([radiance_fm])
         nesr_fm = np.zeros(radiance_fm.shape)
         # Oddly frequency isn't indexed by detectors
         # freq_fm = np.array([freq_fm])
-        # Not sure what filters is, but fm_wrapper just supplies this
-        # as a empty array
-        filters = []
-        instrument = ""
-        o_radiance = mpy_radiance_data(
-            radiance_fm, nesr_fm, detectors, freq_fm, filters, instrument
-        )
+        o_radiance = muses_py_radiance_data(radiance_fm, nesr_fm, freq_fm)
         # We can fill these in if needed, but run_forward_model doesn't
         # actually use these values so we don't bother.
         o_measured_radiance_omi = None
