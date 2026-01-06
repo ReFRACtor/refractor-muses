@@ -575,14 +575,14 @@ class MusesSpectralWindow(rf.SpectralWindow):
         )
 
         return muses_microwindows_fname_from_muses_py(
-            cls,
-            viewing_mode,
-            spectral_window_directory,
-            retrieval_elements,
-            step_name,
-            retrieval_type,
-            spec_file,
-        )  # type: ignore[arg-type]
+            cls,  # type: ignore[arg-type]
+            viewing_mode,  # type: ignore[arg-type]
+            spectral_window_directory,  # type: ignore[arg-type]
+            retrieval_elements,  # type: ignore[arg-type]
+            step_name,  # type: ignore[arg-type]
+            retrieval_type,  # type: ignore[arg-type]
+            spec_file,  # type: ignore[arg-type]
+        )
 
     @classmethod
     def muses_microwindows_from_muses_py(
@@ -601,15 +601,15 @@ class MusesSpectralWindow(rf.SpectralWindow):
         from refractor.old_py_retrieve_wrapper import muses_microwindows_from_muses_py
 
         return muses_microwindows_from_muses_py(
-            cls,
-            default_spectral_window_fname,
-            viewing_mode,
-            spectral_window_directory,
-            retrieval_elements,
-            step_name,
-            retrieval_type,
-            spec_file,
-        )  # type: ignore[arg-type]
+            cls,  # type: ignore[arg-type]
+            default_spectral_window_fname,  # type: ignore[arg-type]
+            viewing_mode,  # type: ignore[arg-type]
+            spectral_window_directory,  # type: ignore[arg-type]
+            retrieval_elements,  # type: ignore[arg-type]
+            step_name,  # type: ignore[arg-type]
+            retrieval_type,  # type: ignore[arg-type]
+            spec_file,  # type: ignore[arg-type]
+        )
 
 
 class TesSpectralWindow(MusesSpectralWindow):

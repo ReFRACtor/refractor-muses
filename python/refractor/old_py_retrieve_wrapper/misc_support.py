@@ -48,6 +48,28 @@ def create_retrieval_output_json() -> None:
                 json.dump(d, fh, indent=4)
 
 
+def create_order_species_json() -> None:
+    """muses-py has a lot of hard coded things related to the species
+    names and netcdf output.  It would be good a some point to just
+    replace this all with a better thought out output format. But for
+    now, we need to support the existing output format.
+    """
+    # TODO - Replace with better thought out output format
+    if not importlib.resources.is_resource("refractor.muses", "order_species.json"):
+        if not mpy.have_muses_py:
+            raise RuntimeError("Require muses-py to create the file order_species.json")
+        d = {
+            "ordered_species_list": mpy.ordered_species_list(),
+            "atmospheric_species_list": mpy.atmospheric_species_list(),
+        }
+        with importlib.resources.path(
+            "refractor.muses", "order_species.json"
+        ) as fspath:
+            logger.info(f"Creating the file {fspath}")
+            with open(fspath, "w") as fh:
+                json.dump(d, fh, indent=4)
+
+
 def muses_py_radiance_data(
     radiance_fm: np.ndarray, nesr_fm: np.ndarray, freq_fm: np.ndarray
 ) -> dict[str, np.ndarray]:
@@ -145,6 +167,7 @@ def muses_py_radiance_get_indices(d: dict[str, Any], mw: list[dict]) -> np.ndarr
 
 
 __all__ = [
+    "create_order_species_json",
     "create_retrieval_output_json",
     "muses_microwindows_fname_from_muses_py",
     "muses_microwindows_from_muses_py",

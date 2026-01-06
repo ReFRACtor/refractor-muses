@@ -6,6 +6,7 @@ from .current_state_state_info_old import (
     CurrentStateStateInfoOld,
 )
 from .misc_support import (
+    create_order_species_json,
     create_retrieval_output_json,
     muses_microwindows_fname_from_muses_py,
     muses_microwindows_from_muses_py,
@@ -153,6 +154,7 @@ __all__ = [
     "TropomiRadiancePyRetrieve",
     "TropomiRadianceRefractor",
     "WatchUipUpdate",
+    "create_order_species_json",
     "create_retrieval_output_json",
     "muses_microwindows_fname_from_muses_py",
     "muses_microwindows_from_muses_py",
