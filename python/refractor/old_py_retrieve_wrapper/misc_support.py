@@ -10,16 +10,15 @@ import importlib
 # backwards testing, i.e., it really does belong in
 # old_py_retrieve_wrapper, but needs to be in refractor.muses objects
 
-def create_retrieval_output_json():
-    '''muses-py has a lot of hard coded things related to the species
+
+def create_retrieval_output_json() -> None:
+    """muses-py has a lot of hard coded things related to the species
     names and netcdf output.  It would be good a some point to just
     replace this all with a better thought out output format. But for
     now, we need to support the existing output format.
-    '''
+    """
     # TODO - Replace with better thought out output format
-    if not importlib.resources.is_resource(
-            "refractor.muses", "retrieval_output.json"
-    ):
+    if not importlib.resources.is_resource("refractor.muses", "retrieval_output.json"):
         if not mpy.have_muses_py:
             raise RuntimeError(
                 "Require muses-py to create the file retrieval_output.json"
@@ -30,10 +29,13 @@ def create_retrieval_output_json():
             "exact_cased_variable_names": mpy.cdf_var_map(),
         }
         with importlib.resources.path(
-                "refractor.muses", "retrieval_output.json"
+            "refractor.muses", "retrieval_output.json"
         ) as fspath:
             logger.info(f"Creating the file {fspath}")
             with open(fspath, "w") as fh:
                 json.dump(d, fh, indent=4)
-    
-__all__ = ["create_retrieval_output_json",]
+
+
+__all__ = [
+    "create_retrieval_output_json",
+]

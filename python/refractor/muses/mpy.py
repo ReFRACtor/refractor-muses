@@ -76,6 +76,7 @@ def mpy_bilinear(*args: Any, **kwargs: Any) -> Any:
         )
     return muses_py.UtilMath().bilinear(*args, **kwargs)
 
+
 # ---- Below are things to replace ----
 
 

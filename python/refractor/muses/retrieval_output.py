@@ -297,6 +297,7 @@ class CdfWriteTes:
             "refractor.muses", "retrieval_output.json"
         ):
             from refractor.old_py_retrieve_wrapper import create_retrieval_output_json
+
             create_retrieval_output_json()
         d = json.loads(
             importlib.resources.read_text("refractor.muses", "retrieval_output.json")
