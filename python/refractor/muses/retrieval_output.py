@@ -1,11 +1,5 @@
 from __future__ import annotations
 from loguru import logger
-from .mpy import (
-    have_muses_py,
-    mpy_cdf_var_attributes,
-    mpy_cdf_var_names,
-    mpy_cdf_var_map,
-)
 from .identifier import (
     RetrievalType,
     ProcessLocation,
@@ -302,21 +296,8 @@ class CdfWriteTes:
         if not importlib.resources.is_resource(
             "refractor.muses", "retrieval_output.json"
         ):
-            if not have_muses_py:
-                raise RuntimeError(
-                    "Require muses-py to create the file retrieval_output.json"
-                )
-            d = {
-                "cdf_var_attributes": mpy_cdf_var_attributes,
-                "groupvarnames": mpy_cdf_var_names(),
-                "exact_cased_variable_names": mpy_cdf_var_map(),
-            }
-            with importlib.resources.path(
-                "refractor.muses", "retrieval_output.json"
-            ) as fspath:
-                logger.info(f"Creating the file {fspath}")
-                with open(fspath, "w") as fh:
-                    json.dump(d, fh, indent=4)
+            from refractor.old_py_retrieve_wrapper import create_retrieval_output_json
+            create_retrieval_output_json()
         d = json.loads(
             importlib.resources.read_text("refractor.muses", "retrieval_output.json")
         )

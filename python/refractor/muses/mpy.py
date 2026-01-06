@@ -49,12 +49,6 @@ mpy_atmospheric_species_list = partial(
     muses_py_wrapper_keep, "atmospheric_species_list"
 )
 
-# Used by retrieval_output, only used to create internal data files so
-# we can keep these
-mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
-mpy_cdf_var_names = partial(muses_py_wrapper_keep, "cdf_var_names")
-mpy_cdf_var_map = partial(muses_py_wrapper_keep, "cdf_var_map")
-
 # Used in retrieval_strategy - can keep as we only call with have_muses_py
 mpy_register_replacement_function = partial(
     muses_py_wrapper_keep, "register_replacement_function"
@@ -82,13 +76,6 @@ def mpy_bilinear(*args: Any, **kwargs: Any) -> Any:
         )
     return muses_py.UtilMath().bilinear(*args, **kwargs)
 
-
-# This is used in muses_levmar_solver. I'm not sure, it would be nice to have this
-# in refractor so we don't require muses-py to solve. But at the same time, this is
-# a pretty central function in muses-py. For now, we import this.
-
-mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
-
 # ---- Below are things to replace ----
 
 
@@ -111,10 +98,6 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 __all__ = [
     "mpy_atmospheric_species_list",
     "mpy_bilinear",
-    "mpy_cdf_var_attributes",
-    "mpy_cdf_var_map",
-    "mpy_cdf_var_names",
-    "mpy_levmar_nllsq_elanor",
     "mpy_ordered_species_list",
     "mpy_plot_radiance",
     "mpy_plot_results",
