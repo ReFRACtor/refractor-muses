@@ -1,47 +1,157 @@
-# Just import any files we find in this directory, rather than listing
-# everything.
+# Import everything. We generate this file with the automated tool mkinit:
+#   mkinit . -w
 
-import os as _os
-import re as _re
-import glob as _glob
-import typing as _typing
+# <AUTOGEN_INIT>
+from .current_state_state_info_old import (
+    CurrentStateStateInfoOld,
+)
+from .misc_support import (
+    create_retrieval_output_json,
+)
+from .muses_altitude import (
+    MusesAltitude,
+)
+from .muses_forward_model_step import (
+    MusesForwardModelStep,
+)
+from .muses_observation_old import (  # type: ignore
+    MusesAirsObservationOld,
+    MusesCrisObservationOld,
+)
+from .muses_optical_depth_file import (
+    MusesOpticalDepthFile,
+)
+from .muses_py_forward_model import (  # type: ignore
+    MusesPyForwardModel,
+    RefractorTropOrOmiFm,
+    RefractorTropOrOmiFmBase,
+    RefractorTropOrOmiFmMusesPy,
+    RefractorTropOrOmiFmPyRetrieve,
+    WatchUipUpdate,
+    watch_uip,
+)
+from .muses_ray_info import (
+    MusesRayInfo,
+)
+from .muses_residual_fm_jacobian import (  # type: ignore
+    MusesResidualFmJacobian,
+)
+from .muses_retrieval_step import (  # type: ignore
+    MusesRetrievalStep,
+)
+from .muses_strategy_old_strategy_table import (
+    MusesStrategyOldStrategyTable,
+    MusesStrategyOldStrategyTableHandle,
+)
+from .omi_radiance import (  # type: ignore
+    OmiRadiance,
+    OmiRadiancePyRetrieve,
+    OmiRadianceToUip,
+)
+from .pyretrieve_capture_directory import (
+    PyRetrieveCaptureDirectory,
+)
+from .refractor_muses_integration import (  # type: ignore
+    RefractorMusesIntegration,
+)
+from .refractor_omi_fm import (  # type: ignore
+    RefractorOmiFm,
+    RefractorOmiFmMusesPy,
+)
+from .refractor_trop_omi_fm import (  # type: ignore
+    RefractorTropOmiFm,
+    RefractorTropOmiFmMusesPy,
+)
+from .retrieval_info import (
+    RetrievalInfo,
+)
+from .retrieval_info_old import (  # type: ignore
+    RetrievalInfoOld,
+)
+from .state_element_old import (  # type: ignore
+    CloudStateOld,
+    EmissivityStateOld,
+    MusesPyOmiStateElementOld,
+    MusesPyStateElementOld,
+    SingleSpeciesHandleOld,
+    StateElementInDictHandleOld,
+    StateElementInDictOld,
+    StateElementOnLevelsHandleOld,
+    StateElementOnLevelsOld,
+    StateElementWithFrequencyOld,
+)
+from .state_element_old_wrapper import (
+    StateElementOldWrapper,
+    state_element_old_wrapper_handle,
+)
+from .state_info_old import (  # type: ignore
+    RetrievableStateElementOld,
+    StateElementHandleOld,
+    StateElementHandleSetOld,
+    StateElementOld,
+    StateInfoOld,
+)
+from .strategy_table import (  # type: ignore
+    StrategyTable,
+)
+from .tropomi_radiance import (  # type: ignore
+    TropomiRadiance,
+    TropomiRadiancePyRetrieve,
+    TropomiRadianceRefractor,
+)
 
-for _i in _glob.glob(_os.path.dirname(__file__) + "/*.py"):
-    mname = _os.path.basename(_i).split(".")[0]
-    # Don't load ipython, which is ipython magic extensions, or unit tests
-    if (
-        not mname == "ipython"
-        and not mname == "cython_try"
-        and not _re.search("_test", mname)
-    ):
-        exec("from .%s import *" % mname)
+__all__ = [
+    "CloudStateOld",
+    "CurrentStateStateInfoOld",
+    "EmissivityStateOld",
+    "MusesAirsObservationOld",
+    "MusesAltitude",
+    "MusesCrisObservationOld",
+    "MusesForwardModelStep",
+    "MusesOpticalDepthFile",
+    "MusesPyForwardModel",
+    "MusesPyOmiStateElementOld",
+    "MusesPyStateElementOld",
+    "MusesRayInfo",
+    "MusesResidualFmJacobian",
+    "MusesRetrievalStep",
+    "MusesStrategyOldStrategyTable",
+    "MusesStrategyOldStrategyTableHandle",
+    "OmiRadiance",
+    "OmiRadiancePyRetrieve",
+    "OmiRadianceToUip",
+    "PyRetrieveCaptureDirectory",
+    "RefractorMusesIntegration",
+    "RefractorOmiFm",
+    "RefractorOmiFmMusesPy",
+    "RefractorTropOmiFm",
+    "RefractorTropOmiFmMusesPy",
+    "RefractorTropOrOmiFm",
+    "RefractorTropOrOmiFmBase",
+    "RefractorTropOrOmiFmMusesPy",
+    "RefractorTropOrOmiFmPyRetrieve",
+    "RetrievableStateElementOld",
+    "RetrievalInfo",
+    "RetrievalInfoOld",
+    "SingleSpeciesHandleOld",
+    "StateElementHandleOld",
+    "StateElementHandleSetOld",
+    "StateElementInDictHandleOld",
+    "StateElementInDictOld",
+    "StateElementOld",
+    "StateElementOldWrapper",
+    "StateElementOnLevelsHandleOld",
+    "StateElementOnLevelsOld",
+    "StateElementWithFrequencyOld",
+    "StateInfoOld",
+    "StrategyTable",
+    "TropomiRadiance",
+    "TropomiRadiancePyRetrieve",
+    "TropomiRadianceRefractor",
+    "WatchUipUpdate",
+    "create_retrieval_output_json",
+    "state_element_old_wrapper_handle",
+    "watch_uip",
+]
 
-if _typing.TYPE_CHECKING:
-    # mypy doesn't correctly support import *. Pretty annoying, there are threads going
-    # back years about why this doesn't work. We don't want to spend a whole lot of
-    # time working around this, the point of mypy is to help us and reduce our work, not
-    # to make a bunch of make work. But to the degree useful, we can work around this by
-    # having an explicit imports for things needed by mypy. We don't want this in general, it
-    # is fragile (did you remember to update __init__ here when you added that new
-    # class?). So just as much as it is useful we do a whack a mole here of quieting errors
-    # we get in things like refractor.omi.
-    #
-    # Note we guard this with the standard "if typing.TYPE_CHECKING", so this code doesn't
-    # appear in real python usage of this module.
-    from .muses_ray_info import MusesRayInfo
-    from .muses_altitude import MusesAltitude
-    from .muses_optical_depth_file import MusesOpticalDepthFile
-    from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
-    from .state_element_old_wrapper import (
-        StateElementOldWrapper,
-        StateElementOldWrapperHandle,
-        state_element_old_wrapper_handle,
-    )
-    from .retrieval_info import RetrievalInfo
-    from .current_state_state_info_old import CurrentStateStateInfoOld
-
-del _i
-del _re
-del _os
-del _glob
-del _typing
+# </AUTOGEN_INIT>

@@ -9,6 +9,22 @@ install:
 install2:
 	pip install .
 
+# Generate __init__ files:
+
+update-init:
+# Don't normally run this, we have to manually add a number of # type:ignore messages
+# for old code. Have a separate update-old-init for this
+#	cd python/refractor/old_py_retrieve_wrapper && mkinit . -w --black --nomods --relative
+	cd python/refractor/muses_py_fm && mkinit . -w --black --nomods --relative
+	cd python/refractor/muses && mkinit . -w --black --nomods --relative
+
+update-old-init:
+	@echo "Note you need to manually add '# type:ignore messages' to generated"
+	@echo "__init__.py file. You can do "make mypy" and see what error pop up to"
+	@echo "find this, or just look in the module files to see if it has # type: ignore"
+	cd python/refractor/old_py_retrieve_wrapper && mkinit . -w --black --nomods --relative
+
+
 # ------------------------------------------------------------------
 # See notes in python/refractor/muses/README_developer.md about the
 # use of linters and type checkers.
