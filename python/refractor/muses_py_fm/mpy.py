@@ -49,6 +49,9 @@ mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
 
 # Used by refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
 mpy_update_uip = partial(muses_py_wrapper_keep, "update_uip")
+mpy_register_replacement_function = partial(
+    muses_py_wrapper_keep, "register_replacement_function"
+)
 mpy_script_retrieval_ms = partial(muses_py_wrapper_keep, "script_retrieval_ms")
 mpy_make_maps = partial(muses_py_wrapper, "make_maps")
 mpy_get_omi_radiance = partial(muses_py_wrapper_keep, "get_omi_radiance")
@@ -94,6 +97,7 @@ __all__ = [
     "mpy_pyoss_dir",
     "mpy_raylayer_nadir",
     "mpy_register_observer_function",
+    "mpy_register_replacement_function",
     "mpy_script_retrieval_ms",
     "mpy_tropomi_fm",
     "mpy_update_uip",

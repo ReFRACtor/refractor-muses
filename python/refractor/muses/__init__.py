@@ -95,13 +95,8 @@ from .misc import (
     osp_setup,
 )
 from .mpy import (
-    mpy_atmospheric_species_list,
     mpy_bilinear,
-    mpy_ordered_species_list,
-    mpy_plot_radiance,
-    mpy_plot_results,
     mpy_read_all_tes,
-    mpy_register_replacement_function,
 )
 from .muses_airs_observation import (
     MusesAirsObservation,
@@ -208,10 +203,6 @@ from .refractor_capture_directory import (
 )
 from .refractor_fm_object_creator import (
     RefractorFmObjectCreator,
-)
-from .replace_function_helper import (
-    register_replacement_function_in_block,
-    suppress_replacement,
 )
 from .retrieval_array import (
     FullGrid2dArray,
@@ -503,23 +494,12 @@ __all__ = [
     "greatcircle",
     "is_atmospheric_species",
     "modify_strategy_table",
-    "mpy_atmospheric_species_list",
     "mpy_bilinear",
-    "mpy_ordered_species_list",
-    "mpy_plot_radiance",
-    "mpy_plot_results",
-    "mpy_radiance_data",
     "mpy_radiance_from_observation_list",
-    "mpy_radiance_get_indices",
     "mpy_read_all_tes",
-    "mpy_register_replacement_function",
-    "mpy_table_get_spectral_filename",
-    "mpy_table_new_mw_from_step",
     "order_species",
     "osp_setup",
-    "register_replacement_function_in_block",
     "species_type",
-    "suppress_replacement",
 ]
 
 # </AUTOGEN_INIT>

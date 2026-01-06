@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .mpy import have_muses_py, mpy_plot_results, mpy_plot_radiance
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .fake_state_info import FakeStateInfo
@@ -99,13 +98,14 @@ class RetrievalPlotResult(RetrievalOutput):
         # Just skip if we don't have muses_py. This is a pretty involved function, and
         # I'm not even sure these plots are used anymore. In any case, this is debug output
         # and skipping if we don't have muses-py is pretty reasonable
-        if have_muses_py:
-            mpy_plot_results(
-                str(self.step_directory) + "/",
-                self.results,
-                fretrieval_info,
-                fstate_info,
-            )
+        from refractor.old_py_retrieve_wrapper import muses_py_plot_results
+
+        muses_py_plot_results(
+            str(self.step_directory) + "/",
+            self.results,
+            fretrieval_info,
+            fstate_info,
+        )
 
 
 class RetrievalPlotRadiance(RetrievalOutput):
@@ -125,13 +125,14 @@ class RetrievalPlotRadiance(RetrievalOutput):
         # Just skip if we don't have muses_py. This is a pretty involved function, and
         # I'm not even sure these plots are used anymore. In any case, this is debug output
         # and skipping if we don't have muses-py is pretty reasonable
-        if have_muses_py:
-            mpy_plot_radiance(
-                str(self.analysis_directory) + "/",
-                self.results,
-                self.radiance_step.__dict__,
-                None,
-            )
+        from refractor.old_py_retrieve_wrapper import muses_py_plot_radiance
+
+        muses_py_plot_radiance(
+            str(self.analysis_directory) + "/",
+            self.results,
+            self.radiance_step.__dict__,
+            None,
+        )
 
 
 __all__ = [

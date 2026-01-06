@@ -5,11 +5,11 @@
 from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
-from refractor.muses import (
+from refractor.muses_py_fm import RefractorUip, osswrapper, muses_py_call
+from .replace_function_helper import (
     suppress_replacement,
     register_replacement_function_in_block,
 )
-from refractor.muses_py_fm import RefractorUip, osswrapper, muses_py_call
 import os
 import pickle
 import tempfile

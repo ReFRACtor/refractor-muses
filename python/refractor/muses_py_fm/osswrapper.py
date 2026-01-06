@@ -2,13 +2,14 @@ from __future__ import annotations
 from .mpy import (
     have_muses_py,
     mpy_register_observer_function,
+    mpy_register_replacement_function,
     mpy_pyoss_dir,
     mpy_fm_oss_init,
     mpy_fm_oss_windows,
     mpy_fm_oss_delete,
 )
 import itertools
-from refractor.muses import suppress_replacement, InputFileHelper
+from refractor.muses import InputFileHelper
 import os
 from contextlib import contextmanager
 import sys
@@ -32,6 +33,15 @@ def suppress_stdout() -> Generator[None, None, None]:
             os.dup2(oldstdchannel, sys.stdout.fileno())
         if dest_file is not None:
             dest_file.close()
+
+
+@contextmanager
+def suppress_replacement(func_name: str) -> Generator[None, None, None]:
+    old_f = mpy_register_replacement_function(func_name, None)
+    try:
+        yield
+    finally:
+        mpy_register_replacement_function(func_name, old_f)
 
 
 # This implements mpy.ObserveFunctionObject, but we don't actually derive from

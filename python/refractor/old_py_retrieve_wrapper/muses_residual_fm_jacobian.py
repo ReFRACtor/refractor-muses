@@ -5,10 +5,10 @@
 from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
-    register_replacement_function_in_block,
     InputFileHelper,
 )
 from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
+from .replace_function_helper import register_replacement_function_in_block
 from refractor.muses_py_fm import osswrapper, muses_py_call
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io

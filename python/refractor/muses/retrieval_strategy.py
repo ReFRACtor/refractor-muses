@@ -22,7 +22,6 @@ from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
-from .mpy import mpy_register_replacement_function
 from loguru import logger
 import os
 import pickle
@@ -167,8 +166,21 @@ class RetrievalStrategy:
             self.update_target(filename)
 
     def register_with_muses_py(self) -> None:
-        """Register run_ms as a replacement for script_retrieval_ms"""
-        mpy_register_replacement_function("script_retrieval_ms", self)
+        """Register run_ms as a replacement for script_retrieval_ms.
+
+        This is done so that py-retrieve top level executable can turn
+        around and use refractor to actually do the retrieval. For
+        now, this is a useful functionality, but I'm not sure how long
+        this will still be useful (since we have a refractor-retrieve
+        top level executable.
+
+        We can remove this when no longer useful.
+        """
+        from refractor.old_py_retrieve_wrapper import (
+            muses_py_register_replacement_function,
+        )
+
+        muses_py_register_replacement_function("script_retrieval_ms", self)
 
     def should_replace_function(self, func_name: str, parms: list[Any]) -> bool:
         return True

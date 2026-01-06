@@ -31,24 +31,6 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 # Synonym, just to make it clear where we have dependencies we intend to keep
 muses_py_wrapper_keep = muses_py_wrapper
 
-# Used by order_species, we can keep this as we have a work around for
-# muses_py not being available
-mpy_ordered_species_list = partial(muses_py_wrapper_keep, "ordered_species_list")
-mpy_atmospheric_species_list = partial(
-    muses_py_wrapper_keep, "atmospheric_species_list"
-)
-
-# Used in retrieval_strategy - can keep as we only call with have_muses_py
-mpy_register_replacement_function = partial(
-    muses_py_wrapper_keep, "register_replacement_function"
-)
-
-# Used by the various output classes. There should all get replaced, but
-# the code is a bit involved. I don't think these results get used actually,
-# so we may also just remove this.
-mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
-mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
-
 # Used in tes file. We can keep this, it is optional reading using muses_py as a way to
 # test our handling of the  tes files
 
@@ -87,13 +69,8 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 # Functions we can keep
 __all__ = [
-    "mpy_atmospheric_species_list",
     "mpy_bilinear",
-    "mpy_ordered_species_list",
-    "mpy_plot_radiance",
-    "mpy_plot_results",
     "mpy_read_all_tes",
-    "mpy_register_replacement_function",
 ]
 # Ones we want to replace
 __all__.extend(

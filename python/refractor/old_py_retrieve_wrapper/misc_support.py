@@ -166,11 +166,44 @@ def muses_py_radiance_get_indices(d: dict[str, Any], mw: list[dict]) -> np.ndarr
     return mpy.radiance_get_indices(d, mw)
 
 
+def muses_py_register_replacement_function(func_name: str, obj: Any) -> None:
+    """Register an object as handling a function call in py-retrieve. This is
+    used in RetrievalStrategy."""
+    mpy.register_replacement_function(func_name, obj)
+
+
+def muses_py_plot_results(*args: Any) -> None:
+    """This creates the output plots used in the debug output. This code is
+    fairly involved, and I don't think this actually gets used anymore. We
+    can bring this over to refractor if needed, but for now just call the old
+    py-retrieve code.
+
+    We silently skip the output is we don't have muses_py available. We can change
+    this logic if we want to treat this as an error instead."""
+    if mpy.have_muses_py:
+        mpy.plot_results(*args)
+
+
+def muses_py_plot_radiance(*args: Any) -> None:
+    """This creates the output plots used in the debug output. This code is
+    fairly involved, and I don't think this actually gets used anymore. We
+    can bring this over to refractor if needed, but for now just call the old
+    py-retrieve code.
+
+    We silently skip the output is we don't have muses_py available. We can change
+    this logic if we want to treat this as an error instead."""
+    if mpy.have_muses_py:
+        mpy.plot_radiance(*args)
+
+
 __all__ = [
     "create_order_species_json",
     "create_retrieval_output_json",
     "muses_microwindows_fname_from_muses_py",
     "muses_microwindows_from_muses_py",
+    "muses_py_plot_radiance",
+    "muses_py_plot_results",
     "muses_py_radiance_data",
     "muses_py_radiance_get_indices",
+    "muses_py_register_replacement_function",
 ]

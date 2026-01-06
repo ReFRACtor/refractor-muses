@@ -11,13 +11,18 @@ import json
 # Only need muses_py to generate this or update it. We just create this file
 # if not available, so you can manually delete this to force it to be recreated.
 
+
 class _helper:
-    _instance : _helper | None = None
+    _instance: _helper | None = None
+
     def __init__(self) -> None:
         if not importlib.resources.is_resource("refractor.muses", "order_species.json"):
             from refractor.old_py_retrieve_wrapper import create_order_species_json
+
             create_order_species_json()
-        d = json.loads(importlib.resources.read_text("refractor.muses", "order_species.json"))
+        d = json.loads(
+            importlib.resources.read_text("refractor.muses", "order_species.json")
+        )
         self.ordered_species_list = d["ordered_species_list"]
         self.atmospheric_species_list = d["atmospheric_species_list"]
 
@@ -26,6 +31,7 @@ class _helper:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
 
 def is_atmospheric_species(species_name: str) -> bool:
     """Some species are marked as "atmospheric_species". This is used in the

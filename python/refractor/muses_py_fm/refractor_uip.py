@@ -1,27 +1,27 @@
 from __future__ import annotations
 from .mpy import (
     have_muses_py,
-    mpy_update_uip,
-    mpy_script_retrieval_ms,
+    mpy_atmosphere_level,
     mpy_get_omi_radiance,
     mpy_get_tropomi_radiance,
-    mpy_atmosphere_level,
-    mpy_raylayer_nadir,
-    mpy_pressure_sigma,
-    mpy_oco2_get_wavelength,
-    mpy_nir_match_wavelength_edges,
-    mpy_make_uip_master,
+    mpy_make_maps,
     mpy_make_uip_airs,
     mpy_make_uip_cris,
-    mpy_make_uip_tes,
-    mpy_make_uip_omi,
-    mpy_make_uip_tropomi,
+    mpy_make_uip_master,
     mpy_make_uip_oco2,
-    mpy_make_maps,
+    mpy_make_uip_omi,
+    mpy_make_uip_tes,
+    mpy_make_uip_tropomi,
+    mpy_nir_match_wavelength_edges,
+    mpy_oco2_get_wavelength,
+    mpy_pressure_sigma,
+    mpy_raylayer_nadir,
+    mpy_register_replacement_function,
+    mpy_script_retrieval_ms,
+    mpy_update_uip,
 )
 from refractor.muses import (
     AttrDictAdapter,
-    register_replacement_function_in_block,
     InstrumentIdentifier,
     FilterIdentifier,
     FakeStateInfo,
@@ -103,6 +103,23 @@ def _all_output_disabled() -> Generator[None, None, None]:
                 yield
     finally:
         logging.disable(previous_level)
+
+
+@contextmanager
+def register_replacement_function_in_block(
+    func_name: str, obj: object
+) -> Generator[None, None, None]:
+    """Register a replacement function object, execute whatever is in
+    the block of the context manager, and then reset the replacement
+    function to whatever existing previously (including nothing, if
+    there wasn't something already defined.
+
+    """
+    old_f = mpy_register_replacement_function(func_name, obj)
+    try:
+        yield
+    finally:
+        mpy_register_replacement_function(func_name, old_f)
 
 
 class RefractorCache(UserDict):

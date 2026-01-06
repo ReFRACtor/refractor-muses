@@ -10,8 +10,11 @@ from .misc_support import (
     create_retrieval_output_json,
     muses_microwindows_fname_from_muses_py,
     muses_microwindows_from_muses_py,
+    muses_py_plot_radiance,
+    muses_py_plot_results,
     muses_py_radiance_data,
     muses_py_radiance_get_indices,
+    muses_py_register_replacement_function,
 )
 from .muses_altitude import (
     MusesAltitude,
@@ -66,6 +69,10 @@ from .refractor_omi_fm import (  # type: ignore
 from .refractor_trop_omi_fm import (  # type: ignore
     RefractorTropOmiFm,
     RefractorTropOmiFmMusesPy,
+)
+from .replace_function_helper import (
+    register_replacement_function_in_block,
+    suppress_replacement,
 )
 from .retrieval_info import (
     RetrievalInfo,
@@ -158,8 +165,11 @@ __all__ = [
     "create_retrieval_output_json",
     "muses_microwindows_fname_from_muses_py",
     "muses_microwindows_from_muses_py",
+    "muses_py_plot_radiance",
+    "muses_py_plot_results",
     "muses_py_radiance_data",
     "muses_py_radiance_get_indices",
+    "muses_py_register_replacement_function",
     "state_element_old_wrapper_handle",
     "watch_uip",
 ]
