@@ -43,6 +43,17 @@ class CdfWriteLiteTes:
         else:
             smap = current_state.state_mapping(StateElementIdentifier(species_name))
             linear = isinstance(smap, rf.StateMappingLinear)
+
+        nci = ifile_hlp.open_ncdf(lite_directory / "pan_mask-margin2.-cutoff0.004.nc")
+        nci.set_auto_maskandscale(False)
+        # Because we are reading NetCDF from Python, the shape of
+        # self.pan_mask_var is (360, 180) and shape of LATITUDES_VAR
+        # is (180,) and LONGITUDES_VAR is (360,), we have to transpose
+        # self.pan_mask_var from (360, 180) to (180,360)
+        #
+        # 1 = good
+        # 0 = bad
+        self.pan_mask_var = nci["MASK"][:].transpose()
         self.product_cleanup(data1, species_name)
         data1 = self.products_add_fields(
             data1,
@@ -251,9 +262,6 @@ class CdfWriteLiteTes:
     def products_add_pan_fields(
         self, lite_directory: InputFilePath, dataInOut: dict[str, Any]
     ) -> dict[str, Any]:
-        # Temp
-        from refractor.muses_py import nc_read_variable
-
         # Note that all keys in dataInOut dictionary are uppercased.
 
         # The shape of a few arrays: 'pressure'.upper(), 'altitude'.upper() and 'airDensity'.upper() may be funky, we reshape it to just one dimension.
@@ -285,22 +293,10 @@ class CdfWriteLiteTes:
         # AT_LINE 123 Lite/products_add_fields.pro
         mult_factor = 1e9
 
-        # 1 = good
-        # 0 = bad
-        # pan_mask = cdf_read(liteDirectory+'pan_mask-margin2.-cutoff0.004.nc')
-        fn = lite_directory / "pan_mask-margin2.-cutoff0.004.nc"
-
-        # Read the 3 separate variables. Note the variable names are all uppercased.
-        (_, MASK_VAR, _) = nc_read_variable(str(fn), "MASK")
-
-        # Because we are reading NetCDF from Python, the shape of MASK_VAR is (360, 180) and shape of LATITUDES_VAR is (180,) and LONGITUDES_VAR is (360,),
-        # we have to transpose MASK_VAR from (360, 180) to (180,360)
-        MASK_VAR = MASK_VAR.transpose()
-        my_mask = MASK_VAR[
+        my_mask = self.pan_mask_var[
             int(dataInOut["latitude".upper()]) + 90,
             int(dataInOut["longitude".upper()]) + 180,
         ]
-
         if "PAN_desert_QA".upper() not in dataInOut:
             dataInOut["PAN_desert_QA".upper()] = np.int32(
                 1 - my_mask
@@ -706,6 +702,48 @@ class CdfWriteLiteTes:
 
         return (o_cgrid, o_fwhm, o_ntrop, o_p_bot, o_p_top)
 
+    def tes_levels(
+        self,
+        retrieval_levels: np.ndarray,
+        pressure_input: np.ndarray,
+        pressure_list_fm: np.ndarray,
+        nocut: bool = True,
+    ) -> np.ndarray:
+        # Select levels with pressure less than the surface pressure
+        res = retrieval_levels[
+            pressure_input[retrieval_levels - 1] <= pressure_list_fm[0]
+        ]
+        cutLevelsIndex = np.where(retrieval_levels < res[0])[0]
+        index = (
+            np.amax(
+                np.where(np.absolute(pressure_input - pressure_list_fm[1]) < 0.1)[0]
+            )
+            - 1
+        )
+        res = res - index
+
+        # if levels[0] = 1 then our retrieval levels are OK.  Either add a level,
+        # or if we are close just replace the bottom level.
+
+        if (res[0] != 1) and (res[0] > 0):
+            # check:  surface pressure / 1st retrieval level above
+            t1 = 1.05 * pressure_list_fm[0] / pressure_list_fm[res[0] - 1]
+            t2 = (
+                pressure_input[retrieval_levels[np.amax(cutLevelsIndex)] - 1]
+                / pressure_list_fm[0]
+            )
+            if t1 > t2 or nocut:
+                res = np.insert(res, 0, 1)
+            else:
+                res[0] = 1
+        if res[-1] != pressure_list_fm.size:
+            res = np.append(res, pressure_list_fm.size)
+        # Filter out any levels out of range, and convert to 0 based
+        res = np.array([i - 1 for i in res if i <= pressure_list_fm.shape[0]])
+        # Convert back to 1 based, that is expected. We can perhaps fix this, but
+        # for now match
+        return res + 1
+
     def products_map_pressures(
         self,
         dataIn: dict[str, Any],
@@ -714,85 +752,80 @@ class CdfWriteLiteTes:
         mapType: str,
         species_name: str,
     ) -> tuple[dict[str, Any], list[float]]:
-        # Temp
-        from refractor.muses_py import supplier_retrieval_levels_tes
-
         o_dataOut = copy.deepcopy(dataIn)
 
-        nocut = 1
-
         # get levels, with max pressure = 1040.
-        pressureMax = [
-            1040.000000,
-            1000.000000,
-            908.514000,
-            825.402000,
-            749.893000,
-            681.291000,
-            618.966000,
-            562.342000,
-            510.898000,
-            464.160000,
-            421.698000,
-            383.117000,
-            348.069000,
-            316.227000,
-            287.298000,
-            261.016000,
-            237.137000,
-            215.444000,
-            195.735000,
-            177.829000,
-            161.561000,
-            146.779000,
-            133.352000,
-            121.152000,
-            110.069000,
-            100.000000,
-            90.851800,
-            82.540600,
-            74.989600,
-            68.129500,
-            61.896300,
-            56.233900,
-            51.089600,
-            46.415800,
-            42.169600,
-            38.311900,
-            34.807100,
-            31.622900,
-            28.729900,
-            26.101700,
-            23.713600,
-            21.544300,
-            19.573400,
-            17.782800,
-            16.156000,
-            14.678000,
-            13.335200,
-            12.115300,
-            11.007000,
-            10.000000,
-            9.085140,
-            8.254020,
-            6.812910,
-            5.108980,
-            4.641600,
-            3.162270,
-            2.610160,
-            2.154430,
-            1.615600,
-            1.333520,
-            1.000000,
-            0.681292,
-            0.383118,
-            0.215443,
-            0.100000,
-        ]
-
-        levelsMax = supplier_retrieval_levels_tes(
-            levelsIn, pressureIn, pressureMax, nocut
+        pressureMax = np.array(
+            [
+                1040.000000,
+                1000.000000,
+                908.514000,
+                825.402000,
+                749.893000,
+                681.291000,
+                618.966000,
+                562.342000,
+                510.898000,
+                464.160000,
+                421.698000,
+                383.117000,
+                348.069000,
+                316.227000,
+                287.298000,
+                261.016000,
+                237.137000,
+                215.444000,
+                195.735000,
+                177.829000,
+                161.561000,
+                146.779000,
+                133.352000,
+                121.152000,
+                110.069000,
+                100.000000,
+                90.851800,
+                82.540600,
+                74.989600,
+                68.129500,
+                61.896300,
+                56.233900,
+                51.089600,
+                46.415800,
+                42.169600,
+                38.311900,
+                34.807100,
+                31.622900,
+                28.729900,
+                26.101700,
+                23.713600,
+                21.544300,
+                19.573400,
+                17.782800,
+                16.156000,
+                14.678000,
+                13.335200,
+                12.115300,
+                11.007000,
+                10.000000,
+                9.085140,
+                8.254020,
+                6.812910,
+                5.108980,
+                4.641600,
+                3.162270,
+                2.610160,
+                2.154430,
+                1.615600,
+                1.333520,
+                1.000000,
+                0.681292,
+                0.383118,
+                0.215443,
+                0.100000,
+            ]
         )
+
+        levelsMax = self.tes_levels(levelsIn, pressureIn, pressureMax, nocut=True)
 
         pressuresMax = np.asarray(pressureMax)[levelsMax - 1]
 
@@ -861,9 +894,7 @@ class CdfWriteLiteTes:
         # nocut means don't cut out a level that is 'too close'.  For
         # mapping lite products want to SHOW every retrieval level that exists
         # no mater how close it is to the surface.
-        levels = supplier_retrieval_levels_tes(
-            levelsIn, pressureIn, pressure_temp_array, nocut
-        )
+        levels = self.tes_levels(levelsIn, pressureIn, pressure_temp_array, nocut=True)
 
         maps_new = rf.StateMappingBasisMatrix.from_x_subset(
             pressure_temp_array, levels - 1
