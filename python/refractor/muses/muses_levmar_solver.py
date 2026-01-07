@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .cost_function import CostFunction
+from .identifier import ProcessLocation
 import numpy as np
 import os
 from pathlib import Path
@@ -26,6 +27,39 @@ class SolverResult:
     rho: np.ndarray
     lambdav: np.ndarray
 
+class VerboseLogging:
+    '''Observer of MusesLevmarSolver that adds some more verbose logging.'''
+    def notify_update(self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs : Any) -> None:
+        if location == ProcessLocation("start iteration"):
+            self.log_start_iteration(slv)
+        elif location == ProcessLocation("end iteration"):
+            self.log_end_iteration(slv)
+            
+    def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
+        pass
+
+    def log_end_iteration(self, slv: MusesLevmarSolver) -> None:
+        pass
+
+class SolverLogFile:
+    '''Observer of MusesLevmarSolver that write information to a separate log file.'''
+    def __init__(self, log_file: str | os.PathLike[str]) -> None:
+        self.fname = Path(log_file)
+        self.fname.parent.mkdir(parents=True, exist_ok=True)
+        self.fh = open(self.fname, "w")
+        
+    def notify_update(self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs : Any) -> None:
+        if location == ProcessLocation("start iteration"):
+            self.log_start_iteration(slv)
+        elif location == ProcessLocation("end step"):
+            self.log_end_step(slv)
+            
+    def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
+        pass
+
+    def log_end_step(self, slv: MusesLevmarSolver) -> None:
+        pass
+    
 
 class MusesLevmarSolver:
     """This is a wrapper around levmar_nllsq_elanor that makes it look like
@@ -467,6 +501,38 @@ class MusesLevmarSolver:
         self.iter_num = 0
         self.stop_code = -1
         self.verbose = verbose
+        self._observers: set[Any] = set()
+
+    def add_observer(self, obs: Any) -> None:
+        # Often we want weakref, so we don't prevent objects from
+        # being deleted just because they are observing this. But in
+        # this particular case, we actually do want to maintain the
+        # lifetime. These observers will do things like write out
+        # output, but have no real life outside of being attached to
+        # this class.  It is easy enough to change this to weakref if
+        # that proves useful
+        self._observers.add(obs)
+        if hasattr(obs, "notify_add"):
+            obs.notify_add(self)
+
+    def remove_observer(self, obs: Any) -> None:
+        self._observers.discard(obs)
+        if hasattr(obs, "notify_remove"):
+            obs.notify_remove(self)
+
+    def clear_observers(self) -> None:
+        # We change self._observers, in our loop so grab a copy of the
+        # list before we start
+        lobs = list(self._observers)
+        for obs in lobs:
+            self.remove_observer(obs)
+
+    def notify_update(self, location: ProcessLocation | str, **kwargs: Any) -> None:
+        loc = location
+        if not isinstance(loc, ProcessLocation):
+            loc = ProcessLocation(loc)
+        for obs in self._observers:
+            obs.notify_update(self, loc, **kwargs)
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by set_state.
@@ -776,6 +842,7 @@ class MusesLevmarSolver:
                 q_vector = np.copy(qNewton)
             qNorm = qNormNewton
 
+            self.notify_update("start iteration")
             if self.verbose:
                 logger.info("***************************************************")
                 logger.info(f"Start iteration# = {self.iter_num}")
@@ -1342,6 +1409,7 @@ class MusesLevmarSolver:
             self.diag_lambda_rho_delta[self.iter_num, 1] = rho
             self.diag_lambda_rho_delta[self.iter_num, 2] = self.delta_value
 
+            self.notify_update("end step")
             if self.log_file:
                 with open(self.log_file, "a") as f:
                     print("jacobian_ret size", file=f)
@@ -1524,6 +1592,7 @@ class MusesLevmarSolver:
             # end if (self.stop_code == 0):
 
             # Useful diagnostic while looking at muses-py/ReFRACtor.
+            self.notify_update("end iteration")
             if self.verbose:
                 logger.info(f"rho: {rho}")
                 logger.info(f"stopCode: {self.stop_code}")
