@@ -86,6 +86,7 @@ from .identifier import (
 )
 from .input_file_helper import (
     InputFileHelper,
+    InputFileLogging,
     InputFilePath,
 )
 from .misc import (
@@ -373,6 +374,7 @@ __all__ = [
     "IdentifierSortByWaveLength",
     "IdentifierStr",
     "InputFileHelper",
+    "InputFileLogging",
     "InputFilePath",
     "InstrumentIdentifier",
     "MeasurementId",

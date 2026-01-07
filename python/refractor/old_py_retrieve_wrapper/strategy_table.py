@@ -119,7 +119,7 @@ class StrategyTable:
         absolute path."""
         if self.ifile_hlp:
             return self.ifile_hlp.osp_dir / filename
-        return InputFilePath(filename)
+        return InputFilePath.create_input_file_path(filename)
 
     @contextmanager
     def chdir_run_dir(self):

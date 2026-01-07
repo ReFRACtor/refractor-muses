@@ -609,9 +609,9 @@ class AbstractCamelHsr(ABC):
         coef_dir: str | os.PathLike[str] | InputFilePath,
     ):
         logger.info(f"Instantiating {self.__class__.__name__}")
-        self._lab_dir = InputFilePath(lab_data_dir)
+        self._lab_dir = InputFilePath.create_input_file_path(lab_data_dir)
         self._lab_data: dict[int, dict[str, np.ndarray]] = dict()
-        self._coef_dir = InputFilePath(coef_dir)
+        self._coef_dir = InputFilePath.create_input_file_path(coef_dir)
 
     def _lab_file(self, lab_version: int) -> InputFilePath:
         """Return the path to a lab spec file for a given "version" """

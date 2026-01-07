@@ -9,12 +9,16 @@ import refractor.framework as rf  # type: ignore
 from .tropomi_fm_object_creator import TropomiFmObjectCreator
 from loguru import logger
 import numpy as np
-from pathlib import Path
 from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation, RetrievalConfiguration
+    from refractor.muses import (
+        MeasurementId,
+        MusesObservation,
+        RetrievalConfiguration,
+        InputFilePath,
+    )
 
 
 class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
@@ -58,7 +62,7 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         between absco and cross section."""
         return self.absorber_absco
 
-    def absco_filename(self, gas: str, version: str = "latest") -> Path:
+    def absco_filename(self, gas: str, version: str = "latest") -> InputFilePath | None:
         # allow one to pass in "latest" or a version number like either "1.0" or "v1.0"
         if version == "latest":
             vpat = "v*"
@@ -70,7 +74,9 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         # Assumes that in the top level of the ABSCO directory there are
         # subdirectories such as "v1.0_SWIR_CO" which contain our ABSCO files.
         absco_subdir_pattern = f"{vpat}_SWIR_{gas.upper()}"
-        absco_subdirs = sorted(self.absco_base_path.glob(absco_subdir_pattern))
+        absco_subdirs = sorted(
+            self.absco_base_path.glob(absco_subdir_pattern), key=lambda f: f.name
+        )
         if version == "latest" and len(absco_subdirs) == 0:
             raise RuntimeError(
                 f'Found no ABSCO directories for gas "{gas}" matching {self.absco_base_path / absco_subdir_pattern}'

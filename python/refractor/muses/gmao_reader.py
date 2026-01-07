@@ -5,12 +5,12 @@ import scipy
 import datetime
 from .misc import greatcircle
 from .input_file_helper import InputFileHelper
-from pathlib import Path
 from loguru import logger
 import typing
 
 if typing.TYPE_CHECKING:
     from .sounding_metadata import SoundingMetadata
+    from .input_file_helper import InputFilePath
 
 
 class GmaoReader:
@@ -164,7 +164,7 @@ class GmaoReader:
         month: int,
         day: int,
         hour: int,
-    ) -> tuple[dict[str, np.ndarray], Path, Path]:
+    ) -> tuple[dict[str, np.ndarray], InputFilePath, InputFilePath]:
         # GMAO apparently has different directory structures, try each.
         gmao_fdir = ifile_hlp.gmao_dir / f"{year}/{month:02d}/{day:02d}"
         # Try year/month

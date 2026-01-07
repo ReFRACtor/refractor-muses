@@ -48,7 +48,7 @@ class TesFile(collections.abc.Mapping):
         """
         from .input_file_helper import InputFilePath
 
-        self.file_name = InputFilePath(fname)
+        self.file_name = InputFilePath.create_input_file_path(fname)
         # Kind of noisy, so we don't normally log this. But can be useful occasionally to turn
         # on
         if False:

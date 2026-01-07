@@ -511,50 +511,47 @@ class MusesSpectralWindow(rf.SpectralWindow):
         if vmode.lower() in ("nadir", "limb"):
             vmode = vmode.capitalize()
 
-        filename = InputFilePath(spectral_window_directory) / f"Windows_{vmode}"
+        bdir = InputFilePath.create_input_file_path(spectral_window_directory)
+        filename = bdir / f"Windows_{vmode}"
 
         # skip all the logic if spec_file is specified
         if spec_file is not None:
-            return InputFilePath(f"{filename}_{spec_file}.asc")
+            return filename.parent / f"{filename.name}_{spec_file}.asc"
 
         if retrieval_type in (RetrievalType("bt"), RetrievalType("forwardmodel")):
-            filename = InputFilePath(f"{filename}_{step_name}")
+            filename = filename.parent / f"{filename.name}_{step_name}"
         else:
             # Make species part of filename of elements that are atmospheric_species
             retpart = "_".join(str(t) for t in relem if t.is_atmospheric_species)
             # If no 'line' species found, make name from all species.
             if retpart == "":
                 retpart = "_".join(str(t) for t in relem)
-            filename = InputFilePath(f"{filename}_{retpart}")
+            filename = filename.parent / f"{filename.name}_{retpart}"
 
         if retrieval_type in (RetrievalType("default"), RetrievalType("-")):
             pass
         elif retrieval_type == RetrievalType("fullfilter"):
-            filename = (
-                InputFilePath(spectral_window_directory)
-                / f"Windows_{vmode}_{step_name}"
-            )
+            filename = bdir / f"Windows_{vmode}_{step_name}"
         elif retrieval_type == RetrievalType("bt_ig_refine"):
             retpart = "_".join(str(t) for t in relem)
-            filename = (
-                InputFilePath(spectral_window_directory)
-                / f"Windows_{vmode}_{retpart}_BT_IG_Refine"
-            )
+            filename = bdir / f"Windows_{vmode}_{retpart}_BT_IG_Refine"
         elif retrieval_type == RetrievalType("joint") and "TROPOMI" in step_name:
             if "wide" in step_name:
-                filename = InputFilePath(f"{filename}wide_{retrieval_type}")
+                filename = filename.parent / f"{filename.name}wide_{retrieval_type}"
             elif "Band_1_2_short" in step_name:
-                filename = InputFilePath(f"{filename}Band_1_2_short_{retrieval_type}")
+                filename = (
+                    filename.parent / f"{filename.name}Band_1_2_short_{retrieval_type}"
+                )
             elif "Band_1_2" in step_name:
-                filename = InputFilePath(f"{filename}Band_1_2_{retrieval_type}")
+                filename = filename.parent / f"{filename.name}Band_1_2_{retrieval_type}"
             elif "Band_2" in step_name:
-                filename = InputFilePath(f"{filename}Band_2_{retrieval_type}")
+                filename = filename.parent / f"{filename.name}Band_2_{retrieval_type}"
             else:
-                filename = InputFilePath(f"{filename}_{retrieval_type}")
+                filename = filename.parent / f"{filename.name}_{retrieval_type}"
         else:
-            filename = InputFilePath(f"{filename}_{retrieval_type}")
+            filename = filename.parent / f"{filename.name}_{retrieval_type}"
 
-        return InputFilePath(f"{filename}.asc")
+        return filename.parent / f"{filename.name}.asc"
 
     @classmethod
     def muses_microwindows_fname_from_muses_py(

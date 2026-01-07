@@ -293,7 +293,7 @@ class OspSpeciesReader(OspFileHandle):
         super().__init__(ifile_hlp)
         self.filename_data: dict[
             StateElementIdentifier,
-            dict[StateElementIdentifier | None, dict[RetrievalType, Path]],
+            dict[StateElementIdentifier | None, dict[RetrievalType, InputFilePath]],
         ] = {}
         self._default_cache: dict[
             StateElementIdentifier, dict[StateElementIdentifier | None, np.ndarray]

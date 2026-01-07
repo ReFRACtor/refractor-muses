@@ -552,12 +552,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     def find_absco_pattern(
         self, pattern: str, join_to_absco_base_path: bool = True
-    ) -> Path:
+    ) -> InputFilePath:
         if join_to_absco_base_path:
             flist = list(self.absco_base_path.glob(pattern))
         else:
             p = Path(pattern)
-            flist = list(p.parent.glob(p.name))
+            flist = list(InputFilePath.create_input_file_path(p.parent).glob(p.name))
 
         if len(flist) > 1:
             raise RuntimeError(f"Found more than one ABSCO file at {str(p)}/{pattern}")
@@ -569,7 +569,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def absco_base_path(self) -> InputFilePath:
         return self.ifile_hlp.osp_dir / "ABSCO"
 
-    def absco_filename(self, gas: str) -> Path | None:
+    def absco_filename(self, gas: str) -> InputFilePath | None:
         if gas != "O3":
             return None
         return self.find_absco_pattern("O3_*_v0.0_init.nc")

@@ -27,39 +27,47 @@ class SolverResult:
     rho: np.ndarray
     lambdav: np.ndarray
 
+
 class VerboseLogging:
-    '''Observer of MusesLevmarSolver that adds some more verbose logging.'''
-    def notify_update(self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs : Any) -> None:
+    """Observer of MusesLevmarSolver that adds some more verbose logging."""
+
+    def notify_update(
+        self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs: Any
+    ) -> None:
         if location == ProcessLocation("start iteration"):
             self.log_start_iteration(slv)
         elif location == ProcessLocation("end iteration"):
             self.log_end_iteration(slv)
-            
+
     def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
         pass
 
     def log_end_iteration(self, slv: MusesLevmarSolver) -> None:
         pass
 
+
 class SolverLogFile:
-    '''Observer of MusesLevmarSolver that write information to a separate log file.'''
+    """Observer of MusesLevmarSolver that write information to a separate log file."""
+
     def __init__(self, log_file: str | os.PathLike[str]) -> None:
         self.fname = Path(log_file)
         self.fname.parent.mkdir(parents=True, exist_ok=True)
         self.fh = open(self.fname, "w")
-        
-    def notify_update(self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs : Any) -> None:
+
+    def notify_update(
+        self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs: Any
+    ) -> None:
         if location == ProcessLocation("start iteration"):
             self.log_start_iteration(slv)
         elif location == ProcessLocation("end step"):
             self.log_end_step(slv)
-            
+
     def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
         pass
 
     def log_end_step(self, slv: MusesLevmarSolver) -> None:
         pass
-    
+
 
 class MusesLevmarSolver:
     """This is a wrapper around levmar_nllsq_elanor that makes it look like

@@ -68,7 +68,7 @@ class FileFilterMetadata(FilterMetadata):
         filename: str | os.PathLike[str] | InputFilePath,
         ifile_mon: InputFileHelper,
     ):
-        self.filename = InputFilePath(filename)
+        self.filename = InputFilePath.create_input_file_path(filename)
         f = ifile_mon.open_tes(filename)
         self.metadata = {}
         # Type is actually correct, by mypy confused. Problem is with pandas
