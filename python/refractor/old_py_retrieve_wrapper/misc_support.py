@@ -196,6 +196,11 @@ def muses_py_plot_radiance(*args: Any) -> None:
         mpy.plot_radiance(*args)
 
 
+def muses_py_read_all_tes(fname: str) -> dict[str, Any]:
+    _, d = mpy.read_all_tes(fname)
+    return d
+
+
 __all__ = [
     "create_order_species_json",
     "create_retrieval_output_json",
@@ -205,5 +210,6 @@ __all__ = [
     "muses_py_plot_results",
     "muses_py_radiance_data",
     "muses_py_radiance_get_indices",
+    "muses_py_read_all_tes",
     "muses_py_register_replacement_function",
 ]

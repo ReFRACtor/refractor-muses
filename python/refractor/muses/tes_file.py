@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .mpy import mpy_read_all_tes
 import collections.abc
 import re
 import pandas as pd
@@ -55,7 +54,9 @@ class TesFile(collections.abc.Mapping):
         if False:
             logger.debug(f"Reading file {self.file_name}")
         if use_mpy:
-            _, d = mpy_read_all_tes(str(fname))
+            from refractor.old_py_retrieve_wrapper import muses_py_read_all_tes
+
+            d = muses_py_read_all_tes(str(fname))
             self.mpy_d = d
             self._d = d["preferences"]
             if d["numRows"] > 0:

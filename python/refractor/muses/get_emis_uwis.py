@@ -1434,7 +1434,8 @@ def _bilinear(
 ) -> np.ndarray:
     # Note FILLVALUE gets ignored. This is really what happens in py-retrieve,
     # look at UtilMath.py to find this function.
-    return scipy.ndimage.map_coordinates(p_matrix, [[latind],[lonind]], order=1)
+    return scipy.ndimage.map_coordinates(p_matrix, [[latind], [lonind]], order=1)
+
 
 def nc_read_variable(
     i_filename: str, i_variable_name: str, ifile_hlp: InputFileHelper

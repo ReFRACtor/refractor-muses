@@ -14,6 +14,7 @@ from .misc_support import (
     muses_py_plot_results,
     muses_py_radiance_data,
     muses_py_radiance_get_indices,
+    muses_py_read_all_tes,
     muses_py_register_replacement_function,
 )
 from .muses_altitude import (
@@ -169,6 +170,7 @@ __all__ = [
     "muses_py_plot_results",
     "muses_py_radiance_data",
     "muses_py_radiance_get_indices",
+    "muses_py_read_all_tes",
     "muses_py_register_replacement_function",
     "state_element_old_wrapper_handle",
     "watch_uip",

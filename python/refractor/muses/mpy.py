@@ -28,26 +28,6 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     return getattr(muses_py, funcname)(*args, **kwargs)
 
 
-# Synonym, just to make it clear where we have dependencies we intend to keep
-muses_py_wrapper_keep = muses_py_wrapper
-
-# Used in tes file. We can keep this, it is optional reading using muses_py as a way to
-# test our handling of the  tes files
-
-mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
-
-
-# Used in get_emis_uwis, but only for older UV1 format. We can pull this over if needed,
-# but for now it is reasonable to rely on muses-py for older format data
-def mpy_bilinear(*args: Any, **kwargs: Any) -> Any:
-    funcname = "UtilMath().bilinear"
-    if not have_muses_py:
-        raise NameError(
-            f"muses_py is not available, so we can't call the function {funcname}"
-        )
-    return muses_py.UtilMath().bilinear(*args, **kwargs)
-
-
 # ---- Below are things to replace ----
 
 
@@ -67,23 +47,16 @@ mpy_read_tropomi_surface_altitude = partial(
 mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 
-# Functions we can keep
+# Functions we can we want to replace
 __all__ = [
-    "mpy_bilinear",
-    "mpy_read_all_tes",
+    "mpy_cdf_read_tes_frequency",
+    "mpy_radiance_apodize",
+    "mpy_radiance_data",
+    "mpy_read_airs_l1b",
+    "mpy_read_nasa_cris_fsr",
+    "mpy_read_noaa_cris_fsr",
+    "mpy_read_omi",
+    "mpy_read_tes_l1b",
+    "mpy_read_tropomi",
+    "mpy_read_tropomi_surface_altitude",
 ]
-# Ones we want to replace
-__all__.extend(
-    [
-        "mpy_cdf_read_tes_frequency",
-        "mpy_radiance_apodize",
-        "mpy_radiance_data",
-        "mpy_read_airs_l1b",
-        "mpy_read_nasa_cris_fsr",
-        "mpy_read_noaa_cris_fsr",
-        "mpy_read_omi",
-        "mpy_read_tes_l1b",
-        "mpy_read_tropomi",
-        "mpy_read_tropomi_surface_altitude",
-    ]
-)

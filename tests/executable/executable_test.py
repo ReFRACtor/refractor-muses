@@ -142,6 +142,7 @@ def test_refractor_retrieve_cris_tropomi(
         check=True,
     )
 
+
 @pytest.mark.long_executable_test
 def test_py_retrieve_refractor_cris_tropomi(
     ifile_hlp,
@@ -169,4 +170,3 @@ def test_py_retrieve_refractor_cris_tropomi(
         shell=True,
         check=True,
     )
-    
