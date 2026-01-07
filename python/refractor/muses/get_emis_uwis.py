@@ -1432,10 +1432,9 @@ def get_emis_uwis(
 def _bilinear(
     p_matrix: np.ndarray, latind: int, lonind: int, FILLVALUE: None | float = None
 ) -> np.ndarray:
-    from .mpy import mpy_bilinear
-
-    return mpy_bilinear(p_matrix, latind, lonind, FILLVALUE)
-
+    # Note FILLVALUE gets ignored. This is really what happens in py-retrieve,
+    # look at UtilMath.py to find this function.
+    return scipy.ndimage.map_coordinates(p_matrix, [[latind],[lonind]], order=1)
 
 def nc_read_variable(
     i_filename: str, i_variable_name: str, ifile_hlp: InputFileHelper
