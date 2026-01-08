@@ -15,6 +15,7 @@ from refractor.muses import (
     MusesCrisObservation,
     MusesTesObservation,
     InstrumentIdentifier,
+    InputFileRecord,
 )
 import sys
 
@@ -59,6 +60,8 @@ def test_retrieval_strategy_airs_omi(
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
+        # Record input file, just for our information
+        rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
         # Grab each step so we can separately test output
         rscap = RetrievalStrategyCaptureObserver(
             "retrieval_strategy_retrieval_step", "starting run_step"

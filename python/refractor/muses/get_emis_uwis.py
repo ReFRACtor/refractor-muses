@@ -1442,7 +1442,7 @@ def nc_read_variable(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     # Read a specific variable into memory and returned the variable along with any variable attributes.
     try:
-        nci = ifile_hlp.open_ncdf(Path(i_filename).resolve())
+        nci = ifile_hlp.open_ncdf(Path(i_filename))
         nci.set_auto_maskandscale(False)
 
         o_variable_attributes_dict = nci[i_variable_name].__dict__

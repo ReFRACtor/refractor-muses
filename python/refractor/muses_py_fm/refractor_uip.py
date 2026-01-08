@@ -1675,6 +1675,15 @@ class RefractorUip:
         logger.debug(
             f"Creating rf_uip for {[str(obs.instrument_name) for obs in obs_list]}"
         )
+        if str(obs_list[0].instrument_name) == "TROPOMI":
+            rconf.input_file_helper.notify_file_input(rconf.input_file_helper.osp_dir / "TROPOMI" / "rayTable-NADIR.asc")
+        if str(obs_list[0].instrument_name) == "OMI":
+            rconf.input_file_helper.notify_file_input(rconf.input_file_helper.osp_dir / "OMI" / "rayTable-NADIR.asc")
+        if str(obs_list[0].instrument_name) == "AIRS":
+            rconf.input_file_helper.notify_file_input(rconf["defaultStrategyTableDirectory"] / "rayTable-NADIR.asc")
+        if str(obs_list[0].instrument_name) == "CRIS":
+            rconf.input_file_helper.notify_file_input(rconf["defaultStrategyTableDirectory"] / "rayTable-NADIR.asc")
+            rconf.input_file_helper.notify_file_input(rconf["defaultStrategyTableDirectory"] / "observationTable-NADIR.asc")
         # Special case for CurrentStateUip, we just return a copy of UIP. This is useful
         # for unit testing where we get the UIP from another source but want to pretend
         # that we are doing normal processing.

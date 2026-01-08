@@ -39,7 +39,7 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )
@@ -158,7 +158,7 @@ def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )
@@ -226,7 +226,7 @@ def test_osp_state_element_latitude(ifile_hlp):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )
@@ -238,7 +238,7 @@ def test_osp_state_element_latitude(ifile_hlp):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )
@@ -250,7 +250,7 @@ def test_osp_state_element_latitude(ifile_hlp):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )
@@ -262,7 +262,7 @@ def test_osp_state_element_latitude(ifile_hlp):
         apriori_value,
         latitude,
         "LAND",
-        InputFileHelper(),
+        ifile_hlp,
         species_directory,
         covariance_directory,
     )

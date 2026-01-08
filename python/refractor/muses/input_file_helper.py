@@ -8,7 +8,7 @@ import re
 import h5py  # type: ignore
 from typing import Any, Iterator
 import abc
-
+import shutil
 
 class InputFileLogging:
     """Simple observer to add logging when a file is read"""
@@ -18,7 +18,40 @@ class InputFileLogging:
     ) -> None:
         logger.opt(colors=True).debug(f"input file <red>{fname}</>")
 
+class InputFileRecord:
+    """Observer that generate a list of files that are read"""
+    def __init__(self, out_fname: str | os.PathLike[str]) -> None:
+        self.flist : set[InputFilePath] = set()
+        self.out_fname = out_fname
+        self.fh = open(self.out_fname, "w")
 
+    def notify_file_input(
+        self, ifile_hlp: InputFileHelper, fname: str | os.PathLike[str] | InputFilePath
+    ) -> None:
+        f = InputFilePath.create_input_file_path(fname)
+        if f not in self.flist:
+            self.flist.add(f)
+            print(str(f), file=self.fh, flush=True)
+
+class InputFileSave:
+    """Observer that save the files we read to a different directory. This is done for
+    example to save the OSP files we use in testing."""
+    def __init__(self, base_path: Path, save_path: Path) -> None:
+        self.base_path = base_path
+        self.save_path = save_path
+
+    def notify_file_input(
+        self, ifile_hlp: InputFileHelper, fname: str | os.PathLike[str] | InputFilePath
+    ) -> None:
+        f = Path(str(fname))
+        if f.is_relative_to(self.base_path):
+            fsave = self.save_path / f.relative_to(self.base_path)
+            if not fsave.exists():
+                logger.info(f"Saving to {fsave}")
+                fsave.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(f, fsave)
+                
+            
 class InputFilePath(object, metaclass=abc.ABCMeta):
     """This is just like a pathlib.Path for the OSP, GMAO or other base pathes. But
     we pull this out, because we may end up wanting to support other
@@ -89,6 +122,11 @@ class InputFilePath(object, metaclass=abc.ABCMeta):
         """Replace a pattern with a replacement value for the name part of the
         path. So this is like self.parent / re.sub(pattern, repl, self.name), but
         might get implemented differently."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def relative_path(self) -> Path:
+        """Return the part of the path relative to the base"""
         raise NotImplementedError()
 
     @classmethod
@@ -162,6 +200,80 @@ class InputFilePathImp(InputFilePath):
     def sub_fname(self, pattern: str, repl: str) -> InputFilePath:
         return self.parent / re.sub(pattern, repl, self.name)
 
+    def relative_path(self) -> Path:
+        return self._rel_path
+    
+
+class InputFilePathDelta(InputFilePath):
+    """This has a base InputFilePath, and a delta InputFilePath. If a file is found in
+    the delta InputFilePath, it is used. Otherwise we get this from the base path. This
+    is similar in flavor to a union fs. This is useful during development, when you might
+    want to try something out before modifying the actual OSP data."""
+    def __init__(
+        self,
+        base_path: InputFilePath,
+        delta_path: InputFilePath,
+        rel_path: str | os.PathLike[str] = ".",
+    ) -> None:
+        self._base_path = base_path
+        self._delta_path = delta_path
+        self._rel_path = Path(rel_path)
+
+    def __eq__(self, x: object) -> bool:
+        return isinstance(x, InputFilePath) and str(self) == str(x)
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __truediv__(self, rel_path: str | os.PathLike[str]) -> InputFilePath:
+        return InputFilePathDelta(self._base_path, self._delta_path, self._rel_path / rel_path)
+
+    def exists(self) -> bool:
+        return (self._delta_path / self._rel_path).exists() or (self._base_path / self._rel_path).exists() 
+
+    @property
+    def parent(self) -> InputFilePath:
+        return InputFilePathDelta(self._base_path, self._delta_path, self._rel_path.parent)
+
+    def absolute(self) -> InputFilePath:
+        # File is already absolute, so just return self.
+        # Note, only called in muses-py, but supply so we don't need to change that code.
+        return self
+
+    def resolve(self) -> InputFilePath:
+        # Similar for resolve
+        # Note, only called in muses-py, but supply so we don't need to change that code.
+        return self
+
+    def as_posix(self) -> str:
+        return str(self)
+
+    def glob(self, pattern: str, **kwargs: Any) -> Iterator[InputFilePath]:
+        already_found: set[Path] = set()
+        for x in (self._delta_path / self._rel_path).glob(pattern, **kwargs):
+            if x.relative_path() not in already_found:
+                already_found.add(x.relative_path())
+                yield InputFilePathDelta(self._base_path, self._delta_path, x.relative_path())
+        for x in (self._base_path / self._rel_path).glob(pattern, **kwargs):
+            if x.relative_path() not in already_found:
+                already_found.add(x.relative_path())
+                yield InputFilePathDelta(self._base_path, self._delta_path, x.relative_path())
+
+    def __str__(self) -> str:
+        if (self._delta_path / self._rel_path).exists():
+            return str(self._delta_path / self._rel_path)
+        return str(self._base_path / self._rel_path)
+
+    @property
+    def name(self) -> str:
+        return self._rel_path.name
+
+    def sub_fname(self, pattern: str, repl: str) -> InputFilePath:
+        return self.parent / re.sub(pattern, repl, self.name)
+
+    def relative_path(self) -> Path:
+        return self._rel_path
+    
 
 class InputFileHelper:
     """The retrieval opens a large number of files across the OSP
@@ -219,6 +331,17 @@ class InputFileHelper:
         )
         self._observers: set[Any] = set()
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Pickling without our observers"""
+        return {
+            "osp_dir": self.osp_dir,
+            "gmao_dir": self.gmao_dir,
+        }
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self._observers = set()
+        self.__dict__.update(state)
+
     def add_observer(self, obs: Any) -> None:
         # Often we want weakref, so we don't prevent objects from
         # being deleted just because they are observing this. But in
@@ -268,4 +391,5 @@ class InputFileHelper:
         return TesFile(str(fname) if isinstance(fname, InputFilePath) else fname)
 
 
-__all__ = ["InputFilePath", "InputFileHelper", "InputFileLogging"]
+__all__ = ["InputFilePath", "InputFileHelper", "InputFileLogging", "InputFileRecord",
+           "InputFileSave"]

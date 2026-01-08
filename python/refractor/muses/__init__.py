@@ -88,6 +88,8 @@ from .input_file_helper import (
     InputFileHelper,
     InputFileLogging,
     InputFilePath,
+    InputFileRecord,
+    InputFileSave,
 )
 from .misc import (
     AttrDictAdapter,
@@ -376,6 +378,8 @@ __all__ = [
     "InputFileHelper",
     "InputFileLogging",
     "InputFilePath",
+    "InputFileRecord",
+    "InputFileSave",
     "InstrumentIdentifier",
     "MeasurementId",
     "MeasurementIdDict",

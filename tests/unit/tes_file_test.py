@@ -19,6 +19,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
         ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-v2/Species-66/OMICLOUDFRACTION.asc"
     )
+    ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert dict(tfile) == dict(tfile2)
@@ -29,6 +30,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     fname = (
         ifile_hlp.osp_dir / "Strategy_Tables/ops/OSP-OMI-v2/Cloud/CloudParameters.asc"
     )
+    ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert dict(tfile) == dict(tfile2)
@@ -39,6 +41,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
         ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-v2/Species-66/CO2_stepco2_1.asc"
     )
+    ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert dict(tfile) == dict(tfile2)
@@ -50,6 +53,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
         ifile_hlp.osp_dir
         / "Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
     )
+    ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert dict(tfile) == dict(tfile2)
@@ -60,6 +64,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
         ifile_hlp.osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_TATM_H2O_N2O_CH4_HDO_BAR_LAND.asc"
     )
+    ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert dict(tfile) == dict(tfile2)

@@ -4,7 +4,7 @@
 import os
 import pytest
 from pathlib import Path
-from refractor.muses import InputFileHelper
+from refractor.muses import InputFileHelper, InputFileSave
 
 
 @pytest.fixture(scope="session")
@@ -20,14 +20,28 @@ def test_base_path():
 
 
 @pytest.fixture(scope="session")
-def osp_dir():
-    """Location of OSP directory."""
+def osp_real_dir():
+    """Location of "real" OSP directory. We generally use our saved version in
+    test_data_dir / "OSP", but it can be useful to use the real actual OSP in
+    some cases, particularly when developing something new that we haven't already
+    saved."""
     osp_path = os.environ.get("MUSES_OSP_PATH", None)
     if osp_path is None or not os.path.exists(osp_path):
         pytest.skip(
             "test requires OSP directory set by through the MUSES_OSP_PATH environment variable"
         )
     return Path(osp_path)
+
+@pytest.fixture(scope="session")
+def osp_dir(test_base_path, osp_real_dir):
+    """Location of OSP directory. We generally use the OSP that we have saved, so our
+    unit tests don't break from updates to the real OSP.
+    This is based off of v1.23.0 of the OSP (github.jpl.nasa.gov:MUSES-Processing/OSP.git).
+    """
+    if False:
+        return osp_real_dir
+    else:
+        return test_base_path / "OSP"
 
 
 @pytest.fixture(scope="function")
@@ -45,8 +59,11 @@ def josh_osp_dir():
 
 
 @pytest.fixture(scope="session")
-def gmao_dir():
-    """Location of GAMO directory."""
+def gmao_real_dir():
+    """Location of "real" GMAO directory. We generally use our saved version in
+    test_data_dir / "OSP", but it can be useful to use the real actual OSP in
+    some cases, particularly when developing something new that we haven't already
+    saved."""
     gmao_path = os.environ.get("MUSES_GMAO_PATH", None)
     if gmao_path is None or not os.path.exists(gmao_path):
         pytest.skip(
@@ -54,9 +71,28 @@ def gmao_dir():
         )
     return Path(gmao_path)
 
+@pytest.fixture(scope="session")
+def gmao_dir(test_base_path, gmao_real_dir):
+    """Location of GMAO directory. We generally use the GMAO that we have saved, so our
+    unit tests don't break from updates to the real GMAO.
+    """
+    if False:
+        return gmao_real_dir
+    else:
+        return test_base_path / "GMAO"
 
 @pytest.fixture(scope="session")
-def ifile_hlp(osp_dir, gmao_dir):
+def ifile_hlp(osp_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path):
+    # Quick way to grab all the needed test data. Note if you run this, you should
+    # run this serially. I don't think the InputFileSave works in parallel (e.g.,
+    # two processes try to copy the same file write over each other)
+    if False:
+        ifile_hlp = InputFileHelper(osp_dir=osp_real_dir, gmao_dir=gmao_real_dir)
+        ifile_hlp.add_observer(InputFileSave(Path(str(ifile_hlp.osp_dir)),
+                                             test_base_path / "OSP"))
+        ifile_hlp.add_observer(InputFileSave(Path(str(ifile_hlp.gmao_dir)),
+                                             test_base_path / "GMAO"))
+        return ifile_hlp
     return InputFileHelper(osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 

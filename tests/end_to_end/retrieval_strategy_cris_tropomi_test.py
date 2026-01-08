@@ -7,6 +7,7 @@ from refractor.muses import (
     RetrievalStrategyCaptureObserver,
     RetrievalStrategy,
     MusesRunDir,
+    InputFileRecord,
 )
 from fixtures.require_check import require_muses_py_fm
 
@@ -53,6 +54,8 @@ def test_retrieval_strategy_cris_tropomi(
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
+        # Record input file, just for our information
+        rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
         # Grab each step so we can separately test output
         rscap = RetrievalStrategyCaptureObserver(
             "retrieval_strategy_retrieval_step", "starting run_step"

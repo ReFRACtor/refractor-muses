@@ -127,7 +127,7 @@ class RetrievalStrategy:
         )
         self._kwargs: dict[str, Any] = kwargs
 
-        self.ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
+        self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
         self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
         self._retrieval_strategy_step_set = (
             self.strategy_executor.retrieval_strategy_step_set
@@ -206,7 +206,7 @@ class RetrievalStrategy:
         self._capture_directory.rundir = filename.absolute().parent
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
             self.strategy_table_filename,
-            self.ifile_hlp,
+            self._ifile_hlp,
         )
         self._measurement_id = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
@@ -314,6 +314,11 @@ class RetrievalStrategy:
             raise RuntimeError("Call update_target before this function")
         return self.strategy_executor.strategy
 
+    @property
+    def input_file_helper(self) -> InputFileHelper:
+        """The InputFileHelper used to read input data."""
+        return self._ifile_hlp
+    
     @property
     def run_dir(self) -> Path:
         """Directory we are running in (e.g. where the strategy table and measurement id files
@@ -469,8 +474,8 @@ class RetrievalStrategy:
         )
         res._filename = res.run_dir / res.strategy_table_filename.name
         res._strategy_executor.strategy_table_filename = res._filename
-        res.ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
-        res._retrieval_config.ifile_hlp = res.ifile_hlp
+        res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
+        res._retrieval_config.ifile_hlp = res.input_file_helper
         res._retrieval_config.base_dir = res.run_dir
         res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)
         return res, kwargs

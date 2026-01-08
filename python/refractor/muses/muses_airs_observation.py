@@ -85,6 +85,10 @@ class MusesAirsObservation(MusesObservationImp):
         """This is probably a bit over complicated, we don't really need the full
         o_airs structure. But for now, just duplicate the old muses-py code so we
         have a starting point for possibly cleaning up."""
+        if ifile_hlp is not None:
+            ifile_hlp.notify_file_input(filename)
+            # Hardcoded path
+            ifile_hlp.notify_file_input(ifile_hlp.osp_dir / "AIRS/Bad_Frequencies/airs_bad_frequencies.nc")
         with osp_setup(ifile_hlp):
             o_airs = mpy_read_airs_l1b(os.path.abspath(str(filename)), xtrack, atrack)
         radiance = o_airs["radiance"]
