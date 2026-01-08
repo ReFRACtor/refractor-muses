@@ -4,7 +4,7 @@
 import os
 import pytest
 from pathlib import Path
-from refractor.muses import InputFileHelper, InputFileSave
+from refractor.muses import InputFileHelper, InputFileSave, InputFilePathDelta
 
 
 @pytest.fixture(scope="session")
@@ -43,6 +43,12 @@ def osp_dir(test_base_path, osp_real_dir):
     else:
         return test_base_path / "OSP"
 
+@pytest.fixture(scope="session")
+def osp_delta_dir(test_base_path):
+    """Location of OSP delta directory. Changes to osp_dir.
+    """
+    return test_base_path / "OSP_delta"
+    
 
 @pytest.fixture(scope="function")
 def josh_osp_dir():
@@ -82,7 +88,7 @@ def gmao_dir(test_base_path, gmao_real_dir):
         return test_base_path / "GMAO"
 
 @pytest.fixture(scope="session")
-def ifile_hlp(osp_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path):
+def ifile_hlp(osp_dir, osp_delta_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path):
     # Quick way to grab all the needed test data. Note if you run this, you should
     # run this serially. I don't think the InputFileSave works in parallel (e.g.,
     # two processes try to copy the same file write over each other)
@@ -93,7 +99,7 @@ def ifile_hlp(osp_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path):
         ifile_hlp.add_observer(InputFileSave(Path(str(ifile_hlp.gmao_dir)),
                                              test_base_path / "GMAO"))
         return ifile_hlp
-    return InputFileHelper(osp_dir=osp_dir, gmao_dir=gmao_dir)
+    return InputFileHelper(osp_dir=InputFilePathDelta(osp_dir, osp_delta_dir), gmao_dir=gmao_dir)
 
 
 @pytest.fixture(scope="session")

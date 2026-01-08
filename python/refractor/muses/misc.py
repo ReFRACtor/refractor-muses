@@ -32,7 +32,7 @@ def osp_setup(
     try:
         with tempfile.TemporaryDirectory() as tname:
             os.chdir(tname)
-            os.symlink(str(ifile_hlp.osp_dir), "OSP")
+            os.symlink(str(ifile_hlp.osp_dir.path_for_muses_py), "OSP")
             os.mkdir("subdir")
             os.chdir("./subdir")
             yield

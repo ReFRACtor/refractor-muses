@@ -429,8 +429,8 @@ class RefractorUip:
             uip.capture_directory.extract_directory(
                 path=path,
                 change_to_dir=change_to_dir,
-                osp_dir=str(ifile_hlp.osp_dir),
-                gmao_dir=str(ifile_hlp.gmao_dir),
+                osp_dir=str(ifile_hlp.osp_dir.path_for_muses_py),
+                gmao_dir=str(ifile_hlp.gmao_dir.path_for_muses_py),
             )
         else:
             # Side effect of extract_directory is to set run_dir to absolute path. If

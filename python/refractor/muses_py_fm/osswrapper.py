@@ -161,7 +161,7 @@ class osswrapper:
                                     mpy_fm_oss_init(
                                         AttrDictAdapter(uip_all),
                                         inst,
-                                        i_osp_dir=self.ifile_hlp.osp_dir,
+                                        i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
                                     )
                                 )
                             # This can potentially change oss_frequencyList.
@@ -181,7 +181,7 @@ class osswrapper:
                             (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
                                 AttrDictAdapter(uip_all),
                                 inst,
-                                i_osp_dir=self.ifile_hlp.osp_dir,
+                                i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
                             )
                             self.uip["oss_jacobianList"] = jacobianList
                         # This can potentially change oss_frequencyList.

@@ -295,8 +295,7 @@ def tropomi_fm_object_creator_step_0(
 def tropomi_fm_object_creator_swir_step(
     request,
     isolated_dir,
-    josh_osp_dir,
-    gmao_dir,
+    ifile_hlp,
     tropomi_band7_test_in_dir,
 ):
     """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
@@ -313,8 +312,7 @@ def tropomi_fm_object_creator_swir_step(
         tropomi_band7_test_in_dir,
         0,
         "retrieval input",
-        josh_osp_dir,
-        gmao_dir,
+        ifile_hlp,
         include_ret_state=False,
     )
     obs = rs.observation_handle_set.observation(
@@ -322,7 +320,6 @@ def tropomi_fm_object_creator_swir_step(
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        # osp_dir=josh_osp_dir,
     )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
@@ -331,7 +328,6 @@ def tropomi_fm_object_creator_swir_step(
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        osp_dir=josh_osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing
@@ -434,6 +430,6 @@ def omi_fm_object_creator_step_1(isolated_dir, ifile_hlp, omi_test_in_dir):
 
 
 @pytest.fixture(scope="function")
-def tropomi_swir(isolated_dir, gmao_dir, josh_osp_dir, tropomi_band7_test_in_dir2):
-    r = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir)
+def tropomi_swir(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir2):
+    r = MusesRunDir(tropomi_band7_test_in_dir2, ifile_hlp)
     return r

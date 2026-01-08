@@ -56,6 +56,11 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             self.input_file_helper = InputFileHelper()
 
     def __getitem__(self, key: str) -> Any:
+        # Special handling for ElanorOSPDir, which is used in create_uip by old
+        # muses-py code. Doesn't fully support the InputFilePath (such as
+        # InputFilePathDelta)
+        if(key == "ElanorOSPDir"):
+            return self.input_file_helper.osp_dir.path_for_muses_py
         return self.abs_dir(self._data[key])
 
     def __setitem__(self, key: str, val: Any) -> None:

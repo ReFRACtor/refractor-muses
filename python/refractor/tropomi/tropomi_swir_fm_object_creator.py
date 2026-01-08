@@ -36,6 +36,7 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         self,
         current_state: CurrentState,
         measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         absorption_gases: list[str] = ["H2O", "CO", "CH4", "HDO"],
         primary_absorber: str = "CO",
@@ -47,6 +48,7 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         super().__init__(
             current_state,
             measurement_id,
+            retrieval_config,
             observation,
             absorption_gases=absorption_gases,
             primary_absorber=primary_absorber,
@@ -144,6 +146,7 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -161,6 +164,7 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
         obj_creator = TropomiSwirFmObjectCreator(
             current_state,
             self.measurement_id,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .identifier import StateElementIdentifier
+from .input_file_helper import InputFilePath
 import refractor.framework as rf  # type: ignore
 from pathlib import Path
 from loguru import logger
@@ -19,7 +20,6 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
     from .retrieval_configuration import RetrievalConfiguration
-    from .input_file_helper import InputFilePath
 
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
@@ -581,6 +581,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         skipped_gases = []
         for gas in self.absorption_gases:
             fname = self.absco_filename(gas)
+            self.ifile_hlp.notify_file_input(fname)
             if fname is not None:
                 absorptions.append(
                     rf.AbscoAer(str(fname), 1.0, 5000, rf.AbscoAer.NEAREST_NEIGHBOR_WN)

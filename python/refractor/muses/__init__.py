@@ -88,6 +88,8 @@ from .input_file_helper import (
     InputFileHelper,
     InputFileLogging,
     InputFilePath,
+    InputFilePathDelta,
+    InputFilePathImp,
     InputFileRecord,
     InputFileSave,
 )
@@ -378,6 +380,8 @@ __all__ = [
     "InputFileHelper",
     "InputFileLogging",
     "InputFilePath",
+    "InputFilePathDelta",
+    "InputFilePathImp",
     "InputFileRecord",
     "InputFileSave",
     "InstrumentIdentifier",

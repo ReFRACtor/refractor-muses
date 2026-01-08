@@ -7,7 +7,6 @@ from refractor.muses import (
     RetrievalType,
     CurrentStrategyStepDict,
     StrategyStepIdentifier,
-    InputFileHelper,
 )
 import numpy as np
 import numpy.testing as npt

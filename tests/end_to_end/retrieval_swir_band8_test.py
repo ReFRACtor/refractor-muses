@@ -6,19 +6,11 @@ from refractor.muses import (
 from refractor.tropomi import TropomiSwirForwardModelHandle
 import pytest
 
-# ----------------------------------------------------------------
-# These tests were all in development. I don't think they are currently
-# working, we'll want to get Josh to clean this up when things settle
-# down. But for now, skip all these
-# ----------------------------------------------------------------
-
-
-@pytest.mark.skip
 @pytest.mark.long_test
-def test_band8_retrieval(tropomi_swir, josh_osp_dir):
+def test_band8_retrieval(tropomi_swir, ifile_hlp):
     """Work through issues to do a band 8 retrieval, without making
     any py-retrieve modifications"""
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Just retrieve CO
     modify_strategy_table(
         rs,
@@ -31,7 +23,7 @@ def test_band8_retrieval(tropomi_swir, josh_osp_dir):
     # rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
     # rs.add_observer(rscap)
     ihandle = TropomiSwirForwardModelHandle(
-        use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+        use_pca=True, use_lrad=False, lrad_second_order=False
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")

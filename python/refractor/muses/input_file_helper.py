@@ -141,8 +141,24 @@ class InputFilePath(object, metaclass=abc.ABCMeta):
             return fname
         return InputFilePathImp(fname)
 
+    @property
+    def path_for_muses_py(self) -> Path:
+        """The old muses_py code doesn't fully support paths, so
+        things like InputFilePathDelta don't work it. This function
+        returns a Path that can be used with the old code. The default
+        is just str(self), but this might be more complicated for some
+        classes.
+
+        This is needed in old_py_retrieve_wrapper code, which is fine since
+        we only need that for backwards testing and don't need everything supported.
+        Also needed in muses_py_fm code. We might do something like copy a small
+        number of files or something similar, but for now just point to a single
+        directory that muses_py_fm code can use."""
+        return Path(str(self))
+     
 
 class InputFilePathImp(InputFilePath):
+
     """InputFilePath that just uses a standard pathlib.Path to implement."""
 
     def __init__(
@@ -211,12 +227,12 @@ class InputFilePathDelta(InputFilePath):
     want to try something out before modifying the actual OSP data."""
     def __init__(
         self,
-        base_path: InputFilePath,
-        delta_path: InputFilePath,
+        base_path: InputFilePath | str | os.PathLike[str],
+        delta_path: InputFilePath | str | os.PathLike[str],
         rel_path: str | os.PathLike[str] = ".",
     ) -> None:
-        self._base_path = base_path
-        self._delta_path = delta_path
+        self._base_path = InputFilePath.create_input_file_path(base_path)
+        self._delta_path = InputFilePath.create_input_file_path(delta_path)
         self._rel_path = Path(rel_path)
 
     def __eq__(self, x: object) -> bool:
@@ -273,7 +289,10 @@ class InputFilePathDelta(InputFilePath):
 
     def relative_path(self) -> Path:
         return self._rel_path
-    
+
+    @property
+    def path_for_muses_py(self) -> Path:
+        return Path(str(self._base_path))
 
 class InputFileHelper:
     """The retrieval opens a large number of files across the OSP
@@ -316,19 +335,25 @@ class InputFileHelper:
 
     def __init__(
         self,
-        osp_dir: str | os.PathLike[str] | None = None,
-        gmao_dir: str | os.PathLike[str] | None = None,
+        osp_dir: str | os.PathLike[str] | InputFilePath | None = None,
+        gmao_dir: str | os.PathLike[str] | InputFilePath | None = None,
     ) -> None:
-        self.osp_dir = InputFilePathImp(
-            osp_dir
-            if osp_dir is not None
-            else os.environ.get("MUSES_OSP_PATH", "../OSP")
-        )
-        self.gmao_dir = InputFilePathImp(
-            gmao_dir
-            if gmao_dir is not None
-            else os.environ.get("MUSES_GMAO_PATH", "../GMAO")
-        )
+        if isinstance(osp_dir, InputFilePath):
+            self.osp_dir = osp_dir
+        else:
+            self.osp_dir = InputFilePathImp(
+                osp_dir
+                if osp_dir is not None
+                else os.environ.get("MUSES_OSP_PATH", "../OSP")
+            )
+        if isinstance(gmao_dir, InputFilePath):
+            self.gmao_dir = gmao_dir
+        else:
+            self.gmao_dir = InputFilePathImp(
+                gmao_dir
+                if gmao_dir is not None
+                else os.environ.get("MUSES_GMAO_PATH", "../GMAO")
+            )
         self._observers: set[Any] = set()
 
     def __getstate__(self) -> dict[str, Any]:
@@ -392,4 +417,4 @@ class InputFileHelper:
 
 
 __all__ = ["InputFilePath", "InputFileHelper", "InputFileLogging", "InputFileRecord",
-           "InputFileSave"]
+           "InputFileSave", "InputFilePathDelta", "InputFilePathImp"]

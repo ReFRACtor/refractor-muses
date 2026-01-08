@@ -45,8 +45,8 @@ class MusesRunDir:
             # So we don't have this done in most places, to make sure no code depends on
             # it. However some old_py_retrieve_wrapper code purposely uses old code to
             # compare our new code against. For these cases, we need to old symbolic links.
-            (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir))
-            (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir))
+            (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir.path_for_muses_py))
+            (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir.path_for_muses_py))
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
         if obs_sym_link:

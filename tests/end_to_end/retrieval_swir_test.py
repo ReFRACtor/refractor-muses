@@ -32,25 +32,18 @@ from loguru import logger
 import numpy as np
 import pytest
 
-# ----------------------------------------------------------------
-# These tests were all in development. I don't think they are currently
-# working, we'll want to get Josh to clean this up when things settle
-# down. But for now, skip all these
-# ----------------------------------------------------------------
-
-
 # This actually runs ok, but it fails with a LIDORT error when one of the steps goes out of
 # range. Not really an error so much as we just need to work out what the strategy is and
 # possibly pick a different sounding. But skip for now so we don't have a failing unit test
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_retrieval(tropomi_swir, josh_osp_dir):
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+def test_retrieval(tropomi_swir, ifile_hlp):
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Grab each step so we can separately test output
     # rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
     # rs.add_observer(rscap)
     ihandle = TropomiSwirForwardModelHandle(
-        use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+        use_pca=True, use_lrad=False, lrad_second_order=False, 
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")
@@ -91,14 +84,13 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 # Look just at the forward model
-@pytest.mark.skip
 @pytest.mark.long_test
-def test_co_fm(tropomi_swir, josh_osp_dir):
+def test_co_fm(tropomi_swir, ifile_hlp):
     """Look just at the forward model"""
     # This is slightly convoluted, but we want to make sure we have the cost
     # function/ForwardModel that is being used in the retrieval. So we
     # start running the retrieval, and then stop when have the cost function.
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Just retrieve CO
     modify_strategy_table(
         rs,
@@ -111,7 +103,6 @@ def test_co_fm(tropomi_swir, josh_osp_dir):
         use_pca=True,
         use_lrad=False,
         lrad_second_order=False,
-        osp_dir=josh_osp_dir,
         # absorption_gases=["CO",]
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
@@ -218,14 +209,12 @@ def test_co_fm(tropomi_swir, josh_osp_dir):
 
 
 @pytest.mark.long_test
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "use_oss,oss_training_data",
     [(True, "../OSS_file_all_1243_0_1737006075.1163344.npz"), (False, None)],
 )
 def test_simulated_retrieval(
-    gmao_dir,
-    josh_osp_dir,
+    ifile_hlp,
     end_to_end_run_dir,
     tropomi_band7_test_in_dir2,
     use_oss,
@@ -236,11 +225,10 @@ def test_simulated_retrieval(
     subprocess.run(["rm", "-r", str(test_dir)])
     mrdir = MusesRunDir(
         tropomi_band7_test_in_dir2,
-        josh_osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=test_dir,
     )
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Just retrieve CO
     modify_strategy_table(
         rs,
@@ -257,7 +245,6 @@ def test_simulated_retrieval(
         use_pca=True,
         use_lrad=False,
         lrad_second_order=False,
-        osp_dir=josh_osp_dir,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
     )
@@ -299,15 +286,12 @@ def test_simulated_retrieval(
     rs.retrieval_ms()
 
 
-@pytest.mark.skip
-@pytest.mark.long_test
 @pytest.mark.parametrize(
     "use_oss,oss_training_data",
     [(True, "../OSS_file_all_1243_0_1737006075.1163344.npz"), (False, None)],
 )
 def test_radiance(
-    gmao_dir,
-    josh_osp_dir,
+    ifile_hlp,
     tmpdir,
     tropomi_band7_test_in_dir2,
     use_oss,
@@ -316,11 +300,10 @@ def test_radiance(
     """Do a simulation, and then a retrieval to get this result"""
     mrdir = MusesRunDir(
         tropomi_band7_test_in_dir2,
-        josh_osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=tmpdir,
     )
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Just retrieve CO
     modify_strategy_table(
         rs,
@@ -336,7 +319,6 @@ def test_radiance(
         use_pca=True,
         use_lrad=False,
         lrad_second_order=False,
-        osp_dir=josh_osp_dir,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
     )
@@ -360,11 +342,10 @@ def test_radiance(
     pickle.dump(rad_spectrum, open(tmpdir / f"radiance_oss_{use_oss}.pkl", "wb"))
 
 
-@pytest.mark.skip
 @pytest.mark.long_test
 def test_sim_albedo_0_9_retrieval(
     gmao_dir,
-    josh_osp_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     tropomi_band7_sim_alb_dir,
@@ -374,15 +355,14 @@ def test_sim_albedo_0_9_retrieval(
     subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
         tropomi_band7_sim_alb_dir,
-        josh_osp_dir,
-        gmao_dir,
+        ifile_hlp=ifile_hlp,
         path_prefix=dir,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
-        rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+        rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
         ihandle = TropomiSwirForwardModelHandle(
-            use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+            use_pca=True, use_lrad=False, lrad_second_order=False
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.update_target(mrdir.run_dir / "Table.asc")
@@ -567,8 +547,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_scaled_sim_albedo_0_9_retrieval(
-    gmao_dir,
-    josh_osp_dir,
+    ifile_hlp,
     python_fp_logger,
     end_to_end_run_dir,
     tropomi_band7_sim_alb_dir,
@@ -578,11 +557,10 @@ def test_scaled_sim_albedo_0_9_retrieval(
     subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
         tropomi_band7_sim_alb_dir,
-        josh_osp_dir,
-        gmao_dir,
+        ifile_hlp,
         path_prefix=dir,
     )
-    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Change table to use scaled versions
     modify_strategy_table(
         rs,
@@ -602,7 +580,7 @@ def test_scaled_sim_albedo_0_9_retrieval(
     try:
         lognum = logger.add(dir / "retrieve.log")
         ihandle = ScaledTropomiForwardModelHandle(
-            use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+            use_pca=True, use_lrad=False, lrad_second_order=False
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
