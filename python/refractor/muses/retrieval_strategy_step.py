@@ -3,7 +3,11 @@ import abc
 from loguru import logger
 from pathlib import Path
 from .priority_handle_set import PriorityHandleSet
-from .muses_levmar_solver import MusesLevmarSolver
+from .muses_levmar_solver import (
+    MusesLevmarSolver,
+    VerboseSolverLogging,
+    SolverLogFileWriter,
+)
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
@@ -326,10 +330,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if chi2_tolerance is None:
             r = self.radiance_step()["NESR"]
             chi2_tolerance = 2.0 / len(r)  # theoretical value for tolerance
-        if rs.write_output:
-            levmar_log_file = f"{rs.run_dir}/Step{rs.strategy_step.step_number:02d}_{rs.strategy_step.step_name}/LevmarSolver-{rs.strategy_step.step_name}.log"
-        else:
-            levmar_log_file = None
         logger.info(f"Initial State vector:\n{self.cfunc.fm_sv}")
         self.slv = MusesLevmarSolver(
             self.cfunc,
@@ -337,9 +337,13 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             cost_function_params["delta_value"],
             cost_function_params["conv_tolerance"],
             chi2_tolerance,
-            verbose=True,
-            log_file=levmar_log_file,
         )
+        # For now, assume we want verbose logging
+        if True:
+            self.slv.add_observer(VerboseSolverLogging())
+        if rs.write_output:
+            levmar_log_file = f"{rs.run_dir}/Step{rs.strategy_step.step_number:02d}_{rs.strategy_step.step_name}/LevmarSolver-{rs.strategy_step.step_name}.log"
+            self.slv.add_observer(SolverLogFileWriter(levmar_log_file))
         if self._saved_state is not None:
             # Skip solve if we have a saved state.
             self.slv.set_state(self._saved_state["slv"])

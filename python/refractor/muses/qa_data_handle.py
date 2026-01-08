@@ -51,8 +51,9 @@ class QaFlagValueFile(QaFlagValue):
     # it might be easier just to leave this as a pandas table. Right now this
     # is just a placeholder, we are using the old muses-py to do the QA calculation
     # but we can revisit this if needed, and perhaps change this interface.
-    def __init__(self, fname: str | os.PathLike[str] | InputFilePath,
-                 ifile_hlp: InputFileHelper):
+    def __init__(
+        self, fname: str | os.PathLike[str] | InputFilePath, ifile_hlp: InputFileHelper
+    ):
         self.d = ifile_hlp.open_tes(fname)
         self.tbl: pd.DataFrame = self.d.checked_table
 

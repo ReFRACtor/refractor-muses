@@ -28,25 +28,65 @@ class SolverResult:
     lambdav: np.ndarray
 
 
-class VerboseLogging:
+class VerboseSolverLogging:
     """Observer of MusesLevmarSolver that adds some more verbose logging."""
 
     def notify_update(
-        self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs: Any
+        self,
+        slv: MusesLevmarSolver,
+        location: ProcessLocation,
+        local_variable: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         if location == ProcessLocation("start iteration"):
-            self.log_start_iteration(slv)
+            self.log_start_iteration(slv, **local_variable)
         elif location == ProcessLocation("end iteration"):
-            self.log_end_iteration(slv)
+            self.log_end_iteration(slv, **local_variable)
 
-    def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
-        pass
+    def log_start_iteration(
+        self,
+        slv: MusesLevmarSolver,
+        scaleDiag: Any,
+        x_vector: Any,
+        rank: Any,
+        R: Any,
+        p_vector: Any,
+        **kwarg: Any,
+    ) -> None:
+        logger.opt(colors=True).info(
+            "<light-red>***************************************************</>"
+        )
+        logger.info(f"Start iteration# = {slv.iter_num}")
+        if not slv.newton_flag:
+            logger.info(f"Adaptive D       = {scaleDiag}")
+        logger.info(f"At x             = {x_vector}")
+        logger.info(f"rank of jacobian = {rank}")
+        logger.info(f"eigenvalues of R = {np.diag(R)}")
+        logger.info(f"Newton step p    = {p_vector}")
+        logger.info("")
 
-    def log_end_iteration(self, slv: MusesLevmarSolver) -> None:
-        pass
+    def log_end_iteration(
+        self,
+        slv: MusesLevmarSolver,
+        rho: Any,
+        pThresh: Any,
+        costThresh: Any,
+        JacThresh: Any,
+        resNextNorm2: Any,
+        resNorm2: Any,
+        **kwarg: Any,
+    ) -> None:
+        logger.info(f"rho: {rho}")
+        logger.info(f"stopCode: {slv.stop_code}")
+        logger.info(f"pThresh: {pThresh}")
+        logger.info(f"costThresh: {costThresh}")
+        logger.info(f"JacThresh: {JacThresh}")
+        logger.info(f"Chi2: {resNextNorm2}")
+        logger.info(f"resNextNorm2: {resNextNorm2}")
+        logger.info(f"resNorm2: {resNorm2}")
 
 
-class SolverLogFile:
+class SolverLogFileWriter:
     """Observer of MusesLevmarSolver that write information to a separate log file."""
 
     def __init__(self, log_file: str | os.PathLike[str]) -> None:
@@ -54,19 +94,183 @@ class SolverLogFile:
         self.fname.parent.mkdir(parents=True, exist_ok=True)
         self.fh = open(self.fname, "w")
 
+    def __getstate__(self) -> dict[str, Any]:
+        return {"fname": self.fname}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        # Open file
+        self.fh = open(self.fname, "a")
+
     def notify_update(
-        self, slv: MusesLevmarSolver, location: ProcessLocation, **kwargs: Any
+        self,
+        slv: MusesLevmarSolver,
+        location: ProcessLocation,
+        local_variable: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         if location == ProcessLocation("start iteration"):
-            self.log_start_iteration(slv)
+            self.log_start_iteration(slv, **local_variable)
         elif location == ProcessLocation("end step"):
-            self.log_end_step(slv)
+            self.log_end_step(slv, **local_variable)
 
-    def log_start_iteration(self, slv: MusesLevmarSolver) -> None:
-        pass
+    def log_start_iteration(
+        self,
+        slv: MusesLevmarSolver,
+        scaleDiag: Any,
+        x_vector: Any,
+        rank: Any,
+        R: Any,
+        p_vector: Any,
+        **kwargs: Any,
+    ) -> None:
+        print("***************************************************", file=self.fh)
+        print(f"Start iteration# = {slv.iter_num}", file=self.fh)
+        if not slv.newton_flag:
+            print(f"Adaptive D       = {scaleDiag}", file=self.fh)
+        print(f"At x             = {x_vector}", file=self.fh)
+        print(f"rank of jacobian = {rank}", file=self.fh)
+        print(f"eigenvalues of R = {np.diag(R)}", file=self.fh)
+        print(f"Newton step p    = {p_vector}", file=self.fh)
+        print("", file=self.fh)
 
-    def log_end_step(self, slv: MusesLevmarSolver) -> None:
-        pass
+    def log_end_step(
+        self,
+        slv: MusesLevmarSolver,
+        x_vector: Any,
+        qNorm: Any,
+        lambda_value: Any,
+        jacobPNorm2: Any,
+        resNextNorm2: Any,
+        resNorm2: Any,
+        rho: Any,
+        p_vector: Any,
+        qNormNewton: Any,
+        JacThresh: Any,
+        pThresh: Any,
+        costThresh: Any,
+        jacobian_ret: Any,
+        singular_value: Any = None,
+        innerIter: Any = None,
+        **kwargs: Any,
+    ) -> None:
+        print("jacobian_ret size", file=self.fh)
+        print(
+            f"{len(jacobian_ret.shape)}   {jacobian_ret.shape}   {jacobian_ret.dtype}   {jacobian_ret.size}",
+            file=self.fh,
+        )
+        print("", file=self.fh)
+
+        print("Convergence Criteria:", file=self.fh)
+
+        print(
+            "costThresh = np.abs(resNorm2 - resNextNorm2) / (1 + resNextNorm2)",
+            file=self.fh,
+        )
+        print(f"{costThresh}", file=self.fh)
+
+        print("tolerance = self.conv_tolerance[0]", file=self.fh)
+        print(f"{slv.conv_tolerance[0]}", file=self.fh)
+
+        print("pThresh = pNorm / (1 + xNorm)", file=self.fh)
+        print(f"{pThresh}", file=self.fh)
+
+        print("tolerance = self.conv_tolerance[1]", file=self.fh)
+        print(f"{slv.conv_tolerance[1]}", file=self.fh)
+
+        print(
+            "JacThresh = np.linalg.norm(jacobian_ret @ residual_next) / (1 + resNextNorm2)",
+            file=self.fh,
+        )
+        print(f"{JacThresh}", file=self.fh)
+
+        print("tolerance = self.conv_tolerance[2]", file=self.fh)
+        print(f"{slv.conv_tolerance[2]}", file=self.fh)
+
+        print("", file=self.fh)
+
+        if not slv.newton_flag:
+            if qNormNewton <= (1 + slv.sigma) * slv.delta_value:
+                print("Newton step is chosen.", file=self.fh)
+                print("", file=self.fh)
+                print("qNorm    (1 + self.sigma) * delta", file=self.fh)
+                print(
+                    f"{qNorm}, {(1 + slv.sigma) * slv.delta_value}",
+                    file=self.fh,
+                )
+            else:
+                print("Newton step is not good; LevMar step is chosen", file=self.fh)
+                print(
+                    f"after the inner loop repeated {innerIter} times.",
+                    file=self.fh,
+                )
+
+                if singular_value:
+                    print("Rj became singular.", file=self.fh)
+
+                print(f"LevMar step p = {p_vector}", file=self.fh)
+
+                print("", file=self.fh)
+
+                print(
+                    "(1 - self.sigma) * delta   qNorm   (1 + self.sigma) * delta",
+                    file=self.fh,
+                )
+                print(
+                    f"{(1.0 - slv.sigma) * slv.delta_value} {qNorm} {(1.0 + slv.sigma) * slv.delta_value}",
+                    file=self.fh,
+                )
+            # end if not self.newton_flag:
+
+            print("", file=self.fh)
+
+            print(
+                "||F(x)|| / sqrt(m)  ||F(x+p)|| / sqrt(m)   ||J F(x)|| / sqrt(m)   ||J F(x + p)|| / sqrt(m)   ||p|| / sqrt(m)",
+                file=self.fh,
+            )
+            print(
+                "self.resdiag[self.iter_num, 0]  self.resdiag[self.iter_num, 1]  self.resdiag[self.iter_num, 2] self.resdiag[self.iter_num, 3] self.resdiag[self.iter_num, 4]",
+                file=self.fh,
+            )
+            print(
+                f"{slv.resdiag[slv.iter_num, 0]} {slv.resdiag[slv.iter_num, 1]} {slv.resdiag[slv.iter_num, 2]} {slv.resdiag[slv.iter_num, 3]} {slv.resdiag[slv.iter_num, 4]}",
+                file=self.fh,
+            )
+
+            print("", file=self.fh)
+
+            print("lambda   rho   delta", file=self.fh)
+            print(f"{lambda_value}   {rho}   {slv.delta_value}", file=self.fh)
+
+            print("", file=self.fh)
+
+            if rho > 0.0001:
+                print("The step was accepted, and", file=self.fh)
+                print(f"x + p = {x_vector}", file=self.fh)
+            else:
+                print("The step was rejected.", file=self.fh)
+
+            print(
+                f"{resNextNorm2 = }, {resNorm2 = }, {jacobPNorm2 = }, {lambda_value = }, {qNorm = }",
+                file=self.fh,
+            )
+            print("", file=self.fh)
+        else:
+            print("", file=self.fh)
+
+            print(
+                "||F(x)|| / sqrt(m)    ||F(x+p)|| / sqrt(m)     ||J F(x)|| / sqrt(m)     ||J F(x + p)|| / sqrt(m)",
+                file=self.fh,
+            )
+            print(
+                f"{slv.resdiag[slv.iter_num, 0]}   {slv.resdiag[slv.iter_num, 1]}   {slv.resdiag[slv.iter_num, 2]}   {slv.resdiag[slv.iter_num, 3]}",
+                file=self.fh,
+            )
+
+            print("", file=self.fh)
+            print("After step p", file=self.fh)
+            print(f"x + p = {x_vector}", file=self.fh)
+        # end if not self.newton_flag:
 
 
 class MusesLevmarSolver:
@@ -483,18 +687,15 @@ class MusesLevmarSolver:
         delta_value: float,
         conv_tolerance: list[float],
         chi2_tolerance: float,
-        log_file: str | os.PathLike[str] | None = None,
         newton_flag: bool = False,
         sigma: float = 0.1,
         sing_tolerance: float = 1.0e-7,
-        verbose: bool = False,
     ) -> None:
         self.cfunc = cfunc
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
         self.chi2_tolerance = chi2_tolerance
-        self.log_file = Path(log_file) if log_file is not None else None
         self.newton_flag = newton_flag
         self.sigma = sigma
         self.sing_tolerance = sing_tolerance
@@ -508,7 +709,6 @@ class MusesLevmarSolver:
         self.radiance_iter = np.zeros((1, 1))
         self.iter_num = 0
         self.stop_code = -1
-        self.verbose = verbose
         self._observers: set[Any] = set()
 
     def add_observer(self, obs: Any) -> None:
@@ -535,12 +735,22 @@ class MusesLevmarSolver:
         for obs in lobs:
             self.remove_observer(obs)
 
-    def notify_update(self, location: ProcessLocation | str, **kwargs: Any) -> None:
+    def notify_update(
+        self,
+        location: ProcessLocation | str,
+        local_variable: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
         for obs in self._observers:
-            obs.notify_update(self, loc, **kwargs)
+            obs.notify_update(
+                self,
+                loc,
+                {k: v for k, v in local_variable.items() if k != "self"},
+                **kwargs,
+            )
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by set_state.
@@ -621,10 +831,6 @@ class MusesLevmarSolver:
         )
 
     def solve(self) -> None:
-        # py-retrieve expects the directory to already be there, so create if
-        # needed.
-        if self.log_file is not None:
-            self.log_file.parent.mkdir(parents=True, exist_ok=True)
         self.levmar_nllsq_elanor()
 
     def levmar_nllsq_elanor(
@@ -641,10 +847,6 @@ class MusesLevmarSolver:
         )  # type: ignore
 
         self.stop_code = 0
-
-        if self.log_file is not None:
-            f = open(self.log_file, "w")
-            f.close()
 
         x_vector = self.cfunc.parameters.copy()
 
@@ -850,39 +1052,7 @@ class MusesLevmarSolver:
                 q_vector = np.copy(qNewton)
             qNorm = qNormNewton
 
-            self.notify_update("start iteration")
-            if self.verbose:
-                logger.info("***************************************************")
-                logger.info(f"Start iteration# = {self.iter_num}")
-                if not self.newton_flag:
-                    logger.info(f"Adaptive D       = {scaleDiag}")
-                logger.info(f"At x             = {x_vector}")
-                logger.info(f"rank of jacobian = {rank}")
-
-                nTemp = min(nTerms, nPoints)
-                temp = np.zeros(shape=(nTemp), dtype=np.float64)
-                for i in range(nTemp):
-                    temp[i] = R[i, i]
-                logger.info(f"eigenvalues of R = {temp}")
-                logger.info(f"Newton step p    = {p_vector}")
-                logger.info("")
-
-            if self.log_file:
-                with open(self.log_file, "a") as f:
-                    print("***************************************************", file=f)
-                    print(f"Start iteration# = {self.iter_num}", file=f)
-                    if not self.newton_flag:
-                        print(f"Adaptive D       = {scaleDiag}", file=f)
-                    print(f"At x             = {x_vector}", file=f)
-                    print(f"rank of jacobian = {rank}", file=f)
-
-                    nTemp = min(nTerms, nPoints)
-                    temp = np.zeros(shape=(nTemp), dtype=np.float64)
-                    for i in range(nTemp):
-                        temp[i] = R[i, i]
-                    print(f"eigenvalues of R = {temp}", file=f)
-                    print(f"Newton step p    = {p_vector}", file=f)
-                    print("", file=f)
+            self.notify_update("start iteration", locals())
 
             #  <<<<<<<<<<<<< ACCEPT NEWTON STEP OR FIND A NEW p >>>>>>>>>>>
             #  <<<<<<<<<<<< WHEN LEV. MAR. PARAMETER IS NOT ZERO >>>>>>>>>>
@@ -1417,128 +1587,7 @@ class MusesLevmarSolver:
             self.diag_lambda_rho_delta[self.iter_num, 1] = rho
             self.diag_lambda_rho_delta[self.iter_num, 2] = self.delta_value
 
-            self.notify_update("end step")
-            if self.log_file:
-                with open(self.log_file, "a") as f:
-                    print("jacobian_ret size", file=f)
-                    print(
-                        f"{len(jacobian_ret.shape)}   {jacobian_ret.shape}   {jacobian_ret.dtype}   {jacobian_ret.size}",
-                        file=f,
-                    )
-                    print("", file=f)
-
-                    print("Convergence Criteria:", file=f)
-
-                    print(
-                        "costThresh = np.abs(resNorm2 - resNextNorm2) / (1 + resNextNorm2)",
-                        file=f,
-                    )
-                    print(f"{costThresh}", file=f)
-
-                    print("tolerance = self.conv_tolerance[0]", file=f)
-                    print(f"{self.conv_tolerance[0]}", file=f)
-
-                    print("pThresh = pNorm / (1 + xNorm)", file=f)
-                    print(f"{pThresh}", file=f)
-
-                    print("tolerance = self.conv_tolerance[1]", file=f)
-                    print(f"{self.conv_tolerance[1]}", file=f)
-
-                    print(
-                        "JacThresh = np.linalg.norm(jacobian_ret @ residual_next) / (1 + resNextNorm2)",
-                        file=f,
-                    )
-                    print(f"{JacThresh}", file=f)
-
-                    print("tolerance = self.conv_tolerance[2]", file=f)
-                    print(f"{self.conv_tolerance[2]}", file=f)
-
-                    print("", file=f)
-
-                    if not self.newton_flag:
-                        if qNormNewton <= (1 + self.sigma) * self.delta_value:
-                            print("Newton step is chosen.", file=f)
-                            print("", file=f)
-                            print("qNorm    (1 + self.sigma) * delta", file=f)
-                            print(
-                                f"{qNorm}, {(1 + self.sigma) * self.delta_value}",
-                                file=f,
-                            )
-                        else:
-                            print(
-                                "Newton step is not good; LevMar step is chosen", file=f
-                            )
-                            print(
-                                f"after the inner loop repeated {innerIter} times.",
-                                file=f,
-                            )
-
-                            if singular_value:
-                                print("Rj became singular.", file=f)
-
-                            print(f"LevMar step p = {p_vector}", file=f)
-
-                            print("", file=f)
-
-                            print(
-                                "(1 - self.sigma) * delta   qNorm   (1 + self.sigma) * delta",
-                                file=f,
-                            )
-                            print(
-                                f"{(1.0 - self.sigma) * self.delta_value} {qNorm} {(1.0 + self.sigma) * self.delta_value}",
-                                file=f,
-                            )
-                        # end if not self.newton_flag:
-
-                        print("", file=f)
-
-                        print(
-                            "||F(x)|| / sqrt(m)  ||F(x+p)|| / sqrt(m)   ||J F(x)|| / sqrt(m)   ||J F(x + p)|| / sqrt(m)   ||p|| / sqrt(m)",
-                            file=f,
-                        )
-                        print(
-                            "self.resdiag[self.iter_num, 0]  self.resdiag[self.iter_num, 1]  self.resdiag[self.iter_num, 2] self.resdiag[self.iter_num, 3] self.resdiag[self.iter_num, 4]",
-                            file=f,
-                        )
-                        print(
-                            f"{self.resdiag[self.iter_num, 0]} {self.resdiag[self.iter_num, 1]} {self.resdiag[self.iter_num, 2]} {self.resdiag[self.iter_num, 3]} {self.resdiag[self.iter_num, 4]}",
-                            file=f,
-                        )
-
-                        print("", file=f)
-
-                        print("lambda   rho   delta", file=f)
-                        print(f"{lambda_value}   {rho}   {self.delta_value}", file=f)
-
-                        print("", file=f)
-
-                        if rho > 0.0001:
-                            print("The step was accepted, and", file=f)
-                            print(f"x + p = {x_vector}", file=f)
-                        else:
-                            print("The step was rejected.", file=f)
-
-                        print(
-                            f"{resNextNorm2 = }, {resNorm2 = }, {jacobPNorm2 = }, {lambda_value = }, {qNorm = }",
-                            file=f,
-                        )
-                        print("", file=f)
-                    else:
-                        print("", file=f)
-
-                        print(
-                            "||F(x)|| / sqrt(m)    ||F(x+p)|| / sqrt(m)     ||J F(x)|| / sqrt(m)     ||J F(x + p)|| / sqrt(m)",
-                            file=f,
-                        )
-                        print(
-                            f"{self.resdiag[self.iter_num, 0]}   {self.resdiag[self.iter_num, 1]}   {self.resdiag[self.iter_num, 2]}   {self.resdiag[self.iter_num, 3]}",
-                            file=f,
-                        )
-
-                        print("", file=f)
-                        print("After step p", file=f)
-                        print(f"x + p = {x_vector}", file=f)
-                    # end if not self.newton_flag:
+            self.notify_update("end step", locals())
 
             #  Anything that must be updated at the end of the current
             #  iteration for the next one (if any), and the decision
@@ -1600,18 +1649,8 @@ class MusesLevmarSolver:
             # end if (self.stop_code == 0):
 
             # Useful diagnostic while looking at muses-py/ReFRACtor.
-            self.notify_update("end iteration")
-            if self.verbose:
-                logger.info(f"rho: {rho}")
-                logger.info(f"stopCode: {self.stop_code}")
-                logger.info(f"pThresh: {pThresh}")
-                logger.info(f"costThresh: {costThresh}")
-                logger.info(f"JacThresh: {JacThresh}")
-                logger.info(f"Chi2: {resNextNorm2}")
-                logger.info(f"resNextNorm2: {resNextNorm2}")
-                logger.info(f"resNorm2: {resNorm2}")
+            self.notify_update("end iteration", locals())
 
-            # TODO: print only in self.verbose mode
             chi2 = resNextNorm2
             dof = radiance_fm_next.shape[0] - p_vector.shape[0] + 1
             chi2_reduced = (chi2 / dof) if dof > 0 else chi2
@@ -1650,4 +1689,9 @@ class MusesLevmarSolver:
         self.residual_rms = rms
 
 
-__all__ = ["SolverResult", "MusesLevmarSolver"]
+__all__ = [
+    "SolverResult",
+    "MusesLevmarSolver",
+    "VerboseSolverLogging",
+    "SolverLogFileWriter",
+]
