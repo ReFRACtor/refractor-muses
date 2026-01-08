@@ -59,7 +59,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # Special handling for ElanorOSPDir, which is used in create_uip by old
         # muses-py code. Doesn't fully support the InputFilePath (such as
         # InputFilePathDelta)
-        if(key == "ElanorOSPDir"):
+        if key == "ElanorOSPDir":
             return self.input_file_helper.osp_dir.path_for_muses_py
         return self.abs_dir(self._data[key])
 

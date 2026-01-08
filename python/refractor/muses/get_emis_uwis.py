@@ -1291,6 +1291,7 @@ def get_emis_uwis(
                 # save, matrices, filename = filenamex
                 # ;print, 'redoing'
             else:
+                ifile_hlp.notify_file_input(filenamex)
                 matrices = _restore_matrices_variable(filenamex)
             # end else portion
         # end if matrices is None:

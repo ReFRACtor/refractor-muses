@@ -318,7 +318,7 @@ class RetrievalStrategy:
     def input_file_helper(self) -> InputFileHelper:
         """The InputFileHelper used to read input data."""
         return self._ifile_hlp
-    
+
     @property
     def run_dir(self) -> Path:
         """Directory we are running in (e.g. where the strategy table and measurement id files

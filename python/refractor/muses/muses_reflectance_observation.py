@@ -511,7 +511,12 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             if ifile_hlp is not None:
                 for k, v in filename_dict.items():
                     ifile_hlp.notify_file_input(v)
-                ifile_hlp.notify_file_input(ifile_hlp.osp_dir / "OMI" / "OMI_LER" / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5")
+                ifile_hlp.notify_file_input(
+                    ifile_hlp.osp_dir
+                    / "OMI"
+                    / "OMI_LER"
+                    / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
+                )
             o_tropomi = mpy_read_tropomi(
                 {k: str(v) for (k, v) in filename_dict.items()},
                 xtrack_dict,
@@ -1069,9 +1074,14 @@ class MusesOmiObservation(MusesReflectanceObservation):
             if ifile_hlp is not None:
                 ifile_hlp.notify_file_input(filename)
                 ifile_hlp.notify_file_input(calibration_filename)
-                if(cld_filename):
+                if cld_filename:
                     ifile_hlp.notify_file_input(cld_filename)
-                ifile_hlp.notify_file_input(ifile_hlp.osp_dir / "OMI" / "OMI_LER" / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5")
+                ifile_hlp.notify_file_input(
+                    ifile_hlp.osp_dir
+                    / "OMI"
+                    / "OMI_LER"
+                    / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
+                )
             o_omi = mpy_read_omi(
                 str(filename),
                 xtrack_uv2,

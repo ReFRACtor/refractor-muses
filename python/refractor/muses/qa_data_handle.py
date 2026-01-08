@@ -5,7 +5,6 @@ from loguru import logger
 import abc
 import os
 import numpy as np
-from pathlib import Path
 from typing import Any
 import typing
 import pandas as pd
@@ -16,7 +15,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -52,7 +51,8 @@ class QaFlagValueFile(QaFlagValue):
     # it might be easier just to leave this as a pandas table. Right now this
     # is just a placeholder, we are using the old muses-py to do the QA calculation
     # but we can revisit this if needed, and perhaps change this interface.
-    def __init__(self, fname: str | os.PathLike[str], ifile_hlp: InputFileHelper):
+    def __init__(self, fname: str | os.PathLike[str] | InputFilePath,
+                 ifile_hlp: InputFileHelper):
         self.d = ifile_hlp.open_tes(fname)
         self.tbl: pd.DataFrame = self.d.checked_table
 
@@ -154,7 +154,7 @@ class MusesPyQaDataHandle(QaDataHandle):
 
     def quality_flag_file_name(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> Path:
+    ) -> InputFilePath:
         """Return the quality file name."""
         if self.viewing_mode is None or self.ifile_hlp is None:
             raise RuntimeError("Need to call notify_update_target first")
@@ -164,21 +164,18 @@ class MusesPyQaDataHandle(QaDataHandle):
         quality_fname = mwfname.name
         quality_fname = quality_fname.replace("Microwindows_", "QualityFlag_Spec_")
         quality_fname = quality_fname.replace("Windows_", "QualityFlag_Spec_")
-        quality_fname = f"{self.qa_flag_directory}/{quality_fname}"
+        quality_fname2 = self.qa_flag_directory / quality_fname
 
         # if this does not exist use generic nadir / limb quality flag
-        if not os.path.isfile(quality_fname):
-            logger.warning(f"Could not find quality flag file: {quality_fname}")
+        if not quality_fname2.exists():
+            logger.warning(f"Could not find quality flag file: {quality_fname2}")
             viewMode = self.viewing_mode.lower().capitalize()
-            quality_fname = (
-                f"{os.path.dirname(quality_fname)}/QualityFlag_Spec_{viewMode}.asc"
-            )
-            logger.warning(f"Using generic quality flag file: {quality_fname}")
+            quality_fname2 = self.qa_flag_directory / f"QualityFlag_Spec_{viewMode}.asc"
+            logger.warning(f"Using generic quality flag file: {quality_fname2}")
             # One last check.
-            if not os.path.isfile(quality_fname):
-                raise RuntimeError(f"Quality flag filename not found: {quality_fname}")
-        quality_fname = os.path.abspath(quality_fname)
-        return Path(quality_fname)
+            if not quality_fname2.exists():
+                raise RuntimeError(f"Quality flag filename not found: {quality_fname2}")
+        return quality_fname2
 
     def qa_flag(
         self,

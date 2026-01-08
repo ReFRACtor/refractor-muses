@@ -3,6 +3,7 @@ import numpy.testing as npt
 import refractor.framework as rf
 import pytest
 
+
 def test_ground_albedo(tropomi_fm_object_creator_swir_step):
     """Test that the object creator reads the correct albedo
     parameters from the UIP for Band 7

@@ -97,7 +97,7 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
             )
 
         gas_pattern = gas_subdir / f"nc_ABSCO/{gas.upper()}_*_v0.0_init.nc"
-        return self.find_absco_pattern(str(gas_pattern), join_to_absco_base_path=False)
+        return self.find_absco_pattern(gas_pattern, join_to_absco_base_path=False)
 
     @cached_property
     def spectrum_sampling(self) -> rf.SpectrumSampling:

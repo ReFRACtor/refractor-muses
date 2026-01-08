@@ -5,7 +5,6 @@ from .muses_spectrum_sampling import MusesSpectrumSampling
 from .identifier import StateElementIdentifier
 from .input_file_helper import InputFilePath
 import refractor.framework as rf  # type: ignore
-from pathlib import Path
 from loguru import logger
 import numpy as np
 import abc
@@ -551,14 +550,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         )
 
     def find_absco_pattern(
-        self, pattern: str, join_to_absco_base_path: bool = True
+        self, pattern: str | InputFilePath, join_to_absco_base_path: bool = True
     ) -> InputFilePath:
         if join_to_absco_base_path:
-            flist = list(self.absco_base_path.glob(pattern))
+            flist = list(self.absco_base_path.glob(str(pattern)))
         else:
-            p = Path(pattern)
-            flist = list(InputFilePath.create_input_file_path(p.parent).glob(p.name))
-
+            p = InputFilePath.create_input_file_path(pattern)
+            flist = list(p.parent.glob(p.name))
         if len(flist) > 1:
             raise RuntimeError(f"Found more than one ABSCO file at {str(p)}/{pattern}")
         if len(flist) == 0:
@@ -581,8 +579,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         skipped_gases = []
         for gas in self.absorption_gases:
             fname = self.absco_filename(gas)
-            self.ifile_hlp.notify_file_input(fname)
             if fname is not None:
+                self.ifile_hlp.notify_file_input(fname)
                 absorptions.append(
                     rf.AbscoAer(str(fname), 1.0, 5000, rf.AbscoAer.NEAREST_NEIGHBOR_WN)
                 )

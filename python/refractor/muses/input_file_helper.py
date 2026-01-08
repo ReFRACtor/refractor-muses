@@ -10,6 +10,7 @@ from typing import Any, Iterator
 import abc
 import shutil
 
+
 class InputFileLogging:
     """Simple observer to add logging when a file is read"""
 
@@ -18,10 +19,12 @@ class InputFileLogging:
     ) -> None:
         logger.opt(colors=True).debug(f"input file <red>{fname}</>")
 
+
 class InputFileRecord:
     """Observer that generate a list of files that are read"""
+
     def __init__(self, out_fname: str | os.PathLike[str]) -> None:
-        self.flist : set[InputFilePath] = set()
+        self.flist: set[InputFilePath] = set()
         self.out_fname = out_fname
         self.fh = open(self.out_fname, "w")
 
@@ -33,9 +36,11 @@ class InputFileRecord:
             self.flist.add(f)
             print(str(f), file=self.fh, flush=True)
 
+
 class InputFileSave:
     """Observer that save the files we read to a different directory. This is done for
     example to save the OSP files we use in testing."""
+
     def __init__(self, base_path: Path, save_path: Path) -> None:
         self.base_path = base_path
         self.save_path = save_path
@@ -50,8 +55,8 @@ class InputFileSave:
                 logger.info(f"Saving to {fsave}")
                 fsave.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(f, fsave)
-                
-            
+
+
 class InputFilePath(object, metaclass=abc.ABCMeta):
     """This is just like a pathlib.Path for the OSP, GMAO or other base pathes. But
     we pull this out, because we may end up wanting to support other
@@ -155,10 +160,9 @@ class InputFilePath(object, metaclass=abc.ABCMeta):
         number of files or something similar, but for now just point to a single
         directory that muses_py_fm code can use."""
         return Path(str(self))
-     
+
 
 class InputFilePathImp(InputFilePath):
-
     """InputFilePath that just uses a standard pathlib.Path to implement."""
 
     def __init__(
@@ -218,13 +222,14 @@ class InputFilePathImp(InputFilePath):
 
     def relative_path(self) -> Path:
         return self._rel_path
-    
+
 
 class InputFilePathDelta(InputFilePath):
     """This has a base InputFilePath, and a delta InputFilePath. If a file is found in
     the delta InputFilePath, it is used. Otherwise we get this from the base path. This
     is similar in flavor to a union fs. This is useful during development, when you might
     want to try something out before modifying the actual OSP data."""
+
     def __init__(
         self,
         base_path: InputFilePath | str | os.PathLike[str],
@@ -242,14 +247,20 @@ class InputFilePathDelta(InputFilePath):
         return hash(str(self))
 
     def __truediv__(self, rel_path: str | os.PathLike[str]) -> InputFilePath:
-        return InputFilePathDelta(self._base_path, self._delta_path, self._rel_path / rel_path)
+        return InputFilePathDelta(
+            self._base_path, self._delta_path, self._rel_path / rel_path
+        )
 
     def exists(self) -> bool:
-        return (self._delta_path / self._rel_path).exists() or (self._base_path / self._rel_path).exists() 
+        return (self._delta_path / self._rel_path).exists() or (
+            self._base_path / self._rel_path
+        ).exists()
 
     @property
     def parent(self) -> InputFilePath:
-        return InputFilePathDelta(self._base_path, self._delta_path, self._rel_path.parent)
+        return InputFilePathDelta(
+            self._base_path, self._delta_path, self._rel_path.parent
+        )
 
     def absolute(self) -> InputFilePath:
         # File is already absolute, so just return self.
@@ -269,11 +280,15 @@ class InputFilePathDelta(InputFilePath):
         for x in (self._delta_path / self._rel_path).glob(pattern, **kwargs):
             if x.relative_path() not in already_found:
                 already_found.add(x.relative_path())
-                yield InputFilePathDelta(self._base_path, self._delta_path, x.relative_path())
+                yield InputFilePathDelta(
+                    self._base_path, self._delta_path, x.relative_path()
+                )
         for x in (self._base_path / self._rel_path).glob(pattern, **kwargs):
             if x.relative_path() not in already_found:
                 already_found.add(x.relative_path())
-                yield InputFilePathDelta(self._base_path, self._delta_path, x.relative_path())
+                yield InputFilePathDelta(
+                    self._base_path, self._delta_path, x.relative_path()
+                )
 
     def __str__(self) -> str:
         if (self._delta_path / self._rel_path).exists():
@@ -293,6 +308,7 @@ class InputFilePathDelta(InputFilePath):
     @property
     def path_for_muses_py(self) -> Path:
         return Path(str(self._base_path))
+
 
 class InputFileHelper:
     """The retrieval opens a large number of files across the OSP
@@ -416,5 +432,12 @@ class InputFileHelper:
         return TesFile(str(fname) if isinstance(fname, InputFilePath) else fname)
 
 
-__all__ = ["InputFilePath", "InputFileHelper", "InputFileLogging", "InputFileRecord",
-           "InputFileSave", "InputFilePathDelta", "InputFilePathImp"]
+__all__ = [
+    "InputFilePath",
+    "InputFileHelper",
+    "InputFileLogging",
+    "InputFileRecord",
+    "InputFileSave",
+    "InputFilePathDelta",
+    "InputFilePathImp",
+]

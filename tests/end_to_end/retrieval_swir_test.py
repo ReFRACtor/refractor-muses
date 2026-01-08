@@ -32,6 +32,7 @@ from loguru import logger
 import numpy as np
 import pytest
 
+
 # This actually runs ok, but it fails with a LIDORT error when one of the steps goes out of
 # range. Not really an error so much as we just need to work out what the strategy is and
 # possibly pick a different sounding. But skip for now so we don't have a failing unit test
@@ -43,7 +44,9 @@ def test_retrieval(tropomi_swir, ifile_hlp):
     # rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
     # rs.add_observer(rscap)
     ihandle = TropomiSwirForwardModelHandle(
-        use_pca=True, use_lrad=False, lrad_second_order=False, 
+        use_pca=True,
+        use_lrad=False,
+        lrad_second_order=False,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")

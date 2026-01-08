@@ -32,6 +32,7 @@ def osp_real_dir():
         )
     return Path(osp_path)
 
+
 @pytest.fixture(scope="session")
 def osp_dir(test_base_path, osp_real_dir):
     """Location of OSP directory. We generally use the OSP that we have saved, so our
@@ -43,12 +44,12 @@ def osp_dir(test_base_path, osp_real_dir):
     else:
         return test_base_path / "OSP"
 
+
 @pytest.fixture(scope="session")
 def osp_delta_dir(test_base_path):
-    """Location of OSP delta directory. Changes to osp_dir.
-    """
+    """Location of OSP delta directory. Changes to osp_dir."""
     return test_base_path / "OSP_delta"
-    
+
 
 @pytest.fixture(scope="function")
 def josh_osp_dir():
@@ -77,6 +78,7 @@ def gmao_real_dir():
         )
     return Path(gmao_path)
 
+
 @pytest.fixture(scope="session")
 def gmao_dir(test_base_path, gmao_real_dir):
     """Location of GMAO directory. We generally use the GMAO that we have saved, so our
@@ -87,19 +89,31 @@ def gmao_dir(test_base_path, gmao_real_dir):
     else:
         return test_base_path / "GMAO"
 
+
 @pytest.fixture(scope="session")
-def ifile_hlp(osp_dir, osp_delta_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path):
+def ifile_hlp(
+    osp_dir, osp_delta_dir, gmao_dir, osp_real_dir, gmao_real_dir, test_base_path
+):
     # Quick way to grab all the needed test data. Note if you run this, you should
     # run this serially. I don't think the InputFileSave works in parallel (e.g.,
-    # two processes try to copy the same file write over each other)
+    # two processes try to copy the same file write over each other).
+    #
+    # This does not separate stuff out to the OSP_delta, that is a manual process by
+    # just looking at the file list and comparing to what is in v1.23.0 version of the
+    # OSP. This is stuff like "ssund" directories used for tes retrieval, "irk"
+    # directories used for IRK, and "swir" stuff used by the new tropomi swir stuff.
     if False:
         ifile_hlp = InputFileHelper(osp_dir=osp_real_dir, gmao_dir=gmao_real_dir)
-        ifile_hlp.add_observer(InputFileSave(Path(str(ifile_hlp.osp_dir)),
-                                             test_base_path / "OSP"))
-        ifile_hlp.add_observer(InputFileSave(Path(str(ifile_hlp.gmao_dir)),
-                                             test_base_path / "GMAO"))
+        ifile_hlp.add_observer(
+            InputFileSave(Path(str(ifile_hlp.osp_dir)), test_base_path / "OSP")
+        )
+        ifile_hlp.add_observer(
+            InputFileSave(Path(str(ifile_hlp.gmao_dir)), test_base_path / "GMAO")
+        )
         return ifile_hlp
-    return InputFileHelper(osp_dir=InputFilePathDelta(osp_dir, osp_delta_dir), gmao_dir=gmao_dir)
+    return InputFileHelper(
+        osp_dir=InputFilePathDelta(osp_dir, osp_delta_dir), gmao_dir=gmao_dir
+    )
 
 
 @pytest.fixture(scope="session")

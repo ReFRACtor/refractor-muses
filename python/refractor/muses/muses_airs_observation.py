@@ -88,7 +88,9 @@ class MusesAirsObservation(MusesObservationImp):
         if ifile_hlp is not None:
             ifile_hlp.notify_file_input(filename)
             # Hardcoded path
-            ifile_hlp.notify_file_input(ifile_hlp.osp_dir / "AIRS/Bad_Frequencies/airs_bad_frequencies.nc")
+            ifile_hlp.notify_file_input(
+                ifile_hlp.osp_dir / "AIRS/Bad_Frequencies/airs_bad_frequencies.nc"
+            )
         with osp_setup(ifile_hlp):
             o_airs = mpy_read_airs_l1b(os.path.abspath(str(filename)), xtrack, atrack)
         radiance = o_airs["radiance"]
