@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 from attrs import frozen
+import math
 from loguru import logger
 
 
@@ -836,16 +837,6 @@ class MusesLevmarSolver:
     def levmar_nllsq_elanor(
         self,
     ) -> None:
-        # Temp
-        from refractor.muses_py import (
-            rank_revealing_qr,
-            rrqr_q_mult_a,
-            rrqr_get_rn,
-            column_permute_undo,
-            column_permute,
-            givens,
-        )  # type: ignore
-
         self.stop_code = 0
 
         x_vector = self.cfunc.parameters.copy()
@@ -865,9 +856,16 @@ class MusesLevmarSolver:
         # epsD = np.MachAr(float_conv=np.float64).eps
         epsD = 2.2204460e-16  # Use the value from IDL running on ponte.
 
-        (residual_next, jacobian_ret, radiance_fm) = (
-            self.cfunc.new_residual_fm_jacobian(x_vector)
-        )
+        self.cfunc.parameters = x_vector
+        residual_next = self.cfunc.residual
+        jacobian_ret = self.cfunc.jacobian.transpose()
+        radiance_fm = self.cfunc.radiance_full
+        # Check for nans, to give a cleaner error message. The solver fails later
+        # with nans, but the error given is pretty obscure
+        if not np.all(np.isfinite(residual_next)):
+            raise RuntimeError("Radiance is not finite")
+        if not np.all(np.isfinite(jacobian_ret)):
+            raise RuntimeError("Jacobian is not finite")
 
         #  A flag to signal the termination of the iterative process.
         self.stop_code = 0
@@ -978,7 +976,7 @@ class MusesLevmarSolver:
                 # Because the following function RankRevealingQR will
                 # mess with jacobColumnL2Norm2, we send in a copy
                 # only.
-                (R, pivots, rank) = rank_revealing_qr(
+                (R, pivots, rank) = self.rank_revealing_qr(
                     jacobian_ret,
                     columnL2Norm2=np.copy(jacobColumnL2Norm2),
                     epsilon=self.sing_tolerance,
@@ -988,10 +986,10 @@ class MusesLevmarSolver:
                 #  from the left.  QResidual is Qf in More's notation,
                 #  and it is a column vector with nPoints rows.
 
-                QResidual = rrqr_q_mult_a(residual.T, R, rank)
+                QResidual = self.rrqr_q_mult_a(residual.T, R, rank)
 
                 RN = np.zeros(shape=(nTerms, nTerms), dtype=np.float64)
-                RN[0:nTerms, 0:rank] = (rrqr_get_rn(R, rank))[:, :]
+                RN[0:nTerms, 0:rank] = (self.rrqr_get_rn(R, rank))[:, :]
                 T = RN[0:rank, 0:rank]
 
                 #
@@ -1034,7 +1032,9 @@ class MusesLevmarSolver:
                 pNewton = np.zeros(shape=(nTerms), dtype=np.float64)
                 pNewton[0:rank] = -(QResidual[0, 0:rank] @ np.linalg.inv(T))
 
-                (nPermutations, pNewton) = column_permute_undo(pNewton, pivots[0:rank])
+                (nPermutations, pNewton) = self.column_permute_undo(
+                    pNewton, pivots[0:rank]
+                )
 
                 if not self.newton_flag:
                     qNewton = scaleDiag * pNewton
@@ -1111,7 +1111,7 @@ class MusesLevmarSolver:
                     #  respectively.
                     #
                     temp = q_vector * scaleDiag
-                    (nPermutations, temp) = column_permute(temp, pivots)
+                    (nPermutations, temp) = self.column_permute(temp, pivots)
 
                     phi0Prime = -qNorm * np.sum(
                         (np.linalg.inv(RN) @ (temp / qNorm)) ** 2
@@ -1132,7 +1132,7 @@ class MusesLevmarSolver:
                 #
                 #
                 scaleDiagPi = np.copy(scaleDiag)
-                (nPermutations, scaleDiagPi) = column_permute(
+                (nPermutations, scaleDiagPi) = self.column_permute(
                     scaleDiagPi, pivots[0:rank]
                 )
 
@@ -1283,7 +1283,7 @@ class MusesLevmarSolver:
                             # with negative step.  IDL goes from ii to
                             # 1 with negative step.
                             for jj in range(ii, 0, -1):
-                                (cs, sn) = givens(
+                                (cs, sn) = self.givens(
                                     tempDiag[ii, jj - 1], tempDiag[ii, jj]
                                 )
                                 temp = np.copy(
@@ -1297,7 +1297,7 @@ class MusesLevmarSolver:
                                 )
                                 rev_loop_count += 1
 
-                            (cs, sn) = givens(tempRjY[ii, ii], tempDiag[ii, 0])
+                            (cs, sn) = self.givens(tempRjY[ii, ii], tempDiag[ii, 0])
 
                             temp = np.copy(
                                 tempRjY[ii:, ii]
@@ -1339,7 +1339,7 @@ class MusesLevmarSolver:
 
                         p_vector = -(tempRjY[nTerms, 0:nTerms] @ RJInverse).T
 
-                        (nPermutations, p_vector) = column_permute_undo(
+                        (nPermutations, p_vector) = self.column_permute_undo(
                             p_vector, pivots[0:rank]
                         )
 
@@ -1367,13 +1367,13 @@ class MusesLevmarSolver:
                         for ii in range(nTerms):
                             tempMatrix[ii, ii + nTerms] = scaleDiagPi[ii] * lambda_sqrt
 
-                        (Rj, pivotsj, rankj) = rank_revealing_qr(
+                        (Rj, pivotsj, rankj) = self.rank_revealing_qr(
                             tempMatrix, None, epsilon=self.sing_tolerance
                         )
 
                         tempMatrix.fill(0.0)
 
-                        Tj = (rrqr_get_rn(Rj, rankj))[0:rankj, 0:rankj]
+                        Tj = (self.rrqr_get_rn(Rj, rankj))[0:rankj, 0:rankj]
 
                         temp = np.zeros(shape=(1, 2 * nTerms), dtype=np.float64)
                         if nTerms < nPoints:
@@ -1383,17 +1383,17 @@ class MusesLevmarSolver:
 
                         # TODO: Revisit. This is likely a bug in the IDL code
                         # uj = (rrqr_q_mult_a(temp, Rj, rankj))[0, 0:nTerms]
-                        uj = rrqr_q_mult_a(temp, Rj, rankj)
+                        uj = self.rrqr_q_mult_a(temp, Rj, rankj)
 
                         p_vector = np.zeros(shape=(nTerms), dtype=np.float64)
 
                         TjInverse = np.linalg.inv(Tj)
                         p_vector[0:rankj] = -(uj[0, 0:rankj] @ TjInverse)
 
-                        (nPermutations, p_vector) = column_permute_undo(
+                        (nPermutations, p_vector) = self.column_permute_undo(
                             p_vector, pivots[0:rankj]
                         )
-                        (nPermutations, p_vector) = column_permute_undo(
+                        (nPermutations, p_vector) = self.column_permute_undo(
                             p_vector, pivots[0:rank]
                         )
 
@@ -1417,7 +1417,7 @@ class MusesLevmarSolver:
                         phi = qNorm - self.delta_value
                         temp = q_vector * scaleDiag
 
-                        (nPermutations, temp) = column_permute(temp, pivots)
+                        (nPermutations, temp) = self.column_permute(temp, pivots)
 
                         phiPrime = -qNorm * np.sum((RJInverse @ (temp / qNorm)) ** 2)
 
@@ -1457,11 +1457,16 @@ class MusesLevmarSolver:
 
             p_vector = v_vector - x_vector
 
-            (
-                residual_next,
-                jacobNext,
-                radiance_fm_next,
-            ) = self.cfunc.new_residual_fm_jacobian(v_vector)
+            self.cfunc.parameters = v_vector
+            residual_next = self.cfunc.residual
+            jacobNext = self.cfunc.jacobian.transpose()
+            radiance_fm_next = self.cfunc.radiance_full
+            # Check for nans, to give a cleaner error message. The solver fails later
+            # with nans, but the error given is pretty obscure
+            if not np.all(np.isfinite(residual_next)):
+                raise RuntimeError("Radiance is not finite")
+            if not np.all(np.isfinite(jacobNext)):
+                raise RuntimeError("Jacobian is not finite")
 
             resNextNorm2 = np.sum(residual_next**2)
             jacobPNorm2 = np.sum(
@@ -1687,6 +1692,308 @@ class MusesLevmarSolver:
         )
         self.best_iter = int(np.argmin(rms))
         self.residual_rms = rms
+
+    def rank_revealing_qr(
+        self,
+        matrixA: np.ndarray,
+        columnL2Norm2: np.ndarray | None,
+        epsilon: float = 1e-13,
+    ) -> tuple[np.ndarray, np.ndarray, int]:
+        #  Get the number of the rows and columns of the input matrix
+
+        result = matrixA.shape
+        nColumns = result[0]
+        if len(result) == 1:  # If the shape is (1,xx)
+            nRows = 1  # Set the rows to 1.
+        else:
+            nRows = result[1]
+
+        minRC = min(nRows, nColumns)
+
+        #  Must be real and not integer
+        #
+        o_R = matrixA.astype(np.float64)
+
+        o_pivots = np.arange(0, nColumns)
+
+        #  If the procedure is not provided with the square of the L2
+        #  norm of the columns, then compute these values.
+        #
+        if columnL2Norm2 is None:
+            tempNorm2s = np.ndarray(shape=(nColumns), dtype=np.float64)
+            for jj in range(nColumns):
+                tempNorm2s[jj] = np.sum(o_R[jj] ** 2)
+        else:
+            tempNorm2s = columnL2Norm2
+
+        maxL2Norm2 = np.amax(tempNorm2s)
+        maxL2Norm2First = maxL2Norm2
+
+        #  The index of the very first value in tempNorm2s that is
+        #  equal to maxL2Norm2
+        #
+        Exclamation_C = int(np.argmax(tempNorm2s))
+        maxL2Norm2Index = Exclamation_C
+
+        o_rank = 0
+
+        #  If true, then the input matrix is the zero matrix.
+        #
+        if maxL2Norm2First == 0:
+            return (o_R, o_pivots, o_rank)
+
+        # Theoretically maxL2Norm2 is always greater than or equal to
+        # zero; however, Abs(maxL2Norm2) is used just to make sure we
+        # don't have a negative value when maxL2Norm2 gets very close
+        # to zero (this may happen because of truncation, round off,
+        # ... errors.)
+        #
+
+        loop_count = 0
+
+        while np.sqrt(abs(maxL2Norm2) / maxL2Norm2First) >= epsilon:
+            loop_count += 1
+
+            #  Column pivoting is done and recorded here.
+            #
+            if o_rank != maxL2Norm2Index:
+                # Swap the tempNorm2s vector based on values of o_rank and maxL2Norm2Index.
+                o_pivots[o_rank] = maxL2Norm2Index
+                temp = tempNorm2s[o_rank]
+
+                tempNorm2s[o_rank] = tempNorm2s[maxL2Norm2Index]
+
+                tempNorm2s[maxL2Norm2Index] = temp
+
+                # Swap the o_R matrix based on values of o_rank and maxL2Norm2Index.
+                temp = np.copy(
+                    o_R[o_rank, :]
+                )  # We need to make a copy since the swapping will overwrite that row right away.
+
+                o_R[o_rank, :] = o_R[maxL2Norm2Index, :]
+                o_R[maxL2Norm2Index, :] = temp[:]
+
+            if o_rank < nRows - 1:
+                v = o_R[o_rank, o_rank:].T
+
+                temp = v[0]
+
+                if temp != 0:
+                    v_new = np.copy(v)
+                    v_new = v / (temp + np.sign(temp) * np.sqrt(maxL2Norm2))
+                    v = v_new
+                else:
+                    v_new = np.copy(v)
+                    v_new = v / np.sqrt(maxL2Norm2)
+                    v = v_new
+
+                v[0] = 1
+
+                # Although v is a vector of shape(589,) we reshape it to (588,1)
+                v = v.reshape((v.shape[0], 1))
+
+                #  The order in which the operations are performed here is
+                #  very important to reduce computation time (considering the
+                #  fact that for TES the number of the rows of matrixA is
+                #  much larger than the number of the columns of matrixA.
+                #
+                #  To avoid confusion, keep in mind that v is a row vector
+                #  here.
+                #
+                temp = (-2.0 / (v.transpose() @ v))[0] * v.T
+
+                o_R[o_rank:, o_rank:] = (
+                    o_R[o_rank:, o_rank:] + (o_R[o_rank:, o_rank:] @ v @ temp)[:, :]
+                )
+
+                o_R[o_rank, o_rank + 1 :] = v[1:].T[:, :]
+
+            # end if (o_rank < nRows-1):
+            o_rank = o_rank + 1
+            if o_rank < minRC:
+                tempNorm2s[o_rank:] = (
+                    tempNorm2s[o_rank:] - (o_R[o_rank:, o_rank - 1]) ** 2
+                )
+
+                maxL2Norm2 = np.amax(tempNorm2s[o_rank:])
+                Exclamation_C = int(np.argmax(tempNorm2s[o_rank:]))
+
+                # It is possible that the array tempNorm2s may contain two or more values that are largest:
+                #      439.02471       550.95407       92778.002       92778.002       10232.947       2.7099169
+                # If that is the case, we get the last index.
+                # PYTHON_NOTE: 1. Because the argmax returns just one value (the first largest, we need to do an additional check to see how many indices).
+                #              2. The np.where() function does not work to compare double value.  We need to perform a subtraction and check for some threshold.
+                # largest_indices = np.where(tempNorm2s[o_rank:] >= largest_value)[0];  # This does NOT work.  We have to do it manually with the subtraction and the compare with 0.0001
+                largest_value = np.amax(tempNorm2s[o_rank:])
+                largest_indices = []
+                for ii in range(len(tempNorm2s[o_rank:])):
+                    if abs((tempNorm2s[o_rank:])[ii] - largest_value) < 0.0001:
+                        largest_indices.append(ii)
+
+                # If there are more than one value considered as 'max', we get the one with the largest index.
+                if len(largest_indices) > 1:
+                    Exclamation_C = largest_indices[
+                        -1
+                    ]  # This assignment should now match IDL !C returns the largest index of the largest value.
+
+                #  The index of the very first value in tempNorm2s[o_rank:*]
+                #  that is equal to maxL2Norm2 in.  What we need is an index
+                #  relative to the beginning of tempNorm2s.
+                #
+                maxL2Norm2Index = Exclamation_C + o_rank
+            else:
+                maxL2Norm2 = 0
+
+        # end while (np.sqrt(abs(maxL2Norm2) / maxL2Norm2First) >= epsilon):
+
+        return (o_R, o_pivots, o_rank)
+
+    def rrqr_q_mult_a(
+        self, matrixA: np.ndarray, R: np.ndarray, rank: int
+    ) -> np.ndarray:
+        #####################################################################
+        #  Get the number of the rows of the input matrix R
+
+        result = R.shape
+        if len(result) == 1:
+            nRows = 1
+        else:
+            nRows = result[1]  # PYTHON_NOTE: Get the 2nd number of the tuple
+
+        maxIter = rank
+        if (nRows - 1) < rank:
+            maxIter = nRows - 1
+
+        # QA = matrixA.astype(np.float64);  # IDL DOUBLE    = Array[1, 589]
+        QA = np.copy(matrixA)  # Make a copy of matrixA so we don't disturb its content.
+        QA = QA.astype(np.float64)
+
+        # If the dimension of QA is (589,), we added another dimension of 1 to match IDL.
+        if len(QA.shape) == 1:
+            QA = np.reshape(QA, (1, QA.shape[0]))
+
+        for ii in range(maxIter):
+            #  The order in which the operations are performed here is
+            #  very important to reduce computation time.
+            #
+            #  To avoid confusion, keep in mind that v is a column vector
+            #  here.
+            #
+            vl = [1.0]  # Start list with 1.0
+            vl.extend(
+                R[ii, ii + 1 :]
+            )  # Extend list with slices from R[ii] start with ii+1
+            v = np.asarray(
+                vl
+            )  # Make v an array so we can perform matrix multiplication.
+            v = np.reshape(
+                v, (1, v.shape[0])
+            )  # Reshape the array from (589,) to (589,1)
+
+            # IDL:
+            # temp = (-2D / (Transpose(v) ## v)[0]) * v
+            temp = (-2.0 / (v @ v.T)[0]) * v
+
+            # IDL:
+            # QA[*, i:*] = QA[*, i:*] + ( temp ## (Transpose(v) ## QA[*, i:*]))
+
+            QA[:, ii:] = QA[:, ii:] + (QA[:, ii:] @ v.T @ temp)
+        # end for ii in range(maxIter):
+
+        return QA
+
+    def rrqr_get_rn(self, R: np.ndarray, rank: int) -> np.ndarray:
+        Rn = R[:, 0:rank]
+        for ii in range(rank - 1):
+            Rn[ii, ii + 1 :] = 0
+
+        return Rn
+
+    def column_permute(
+        self, matrixA: np.ndarray, pivots: np.ndarray
+    ) -> tuple[int, np.ndarray]:
+        result = matrixA.shape
+        nColumns = result[0]
+
+        #  The max number of permutations to be performed.
+        #
+        if nColumns < len(pivots):
+            maxPivots = nColumns
+        else:
+            maxPivots = len(pivots)
+
+        nPermutations = 0
+        for ii in range(maxPivots):
+            if ii != pivots[ii]:
+                temp = matrixA[ii]
+                matrixA[ii] = matrixA[pivots[ii]]
+                matrixA[pivots[ii]] = temp
+                nPermutations = nPermutations + 1
+
+        return (nPermutations, matrixA)
+
+    def column_permute_undo(
+        self, matrixA: np.ndarray, pivots: np.ndarray
+    ) -> tuple[int, np.ndarray]:
+        result = matrixA.shape
+        nColumns = result[
+            0
+        ]  # The first element of shape is treated as the number of columns.  In our case, matrixA is just a vector.
+
+        #  The max number of permutations to be performed.
+        #
+        if nColumns < len(pivots):
+            maxPivots = nColumns
+        else:
+            maxPivots = len(pivots)
+
+        # Note that for Python, we go from maxPivots-1 to -1 with negative step.  IDL goes from maxPivots-1 to 0 with negative step
+        nPermutations = 0
+        for ii in range(maxPivots - 1, -1, -1):
+            if ii != pivots[ii]:
+                temp = matrixA[ii]
+                matrixA[ii] = matrixA[pivots[ii]]
+                matrixA[pivots[ii]] = temp
+                nPermutations = nPermutations + 1
+
+        return (nPermutations, matrixA)
+
+    def givens(self, a: float, b: float) -> tuple[float, float]:
+        # Compute matrix entries for Givens rotation
+        # update 1/5/2022 Valentin
+        # SSK:  signs in previous code do not make sense.  e.g.:
+        # a = -0.07, b = 0.01.  cs = 0.98, sn = 0.18.  It should be -0.98
+        # a = -0.07, b = 0.01.  c = -0.98, sn = 0.18.  It should be -0.98
+
+        if a == 0 and b == 0:
+            return (1, 0)  # rotation does not matter if both are zero
+        else:
+            # Compute matrix entries for Givens rotation
+            r = math.hypot(a, b)
+            c = a / r
+            s = b / r
+
+        # previous code:
+        if b == 0:
+            cs = np.float64(1.0)
+            sn = np.float64(0.0)
+        else:
+            if abs(b) > abs(a):
+                temp = -a / np.float64(b)
+                sn = np.float64(1.0) / math.sqrt(np.float64(1.0) + temp * temp)
+                cs = sn * temp
+            else:
+                temp = -b / np.float64(a)
+                cs = np.float64(1.0) / math.sqrt(np.float64(1.0) + temp * temp)
+                sn = cs * temp
+
+        if (np.abs(c - cs) > 0.0001) or (np.abs(s - sn) > 0.0001):
+            # print('Difference found:  ')
+            # print(c,cs,'  ',s,sn)
+            pass
+
+        # return (cs, sn)
+        return (cs, sn)
 
 
 __all__ = [

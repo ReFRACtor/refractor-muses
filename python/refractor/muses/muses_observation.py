@@ -308,6 +308,31 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         ):
             return self.radiance_all(skip_jacobian)
 
+    def good_sample_all_extended(
+        self,
+        include_bad_sample: bool = True,
+        full_band: bool = False,
+        do_raman_ext: bool = False,
+    ) -> np.ndarray:
+        """Convenience function that changes the spectral_window
+        (e.g., turn on bad samples), get the good sample flags, and then
+        changes back.
+
+        We give the same interface as radiance_all_extended, although it doesn't
+        make a lot of sense to call this with include_bad_sample=False (which
+        filters all the bad samples out, just returning all True since good
+        samples are all that are left).
+        """
+        # Assuming good samples just have a >=0 uncertainty. If
+        # a particular observation has different logic, this function
+        # should get overrriden
+        with self.modify_spectral_window(
+            include_bad_sample=include_bad_sample,
+            full_band=full_band,
+            do_raman_ext=do_raman_ext,
+        ):
+            return self.radiance_all().spectral_range.uncertainty >= 0
+
     @contextmanager
     def modify_spectral_window(
         self,
