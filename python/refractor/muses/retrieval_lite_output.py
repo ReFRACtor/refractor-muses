@@ -2349,9 +2349,6 @@ class CdfWriteLiteTes:
         i_nameList: list[str] = [],
         i_pressureList: list[str] = [],
     ) -> dict[str, Any]:
-        # Temp
-        from refractor.muses_py import calculate_xco2
-
         # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
         nn = 1
 
@@ -2498,7 +2495,6 @@ class CdfWriteLiteTes:
                     # that pressureMin == 0
 
                     indxx = np.where(pressure >= 0)[0]
-                    pwfLayer = []
 
                     # AT_LINE 138 src_ms-2018-12-10/TOOLS/add_column.pro add_column
                     # x = calculate_xco2(value[indxx], pressure[indxx], pwfLevel = pwfLevel, pressureMax = pressureMax)
@@ -2511,7 +2507,7 @@ class CdfWriteLiteTes:
                         )  # Change shape from (67,1) to (67,)
 
                     # AT_LINE 139 src_ms-2018-12-10/TOOLS/add_column.pro add_column
-                    (x, pwfLevel, pwfLayer) = calculate_xco2(
+                    (x, pwfLevel, pwfLayer) = self.calculate_xco2(
                         value[indxx], pressure[indxx], i_pressureMax
                     )
                     dataIn[indlocOut_key_name] = x
@@ -2533,7 +2529,7 @@ class CdfWriteLiteTes:
                                 value, (value.shape[0])
                             )  # Change shape from (67,1) to (67,)
 
-                        (x, pwfLevel, pwfLayer) = calculate_xco2(
+                        (x, pwfLevel, pwfLayer) = self.calculate_xco2(
                             value[indxx], pressure[indxx], i_pressureMax
                         )
                         dataIn[indlocPriorOut_key_name] = x
@@ -2549,7 +2545,7 @@ class CdfWriteLiteTes:
                                 value, (value.shape[0])
                             )  # Change shape from (67,1) to (67,)
 
-                        (x, pwfLevel, pwfLayer) = calculate_xco2(
+                        (x, pwfLevel, pwfLayer) = self.calculate_xco2(
                             value[indxx], pressure[indxx], i_pressureMax
                         )
                         # Not sure if this is correct.
@@ -2622,7 +2618,9 @@ class CdfWriteLiteTes:
 
                         # (uu, pwfLevel, pwfLayer) = calculate_xco2(pp*0+1700.0,pressure[indxx])
                         # The line above is a bug, comment out and put corrected code in next line.
-                        (uu, pwfLevel, pwfLayer) = calculate_xco2(pp * 0 + 1700.0, pp)
+                        (uu, pwfLevel, pwfLayer) = self.calculate_xco2(
+                            pp * 0 + 1700.0, pp
+                        )
 
                         indpx = np.where(pp <= 750)[0]
 
@@ -2658,7 +2656,7 @@ class CdfWriteLiteTes:
 
                             # get pwf
                             # test = calculate_xco2(value[indp], pressure[indp], pwfLevel = pwfLevel)
-                            (test, pwfLevel, pwfLayer) = calculate_xco2(
+                            (test, pwfLevel, pwfLayer) = self.calculate_xco2(
                                 value[indp[0]], pressure[indxx]
                             )
 
@@ -2748,6 +2746,104 @@ class CdfWriteLiteTes:
         # end for ip in range(max_id, num_points):
 
         return p_bound
+
+    def calculate_xco2(
+        self, co2In: np.ndarray, pressureIn: np.ndarray, i_pressureMax: float = 0
+    ) -> tuple[float, np.ndarray, np.ndarray]:
+        o_pwfLevel = None
+        o_pwfLayer = None
+
+        # It is possible that pressure is two dimensionals with shape (65,1) .  We will shrink it to one (65,) .
+        if (len(pressureIn.shape) == 2) and (pressureIn.shape[1] == 1):
+            pressureIn = np.reshape(pressureIn, (pressureIn.shape[0]))
+
+        pm = np.amax(pressureIn)
+
+        if i_pressureMax != 0:
+            pm = i_pressureMax
+
+        if i_pressureMax > 0 and np.amax(pressureIn) >= pm:
+            # must be on levels
+
+            # here we assume full vector and pressure is passed in
+            # we interpolate the value and assign partial pwf if pressureMax is between
+            # levels
+            ind_array = np.where(np.abs(i_pressureMax - pressureIn) <= 1)[0]
+
+            if len(ind_array) == 0:
+                # need to interpolate
+                pressure = np.concatenate((pressureIn, [i_pressureMax]), axis=0)
+                # Sort the pressure values in descending order.
+                pressure = -(
+                    np.sort(-pressure)
+                )  # Take the negative of each value in pressure, sort in ascending, then take negative of values.
+                co2 = self.idl_interpol_1d(co2In, pressureIn, pressure)
+            else:
+                # do not need to interpolate
+                co2 = co2In
+                pressure = pressureIn
+
+            # It is possible that pressure is two dimensionals with shape (65,1) .  We will shrink it to one (65,) .
+            if len(pressure.shape) == 2 and pressure.shape[1] == 1:
+                pressure = np.reshape(pressure, (pressure.shape[0]))
+
+            indp = np.where(i_pressureMax >= pressure)[0]
+            o_pwfLayer = pressure[indp[0] : -1] - pressure[indp[0] + 1 :]
+            o_pwfLayer = o_pwfLayer / np.sum(o_pwfLayer)
+
+            # layer to level maps
+            nn = len(o_pwfLayer)
+            o_pwfLevel = np.zeros(shape=(nn + 1), dtype=np.float32)
+
+            # PYTHON_NOTE: In Python, the slice does not include the end point so it is 1 more than IDL.
+            o_pwfLevel[0:nn] = o_pwfLayer[:]
+            o_pwfLevel[1 : nn + 1] = o_pwfLevel[1 : nn + 1] + o_pwfLayer[:]
+            o_pwfLevel = o_pwfLevel / np.sum(o_pwfLevel)
+
+            # co2 on levels, switch to layers (crudely)
+            o_xco2 = np.sum(o_pwfLevel * co2[indp])
+
+            # now put back on original vectors with 0's where we don't
+            # have values.  The partial layer goes into the next layer
+            # down, which is not 100% accurate but close
+            pwfLevel0 = copy.deepcopy(o_pwfLevel)
+            pwfLayer0 = copy.deepcopy(o_pwfLayer)
+
+            mm = len(pressureIn)
+            nn = len(pwfLevel0)
+            o_pwfLevel = np.zeros(shape=(mm), dtype=np.float32)
+            o_pwfLayer = np.zeros(shape=(mm - 1), dtype=np.float32)
+
+            o_pwfLevel[mm - nn :] = pwfLevel0[:]
+            o_pwfLayer[mm - nn :] = pwfLayer0[:]
+        else:
+            # calculate_xco2
+            # for this part assume pass in whole vector, whole pressure
+            # print(function_name,"GOT_TO_HERE_0002")
+            co2 = co2In
+            pressure = pressureIn
+
+            # It is possible that pressure is two dimensionals with shape (65,1) .  We will shrink it to one (65,) .
+            if len(pressure.shape) == 2 and pressure.shape[1] == 1:
+                pressure = np.reshape(pressure, (pressure.shape[0]))
+
+            nn = len(pressure)
+            o_pwfLayer = pressure[0 : nn - 1] - pressure[1:]
+            o_pwfLayer = o_pwfLayer / np.sum(o_pwfLayer)
+
+            # layer to level maps
+            o_pwfLevel = np.zeros(shape=(nn), dtype=np.float32)
+            o_pwfLevel[0 : nn - 1] = o_pwfLayer[:]
+            o_pwfLevel[1 : nn - 0] = o_pwfLevel[1:nn] + o_pwfLayer
+            o_pwfLevel = o_pwfLevel / np.sum(o_pwfLevel)
+
+            # co2 on levels, switch to layers (crudely)
+            if len(co2In) == nn:
+                o_xco2 = np.sum(o_pwfLevel * co2)
+            else:
+                o_xco2 = np.sum(o_pwfLayer * co2)
+
+        return (o_xco2, o_pwfLevel, o_pwfLayer)
 
 
 __all__ = ["CdfWriteLiteTes"]
