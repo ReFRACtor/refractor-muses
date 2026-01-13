@@ -140,7 +140,7 @@ class StateInfo(UserDict):
             )
 
             self._current_state_old = (
-                state_element_old_wrapper_handle._current_state_old
+                state_element_old_wrapper_handle._current_state_old # noqa: SLF001
             )
 
     @property

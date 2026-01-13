@@ -43,7 +43,7 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
         covariance_directory,
     )
     # Simulate a state vector update
-    selem._retrieved_this_step = True
+    selem._retrieved_this_step = True # noqa: SLF001
     selem.notify_parameter_update(np.array([2.0]))
     assert selem.forward_model_sv_length == 1
     # Short term have this turned off, so we can compare with old

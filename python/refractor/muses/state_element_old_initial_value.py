@@ -50,17 +50,17 @@ class StateElementOldInitialValue(StateElementOspFile):
         poltype = None
         poltype_used_constraint = True
         if sid == StateElementIdentifier("NH3"):
-            poltype = sold._current_state_old.state_value_str("nh3type")
+            poltype = sold._current_state_old.state_value_str("nh3type") # noqa: SLF001
             if poltype is None:
                 poltype = "mod"
             poltype_used_constraint = True
         elif sid == StateElementIdentifier("CH3OH"):
-            poltype = sold._current_state_old.state_value_str("ch3ohtype")
+            poltype = sold._current_state_old.state_value_str("ch3ohtype") # noqa: SLF001
             if poltype is None:
                 poltype = "mod"
             poltype_used_constraint = True
         elif sid == StateElementIdentifier("HCOOH"):
-            poltype = sold._current_state_old.state_value_str("hcoohtype")
+            poltype = sold._current_state_old.state_value_str("hcoohtype") # noqa: SLF001
             if poltype is None:
                 poltype = "mod"
             # Not used in the constraint name

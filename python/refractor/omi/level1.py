@@ -61,10 +61,10 @@ class OmiLevel1File(object):
                 ref = self.vgroup.getid(ref)
                 vg = self.vgroup.attach(ref)
                 if root_groups_class is None:
-                    root_groups_class = vg._class
-                if vg._class == root_groups_class:
+                    root_groups_class = vg._class # noqa: SLF001
+                if vg._class == root_groups_class: # noqa: SLF001
                     self._channel_refs.append(ref)
-                    self.channel_names.append(vg._name)
+                    self.channel_names.append(vg._name) # noqa: SLF001
                     chan_idx += 1
                 vg.detach()
             except HDF4Error:
@@ -78,12 +78,12 @@ class OmiLevel1File(object):
         for tag, ref in chan_vg.tagrefs():
             if tag == HC.DFTAG_VG:
                 group_vg = self.vgroup.attach(ref)
-                if group_vg._name == group_name:
+                if group_vg._name == group_name: # noqa: SLF001
                     group_ref = ref
                     break
         if group_ref is None:
             raise LookupError(
-                f"Could not find group {group_name} in channel group {chan_vg._name}"
+                f"Could not find group {group_name} in channel group {chan_vg._name}" # noqa: SLF001
             )
 
         chan_vg.detach()

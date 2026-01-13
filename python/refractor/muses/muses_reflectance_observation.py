@@ -186,13 +186,13 @@ class MusesReflectanceObservation(MusesObservationImp):
 
         # Grab values from existing_obs if available
         if existing_obs is not None:
-            self._freq_data: list[np.ndarray] = existing_obs._freq_data
-            self._nesr_data: list[np.ndarray] = existing_obs._nesr_data
-            self._bsamp: list[np.ndarray] = existing_obs._bsamp
-            self._solar_interp: list[LinearInterpolate] = existing_obs._solar_interp
-            self._earth_rad: list[np.ndarray] = existing_obs._earth_rad
-            self._nesr: list[np.ndarray] = existing_obs._nesr
-            self._solar_spectrum: list[rf.Spectrum] = existing_obs._solar_spectrum
+            self._freq_data: list[np.ndarray] = existing_obs._freq_data # noqa: SLF001
+            self._nesr_data: list[np.ndarray] = existing_obs._nesr_data # noqa: SLF001
+            self._bsamp: list[np.ndarray] = existing_obs._bsamp # noqa: SLF001
+            self._solar_interp: list[LinearInterpolate] = existing_obs._solar_interp # noqa: SLF001
+            self._earth_rad: list[np.ndarray] = existing_obs._earth_rad # noqa: SLF001
+            self._nesr: list[np.ndarray] = existing_obs._nesr # noqa: SLF001
+            self._solar_spectrum: list[rf.Spectrum] = existing_obs._solar_spectrum # noqa: SLF001
         else:
             # Stash some values we use in later calculations. Note
             # that the radiance data is all smooshed together, so we

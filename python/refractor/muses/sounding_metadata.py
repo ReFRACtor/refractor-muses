@@ -105,9 +105,9 @@ class SoundingMetadata:
         )
         res._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
         res._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
-        res._tai_time = state_info._tai_time
-        res._sounding_id = state_info._sounding_id
-        res._utc_time = state_info._utc_time
+        res._tai_time = state_info._tai_time # noqa: SLF001
+        res._sounding_id = state_info._sounding_id # noqa: SLF001
+        res._utc_time = state_info._utc_time # noqa: SLF001
         return res
 
     @property

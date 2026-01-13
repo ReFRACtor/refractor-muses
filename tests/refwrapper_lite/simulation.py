@@ -204,7 +204,7 @@ def setup_tropomi_ils(xtrack_index: int, l1b_file: Path, isrf_file: Path, band=7
             "nm",
         )
 
-    return RefractorFmObjectCreator._construct_postconv_ils(
+    return RefractorFmObjectCreator._construct_postconv_ils( # noqa: SLF001
         central_wavelength=central_wavelength,
         delta_wavelength=delta_wavelength,
         isrf=isrf,

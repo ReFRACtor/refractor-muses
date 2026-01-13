@@ -86,7 +86,7 @@ class PriorityHandleSet(collections.abc.Set):
         """Copy the PrioritySet. This is a shallow copy, we have our own
         handle set but all the objects in it are the same as the original
         set."""
-        return self.__class__._from_iterable(iter(self))
+        return self.__class__._from_iterable(iter(self)) # noqa: SLF001
 
     def add_handle(self, h: Any, priority_order: int = 0) -> None:
         """Add a handler. The higher priority_order (larger number) items are

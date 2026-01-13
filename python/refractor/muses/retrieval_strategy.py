@@ -469,15 +469,15 @@ class RetrievalStrategy:
 
         """
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
-        res._capture_directory.rundir = (
-            Path(path).absolute() / res._capture_directory.runbase
+        res._capture_directory.rundir = ( # noqa: SLF001
+            Path(path).absolute() / res._capture_directory.runbase # noqa: SLF001
         )
-        res._filename = res.run_dir / res.strategy_table_filename.name
-        res._strategy_executor.strategy_table_filename = res._filename
-        res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
-        res._retrieval_config.ifile_hlp = res.input_file_helper
-        res._retrieval_config.base_dir = res.run_dir
-        res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)
+        res._filename = res.run_dir / res.strategy_table_filename.name # noqa: SLF001
+        res._strategy_executor.strategy_table_filename = res._filename # noqa: SLF001
+        res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper() # noqa: SLF001
+        res._retrieval_config.ifile_hlp = res.input_file_helper # noqa: SLF001
+        res._retrieval_config.base_dir = res.run_dir # noqa: SLF001
+        res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir) # noqa: SLF001
         return res, kwargs
 
 

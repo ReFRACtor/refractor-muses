@@ -161,7 +161,7 @@ def test_update_cloudfraction(omi_step_0):
     species handling."""
     rs, _, _ = omi_step_0
     cstate = rs.current_state
-    rs._strategy_executor.restart()
+    rs.strategy_executor.restart()
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_start_step(rs.current_strategy_step, rs.retrieval_config)
@@ -173,8 +173,8 @@ def test_update_cloudfraction(omi_step_0):
     results_list[msk] = 0.5
     cstate.notify_step_solution(results_list)
     # Go to the next step, and check that the state element is updated
-    rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_start_step()
+    rs.strategy_executor.next_step()
+    rs.strategy_executor.notify_start_step()
 
 
 def test_retrieval_grid_array():

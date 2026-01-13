@@ -44,7 +44,7 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
         # We want this object to be kept alive, but not force selem to
         # be kept alive. This set of references does that
         self.selem = weakref.ref(selem)
-        selem._cost_function_notify_helper = self
+        selem._cost_function_notify_helper = self # noqa: SLF001
 
     def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
         s = self.selem()
@@ -69,7 +69,7 @@ class CurrentStateStateInfo(CurrentState):
         # When doing initial development, we matched against old state info stuff
         # This is normally not used, but have in place in case we need to diagnose
         # some problem
-        self._current_state_old = self._state_info._current_state_old
+        self._current_state_old = self._state_info._current_state_old # noqa: SLF001
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
 

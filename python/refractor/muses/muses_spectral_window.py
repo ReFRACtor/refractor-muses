@@ -633,9 +633,9 @@ class TesSpectralWindow(MusesSpectralWindow):
 
     def __init__(self, swin: MusesSpectralWindow, obs: MusesObservation) -> None:
         super().__init__(
-            swin._spec_win_with_bad_sample,
+            swin._spec_win_with_bad_sample, # noqa: SLF001
             obs,
-            raman_ext=swin._raman_ext,
+            raman_ext=swin._raman_ext, # noqa: SLF001
             instrument_name=swin.instrument_name,
             filter_metadata=swin.filter_metadata,
             filter_name=swin.filter_name,
