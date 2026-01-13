@@ -82,3 +82,32 @@ def test_cris_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
         filename, xtrack, atrack, pixel_index, ifile_hlp
     )
     compare_muses_py_dict(o_cris2, o_cris, "read_cris")
+
+
+@require_muses_py
+def test_cris_noaa(isolated_dir, ifile_hlp, test_base_path):
+    # Test reading a NOAA version of the data
+    import refractor.muses_py as mpy
+
+    filename = (
+        test_base_path
+        / "cris"
+        / "in"
+        / "SCRIF_npp_d20190219_t1921199_e1921497_b37901_c20190219193938696133_cspp_dev_noaa_fsr.h5"
+    )
+    xtrack = 8
+    atrack = 3
+    pixel_index = 5
+
+    i_fileid = {
+        "CRIS_filename": str(filename),
+        "CRIS_XTrack_Index": xtrack,
+        "CRIS_ATrack_Index": atrack,
+        "CRIS_Pixel_Index": pixel_index,
+    }
+    with osp_setup(ifile_hlp):
+        o_cris = mpy.read_noaa_cris_fsr(i_fileid)
+    o_cris2 = MusesCrisObservation.read_cris(
+        filename, xtrack, atrack, pixel_index, ifile_hlp
+    )
+    compare_muses_py_dict(o_cris2, o_cris, "read_cris")

@@ -191,7 +191,10 @@ class InputFilePathImp(InputFilePath):
 
     @property
     def parent(self) -> InputFilePath:
-        return InputFilePathImp(self._base_path, self._rel_path.parent)
+        if self._rel_path.parent != self._rel_path:
+            # If not at top of rel_path
+            return InputFilePathImp(self._base_path, self._rel_path.parent)
+        return InputFilePathImp(self._base_path.parent, self._rel_path)
 
     def absolute(self) -> InputFilePath:
         # File is already absolute, so just return self.
@@ -258,8 +261,13 @@ class InputFilePathDelta(InputFilePath):
 
     @property
     def parent(self) -> InputFilePath:
+        if self._rel_path.parent != self._rel_path:
+            # If not at top of rel_path
+            return InputFilePathDelta(
+                self._base_path, self._delta_path, self._rel_path.parent
+            )
         return InputFilePathDelta(
-            self._base_path, self._delta_path, self._rel_path.parent
+            self._base_path.parent, self._delta_path.parent, self._rel_path
         )
 
     def absolute(self) -> InputFilePath:

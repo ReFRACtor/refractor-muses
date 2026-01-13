@@ -33,13 +33,10 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 
 # Used in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
-mpy_radiance_data = partial(muses_py_wrapper, "radiance_data")
 mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
 mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
 mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
 mpy_cdf_read_tes_frequency = partial(muses_py_wrapper, "cdf_read_tes_frequency")
-mpy_read_noaa_cris_fsr = partial(muses_py_wrapper, "read_noaa_cris_fsr")
-mpy_read_nasa_cris_fsr = partial(muses_py_wrapper, "read_nasa_cris_fsr")
 mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
 mpy_read_tropomi_surface_altitude = partial(
     muses_py_wrapper, "read_tropomi_surface_altitude"
@@ -51,10 +48,7 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 __all__ = [
     "mpy_cdf_read_tes_frequency",
     "mpy_radiance_apodize",
-    "mpy_radiance_data",
     "mpy_read_airs_l1b",
-    "mpy_read_nasa_cris_fsr",
-    "mpy_read_noaa_cris_fsr",
     "mpy_read_omi",
     "mpy_read_tes_l1b",
     "mpy_read_tropomi",

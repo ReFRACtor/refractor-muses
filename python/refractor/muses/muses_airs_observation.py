@@ -9,7 +9,6 @@ from .muses_observation import (
 from .muses_spectral_window import MusesSpectralWindow
 from .mpy import (
     mpy_read_airs_l1b,
-    mpy_radiance_data,
 )
 import os
 import numpy as np
@@ -100,23 +99,13 @@ class MusesAirsObservation(MusesObservationImp):
         radiance = radiance[ss]
         frequency = frequency[ss]
         nesr = nesr[ss]
-        filters = [
-            "2B1",
-        ] * len(frequency)
-        for i, f in enumerate(frequency):
-            if f > 950.0:
-                filters[i] = "1B2"
-            if f > 1119.8:
-                filters[i] = "2A1"
-            if f > 1444.0:
-                filters[i] = "2A3"
-            if f > 1890.8:
-                filters[i] = "1A1"
-        instrument_array = [
-            "AIRS",
-        ] * len(frequency)
-        o_airs["radiance"] = mpy_radiance_data(
-            radiance, nesr, [0], frequency, filters, instrument_array
+        filters = np.full((len(nesr),), "2B1")
+        filters[frequency > 950.0] = "1B2"
+        filters[frequency > 1119.8] = "2A1"
+        filters[frequency > 1444.0] = "2A3"
+        filters[frequency > 1890.8] = "1A1"
+        o_airs["radiance"] = cls.radiance_data(
+            radiance, nesr, frequency, filters, "AIRS"
         )
         return o_airs
 
@@ -246,6 +235,79 @@ class MusesAirsObservation(MusesObservationImp):
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceAltitude"]), "m")
+
+    @classmethod
+    def radiance_data(
+        cls,
+        i_radiance: np.ndarray,
+        i_nesr: np.ndarray,
+        i_frequency: np.ndarray,
+        filters: np.ndarray,
+        i_instrument: str,
+    ) -> dict[str, Any]:
+        # Create a standard structure (dictionary in Python).
+        o_radianceStruct = cls.radiance_new_struct(i_frequency, filters, i_instrument)
+
+        # Put 3 more elements in the dictionary.
+        o_radianceStruct["radiance"] = i_radiance.astype(np.float64)
+        o_radianceStruct["NESR"] = i_nesr.astype(np.float64)
+        o_radianceStruct["pixelsUsed"][:, :] = 1
+
+        return o_radianceStruct
+
+    @classmethod
+    def radiance_new_struct(
+        cls, i_frequency: np.ndarray, i_filterArray: np.ndarray, i_instrument: str
+    ) -> dict[str, Any]:
+        nfreq = len(i_frequency)
+
+        filterArray = i_filterArray
+        filterNames = [str(t) for t in list(dict.fromkeys(filterArray))]
+
+        nfilters = len(filterNames)
+        filterSizes = [
+            int(np.count_nonzero(np.array(filterArray) == v)) for v in filterNames
+        ]
+
+        uniqueInstruments = [
+            i_instrument,
+        ]
+        instrumentSizes = [
+            nfreq,
+        ]
+
+        o_radianceStruct = {
+            "filename": "",
+            "instrument": "",
+            "comments": "",
+            "preferences": "",
+            "detectors": [
+                0,
+            ],
+            "mws": "",
+            "numDetectorsOrig": 1,
+            "numDetectors": 1,
+            "num_frequencies": nfreq,
+            "radiance": "dummy_radiance",
+            "NESR": "dummy_NESR",
+            "frequency": i_frequency,
+            "valid": "yes",
+            "filterSizes": filterSizes,
+            "filterNames": filterNames,
+            "instrumentSizes": instrumentSizes,
+            "instrumentNames": uniqueInstruments,
+            "pixelsUsed": np.zeros(shape=(1, nfilters), dtype=int),
+            "interpixelVar": np.zeros(shape=(nfilters), dtype=np.float32),
+            "freqShift": 0.0,
+            "imaginaryMean": 0.0,
+            "imaginaryRMS": 0.0,
+            "bt8": 0.0,
+            "bt10": 0.0,
+            "bt11": 0.0,
+            "scanDirection": 0,
+        }
+
+        return o_radianceStruct
 
 
 ObservationHandleSet.add_default_handle(

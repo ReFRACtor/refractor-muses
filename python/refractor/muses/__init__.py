@@ -102,10 +102,7 @@ from .misc import (
 from .mpy import (
     mpy_cdf_read_tes_frequency,
     mpy_radiance_apodize,
-    mpy_radiance_data,
     mpy_read_airs_l1b,
-    mpy_read_nasa_cris_fsr,
-    mpy_read_noaa_cris_fsr,
     mpy_read_omi,
     mpy_read_tes_l1b,
     mpy_read_tropomi,
@@ -122,7 +119,9 @@ from .muses_cris_observation import (
 )
 from .muses_levmar_solver import (
     MusesLevmarSolver,
+    SolverLogFileWriter,
     SolverResult,
+    VerboseSolverLogging,
 )
 from .muses_observation import (
     MeasurementId,
@@ -465,6 +464,7 @@ __all__ = [
     "RetrievalType",
     "SimulatedObservation",
     "SimulatedObservationHandle",
+    "SolverLogFileWriter",
     "SolverResult",
     "SoundingMetadata",
     "SpectralWindowHandle",
@@ -505,6 +505,7 @@ __all__ = [
     "TesFile",
     "TesSpectralWindow",
     "UwisCamelOptions",
+    "VerboseSolverLogging",
     "compare_species",
     "docopt_simple",
     "extra_l2_output",
@@ -514,11 +515,8 @@ __all__ = [
     "modify_strategy_table",
     "mpy_cdf_read_tes_frequency",
     "mpy_radiance_apodize",
-    "mpy_radiance_data",
     "mpy_radiance_from_observation_list",
     "mpy_read_airs_l1b",
-    "mpy_read_nasa_cris_fsr",
-    "mpy_read_noaa_cris_fsr",
     "mpy_read_omi",
     "mpy_read_tes_l1b",
     "mpy_read_tropomi",
