@@ -857,7 +857,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                     existing_obs.state_element_name_list()
                 )
             obs = cls(
-                existing_obs.muses_py_dict,
+                existing_obs._muses_py_dict,
                 existing_obs.sounding_desc,
                 existing_obs.filter_list,
                 existing_obs=existing_obs,
@@ -919,7 +919,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             )
             if not os.path.exists(pfname):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
-                pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
+                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))
 
         obs.spectral_window = (
             spec_win if spec_win is not None else MusesSpectralWindow(None, None)
@@ -971,11 +971,17 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         """List of state element names for this observation"""
         return self.state_element_name_list_from_filter(self.filter_list)
 
+    def monthly_minimum_surface_reflectance(self, band: int) -> float:
+        return float(
+            self._muses_py_dict["SurfaceAlbedo"][
+                f"BAND{band}_MonthlyMinimumSurfaceReflectance"
+            ])
+
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(
             float(
-                self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
                     "TerrainHeight"
                 ][-1]
             ),
@@ -1012,7 +1018,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @property
     def monthly_minimum_surface_reflectance(self) -> float:
         return float(
-            self.muses_py_dict["SurfaceAlbedo"]["MonthlyMinimumSurfaceReflectance"]
+            self._muses_py_dict["SurfaceAlbedo"]["MonthlyMinimumSurfaceReflectance"]
         )
 
     @classmethod
@@ -1160,7 +1166,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                     existing_obs.state_element_name_list()
                 )
             obs = cls(
-                existing_obs.muses_py_dict,
+                existing_obs._muses_py_dict,
                 existing_obs.sounding_desc,
                 existing_obs.filter_list,
                 existing_obs=existing_obs,
@@ -1205,7 +1211,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             )
             if not os.path.exists(pfname):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
-                pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
+                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))
 
         obs.spectral_window = (
             spec_win if spec_win is not None else MusesSpectralWindow(None, None)
@@ -1263,7 +1269,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(
             float(
-                self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
                     "TerrainHeight"
                 ][0]
             ),

@@ -626,7 +626,9 @@ class FakeStateInfo:
 
     def fill_airs(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = {}
-        d2 = obs.muses_py_dict
+        # Temp
+        #d2 = obs.muses_py_dict
+        d2 = obs._muses_py_dict
         for k in (
             "scanAng",
             "satZen",
@@ -658,7 +660,9 @@ class FakeStateInfo:
 
     def fill_cris(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = {}
-        d2 = obs.muses_py_dict
+        # Temp
+        # d2 = obs.muses_py_dict
+        d2 = obs._muses_py_dict
         for k in (
             "scanAng",
             "satZen",
@@ -680,7 +684,9 @@ class FakeStateInfo:
 
     def fill_tes(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d: dict[str, Any] = {}
-        d2 = obs.muses_py_dict
+        # Temp
+        #d2 = obs.muses_py_dict
+        d2 = obs._muses_py_dict
         for k in (
             "boresightNadirRadians",
             "orbitInclinationAngle",

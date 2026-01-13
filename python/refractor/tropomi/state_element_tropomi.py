@@ -152,11 +152,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         )
         value_fm = np.array(
             [
-                float(
-                    obs.muses_py_dict["SurfaceAlbedo"][
-                        f"BAND{band}_MonthlyMinimumSurfaceReflectance"
-                    ]
-                )
+                obs.monthly_minimum_surface_reflectance(band),
             ]
         ).view(FullGridMappedArray)
         return OspSetupReturn(value_fm)

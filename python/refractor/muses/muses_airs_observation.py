@@ -165,7 +165,7 @@ class MusesAirsObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs.muses_py_dict,
+                existing_obs._muses_py_dict,
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )
@@ -212,7 +212,7 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radiance"]["radiance"]
+        return self._muses_py_dict["radiance"]["radiance"]
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
@@ -221,7 +221,7 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radiance"]["frequency"]
+        return self._muses_py_dict["radiance"]["frequency"]
 
     def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
@@ -230,11 +230,11 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radiance"]["NESR"]
+        return self._muses_py_dict["radiance"]["NESR"]
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceAltitude"]), "m")
+        return rf.DoubleWithUnit(float(self._muses_py_dict["surfaceAltitude"]), "m")
 
     @classmethod
     def radiance_data(

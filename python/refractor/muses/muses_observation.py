@@ -390,7 +390,7 @@ class MusesObservationImp(MusesObservation):
             if mp is None:
                 raise RuntimeError("Both coeff and mp need to be None or not None")
             super().__init__(coeff, mp)
-        self.muses_py_dict = muses_py_dict
+        self._muses_py_dict = muses_py_dict
         self._spectral_window = MusesSpectralWindow(None, None)
         self._num_channels = num_channels
         self._sounding_desc = sdesc
@@ -425,7 +425,7 @@ class MusesObservationImp(MusesObservation):
 
         """
         return rf.DoubleWithUnit(
-            float(self.muses_py_dict["Cloud"]["CloudPressure"]), "hPa"
+            float(self._muses_py_dict["Cloud"]["CloudPressure"]), "hPa"
         )
 
     @property
@@ -435,15 +435,15 @@ class MusesObservationImp(MusesObservation):
         tropomi only.
 
         """
-        return float(self.muses_py_dict["Cloud"]["CloudFraction"])
+        return float(self._muses_py_dict["Cloud"]["CloudFraction"])
 
     @property
     def observation_table(self) -> dict[str, Any]:
-        return self.muses_py_dict["Earth_Radiance"]["ObservationTable"]
+        return self._muses_py_dict["Earth_Radiance"]["ObservationTable"]
 
     @property
     def wavelength_filter(self) -> dict[str, Any]:
-        return self.muses_py_dict["Earth_Radiance"]["EarthWavelength_Filter"]
+        return self._muses_py_dict["Earth_Radiance"]["EarthWavelength_Filter"]
 
     @property
     def across_track(self) -> list[int]:
@@ -668,7 +668,7 @@ class SimulatedObservation(MusesObservationImp):
         # reasonable to remove the muses_py_dict and just not have
         # SimulatedObservation work with the old forward models.
         super().__init__(
-            obs.muses_py_dict, obs.sounding_desc, num_channels=obs.num_channels
+            obs._muses_py_dict, obs.sounding_desc, num_channels=obs.num_channels
         )
         self._obs: MusesObservationImp = copy.deepcopy(obs)
         # We only have replacement_spectrum where the current spectral
@@ -779,6 +779,9 @@ class SimulatedObservation(MusesObservationImp):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._obs.surface_altitude
 
+    def monthly_minimum_surface_reflectance(self, band: int) -> float:
+        return self._obs.monthly_minimum_surface_reflectance(band)
+    
 
 class SimulatedObservationHandle(ObservationHandle):
     """Just return the given observation always for the given

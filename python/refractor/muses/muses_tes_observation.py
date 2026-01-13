@@ -120,7 +120,7 @@ class MusesTesObservation(MusesObservationImp):
 
     @property
     def boresight_angle(self) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.muses_py_dict["boresightNadirRadians"], "rad")
+        return rf.DoubleWithUnit(self._muses_py_dict["boresightNadirRadians"], "rad")
 
     def desc(self) -> str:
         return "MusesTesObservation"
@@ -331,7 +331,7 @@ class MusesTesObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs.muses_py_dict,
+                existing_obs._muses_py_dict,
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )
@@ -397,7 +397,7 @@ class MusesTesObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radianceStruct"]["radiance"]
+        return self._muses_py_dict["radianceStruct"]["radiance"]
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
@@ -406,7 +406,7 @@ class MusesTesObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radianceStruct"]["frequency"]
+        return self._muses_py_dict["radianceStruct"]["frequency"]
 
     def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
@@ -415,11 +415,11 @@ class MusesTesObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["radianceStruct"]["NESR"]
+        return self._muses_py_dict["radianceStruct"]["NESR"]
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceElevation"]), "m")
+        return rf.DoubleWithUnit(float(self._muses_py_dict["surfaceElevation"]), "m")
 
 
 ObservationHandleSet.add_default_handle(

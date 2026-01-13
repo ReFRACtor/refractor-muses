@@ -11,11 +11,15 @@
 # or something like that
 import subprocess
 import pytest
-from refractor.muses import MusesRunDir
+from refractor.muses import MusesRunDir, InputFileHelper
 
 
+# Note this reads files we don't in refractor, so for this test point to the real
+# OSP and GMAO directories. We could pull everything over if needed, but it seems
+# reasonable in these tests to depend on the real data just to make sure py-retrieve
+# still runs ok.
 @pytest.mark.long_executable_test
-def test_py_retrieve_airs_omi(ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir):
+def test_py_retrieve_airs_omi(osp_real_dir, gmao_real_dir, joint_omi_test_in_dir, end_to_end_run_dir):
     """Full run of the old py-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking the output.
     That is done at lower levels of testing.
@@ -23,7 +27,7 @@ def test_py_retrieve_airs_omi(ifile_hlp, joint_omi_test_in_dir, end_to_end_run_d
     dir = end_to_end_run_dir / "py_retrieve_airs_omi"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
-        joint_omi_test_in_dir, ifile_hlp, path_prefix=dir, osp_sym_link=True
+        joint_omi_test_in_dir, InputFileHelper(osp_dir=osp_real_dir, gmao_dir=gmao_real_dir), path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
         f"py-retrieve --targets {r.run_dir}",
@@ -34,7 +38,7 @@ def test_py_retrieve_airs_omi(ifile_hlp, joint_omi_test_in_dir, end_to_end_run_d
 
 @pytest.mark.long_executable_test
 def test_py_retrieve_cris_tropomi(
-    ifile_hlp, joint_tropomi_test_in_dir, end_to_end_run_dir
+        osp_real_dir, gmao_real_dir, joint_tropomi_test_in_dir, end_to_end_run_dir
 ):
     """Full run of the old py-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking the output.
@@ -43,7 +47,7 @@ def test_py_retrieve_cris_tropomi(
     dir = end_to_end_run_dir / "py_retrieve_cris_tropomi"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(
-        joint_tropomi_test_in_dir, ifile_hlp, path_prefix=dir, osp_sym_link=True
+        joint_tropomi_test_in_dir, InputFileHelper(osp_dir=osp_real_dir, gmao_dir=gmao_real_dir), path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
         f"py-retrieve --targets {r.run_dir}",

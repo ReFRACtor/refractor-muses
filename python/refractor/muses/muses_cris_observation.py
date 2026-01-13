@@ -219,7 +219,7 @@ class MusesCrisObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs.muses_py_dict,
+                existing_obs._muses_py_dict,
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )
@@ -260,7 +260,7 @@ class MusesCrisObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["RADIANCE"]
+        return self._muses_py_dict["RADIANCE"]
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
@@ -269,7 +269,7 @@ class MusesCrisObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["FREQUENCY"]
+        return self._muses_py_dict["FREQUENCY"]
 
     def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
@@ -278,14 +278,14 @@ class MusesCrisObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self.muses_py_dict["NESR"]
+        return self._muses_py_dict["NESR"]
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         # TODO the old muses-py code replaces negative altitude with 0. Not
         # sure if this should be done or not, but that is the only instrument that
         # has this behavior. Assume this is right
-        r = float(self.muses_py_dict["SURFACEALTITUDE"])
+        r = float(self._muses_py_dict["SURFACEALTITUDE"])
         return rf.DoubleWithUnit(0.0 if r < 0 else r, "m")
 
     @classmethod

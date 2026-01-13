@@ -1737,8 +1737,11 @@ class RefractorUip:
         for obs in obs_list:
             iname = obs.instrument_name
             if str(iname) in o_xxx:
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[str(iname)] = obs.muses_py_dict
+                # Temp
+                #if hasattr(obs, "muses_py_dict"):
+                #    o_xxx[str(iname)] = obs.muses_py_dict
+                if hasattr(obs, "_muses_py_dict"):
+                    o_xxx[str(iname)] = obs._muses_py_dict
         rf_uip = RefractorUip.create_uip(
             fake_state_info,  # type: ignore[arg-type]
             fake_table,
