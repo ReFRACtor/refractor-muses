@@ -1726,7 +1726,7 @@ class RefractorUip:
         else:
             rinfo = fake_retrieval_info
 
-        o_xxx = {
+        o_xxx: dict[str, None | MusesObservation] = {
             "AIRS": None,
             "TES": None,
             "CRIS": None,
@@ -1737,11 +1737,7 @@ class RefractorUip:
         for obs in obs_list:
             iname = obs.instrument_name
             if str(iname) in o_xxx:
-                # Temp
-                # if hasattr(obs, "muses_py_dict"):
-                #    o_xxx[str(iname)] = obs.muses_py_dict
-                if hasattr(obs, "_muses_py_dict"):
-                    o_xxx[str(iname)] = obs._muses_py_dict
+                o_xxx[str(iname)] = obs
         rf_uip = RefractorUip.create_uip(
             fake_state_info,  # type: ignore[arg-type]
             fake_table,
@@ -1766,12 +1762,12 @@ class RefractorUip:
         i_strategy_table: dict[str, Any],
         i_windows: list[Any],
         i_retrievalInfo: dict[str, Any] | AttrDictAdapter | FakeRetrievalInfo,
-        i_airs: dict[str, Any] | None,
-        i_tes: dict[str, Any] | None,
-        i_cris: dict[str, Any] | None,
-        i_omi: dict[str, Any] | None,
-        i_tropomi: dict[str, Any] | None,
-        i_oco2: dict[str, Any] | None,
+        i_airs: MusesObservation | None,
+        i_tes: MusesObservation | None,
+        i_cris: MusesObservation | None,
+        i_omi: MusesObservation | None,
+        i_tropomi: MusesObservation | None,
+        i_oco2: MusesObservation | None,
         only_create_instrument: InstrumentIdentifier | None = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
@@ -1793,22 +1789,7 @@ class RefractorUip:
         if i_cris is not None:
             for win in i_windows:
                 if win["instrument"] == "CRIS":  # EM - Necessary for joint retrievals
-                    con1 = i_cris["FREQUENCY"] >= win["start"]
-                    con2 = i_cris["FREQUENCY"] <= win["endd"]
-
-                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
-
-                    MAXOPD = np.unique(i_cris["MAXOPD"][tempind])
-                    SPACING = np.unique(i_cris["SPACING"][tempind])
-
-                    if len(MAXOPD) > 1 or len(SPACING) > 1:
-                        raise RuntimeError(
-                            "ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!"
-                        )
-
-                    win["maxopd"] = np.float32(MAXOPD[0])
-                    win["spacing"] = np.float32(SPACING[0])
-                    win["monoextend"] = np.float32(SPACING[0]) * 4.0
+                    i_cris.window_fix_for_uip(win)
 
         # Temp, we are sorting out the interface of i_retrievalInfo
         if hasattr(i_retrievalInfo, "retrieval_info_obj"):
@@ -1962,7 +1943,7 @@ class RefractorUip:
                     "H2O",
                 ],
                 None,
-                i_airs["radiance"],
+                i_airs.radiance_for_uip,
                 i_modifyCloudFreq=True,
             )
 
@@ -1984,7 +1965,7 @@ class RefractorUip:
                 else [
                     "H2O",
                 ],
-                i_cris["radianceStruct".upper()],
+                i_cris.radiance_for_uip,
                 i_modifyCloudFreq=True,
             )
 
@@ -1996,7 +1977,7 @@ class RefractorUip:
                 i_state.current,
                 i_table,
                 inst_to_window["TES"],
-                i_tes["radianceStruct"],
+                i_tes.radiance_for_uip,
                 "",
                 # OSS and uip code doesn't handle empty species list. We run
                 # into that with the BT step. So we add a simple H2O species, even
@@ -2009,6 +1990,7 @@ class RefractorUip:
                 ],
             )
         if "OMI" in inst_to_window:
+            assert i_omi is not None
             uip["uip_OMI"] = mpy_make_uip_omi(
                 i_state,
                 i_state.current,
@@ -2016,9 +1998,10 @@ class RefractorUip:
                 inst_to_window["OMI"],
                 uip["jacobians_all"],
                 uip,
-                i_omi,
+                i_omi.radiance_for_uip,
             )
         if "TROPOMI" in inst_to_window:
+            assert i_tropomi is not None
             uip["uip_TROPOMI"] = mpy_make_uip_tropomi(
                 i_state,
                 i_state.current,
@@ -2026,7 +2009,7 @@ class RefractorUip:
                 inst_to_window["TROPOMI"],
                 uip["jacobians_all"],
                 uip,
-                i_tropomi,
+                i_tropomi.radiance_for_uip,
             )
         if "OCO2" in inst_to_window:
             # Catch us not setting pointing angle for OCO-2
@@ -2034,6 +2017,7 @@ class RefractorUip:
                 raise RuntimeError(
                     "Don't currently support setting the pointing_angle for OCO-2, we just need to update the code to do that if needed."
                 )
+            assert i_oco2 is not None
             uip["uip_OCO2"] = mpy_make_uip_oco2(
                 i_state,
                 i_state.current,
@@ -2041,7 +2025,7 @@ class RefractorUip:
                 inst_to_window["OCO2"],
                 uip["jacobians_all"],
                 uip,
-                i_oco2,
+                i_oco2.radiance_for_uip,
             )
 
         # Correct surface pointing angle. Not sure why this needs to be

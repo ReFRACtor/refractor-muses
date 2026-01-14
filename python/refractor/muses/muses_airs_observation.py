@@ -124,6 +124,12 @@ class MusesAirsObservation(MusesObservationImp):
     def scan_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["scanAng"], "deg")
 
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # TODO Determine stuff we may be able to pull out here, get directly rather
+        # than from radiance
+        return self._muses_py_dict["radiance"]
+
     @classmethod
     def create_from_filename(
         cls,

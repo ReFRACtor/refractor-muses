@@ -85,12 +85,12 @@ def test_refractor_joint_tropomi_create_uip(
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
     i_retrievalInfo = rstep.params["i_retrievalInfo"]
-    i_airs = rstep.params["i_airs"]
-    i_tes = rstep.params["i_tes"]
-    i_cris = rstep.params["i_cris"]
-    i_omi = rstep.params["i_omi"]
-    i_tropomi = rstep.params["i_tropomi"]
-    i_oco2 = rstep.params["i_oco2"]
+    rstep.params["i_airs"]
+    rstep.params["i_tes"]
+    rstep.params["i_cris"]
+    rstep.params["i_omi"]
+    rstep.params["i_tropomi"]
+    rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
     sinfo = StateInfoOld()
@@ -120,12 +120,12 @@ def test_refractor_joint_tropomi_create_uip(
         i_table,
         i_windows,
         i_retrievalInfo,
-        i_airs,
-        i_tes,
-        i_cris,
-        i_omi,
-        i_tropomi,
-        i_oco2,
+        None,
+        None,
+        obs_list[0],
+        None,
+        obs_list[1],
+        None,
         # Test for pointing angle
         # pointing_angle=rf.DoubleWithUnit(45,"deg"))
     )
@@ -156,11 +156,11 @@ def test_refractor_tropomi_create_uip(
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
     i_retrievalInfo = rstep.params["i_retrievalInfo"]
-    i_airs = rstep.params["i_airs"]
-    i_tes = rstep.params["i_tes"]
-    i_cris = rstep.params["i_cris"]
-    i_omi = rstep.params["i_omi"]
-    i_tropomi = rstep.params["i_tropomi"]
+    rstep.params["i_airs"]
+    rstep.params["i_tes"]
+    rstep.params["i_cris"]
+    rstep.params["i_omi"]
+    rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
@@ -190,11 +190,11 @@ def test_refractor_tropomi_create_uip(
         i_table,
         i_windows,
         i_retrievalInfo,
-        i_airs,
-        i_tes,
-        i_cris,
-        i_omi,
-        i_tropomi,
+        None,
+        None,
+        None,
+        None,
+        obs_list[0],
         i_oco2,
     )
     # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
@@ -224,11 +224,11 @@ def test_refractor_joint_omi_create_uip(
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
     i_retrievalInfo = rstep.params["i_retrievalInfo"]
-    i_airs = rstep.params["i_airs"]
-    i_tes = rstep.params["i_tes"]
-    i_cris = rstep.params["i_cris"]
-    i_omi = rstep.params["i_omi"]
-    i_tropomi = rstep.params["i_tropomi"]
+    rstep.params["i_airs"]
+    rstep.params["i_tes"]
+    rstep.params["i_cris"]
+    rstep.params["i_omi"]
+    rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
@@ -259,11 +259,11 @@ def test_refractor_joint_omi_create_uip(
         i_table,
         i_windows,
         i_retrievalInfo,
-        i_airs,
-        i_tes,
-        i_cris,
-        i_omi,
-        i_tropomi,
+        obs_list[0],
+        None,
+        None,
+        obs_list[1],
+        None,
         i_oco2,
         # Test for pointing angle
         # pointing_angle=rf.DoubleWithUnit(45,"deg"))
@@ -295,12 +295,12 @@ def test_refractor_omi_create_uip(
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
     i_retrievalInfo = rstep.params["i_retrievalInfo"]
-    i_airs = rstep.params["i_airs"]
-    i_tes = rstep.params["i_tes"]
-    i_cris = rstep.params["i_cris"]
-    i_omi = rstep.params["i_omi"]
-    i_tropomi = rstep.params["i_tropomi"]
-    i_oco2 = rstep.params["i_oco2"]
+    rstep.params["i_airs"]
+    rstep.params["i_tes"]
+    rstep.params["i_cris"]
+    rstep.params["i_omi"]
+    rstep.params["i_tropomi"]
+    rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
     sinfo = StateInfoOld()
@@ -329,12 +329,12 @@ def test_refractor_omi_create_uip(
         i_table,
         i_windows,
         i_retrievalInfo,
-        i_airs,
-        i_tes,
-        i_cris,
-        i_omi,
-        i_tropomi,
-        i_oco2,
+        None,
+        None,
+        None,
+        obs_list[0],
+        None,
+        None,
     )
     # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
     # may need to eventually sort this out, but it doesn't actually seem to be used  for

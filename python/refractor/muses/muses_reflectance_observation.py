@@ -373,6 +373,11 @@ class MusesReflectanceObservation(MusesObservationImp):
         """Upper limit for SNR, we adjust uncertainty if we are greater than this."""
         raise NotImplementedError()
 
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # TODO Determine stuff we may be able to pull out here
+        return self._muses_py_dict
+
     def spectrum_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> rf.Spectrum:

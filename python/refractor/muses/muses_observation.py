@@ -186,6 +186,9 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     filter_data - metadata about the filters covered the
         MusesObservation
 
+    radiance_for_uip - data reformatted to specific dict struct needed by
+        RefractorUip.create_uip
+
     sounding_desc - this is a dictionary with the instrument specific
         way of describing what sounding we are using. This is used in
         the product output files (so stuff in RetrievalOutput)
@@ -251,6 +254,16 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
 
         """
         raise NotImplementedError()
+
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        """RefractorUip needs to have the radiance/observation data presented in
+        a specific dict structure. This is just a rearrangement of data already found
+        in MusesObservation, but in a specific format."""
+        # Default to returning empty dict. This is just a placeholder, because we
+        # only need radiance_for_uip for MusesObservation used in the UIP. In general,
+        # a MusesObservation doesn't need a value here.
+        return {}
 
     @abc.abstractproperty
     def sounding_desc(self) -> dict[str, Any]:
@@ -668,9 +681,9 @@ class SimulatedObservation(MusesObservationImp):
         # reasonable to remove the muses_py_dict and just not have
         # SimulatedObservation work with the old forward models.
         super().__init__(
-            obs._muses_py_dict,
+            obs._muses_py_dict,  # noqa: SLF001
             obs.sounding_desc,
-            num_channels=obs.num_channels,  # noqa: SLF001
+            num_channels=obs.num_channels,
         )
         self._obs: MusesObservationImp = copy.deepcopy(obs)
         # We only have replacement_spectrum where the current spectral
@@ -753,6 +766,10 @@ class SimulatedObservation(MusesObservationImp):
     @spectral_window.setter
     def spectral_window(self, val: MusesSpectralWindow) -> None:
         self._spectral_window = val
+
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        return self._obs.radiance_for_uip
 
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False

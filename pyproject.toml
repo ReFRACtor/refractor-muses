@@ -35,7 +35,10 @@ build-backend = "setuptools.build_meta"
 # this code at all, the point is to compare our new code against
 # this old code
 exclude = ["retrieval_info_old.py"]
-# Temp, find usage of private variables
+
+# Find usage of private variables, this often indicates a problem.
+# You can turn this off where this is ok with "# noqa: SLF001" added to
+# a line
 extend-select = ["SLF001"] 
 
 [tool.mypy]

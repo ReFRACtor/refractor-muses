@@ -190,6 +190,34 @@ class MusesCrisObservation(MusesObservationImp):
     def scan_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self._muses_py_dict["SCANANG"]), "deg")
 
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # TODO Determine stuff we may be able to pull out here, get directly rather
+        # than from radianceStruct
+        return self._muses_py_dict["RADIANCESTRUCT"]
+
+    def window_fix_for_uip(self, win: dict[str, Any]) -> None:
+        """This is bit of kludge for use in RefractorUip.create_uip. This adjusts
+        windows needed for doing a joint retrieval with tropomi.
+
+        I'm not sure if this still matters, or what exactly this does. But
+        we at least pull to out so RefractorUip isn't mucking around with
+        internal variables of MusesCrisObservation.
+
+        win is updated in place."""
+        tempind = (self._muses_py_dict["FREQUENCY"] >= win["start"]) & (
+            self._muses_py_dict["FREQUENCY"] <= win["endd"]
+        )
+        MAXOPD = np.unique(self._muses_py_dict["MAXOPD"][tempind])
+        SPACING = np.unique(self._muses_py_dict["SPACING"][tempind])
+        if len(MAXOPD) > 1 or len(SPACING) > 1:
+            raise RuntimeError(
+                "Microwindows across CrIS filter bands leading to spacing and OPD does not uniform in this MW!"
+            )
+        win["maxopd"] = np.float32(MAXOPD[0])
+        win["spacing"] = np.float32(SPACING[0])
+        win["monoextend"] = np.float32(SPACING[0]) * 4.0
+
     @classmethod
     def create_from_filename(
         cls,

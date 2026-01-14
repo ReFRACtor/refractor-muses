@@ -126,6 +126,11 @@ class MusesTesObservation(MusesObservationImp):
     def spacecraft_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["instrumentAltitude"], "km")
 
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # TODO Determine stuff we may be able to pull out here
+        return self._muses_py_dict["radianceStruct"]
+
     def desc(self) -> str:
         return "MusesTesObservation"
 

@@ -656,13 +656,21 @@ class TesSpectralWindow(MusesSpectralWindow):
 
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
-        # Temp
-        # muses_gindex = muses_py_radiance_get_indices(
-        #    self._obs.muses_py_dict["radianceStruct"], self.muses_microwindows()
-        # )
-        muses_gindex = muses_py_radiance_get_indices(
-            self._obs._muses_py_dict["radianceStruct"], self.muses_microwindows()
-        )
+
+        # Pull out pieces that we depend on, just to make clear what the dependency is
+        d2 = self._obs.radiance_for_uip
+        d = {
+            "frequency": d2["frequency"],
+            "filterNames": d2["filterNames"],
+            "filterSizes": d2["filterSizes"],
+            "instrumentNames": d2["instrumentNames"],
+            "instrumentSizes": d2["instrumentSizes"],
+            # This values get grabbed, but nothing happens with it. Pass as nan to
+            # make clear we aren't filling this in
+            "NESR": np.nan,
+        }
+
+        muses_gindex = muses_py_radiance_get_indices(d, self.muses_microwindows())
 
         if self.include_bad_sample:
             return [int(i) for i in muses_gindex]

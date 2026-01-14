@@ -668,9 +668,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
                 jac, rad, _, success_flag = mpy_tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.rconf.input_file_helper.osp_dir,
-                    # Temp
-                    # i_obs=self.obs.muses_py_dict,
-                    i_obs=self.obs._muses_py_dict,
+                    i_obs=self.obs.radiance_for_uip,
                     skip_raman_copy=True,
                 )
             elif self.instrument_name == InstrumentIdentifier("OMI"):
@@ -693,9 +691,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
                 jac, rad, _, success_flag = mpy_omi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.rconf.input_file_helper.osp_dir,
-                    # Temp
-                    # i_obs=self.obs.muses_py_dict,
-                    i_obs=self.obs._muses_py_dict,
+                    i_obs=self.obs.radiance_for_uip,
                     skip_raman_copy=True,
                 )
             else:
