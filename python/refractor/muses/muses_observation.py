@@ -668,7 +668,9 @@ class SimulatedObservation(MusesObservationImp):
         # reasonable to remove the muses_py_dict and just not have
         # SimulatedObservation work with the old forward models.
         super().__init__(
-            obs._muses_py_dict, obs.sounding_desc, num_channels=obs.num_channels
+            obs._muses_py_dict,
+            obs.sounding_desc,
+            num_channels=obs.num_channels,  # noqa: SLF001
         )
         self._obs: MusesObservationImp = copy.deepcopy(obs)
         # We only have replacement_spectrum where the current spectral
@@ -781,7 +783,7 @@ class SimulatedObservation(MusesObservationImp):
 
     def monthly_minimum_surface_reflectance(self, band: int) -> float:
         return self._obs.monthly_minimum_surface_reflectance(band)
-    
+
 
 class SimulatedObservationHandle(ObservationHandle):
     """Just return the given observation always for the given

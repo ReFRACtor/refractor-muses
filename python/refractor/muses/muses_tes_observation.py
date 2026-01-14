@@ -122,6 +122,10 @@ class MusesTesObservation(MusesObservationImp):
     def boresight_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["boresightNadirRadians"], "rad")
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(self._muses_py_dict["instrumentAltitude"], "km")
+
     def desc(self) -> str:
         return "MusesTesObservation"
 
@@ -201,7 +205,11 @@ class MusesTesObservation(MusesObservationImp):
             my_file["filterSizes"] = np.asarray(actual_filter_sizes)
         my_file["radiance"] = my_file["radiance"][:, 0]
         my_file["NESR"] = my_file["NESR"][:, 0]
-        tes_struct = {"radianceStruct": my_file}
+        tes_struct = {
+            "radianceStruct": my_file,
+            "boresightNadirRadians": 0.0,
+            "instrumentAltitude": 0.0,
+        }
         sdesc = {
             "TES_RUN": 0,
             "TES_SEQUENCE": 0,
@@ -331,7 +339,7 @@ class MusesTesObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs._muses_py_dict,
+                existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )

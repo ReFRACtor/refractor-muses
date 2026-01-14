@@ -625,92 +625,116 @@ class FakeStateInfo:
         d["SPACECRAFTALTITUDE"] = obs.spacecraft_altitude
 
     def fill_airs(self, current_state: CurrentState, obs: MusesObservation) -> None:
-        d = {}
-        # Temp
-        #d2 = obs.muses_py_dict
-        d2 = obs._muses_py_dict
-        for k in (
-            "scanAng",
-            "satZen",
-            "satAzi",
-            "sza",
-            "solazi",
-            "sunGlintDistance",
-            "landFraction",
-            "satHeight",
-            "latitude",
-            "longitude",
-            "time",
-            "radiance",
-            "DaytimeFlag",
-            "CalChanSummary",
-            "ExcludedChans",
-            "NESR",
-            "frequency",
-            "surfaceAltitude",
-            "state",
-            "valid",
-        ):
-            # This one field has a different name on obs vs. state_info
-            if k == "satHeight":
-                d[k] = d2["satheight"]
-            else:
-                d[k] = d2[k]
-        self._current["airs"] = d
+        # Old code, where we set everything found in the real StateInfo of muses-py
+        if False:
+            d: dict[str, Any] = {}
+            d2 = obs._muses_py_dict  # noqa: SLF001
+            for k in (
+                "scanAng",
+                "satZen",
+                "satAzi",
+                "sza",
+                "solazi",
+                "sunGlintDistance",
+                "landFraction",
+                "satHeight",
+                "latitude",
+                "longitude",
+                "time",
+                "radiance",
+                "DaytimeFlag",
+                "CalChanSummary",
+                "ExcludedChans",
+                "NESR",
+                "frequency",
+                "surfaceAltitude",
+                "state",
+                "valid",
+            ):
+                # This one field has a different name on obs vs. state_info
+                if k == "satHeight":
+                    d[k] = d2["satheight"]
+                else:
+                    d[k] = d2[k]
+
+        # This is all that the UIP creation uses
+        self._current["airs"] = {
+            "scanAng": obs.scan_angle.convert("deg").value,
+            "satHeight": obs.spacecraft_altitude.convert("km").value,
+        }
 
     def fill_cris(self, current_state: CurrentState, obs: MusesObservation) -> None:
-        d = {}
-        # Temp
-        # d2 = obs.muses_py_dict
-        d2 = obs._muses_py_dict
-        for k in (
-            "scanAng",
-            "satZen",
-            "satAzi",
-            "sza",
-            "solazi",
-            "satAlt",
-            "l1bType",
-            "APODIZATION",
-            "APODIZATIONFUNCTION",
-            "NESR",
-        ):
-            # This one field has a different name on obs vs. state_info
-            if k == "l1bType":
-                d[k] = d2[k]
-            else:
-                d[k] = d2[k.upper()]
-        self._current["cris"] = d
+        # Old code, where we set everything found in the real StateInfo of muses-py
+        if False:
+            d: dict[str, Any] = {}
+            d2 = obs._muses_py_dict  # noqa: SLF001
+            for k in (
+                "scanAng",
+                "satZen",
+                "satAzi",
+                "sza",
+                "solazi",
+                "satAlt",
+                "l1bType",
+                "APODIZATION",
+                "APODIZATIONFUNCTION",
+                "NESR",
+            ):
+                # This one field has a different name on obs vs. state_info
+                if k == "l1bType":
+                    d[k] = d2[k]
+                else:
+                    d[k] = d2[k.upper()]
+        # This is all that the UIP creation uses. Note it looks for satAzi, but this
+        # doesn't actually get used anywhere. We pass a nan, just to make it clear
+        # we aren't filling this in
+        # TODO Remove np.float32 here. Needed to match the old retrieval, but we get
+        # round off type differences only without this
+        self._current["cris"] = {
+            "scanAng": obs.scan_angle.convert("deg").value,
+            "satAzi": np.nan,
+            "satAlt": np.float32(obs.spacecraft_altitude.convert("m").value),
+            "l1bType": obs.l1b_type,
+        }
 
     def fill_tes(self, current_state: CurrentState, obs: MusesObservation) -> None:
-        d: dict[str, Any] = {}
-        # Temp
-        #d2 = obs.muses_py_dict
-        d2 = obs._muses_py_dict
-        for k in (
-            "boresightNadirRadians",
-            "orbitInclinationAngle",
-            "viewMode",
-            "instrumentAzimuth",
-            "instrumentAltitude",
-            "instrumentLatitude",
-            "geoPointing",
-            "targetRadius",
-            "instrumentRadius",
-            "orbitAscending",
-        ):
-            # Special case for IRK, where we only have a fake tes observation. We just
-            # use various fill values for stuff not actually in d2.
-            if k not in d2:
-                if k == "viewMode":
-                    d[k] = "Nadir"
-                elif k == "orbitAscending":
-                    d[k] = 0
+        # Old code, where we set everything found in the real StateInfo of muses-py
+        if False:
+            d: dict[str, Any] = {}
+            d2 = obs._muses_py_dict  # noqa: SLF001
+            for k in (
+                "boresightNadirRadians",
+                "orbitInclinationAngle",
+                "viewMode",
+                "instrumentAzimuth",
+                "instrumentAltitude",
+                "instrumentLatitude",
+                "geoPointing",
+                "targetRadius",
+                "instrumentRadius",
+                "orbitAscending",
+            ):
+                # Special case for IRK, where we only have a fake tes observation. We just
+                # use various fill values for stuff not actually in d2.
+                if k not in d2:
+                    if k == "viewMode":
+                        d[k] = "Nadir"
+                    elif k == "orbitAscending":
+                        d[k] = 0
+                    else:
+                        d[k] = 0.0
                 else:
-                    d[k] = 0.0
-            else:
-                d[k] = d2[k]
-        self._current["tes"] = d
+                    d[k] = d2[k]
+        # This is all that the UIP creation uses. Note it looks for
+        # instrumentAzimuth and orbitInclinationAngle, but this
+        # doesn't actually get used anywhere. We pass as nans, just to
+        # make it clear we aren't filling this in
+        self._current["tes"] = {
+            "boresightNadirRadians": obs.boresight_angle.convert("rad").value,
+            "instrumentAzimuth": np.nan,
+            "instrumentAltitude": obs.spacecraft_altitude.convert("km").value,
+            "orbitInclinationAngle": np.nan,
+        }
 
 
 __all__ = [

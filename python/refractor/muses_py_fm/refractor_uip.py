@@ -1738,7 +1738,7 @@ class RefractorUip:
             iname = obs.instrument_name
             if str(iname) in o_xxx:
                 # Temp
-                #if hasattr(obs, "muses_py_dict"):
+                # if hasattr(obs, "muses_py_dict"):
                 #    o_xxx[str(iname)] = obs.muses_py_dict
                 if hasattr(obs, "_muses_py_dict"):
                     o_xxx[str(iname)] = obs._muses_py_dict

@@ -186,13 +186,13 @@ class MusesReflectanceObservation(MusesObservationImp):
 
         # Grab values from existing_obs if available
         if existing_obs is not None:
-            self._freq_data: list[np.ndarray] = existing_obs._freq_data # noqa: SLF001
-            self._nesr_data: list[np.ndarray] = existing_obs._nesr_data # noqa: SLF001
-            self._bsamp: list[np.ndarray] = existing_obs._bsamp # noqa: SLF001
-            self._solar_interp: list[LinearInterpolate] = existing_obs._solar_interp # noqa: SLF001
-            self._earth_rad: list[np.ndarray] = existing_obs._earth_rad # noqa: SLF001
-            self._nesr: list[np.ndarray] = existing_obs._nesr # noqa: SLF001
-            self._solar_spectrum: list[rf.Spectrum] = existing_obs._solar_spectrum # noqa: SLF001
+            self._freq_data: list[np.ndarray] = existing_obs._freq_data  # noqa: SLF001
+            self._nesr_data: list[np.ndarray] = existing_obs._nesr_data  # noqa: SLF001
+            self._bsamp: list[np.ndarray] = existing_obs._bsamp  # noqa: SLF001
+            self._solar_interp: list[LinearInterpolate] = existing_obs._solar_interp  # noqa: SLF001
+            self._earth_rad: list[np.ndarray] = existing_obs._earth_rad  # noqa: SLF001
+            self._nesr: list[np.ndarray] = existing_obs._nesr  # noqa: SLF001
+            self._solar_spectrum: list[rf.Spectrum] = existing_obs._solar_spectrum  # noqa: SLF001
         else:
             # Stash some values we use in later calculations. Note
             # that the radiance data is all smooshed together, so we
@@ -857,7 +857,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                     existing_obs.state_element_name_list()
                 )
             obs = cls(
-                existing_obs._muses_py_dict,
+                existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
                 existing_obs.filter_list,
                 existing_obs=existing_obs,
@@ -919,7 +919,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             )
             if not os.path.exists(pfname):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
-                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))
+                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))  # noqa: SLF001
 
         obs.spectral_window = (
             spec_win if spec_win is not None else MusesSpectralWindow(None, None)
@@ -975,7 +975,8 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         return float(
             self._muses_py_dict["SurfaceAlbedo"][
                 f"BAND{band}_MonthlyMinimumSurfaceReflectance"
-            ])
+            ]
+        )
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
@@ -1166,7 +1167,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                     existing_obs.state_element_name_list()
                 )
             obs = cls(
-                existing_obs._muses_py_dict,
+                existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
                 existing_obs.filter_list,
                 existing_obs=existing_obs,
@@ -1211,7 +1212,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             )
             if not os.path.exists(pfname):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
-                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))
+                pickle.dump(obs._muses_py_dict, open(pfname, "wb"))  # noqa: SLF001
 
         obs.spectral_window = (
             spec_win if spec_win is not None else MusesSpectralWindow(None, None)

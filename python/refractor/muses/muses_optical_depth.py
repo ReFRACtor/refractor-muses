@@ -187,7 +187,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         o3_col = np.flip(i_o3_col, axis=0)
 
         # Temp
-        #tropomi = self.obs.muses_py_dict
+        # tropomi = self.obs.muses_py_dict
         tropomi = self.obs._muses_py_dict
 
         max_ind = np.amax(i_tropomifreqIndex)
@@ -309,7 +309,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         o3_col = np.flip(i_o3_col, axis=0)
 
         # Temp
-        #omi = self.obs.muses_py_dict
+        # omi = self.obs.muses_py_dict
         omi = self.obs._muses_py_dict
 
         max_ind = np.amax(i_omifreqIndex)

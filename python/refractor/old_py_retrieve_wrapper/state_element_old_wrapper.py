@@ -210,7 +210,7 @@ class StateElementOldWrapper(StateElement):
         """Apriori value of StateElement"""
         if (
             self.state_element_id == StateElementIdentifier("EMIS")
-            or self._current_state_old._retrieval_info is None # noqa: SLF001
+            or self._current_state_old._retrieval_info is None  # noqa: SLF001
             or self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
@@ -251,8 +251,8 @@ class StateElementOldWrapper(StateElement):
         r1 = self.retrieval_slice
         if isinstance(selem2, StateElementOldWrapper):
             r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
-        elif hasattr(selem2, "_sold") and selem2._sold is not None: # noqa: SLF001
-            r2 = selem2._sold.retrieval_slice # noqa: SLF001
+        elif hasattr(selem2, "_sold") and selem2._sold is not None:  # noqa: SLF001
+            r2 = selem2._sold.retrieval_slice  # noqa: SLF001
         else:
             return None
         if r1 is None or r2 is None:
@@ -280,9 +280,9 @@ class StateElementOldWrapper(StateElement):
         if there is no cross covariance."""
         selem_old = self._old_selem
         if isinstance(selem2, StateElementOldWrapper):
-            selem2_old = cast(StateElementOldWrapper, selem2)._old_selem # noqa: SLF001
-        elif hasattr(selem2, "_sold") and selem2._sold is not None: # noqa: SLF001
-            selem2_old = selem2._sold._old_selem # noqa: SLF001
+            selem2_old = cast(StateElementOldWrapper, selem2)._old_selem  # noqa: SLF001
+        elif hasattr(selem2, "_sold") and selem2._sold is not None:  # noqa: SLF001
+            selem2_old = selem2._sold._old_selem  # noqa: SLF001
         else:
             return None
         res = selem_old.sa_cross_covariance(selem2_old)

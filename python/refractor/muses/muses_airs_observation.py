@@ -116,6 +116,14 @@ class MusesAirsObservation(MusesObservationImp):
     def instrument_name(self) -> InstrumentIdentifier:
         return InstrumentIdentifier("AIRS")
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self._muses_py_dict["satheight"]), "km")
+
+    @property
+    def scan_angle(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(self._muses_py_dict["scanAng"], "deg")
+
     @classmethod
     def create_from_filename(
         cls,
@@ -165,7 +173,7 @@ class MusesAirsObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs._muses_py_dict,
+                existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )

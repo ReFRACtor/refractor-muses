@@ -199,7 +199,7 @@ class RefractorMusesIntegration:
         if self.save_debug_data:
             # The magic incantation below grabs the parameters passed
             # to this func
-            params = sys._getframe(0).f_locals # noqa: SLF001
+            params = sys._getframe(0).f_locals  # noqa: SLF001
             # Don't include self in this
             del params["self"]
             sve = MusesRetrievalStep(params=params)
@@ -460,7 +460,7 @@ class RefractorMusesIntegration:
         if self.save_debug_data:
             # The magic incantation below grabs the parameters passed
             # to this func
-            params = sys._getframe(0).f_locals # noqa: SLF001
+            params = sys._getframe(0).f_locals  # noqa: SLF001
             # Don't include self in this
             del params["self"]
             sve = MusesForwardModelStep(params=params)

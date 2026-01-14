@@ -162,11 +162,18 @@ class MusesCrisObservation(MusesObservationImp):
 
     @property
     def l1b_type_int(self) -> int:
-        return self.l1b_type_int_from_filename(self.filename)
+        return [
+            "suomi_nasa_nsr",
+            "suomi_nasa_fsr",
+            "suomi_nasa_nomw",
+            "jpss1_nasa_fsr",
+            "suomi_cspp_fsr",
+            "suomi_noaa_fsr",
+        ].index(self.l1b_type)
 
     @property
     def l1b_type(self) -> str:
-        return self.l1b_type_from_filename(self.filename)
+        return self._muses_py_dict["l1bType"]
 
     def desc(self) -> str:
         return "MusesCrisObservation"
@@ -174,6 +181,14 @@ class MusesCrisObservation(MusesObservationImp):
     @property
     def instrument_name(self) -> InstrumentIdentifier:
         return InstrumentIdentifier("CRIS")
+
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self._muses_py_dict["SATALT"]), "m")
+
+    @property
+    def scan_angle(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self._muses_py_dict["SCANANG"]), "deg")
 
     @classmethod
     def create_from_filename(
@@ -219,7 +234,7 @@ class MusesCrisObservation(MusesObservationImp):
         if existing_obs is not None:
             # Take data from existing observation
             obs = cls(
-                existing_obs._muses_py_dict,
+                existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
                 num_channels=existing_obs.num_channels,
             )

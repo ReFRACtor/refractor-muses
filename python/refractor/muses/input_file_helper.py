@@ -171,8 +171,8 @@ class InputFilePathImp(InputFilePath):
         rel_path: str | os.PathLike[str] = ".",
     ) -> None:
         if isinstance(base_path, InputFilePathImp):
-            self._base_path: Path = Path(base_path._base_path) # noqa: SLF001
-            self._rel_path: Path = Path(base_path._rel_path) # noqa: SLF001
+            self._base_path: Path = Path(base_path._base_path)  # noqa: SLF001
+            self._rel_path: Path = Path(base_path._rel_path)  # noqa: SLF001
         else:
             self._base_path = Path(base_path).absolute()
             self._rel_path = Path(rel_path)
