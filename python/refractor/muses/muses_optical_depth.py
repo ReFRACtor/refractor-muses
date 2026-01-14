@@ -211,9 +211,11 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         sol_wav = sol_wav[temp_ind]
         sol_int = sol_int[temp_ind]
 
-        sol_interp = scipy.interpolate.interp1d(
-            sol_wav, sol_int, fill_value="extrapolate"
-        )
+        sol_interp = self.obs.solar_interp_for_od(sensor_index,
+                 rf.SpectralDomain(temp_wav_all, rf.Unit("nm")))
+        #sol_interp = scipy.interpolate.interp1d(
+        #    sol_wav, sol_int, fill_value="extrapolate"
+        #)
         central_wavelength = self.ils_params_list[sensor_index]["central_wavelength"]
         central_wavelength = central_wavelength[np.where(central_wavelength > -999)]
         num_points = len(central_wavelength)
@@ -284,7 +286,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         endd_freq = np.amax(self.ils_params_list[sensor_index]["v2_mono"]) + np.float64(
             1.0
         )
-
+        
         temp_ind = np.where((temp_wav_all >= start_freq) & (temp_wav_all <= endd_freq))[
             0
         ]
@@ -333,13 +335,11 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         sol_wav = omi["Solar_Radiance"]["Wavelength"][temp_ind]
         sol_int = omi["Solar_Radiance"]["AdjustedSolarRadiance"][temp_ind]
 
-        temp_ind = np.where(sol_int > 0.0)[0]
-        sol_wav = sol_wav[temp_ind]
-        sol_int = sol_int[temp_ind]
-        interpfunc_solar = scipy.interpolate.interp1d(
-            sol_wav, sol_int, fill_value="extrapolate"
-        )
-
+        interpfunc_solar = self.obs.solar_interp_for_od(sensor_index,
+                 rf.SpectralDomain(temp_wav_all, rf.Unit("nm")),
+                 self.ils_params_list[sensor_index]["v1_mono"],
+                 self.ils_params_list[sensor_index]["v2_mono"])
+        
         # compute I0-corrected ozone xcross sections
         num_points = len(self.ils_params_list[sensor_index]["X0_fm"])
         o3xsec = np.ndarray(shape=(num_points, nlayer), dtype=np.float64)

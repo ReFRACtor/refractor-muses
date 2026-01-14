@@ -16,6 +16,7 @@ from .mpy import (
 from .misc import AttrDictAdapter
 import os
 import numpy as np
+import scipy
 import refractor.framework as rf  # type: ignore
 from loguru import logger
 import pickle
@@ -275,6 +276,57 @@ class MusesReflectanceObservation(MusesObservationImp):
 
     def desc(self) -> str:
         return "MusesReflectanceObservation"
+
+    def solar_interp_for_od(self, sensor_index : int,
+                            xsec_sd : rf.SpectralDomain,
+                            v1_mono : np.ndarray | None = None,
+                            v2_mono : np.ndarray | None = 0) -> scipy.interpolate.interp1d:
+        '''The interpolation in MusesOpticalDepth has a specific form. This isn't
+        substantially different than just our self._solar_interp, but the values
+        calculated are different. In particular, the is a bug in the code where the
+        wrong SpectralDomain is used. We match this wrong behavior to match the existing
+        code, but this should get fixed at some point.
+
+        We duplicate what was in the old code, so we can get the same results. We
+        may want to just remove this at some point, or even better move the solar
+        model in a rf.SolarModel.
+        '''
+        # This logic is a bit convoluted to just find a subset of the solar data. Not
+        # even clear why this needs to get subsetted, but we match what the software
+        # in py-retrieve currently does.
+        #
+        # Note also the "magic" numbers to slightly widen the ranges. Again, we match
+        # what py-retrieve is currently doing
+        wn, sindex = self.wn_and_sindex(sensor_index)
+        if v1_mono is not None and v2_mono is not None:
+            start_wn = np.min(v1_mono) - 1.0
+            end_wn = np.max(v2_mono) + 1.0
+        else:
+            start_wn = np.min(wn) - 1.0
+            end_wn = np.max(wn) + 1.0
+        swin = rf.SpectralWindowRange(rf.ArrayWithUnit_double_3([[[start_wn, end_wn]]], "nm"))
+        sd = swin.apply(xsec_sd, 0)
+        swin2 = rf.SpectralWindowRange(rf.ArrayWithUnit_double_3([[[sd.data.min()-0.01, sd.data.max()+0.02]]],"nm"))
+        # TODO Fix this
+        # Note that is actually *wrong*. The AdjustedSolarRadiance has already been
+        # interpolated to the earth wavelengths. But match the old wrong behavior here,
+        # so we can match py-retrieve
+        erad = self._muses_py_dict["Earth_Radiance"]
+        srad = self._muses_py_dict["Solar_Radiance"]
+        flt_sub = erad["EarthWavelength_Filter"] == str(self.filter_list[sensor_index])
+        wrong_sol_domain = rf.SpectralDomain(
+            srad["Wavelength"][flt_sub], rf.Unit("nm")
+        ) # Should be erad["Wavelength"]
+        sol_range = rf.SpectralRange(
+            srad["AdjustedSolarRadiance"][flt_sub], rf.Unit("ph / nm / s")
+        )
+        wrong_sol_spec = rf.Spectrum(wrong_sol_domain, sol_range)
+        sol_sub = swin2.apply(wrong_sol_spec, 0)
+        # Exclude any bad points
+        good_pt = sol_sub.spectral_range.data > 0.0
+        return scipy.interpolate.interp1d(sol_sub.spectral_domain.data[good_pt],
+                                          sol_sub.spectral_range.data[good_pt],
+                                          fill_value="extrapolate")
 
     @property
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
