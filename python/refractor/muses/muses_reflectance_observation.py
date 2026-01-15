@@ -438,11 +438,6 @@ class MusesReflectanceObservation(MusesObservationImp):
         """Upper limit for SNR, we adjust uncertainty if we are greater than this."""
         raise NotImplementedError()
 
-    @property
-    def radiance_for_uip(self) -> dict[str, Any]:
-        # TODO Determine stuff we may be able to pull out here
-        return self._muses_py_dict
-
     def spectrum_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> rf.Spectrum:
@@ -864,6 +859,39 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     def instrument_name(self) -> InstrumentIdentifier:
         return InstrumentIdentifier("TROPOMI")
 
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # Explicitly create dict, so we document what is actually needed by
+        # RefactorUip/MusesTropomiOrOmiForwardModelBase
+        obs_table = {
+            "Filter_Band_Name": self.observation_table["Filter_Band_Name"],
+            "XTRACK": self.observation_table["XTRACK"],
+            "SolarZenithAngle": self.observation_table["SolarZenithAngle"],
+            "ViewingZenithAngle": self.observation_table["ViewingZenithAngle"],
+            "RelativeAzimuthAngle": self.observation_table["RelativeAzimuthAngle"],
+            "ScatteringAngle": self.observation_table["ScatteringAngle"],
+            "TerrainHeight": self.observation_table["TerrainHeight"],
+            "Latitude": self.observation_table["Latitude"],
+        }
+        erad = self._muses_py_dict["Earth_Radiance"]
+        srad = self._muses_py_dict["Solar_Radiance"]
+        return {
+            "Earth_Radiance": {
+                "EarthWavelength_Filter": erad["EarthWavelength_Filter"],
+                "Wavelength": erad["Wavelength"],
+                "ObservationTable": obs_table,
+                "CalibratedEarthRadiance": erad["CalibratedEarthRadiance"],
+                "EarthRadianceNESR": erad["EarthRadianceNESR"],
+                "EarthRadiance": erad["EarthRadiance"],
+            },
+            "Solar_Radiance": {
+                "AdjustedSolarRadiance": srad["AdjustedSolarRadiance"],
+                "SolarRadiance": srad["SolarRadiance"],
+                "SolarWavelength_Filter": srad["SolarWavelength_Filter"],
+                "Wavelength": srad["Wavelength"],
+            },
+        }
+
     @classmethod
     def create_from_filename(
         cls,
@@ -1175,6 +1203,42 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @property
     def instrument_name(self) -> InstrumentIdentifier:
         return InstrumentIdentifier("OMI")
+
+    @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # Explicitly create dict, so we document what is actually needed by
+        # RefactorUip/MusesTropomiOrOmiForwardModelBase
+        obs_table = {
+            "Filter_Band_Name": self.observation_table["Filter_Band_Name"],
+            "XTRACK": self.observation_table["XTRACK"],
+            "MeasurementMode": self.observation_table["MeasurementMode"],
+            # Following needed for VLIDORT, this gets passed in the file
+            # created for VLIDORT (print_omi_vga)
+            "SolarZenithAngle": self.observation_table["SolarZenithAngle"],
+            "ViewingZenithAngle": self.observation_table["ViewingZenithAngle"],
+            "RelativeAzimuthAngle": self.observation_table["RelativeAzimuthAngle"],
+            "ScatteringAngle": self.observation_table["ScatteringAngle"],
+            "TerrainHeight": self.observation_table["TerrainHeight"],
+            "Latitude": self.observation_table["Latitude"],
+        }
+        erad = self._muses_py_dict["Earth_Radiance"]
+        srad = self._muses_py_dict["Solar_Radiance"]
+        return {
+            "Earth_Radiance": {
+                "EarthWavelength_Filter": erad["EarthWavelength_Filter"],
+                "Wavelength": erad["Wavelength"],
+                "ObservationTable": obs_table,
+                "CalibratedEarthRadiance": erad["CalibratedEarthRadiance"],
+                "EarthRadianceNESR": erad["EarthRadianceNESR"],
+                "EarthRadiance": erad["EarthRadiance"],
+            },
+            "Solar_Radiance": {
+                "AdjustedSolarRadiance": srad["AdjustedSolarRadiance"],
+                "SolarRadiance": srad["SolarRadiance"],
+                "SolarWavelength_Filter": srad["SolarWavelength_Filter"],
+                "Wavelength": srad["Wavelength"],
+            },
+        }
 
     @classmethod
     def create_from_filename(
