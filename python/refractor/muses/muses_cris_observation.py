@@ -192,10 +192,22 @@ class MusesCrisObservation(MusesObservationImp):
 
     @property
     def radiance_for_uip(self) -> dict[str, Any]:
-        # TODO Determine stuff we may be able to pull out here, get directly rather
-        # than from radianceStruct
-        return self._muses_py_dict["RADIANCESTRUCT"]
-
+        # TODO Remove RADIANCESTRUCT
+        d = self._muses_py_dict["RADIANCESTRUCT"]
+        return {"frequency" : d["frequency"],
+                "filterNames" : d["filterNames"],
+                "filterSizes" : d["filterSizes"],
+                "instrumentNames" : d["instrumentNames"],
+                "instrumentSizes" : d["instrumentSizes"],
+                # Values used to fill things in (so need to be real numbers), but not
+                # actually used for anything ultimately
+                "detectors" : [0],
+                "numDetectorsOrig" : 1,
+                # expected, but not actually used for anything. Have as a nan to
+                # show we aren't filling this in
+                "NESR" : np.full((sum(d["instrumentSizes"]),), np.nan),
+                "radiance": np.full((sum(d["instrumentSizes"]),), np.nan),
+                }
     def window_fix_for_uip(self, win: dict[str, Any]) -> None:
         """This is bit of kludge for use in RefractorUip.create_uip. This adjusts
         windows needed for doing a joint retrieval with tropomi.
