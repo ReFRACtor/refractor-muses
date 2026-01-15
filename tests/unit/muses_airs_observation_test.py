@@ -10,6 +10,7 @@ from refractor.muses import (
 )
 from fixtures.require_check import require_muses_py
 from fixtures.compare_run import compare_muses_py_dict
+import numpy as np
 
 
 def test_create_muses_airs_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
@@ -82,4 +83,7 @@ def test_airs_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     with osp_setup(ifile_hlp):
         o_airs = mpy.read_airs(i_fileid, windows)
     o_airs2 = MusesAirsObservation.read_airs(filename, xtrack, atrack, ifile_hlp)
+    t = o_airs["radiance"]["radiance"]
+    del o_airs["radiance"]
+    o_airs["radiance"] = t
     compare_muses_py_dict(o_airs2, o_airs, "read_airs")

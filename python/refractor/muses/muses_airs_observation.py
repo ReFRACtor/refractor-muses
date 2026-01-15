@@ -37,17 +37,21 @@ class MusesAirsObservation(MusesObservationImp):
 
         """
         super().__init__(o_airs, sdesc)
-        # Set up stuff for the filter_data metadata
+        # This is just hardcoded in py-retrieve, see about line 62 in
+        # read_airs.py
         self._filter_data_name = [
-            FilterIdentifier(i) for i in o_airs["radiance"]["filterNames"]
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("2A3"),
+            FilterIdentifier("1A1"),
         ]
-        mw_range = np.zeros((len(self._filter_data_name), 1, 2))
-        sindex = 0
-        for i in range(mw_range.shape[0]):
-            eindex = o_airs["radiance"]["filterSizes"][i] + sindex
-            freq = o_airs["radiance"]["frequency"][sindex:eindex]
-            mw_range[i, 0, :] = min(freq), max(freq)
-            sindex = eindex
+        mw_range = np.zeros((5, 1, 2))
+        mw_range[0, 0, :] = 0.0, 950.00
+        mw_range[1, 0, :] = 950.01, 1119.80
+        mw_range[2, 0, :] = 1119.81, 1444.00
+        mw_range[3, 0, :] = 1444.01, 1890.80
+        mw_range[4, 0, :] = 1890.81, 9999.00
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
@@ -92,21 +96,14 @@ class MusesAirsObservation(MusesObservationImp):
             )
         with osp_setup(ifile_hlp):
             o_airs = mpy_read_airs_l1b(os.path.abspath(str(filename)), xtrack, atrack)
-        radiance = o_airs["radiance"]
+        # Not sure why, but data isn't fully sorted by wavenumber. Go ahead and
+        # fix this. Also convert radiance to float64 (it is float32). frequency
+        # and NESR are already float64
         frequency = o_airs["frequency"]
-        nesr = o_airs["NESR"]
         ss = np.argsort(frequency)
-        radiance = radiance[ss]
-        frequency = frequency[ss]
-        nesr = nesr[ss]
-        filters = np.full((len(nesr),), "2B1")
-        filters[frequency > 950.0] = "1B2"
-        filters[frequency > 1119.8] = "2A1"
-        filters[frequency > 1444.0] = "2A3"
-        filters[frequency > 1890.8] = "1A1"
-        o_airs["radiance"] = cls.radiance_data(
-            radiance, nesr, frequency, filters, "AIRS"
-        )
+        o_airs["radiance"] = o_airs["radiance"][ss].astype(np.float64)
+        o_airs["frequency"] = o_airs["frequency"][ss]
+        o_airs["NESR"] = o_airs["NESR"][ss]
         return o_airs
 
     def desc(self) -> str:
@@ -123,25 +120,6 @@ class MusesAirsObservation(MusesObservationImp):
     @property
     def scan_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["scanAng"], "deg")
-
-    @property
-    def radiance_for_uip(self) -> dict[str, Any]:
-        # TODO Remove radiance
-        d = self._muses_py_dict["radiance"]
-        return {"frequency" : d["frequency"],
-                "filterNames" : d["filterNames"],
-                "filterSizes" : d["filterSizes"],
-                "instrumentNames" : d["instrumentNames"],
-                "instrumentSizes" : d["instrumentSizes"],
-                # Values used to fill things in (so need to be real numbers), but not
-                # actually used for anything ultimately
-                "detectors" : [0],
-                "numDetectorsOrig" : 1,
-                # expected, but not actually used for anything. Have as a nan to
-                # show we aren't filling this in
-                "NESR" : np.full((sum(d["instrumentSizes"]),), np.nan),
-                "radiance": np.full((sum(d["instrumentSizes"]),), np.nan),
-                }
 
     @classmethod
     def create_from_filename(
@@ -239,7 +217,7 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self._muses_py_dict["radiance"]["radiance"]
+        return self._muses_py_dict["radiance"]
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
@@ -248,7 +226,7 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self._muses_py_dict["radiance"]["frequency"]
+        return self._muses_py_dict["frequency"]
 
     def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
@@ -257,84 +235,11 @@ class MusesAirsObservation(MusesObservationImp):
         """
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
-        return self._muses_py_dict["radiance"]["NESR"]
+        return self._muses_py_dict["NESR"]
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self._muses_py_dict["surfaceAltitude"]), "m")
-
-    @classmethod
-    def radiance_data(
-        cls,
-        i_radiance: np.ndarray,
-        i_nesr: np.ndarray,
-        i_frequency: np.ndarray,
-        filters: np.ndarray,
-        i_instrument: str,
-    ) -> dict[str, Any]:
-        # Create a standard structure (dictionary in Python).
-        o_radianceStruct = cls.radiance_new_struct(i_frequency, filters, i_instrument)
-
-        # Put 3 more elements in the dictionary.
-        o_radianceStruct["radiance"] = i_radiance.astype(np.float64)
-        o_radianceStruct["NESR"] = i_nesr.astype(np.float64)
-        o_radianceStruct["pixelsUsed"][:, :] = 1
-
-        return o_radianceStruct
-
-    @classmethod
-    def radiance_new_struct(
-        cls, i_frequency: np.ndarray, i_filterArray: np.ndarray, i_instrument: str
-    ) -> dict[str, Any]:
-        nfreq = len(i_frequency)
-
-        filterArray = i_filterArray
-        filterNames = [str(t) for t in list(dict.fromkeys(filterArray))]
-
-        nfilters = len(filterNames)
-        filterSizes = [
-            int(np.count_nonzero(np.array(filterArray) == v)) for v in filterNames
-        ]
-
-        uniqueInstruments = [
-            i_instrument,
-        ]
-        instrumentSizes = [
-            nfreq,
-        ]
-
-        o_radianceStruct = {
-            "filename": "",
-            "instrument": "",
-            "comments": "",
-            "preferences": "",
-            "detectors": [
-                0,
-            ],
-            "mws": "",
-            "numDetectorsOrig": 1,
-            "numDetectors": 1,
-            "num_frequencies": nfreq,
-            "radiance": "dummy_radiance",
-            "NESR": "dummy_NESR",
-            "frequency": i_frequency,
-            "valid": "yes",
-            "filterSizes": filterSizes,
-            "filterNames": filterNames,
-            "instrumentSizes": instrumentSizes,
-            "instrumentNames": uniqueInstruments,
-            "pixelsUsed": np.zeros(shape=(1, nfilters), dtype=int),
-            "interpixelVar": np.zeros(shape=(nfilters), dtype=np.float32),
-            "freqShift": 0.0,
-            "imaginaryMean": 0.0,
-            "imaginaryRMS": 0.0,
-            "bt8": 0.0,
-            "bt10": 0.0,
-            "bt11": 0.0,
-            "scanDirection": 0,
-        }
-
-        return o_radianceStruct
 
 
 ObservationHandleSet.add_default_handle(

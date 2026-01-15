@@ -459,6 +459,44 @@ class MusesObservationImp(MusesObservation):
         return self._muses_py_dict["Earth_Radiance"]["EarthWavelength_Filter"]
 
     @property
+    def radiance_for_uip(self) -> dict[str, Any]:
+        # This was structures with names like RADIANCESTRUCT for radiance in the old
+        # py-retrieve code. We have determined the subset of values actually needed
+        # to create the uip, and have them filled in here.
+        if self.num_channels != 1:
+            raise RuntimeError(
+                "radiance_for_uip implementation assumes only 1 channel, we need to extend the code if we need to handle more"
+            )
+        if self._filter_data_swin is None:
+            raise RuntimeError(
+                "Need to fill in self._filter_data_swin before calling radiance_for_uip"
+            )
+        sd = self.spectral_domain_full(0)
+        return {
+            "frequency": sd.data,
+            "filterNames": [str(fid) for fid in self._filter_data_name],
+            "filterSizes": [
+                self._filter_data_swin.apply(sd, i).size
+                for i in range(len(self._filter_data_name))
+            ],
+            # Only have one instrument
+            "instrumentNames": [
+                str(self.instrument_name),
+            ],
+            "instrumentSizes": [
+                sd.size,
+            ],
+            # Values used to fill things in (so need to be real numbers), but not
+            # actually used for anything ultimately
+            "detectors": [0],
+            "numDetectorsOrig": 1,
+            # expected, but not actually used for anything. Have as nans to
+            # show we aren't filling this in
+            "NESR": np.full(sd.size, np.nan),
+            "radiance": np.full(sd.size, np.nan),
+        }
+
+    @property
     def across_track(self) -> list[int]:
         res = []
         for i in range(self.num_channels):

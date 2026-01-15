@@ -43,7 +43,7 @@ class MusesTesObservation(MusesObservationImp):
         super().__init__(o_tes, sdesc)
         # Set up stuff for the filter_data metadata
         self._filter_data_name = [
-            FilterIdentifier(i) for i in o_tes["radianceStruct"]["filterNames"]
+            FilterIdentifier(str(i)) for i in o_tes["radianceStruct"]["filterNames"]
         ]
         mw_range = np.zeros((len(self._filter_data_name), 1, 2))
         sindex = 0
@@ -128,23 +128,24 @@ class MusesTesObservation(MusesObservationImp):
 
     @property
     def radiance_for_uip(self) -> dict[str, Any]:
+        # TODO Remove this, I think we have a problem with frequency_full
         # TODO Remove radianceStruct
         d = self._muses_py_dict["radianceStruct"]
-        return {"frequency" : d["frequency"],
-                "filterNames" : d["filterNames"],
-                "filterSizes" : d["filterSizes"],
-                "instrumentNames" : d["instrumentNames"],
-                "instrumentSizes" : d["instrumentSizes"],
-                # Values used to fill things in (so need to be real numbers), but not
-                # actually used for anything ultimately
-                "detectors" : [0],
-                "numDetectorsOrig" : 1,
-                # expected, but not actually used for anything. Have as a nan to
-                # show we aren't filling this in
-                "NESR" : np.full((sum(d["instrumentSizes"]),), np.nan),
-                "radiance": np.full((sum(d["instrumentSizes"]),), np.nan),
-                }
-
+        return {
+            "frequency": d["frequency"],
+            "filterNames": d["filterNames"],
+            "filterSizes": d["filterSizes"],
+            "instrumentNames": d["instrumentNames"],
+            "instrumentSizes": d["instrumentSizes"],
+            # Values used to fill things in (so need to be real numbers), but not
+            # actually used for anything ultimately
+            "detectors": [0],
+            "numDetectorsOrig": 1,
+            # expected, but not actually used for anything. Have as a nan to
+            # show we aren't filling this in
+            "NESR": np.full((sum(d["instrumentSizes"]),), np.nan),
+            "radiance": np.full((sum(d["instrumentSizes"]),), np.nan),
+        }
 
     def desc(self) -> str:
         return "MusesTesObservation"

@@ -669,7 +669,6 @@ class TesSpectralWindow(MusesSpectralWindow):
             # make clear we aren't filling this in
             "NESR": np.nan,
         }
-
         muses_gindex = muses_py_radiance_get_indices(d, self.muses_microwindows())
 
         if self.include_bad_sample:

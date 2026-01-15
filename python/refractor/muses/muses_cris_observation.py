@@ -58,16 +58,6 @@ class MusesCrisObservation(MusesObservationImp):
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         o_cris = cls.read_cris(filename, xtrack, atrack, pixel_index, ifile_hlp)
-        # Add in RADIANCESTRUCT. Not sure if this is used, but easy enough to put in
-        radiance = o_cris["RADIANCE"]
-        frequency = o_cris["FREQUENCY"]
-        nesr = o_cris["NESR"]
-        filters = np.full((len(nesr),), "CrIS-fsr-lw")
-        filters[frequency > 1200] = "CrIS-fsr-mw"
-        filters[frequency > 2145] = "CrIS-fsr-sw"
-        o_cris["RADIANCESTRUCT"] = cls.radiance_data(
-            radiance, nesr, frequency, filters, "CRIS"
-        )
         # We can perhaps clean this up, but for now there is some metadata  written
         # in the output file that depends on getting the l1b_type through o_cris,
         # so set that up
@@ -190,24 +180,6 @@ class MusesCrisObservation(MusesObservationImp):
     def scan_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self._muses_py_dict["SCANANG"]), "deg")
 
-    @property
-    def radiance_for_uip(self) -> dict[str, Any]:
-        # TODO Remove RADIANCESTRUCT
-        d = self._muses_py_dict["RADIANCESTRUCT"]
-        return {"frequency" : d["frequency"],
-                "filterNames" : d["filterNames"],
-                "filterSizes" : d["filterSizes"],
-                "instrumentNames" : d["instrumentNames"],
-                "instrumentSizes" : d["instrumentSizes"],
-                # Values used to fill things in (so need to be real numbers), but not
-                # actually used for anything ultimately
-                "detectors" : [0],
-                "numDetectorsOrig" : 1,
-                # expected, but not actually used for anything. Have as a nan to
-                # show we aren't filling this in
-                "NESR" : np.full((sum(d["instrumentSizes"]),), np.nan),
-                "radiance": np.full((sum(d["instrumentSizes"]),), np.nan),
-                }
     def window_fix_for_uip(self, win: dict[str, Any]) -> None:
         """This is bit of kludge for use in RefractorUip.create_uip. This adjusts
         windows needed for doing a joint retrieval with tropomi.
@@ -708,79 +680,6 @@ class MusesCrisObservation(MusesObservationImp):
             )
 
         return res
-
-    @classmethod
-    def radiance_data(
-        cls,
-        i_radiance: np.ndarray,
-        i_nesr: np.ndarray,
-        i_frequency: np.ndarray,
-        filters: np.ndarray,
-        i_instrument: str,
-    ) -> dict[str, Any]:
-        # Create a standard structure (dictionary in Python).
-        o_radianceStruct = cls.radiance_new_struct(i_frequency, filters, i_instrument)
-
-        # Put 3 more elements in the dictionary.
-        o_radianceStruct["radiance"] = i_radiance.astype(np.float64)
-        o_radianceStruct["NESR"] = i_nesr.astype(np.float64)
-        o_radianceStruct["pixelsUsed"][:, :] = 1
-
-        return o_radianceStruct
-
-    @classmethod
-    def radiance_new_struct(
-        cls, i_frequency: np.ndarray, i_filterArray: np.ndarray, i_instrument: str
-    ) -> dict[str, Any]:
-        nfreq = len(i_frequency)
-
-        filterArray = i_filterArray
-        filterNames = [str(t) for t in list(dict.fromkeys(filterArray))]
-
-        nfilters = len(filterNames)
-        filterSizes = [
-            int(np.count_nonzero(np.array(filterArray) == v)) for v in filterNames
-        ]
-
-        uniqueInstruments = [
-            i_instrument,
-        ]
-        instrumentSizes = [
-            nfreq,
-        ]
-
-        o_radianceStruct = {
-            "filename": "",
-            "instrument": "",
-            "comments": "",
-            "preferences": "",
-            "detectors": [
-                0,
-            ],
-            "mws": "",
-            "numDetectorsOrig": 1,
-            "numDetectors": 1,
-            "num_frequencies": nfreq,
-            "radiance": "dummy_radiance",
-            "NESR": "dummy_NESR",
-            "frequency": i_frequency,
-            "valid": "yes",
-            "filterSizes": filterSizes,
-            "filterNames": filterNames,
-            "instrumentSizes": instrumentSizes,
-            "instrumentNames": uniqueInstruments,
-            "pixelsUsed": np.zeros(shape=(1, nfilters), dtype=int),
-            "interpixelVar": np.zeros(shape=(nfilters), dtype=np.float32),
-            "freqShift": 0.0,
-            "imaginaryMean": 0.0,
-            "imaginaryRMS": 0.0,
-            "bt8": 0.0,
-            "bt10": 0.0,
-            "bt11": 0.0,
-            "scanDirection": 0,
-        }
-
-        return o_radianceStruct
 
 
 ObservationHandleSet.add_default_handle(
