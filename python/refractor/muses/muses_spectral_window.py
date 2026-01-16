@@ -658,13 +658,18 @@ class TesSpectralWindow(MusesSpectralWindow):
         # this includes bad_samples.
 
         # Pull out pieces that we depend on, just to make clear what the dependency is
-        d2 = self._obs.radiance_for_uip
+        with self._obs.modify_spectral_window(full_band = True):
+            sd = self._obs.spectral_domain_all()
         d = {
-            "frequency": d2["frequency"],
-            "filterNames": d2["filterNames"],
-            "filterSizes": d2["filterSizes"],
-            "instrumentNames": d2["instrumentNames"],
-            "instrumentSizes": d2["instrumentSizes"],
+            "frequency": sd.data,
+            "filterNames": [str(fid) for fid, _ in self._obs.filter_data_full],
+            "filterSizes": [sz for _, sz in self._obs.filter_data_full],
+            "instrumentNames": [
+                str(self._obs.instrument_name),
+            ],
+            "instrumentSizes": [
+                sd.size,
+            ],
             # This values get grabbed, but nothing happens with it. Pass as nan to
             # make clear we aren't filling this in
             "NESR": np.nan,

@@ -43,24 +43,27 @@ class MusesTesObservation(MusesObservationImp):
         super().__init__(o_tes, sdesc)
         # Set up stuff for the filter_data metadata
         # Hardcoded, see about line 29 of read_test_l1b.py
-        self._filter_data_name = [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]
+        self._filter_data_name = [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ]
         self._filter_data_name = [
             FilterIdentifier(str(i)) for i in o_tes["radianceStruct"]["filterNames"]
         ]
         # Note that the bands of tes actually overlap. This is confusing, but we
-        # need to match the old way this ran. Have filter_data_swin set to None,
-        # because it doesn't actually work the way we expect
-        if False:
-            mw_range = np.zeros((len(self._filter_data_name), 1, 2))
-            sindex = 0
-            for i in range(mw_range.shape[0]):
-                eindex = o_tes["radianceStruct"]["filterSizes"][i] + sindex
-                freq = o_tes["radianceStruct"]["frequency"][sindex:eindex]
-                mw_range[i, 0, :] = min(freq), max(freq)
-                sindex = eindex
-            mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
-            self._filter_data_swin = rf.SpectralWindowRange(mw_range)
-        self._filter_data_swin = False
+        # need to match the old way this ran. We have handling in filter_data_full
+        # to work around this.
+        mw_range = np.zeros((len(self._filter_data_name), 1, 2))
+        sindex = 0
+        for i in range(mw_range.shape[0]):
+            eindex = o_tes["radianceStruct"]["filterSizes"][i] + sindex
+            freq = o_tes["radianceStruct"]["frequency"][sindex:eindex]
+            mw_range[i, 0, :] = min(freq), max(freq)
+            sindex = eindex
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
     def _read_data(
@@ -134,42 +137,25 @@ class MusesTesObservation(MusesObservationImp):
         return rf.DoubleWithUnit(self._muses_py_dict["instrumentAltitude"], "km")
 
     @property
-    def radiance_for_uip(self) -> dict[str, Any]:
-        # Need to override, because self._filter_data_swin hasn't been filled in
-        # See __init__ for description of why this is the case.
-        d = self._muses_py_dict["radianceStruct"]
-        sd = self.spectral_domain_full(0)
-        return {
-            "frequency": sd.data,
-            "filterNames": [str(fid) for fid in self._filter_data_name],
-            # Use filter size from read of data, we can't use self._filter_data_swin.
-            "filterSizes": d["filterSizes"],
-            "instrumentNames": [
-                str(self.instrument_name),
-            ],
-            "instrumentSizes": [
-                sd.size,
-            ],
-            # Values used to fill things in (so need to be real numbers), but not
-            # actually used for anything ultimately
-            "detectors": [0],
-            "numDetectorsOrig": 1,
-            # expected, but not actually used for anything. Have as a nan to
-            # show we aren't filling this in
-            "NESR": np.full(sd.size, np.nan),
-            "radiance": np.full(sd.size, np.nan),
-        }
-
-    @property
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
-        # Need to override, because self._filter_data_swin hasn't been filled in
-        # See __init__ for description of why this is the case.
+        # Need to override, because self._filter_data_swin overlaps (so the
+        # total of the sizes is greater than the actual full spectral_domain)
         res: list[tuple[FilterIdentifier, int]] = []
         d = self._muses_py_dict["radianceStruct"]
         for i, fltname in enumerate(self._filter_data_name):
             res.append((fltname, int(d["filterSizes"][i])))
         return res
-                        
+    
+    @property
+    def filter_data_full(self) -> list[tuple[FilterIdentifier, int]]:
+        # Need to override, because self._filter_data_swin overlaps (so the
+        # total of the sizes is greater than the actual full spectral_domain)
+        res: list[tuple[FilterIdentifier, int]] = []
+        d = self._muses_py_dict["radianceStruct"]
+        for i, fltname in enumerate(self._filter_data_name):
+            res.append((fltname, int(d["filterSizes"][i])))
+        return res
+
     def desc(self) -> str:
         return "MusesTesObservation"
 

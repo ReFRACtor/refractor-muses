@@ -10,7 +10,6 @@ from refractor.muses import (
 )
 from fixtures.require_check import require_muses_py
 from fixtures.compare_run import compare_muses_py_dict
-import numpy as np
 
 
 def test_create_muses_airs_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
