@@ -9,7 +9,6 @@ from .muses_observation import (
 from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .mpy import (
     mpy_read_tes_l1b,
-    mpy_radiance_apodize,
 )
 import os
 import numpy as np
@@ -17,6 +16,7 @@ import refractor.framework as rf  # type: ignore
 import copy
 from typing import Any, Self
 import typing
+import itertools
 from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
@@ -122,9 +122,7 @@ class MusesTesObservation(MusesObservationImp):
         if func != "NORTON_BEER":
             raise RuntimeError(f"Don't know how to apply apodization function {func}")
         # o_tes["radianceStruct"] updated in place.
-        cls._radiance_apodize(
-            o_tes["radianceStruct"], strength, flt, maxopd, spacing
-        )
+        cls._radiance_apodize(o_tes["radianceStruct"], strength, flt, maxopd, spacing)
 
     @property
     def boresight_angle(self) -> rf.DoubleWithUnit:
@@ -427,55 +425,75 @@ class MusesTesObservation(MusesObservationImp):
         return rf.DoubleWithUnit(float(self._muses_py_dict["surfaceElevation"]), "m")
 
     @classmethod
-    def _radiance_apodize(cls, i_radianceStruct : dict[str, Any], apodStrength:str, i_filter:np.ndarray, i_maxOPD:np.ndarray, i_spacing:np.ndarray) -> None:
+    def _radiance_apodize(
+        cls,
+        i_radianceStruct: dict[str, Any],
+        apodStrength: str,
+        i_filter: np.ndarray,
+        i_maxOPD: np.ndarray,
+        i_spacing: np.ndarray,
+    ) -> None:
         # Update i_radianceStruct in place
 
         import refractor.muses_py as mpy
+
         apodStrength = apodStrength.lower()
 
         # this radiance may have different filters or windows.  Go through and
         # pull out ranges of each filter or window by seeing where frequency
-        # jumps. 
-        instrument = mpy.radiance_get_instrument_array(i_radianceStruct)
-        filter = mpy.radiance_get_filter_array(i_radianceStruct)
-        frequency = i_radianceStruct['frequency']
+        # jumps.
+        instrument = (
+            i_radianceStruct["instrumentNames"] * i_radianceStruct["instrumentSizes"][0]
+        )
+        filter = list(
+            itertools.chain.from_iterable(
+                [
+                    nm,
+                ]
+                * sz
+                for nm, sz in zip(
+                    i_radianceStruct["filterNames"], i_radianceStruct["filterSizes"]
+                )
+            )
+        )
+        frequency = i_radianceStruct["frequency"]
 
         nf = len(filter)
-        dfreq = frequency[1] - frequency[0]
 
         # get all places the frequency makes a big jump.
-        diff = (frequency[1:]-frequency[0:-1])/(frequency[1]-frequency[0])
-        indf = np.where(abs(diff-1) > .01)[0]
+        diff = (frequency[1:] - frequency[0:-1]) / (frequency[1] - frequency[0])
+        indf = np.where(abs(diff - 1) > 0.01)[0]
         ind = [0]
         if indf[0] > 0:
             for ii in indf:
-                ind.append(ii+1)
+                ind.append(ii + 1)
         ind.append(nf)
 
-        detectors = i_radianceStruct['detectors']
-        radiance = i_radianceStruct['radiance']
-        nesr = i_radianceStruct['NESR']
+        radiance = i_radianceStruct["radiance"]
+        nesr = i_radianceStruct["NESR"]
 
         # count new # points
         ntotal = 0
-        for iwin in range(0, len(ind)-1):
+        for iwin in range(0, len(ind) - 1):
             i1 = ind[iwin]
-            i2 = ind[iwin+1]-1 
-            minn = frequency[i1]
-            maxx = frequency[i2]
+            i2 = ind[iwin + 1] - 1
 
             indFilter = np.where(i_filter == filter[i1])[0]
-            convSpacing = np.mean(float(i_spacing[indFilter])) # take mean to ensure is a # not an array
-            maxOPD = np.mean(float(i_maxOPD[indFilter]))       # take mean to ensure is a # not an array
+            convSpacing = np.mean(
+                float(i_spacing[indFilter])
+            )  # take mean to ensure is a # not an array
+            maxOPD = np.mean(
+                float(i_maxOPD[indFilter])
+            )  # take mean to ensure is a # not an array
 
-            n = int((frequency[i2] - frequency[i1])/convSpacing + 1 + 0.5)
+            n = int((frequency[i2] - frequency[i1]) / convSpacing + 1 + 0.5)
             ntotal = ntotal + n
 
         radNew = np.zeros(ntotal, dtype=np.float64)
         freqNew = np.zeros(ntotal, dtype=np.float64)
-        filtNew = np.empty(ntotal, dtype='<U3')
+        filtNew = np.empty(ntotal, dtype="<U3")
         nesrNew = np.empty(ntotal, dtype=np.float64)
-        satNew = np.empty(ntotal, dtype='<U3')
+        satNew = np.empty(ntotal, dtype="<U3")
 
         # record negative nesrs
         indNeg = np.where(nesr < 0)[0]
@@ -485,44 +503,44 @@ class MusesTesObservation(MusesObservationImp):
             freqNeg = []
 
         ntotal = 0
-        for iwin in range(0, len(ind)-1):
-
+        for iwin in range(0, len(ind) - 1):
             i1 = ind[iwin]
-            i2 = ind[iwin+1]
+            i2 = ind[iwin + 1]
 
             indFilter = np.where(i_filter == filter[i1])[0]
             convSpacing = np.mean(np.float64(i_spacing[indFilter]))
             maxOPD = np.mean(np.float64(i_maxOPD[indFilter]))
 
-            n = int((frequency[i2-1] - frequency[i1])/convSpacing + 1 + 0.5)
-            freqNew[ntotal:ntotal+n] = frequency[i1] + np.array(range(n)*convSpacing)
+            n = int((frequency[i2 - 1] - frequency[i1]) / convSpacing + 1 + 0.5)
+            freqNew[ntotal : ntotal + n] = frequency[i1] + np.array(
+                [i * convSpacing for i in range(n)]
+            )
 
             f = frequency[i1:i2]
             r = radiance[i1:i2]
             nes = nesr[i1:i2]
-            fn = freqNew[ntotal:ntotal + n]
+            fn = freqNew[ntotal : ntotal + n]
 
             ###################### guts of the apodization #######################
             frq_conv, rad_conv = mpy.apodize(apodStrength, f, r, maxOPD, o_frequency=fn)
 
-
             # calculate nesr... note could conv rad with this but padding
             # is set to NESR.  So just have 2 calls
-            #twpr_conv_nesr, apodStrength, f, r, fn, rad_conv2, abs(nes), nesr_conv, maxOPD[0]
+            # twpr_conv_nesr, apodStrength, f, r, fn, rad_conv2, abs(nes), nesr_conv, maxOPD[0]
             # I was getting 2.34e-8 for original ave rad for 2147-24-2/3.
             # This function (for strong) was resulting in 3.74e-8 even
             # though max value was 3e-8.  Something messed up so go back
             # to strength (bleah)
 
-            if apodStrength == 'strong':
+            if apodStrength == "strong":
                 strength = 0.6066
-            if apodStrength == 'moderate':
+            if apodStrength == "moderate":
                 strength = 0.6604
-            if apodStrength == 'weak':
+            if apodStrength == "weak":
                 strength = 0.7347
 
             # limb:
-            #ENDIF ELSE IF (abs(spacing - 0.02) LT 0.005) THEN BEGIN
+            # ENDIF ELSE IF (abs(spacing - 0.02) LT 0.005) THEN BEGIN
             #    IF strengthString EQ 'strong' THEN strength = 0.6066
             #    IF strengthString EQ 'moderate' THEN strength = 0.6604
             #   IF strengthString EQ 'weak' THEN strength = 0.7347
@@ -534,18 +552,20 @@ class MusesTesObservation(MusesObservationImp):
             nesr_conv = np.interp(fn, f, nes)
             nesr_conv = nesr_conv * strength
 
-            radNew[ntotal:ntotal+n] = rad_conv
-            filtNew[ntotal:ntotal+n] = i_filter[indFilter][0]
-            satNew[ntotal:ntotal+n] = instrument[i1]
-            nesrNew[ntotal:ntotal+n] = nesr_conv
+            radNew[ntotal : ntotal + n] = rad_conv
+            filtNew[ntotal : ntotal + n] = i_filter[indFilter][0]
+            satNew[ntotal : ntotal + n] = instrument[i1]
+            nesrNew[ntotal : ntotal + n] = nesr_conv
             ntotal = ntotal + n
         # end of filter/window loop
 
         # locate negative NESRs by frquency and re-negativize them.
         for ii in range(0, len(freqNeg)):
-            ind = np.where(np.abs(freqNew - freqNeg[ii]) < (frequency[1]-frequency[0])/2)[0]
-            if len(ind) > 0:
-                nesrNew[ind] = -np.abs(nesrNew[ind])
+            ind2 = np.where(
+                np.abs(freqNew - freqNeg[ii]) < (frequency[1] - frequency[0]) / 2
+            )[0]
+            if len(ind2) > 0:
+                nesrNew[ind2] = -np.abs(nesrNew[ind2])
 
         i_radianceStruct["frequency"] = freqNew
         filterNames = [str(t) for t in list(dict.fromkeys(filtNew))]
@@ -553,11 +573,12 @@ class MusesTesObservation(MusesObservationImp):
             int(np.count_nonzero(np.array(filtNew) == v)) for v in filterNames
         ]
         i_radianceStruct["filterSizes"] = filterSizes
-        i_radianceStruct["instrumentSizes"] = [freqNew.shape[0],]
-        i_radianceStruct['radiance'] = radNew
-        i_radianceStruct['NESR'] = nesrNew
+        i_radianceStruct["instrumentSizes"] = [
+            freqNew.shape[0],
+        ]
+        i_radianceStruct["radiance"] = radNew
+        i_radianceStruct["NESR"] = nesrNew
 
-    
 
 ObservationHandleSet.add_default_handle(
     MusesObservationHandle(InstrumentIdentifier("TES"), MusesTesObservation)

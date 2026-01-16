@@ -100,7 +100,6 @@ from .misc import (
     osp_setup,
 )
 from .mpy import (
-    mpy_radiance_apodize,
     mpy_read_airs_l1b,
     mpy_read_omi,
     mpy_read_tes_l1b,
@@ -512,7 +511,6 @@ __all__ = [
     "greatcircle",
     "is_atmospheric_species",
     "modify_strategy_table",
-    "mpy_radiance_apodize",
     "mpy_radiance_from_observation_list",
     "mpy_read_airs_l1b",
     "mpy_read_omi",
