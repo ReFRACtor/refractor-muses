@@ -36,7 +36,6 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
 mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
 mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
-mpy_cdf_read_tes_frequency = partial(muses_py_wrapper, "cdf_read_tes_frequency")
 mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
 mpy_read_tropomi_surface_altitude = partial(
     muses_py_wrapper, "read_tropomi_surface_altitude"
@@ -46,7 +45,6 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 # Functions we can we want to replace
 __all__ = [
-    "mpy_cdf_read_tes_frequency",
     "mpy_radiance_apodize",
     "mpy_read_airs_l1b",
     "mpy_read_omi",

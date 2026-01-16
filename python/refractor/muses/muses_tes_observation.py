@@ -10,20 +10,18 @@ from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .mpy import (
     mpy_read_tes_l1b,
     mpy_radiance_apodize,
-    mpy_cdf_read_tes_frequency,
 )
 import os
 import numpy as np
 import refractor.framework as rf  # type: ignore
 import copy
-from loguru import logger
 from typing import Any, Self
 import typing
 from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .input_file_helper import InputFileHelper
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 
 class MusesTesObservation(MusesObservationImp):
@@ -145,7 +143,7 @@ class MusesTesObservation(MusesObservationImp):
         for i, fltname in enumerate(self._filter_data_name):
             res.append((fltname, int(d["filterSizes"][i])))
         return res
-    
+
     @property
     def filter_data_full(self) -> list[tuple[FilterIdentifier, int]]:
         # Need to override, because self._filter_data_swin overlaps (so the
@@ -165,7 +163,10 @@ class MusesTesObservation(MusesObservationImp):
 
     @classmethod
     def create_fake_for_irk(
-        cls, tes_frequency_fname: str, swin: MusesSpectralWindow
+        cls,
+        tes_frequency_fname: str | os.PathLike[str] | InputFilePath,
+        swin: MusesSpectralWindow,
+        ifile_hlp: InputFileHelper,
     ) -> Self:
         """For the RetrievalStrategyStepIrk (Instantaneous Radiative
         Kernels) AIRS frequencies gets replaced with TES. I think TES
@@ -178,28 +179,57 @@ class MusesTesObservation(MusesObservationImp):
         is needed by the IRK calculation.
 
         """
-        logger.info(
-            f"Reading {tes_frequency_fname} to get frequencies for IRK calculation"
-        )
-        my_file = mpy_cdf_read_tes_frequency(tes_frequency_fname)
-
-        my_file = cls._make_case_right(my_file)
-        my_file = cls._transpose_2d_arrays(my_file)
+        my_file: dict[str, Any] = {}
+        with ifile_hlp.open_ncdf(tes_frequency_fname) as nci:
+            nci.set_auto_maskandscale(False)
+            # We can probably reduce this list, but this is what py-retrieve currently
+            # reads
+            for fldname, vname in [
+                ("FILENAME", "filename"),
+                ("INSTRUMENT", "instrument"),
+                ("COMMENTS", "comments"),
+                ("PREFERENCES", "preferences"),
+                ("DETECTORS", "detectors"),
+                ("MWS", "mws"),
+                ("NUMDETECTORSORIG", "numDetectorsOrig"),
+                ("NUMDETECTORS", "numDetectors"),
+                ("NUM_FREQUENCIES", "num_frequencies"),
+                ("RADIANCE", "radiance"),
+                ("NESR", "NESR"),
+                ("FREQUENCY", "frequency"),
+                ("VALID", "valid"),
+                ("FILTERSIZES", "filterSizes"),
+                ("FILTERNAMES", "filterNames"),
+                ("INSTRUMENTSIZES", "instrumentSizes"),
+                ("INSTRUMENTNAMES", "instrumentNames"),
+                ("PIXELSUSED", "pixelsUsed"),
+                ("INTERPIXELVAR", "interpixelVar"),
+                ("FREQSHIFT", "freqShift"),
+                ("IMAGINARYMEAN", "imaginaryMean"),
+                ("IMAGINARYRMS", "imaginaryRMS"),
+                ("BT8", "bt8"),
+                ("BT10", "bt10"),
+                ("BT11", "bt11"),
+                ("SCANDIRECTION", "scanDirection"),
+            ]:
+                my_file[vname] = nci[fldname][:]
+                if (
+                    isinstance(my_file[vname], np.ndarray)
+                    and len(my_file[vname].shape) >= 2
+                    and vname != "filterNames"
+                    and my_file[vname].shape[-1] != 1
+                ):
+                    my_file[vname] = np.transpose(my_file[vname])
 
         # Convert filterNames from array of bytes (ASCII) to array of
         # strings since the NetCDF file store the strings as bytes.
-        filterNamesAsStrings = []
-        for ii in range(0, len(my_file["filterNames"])):
-            filterNamesAsStrings.append(
-                "".join(chr(i) for i in my_file["filterNames"][ii])
-            )
-        my_file["filterNames"] = filterNamesAsStrings
+        my_file["filterNames"] = [
+            "".join(chr(i) for i in t) for t in my_file["filterNames"]
+        ]
         # Convert instrumentNames from bytes (ASCII) to string.
-        instrumentNamesAsStrings = []
-        instrumentNamesAsStrings.append(
+        my_file["instrumentNames"] = [
             "".join(chr(i) for i in my_file["instrumentNames"])
-        )
-        my_file["instrumentNames"] = instrumentNamesAsStrings
+        ]
         # Remove first element from 'instrumentSizes' if it is 0
         if my_file["instrumentSizes"][0] == 0:
             my_file["instrumentSizes"] = np.delete(my_file["instrumentSizes"], 0)
@@ -250,69 +280,6 @@ class MusesTesObservation(MusesObservationImp):
         swin2 = copy.deepcopy(swin)
         swin2.instrument_name = InstrumentIdentifier("TES")
         res.spectral_window = TesSpectralWindow(swin2, res)
-        return res
-
-    @classmethod
-    def _make_case_right(cls, my_file: dict[str, Any]) -> dict[str, Any]:
-        # Because all the fields in tesRadiance are uppercased from
-        # when they were read from external file, we have to make the
-        # cases right before calling radiance_set_windows(),
-        # otherwise, the function will barf that it cannot find the
-        # correct key.
-
-        translation_table = {
-            "FILENAME": "filename",
-            "INSTRUMENT": "instrument",
-            "COMMENTS": "comments",
-            "PREFERENCES": "preferences",
-            "DETECTORS": "detectors",
-            "MWS": "mws",
-            "NUMDETECTORSORIG": "numDetectorsOrig",
-            "NUMDETECTORS": "numDetectors",
-            "NUM_FREQUENCIES": "num_frequencies",
-            "RADIANCE": "radiance",
-            "NESR": "NESR",
-            "FREQUENCY": "frequency",
-            "VALID": "valid",
-            "FILTERSIZES": "filterSizes",
-            "FILTERNAMES": "filterNames",
-            "INSTRUMENTSIZES": "instrumentSizes",
-            "INSTRUMENTNAMES": "instrumentNames",
-            "PIXELSUSED": "pixelsUsed",
-            "INTERPIXELVAR": "interpixelVar",
-            "FREQSHIFT": "freqShift",
-            "IMAGINARYMEAN": "imaginaryMean",
-            "IMAGINARYRMS": "imaginaryRMS",
-            "BT8": "bt8",
-            "BT10": "bt10",
-            "BT11": "bt11",
-            "SCANDIRECTION": "scanDirection",
-        }
-        return {translation_table.get(k, k): v for k, v in my_file.items()}
-
-    @classmethod
-    def _transpose_2d_arrays(cls, my_file: dict[str, Any]) -> dict[str, Any]:
-        # Because of how the 2D (and greater dimensions) arrays are
-        # read in from external NetCDF file, we have to transpose them
-        # so the shape will be correct.  otherwise, the function will
-        # barf that it cannot find the correct key.
-
-        res = {}
-        for key, value in my_file.items():
-            # Keep the value on the right side as is as default.
-            res[key] = value
-
-            # Check to see if the array is 2 D or more so we can transpose it.
-            # Also, don't transpose 'filterNames' since it is of string type.
-            if (
-                isinstance(value, np.ndarray)
-                and len(value.shape) >= 2
-                and key != "filterNames"
-            ):
-                # Don't transpose if the shape ends with 1: (18554, 1)
-                if value.shape[-1] != 1:
-                    res[key] = np.transpose(value)
-
         return res
 
     @classmethod

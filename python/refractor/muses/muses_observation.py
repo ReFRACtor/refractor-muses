@@ -188,7 +188,7 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
 
     filter_data_full - metadata about the filters covered the
         MusesObservation, for the full spectrum w/o any spectral window applied
-    
+
     radiance_for_uip - data reformatted to specific dict struct needed by
         RefractorUip.create_uip
 
@@ -260,8 +260,8 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def filter_data_full(self) -> list[tuple[FilterIdentifier, int]]:
-        '''Like filter_data, for the full spectrum without any spectral window
-        applied.'''
+        """Like filter_data, for the full spectrum without any spectral window
+        applied."""
         raise NotImplementedError()
 
     @property
@@ -472,7 +472,7 @@ class MusesObservationImp(MusesObservation):
         # This was structures with names like RADIANCESTRUCT for radiance in the old
         # py-retrieve code. We have determined the subset of values actually needed
         # to create the uip, and have them filled in here.
-        with self.modify_spectral_window(full_band = True):
+        with self.modify_spectral_window(full_band=True):
             sd = self.spectral_domain_all()
         return {
             "frequency": sd.data,
@@ -597,9 +597,9 @@ class MusesObservationImp(MusesObservation):
 
     @property
     def filter_data_full(self) -> list[tuple[FilterIdentifier, int]]:
-        with self.modify_spectral_window(full_band = True):
+        with self.modify_spectral_window(full_band=True):
             return self.filter_data
-    
+
     def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:
         """Update the objects coefficients and state mapping. Useful
         if we create observation before we have a CurrentState and/or

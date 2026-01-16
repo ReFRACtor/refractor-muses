@@ -658,7 +658,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         # this includes bad_samples.
 
         # Pull out pieces that we depend on, just to make clear what the dependency is
-        with self._obs.modify_spectral_window(full_band = True):
+        with self._obs.modify_spectral_window(full_band=True):
             sd = self._obs.spectral_domain_all()
         d = {
             "frequency": sd.data,

@@ -816,7 +816,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
             f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
         )
         return MusesTesObservation.create_fake_for_irk(
-            tes_frequency_fname, self.obs.spectral_window
+            tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
         )
 
     def irk_radiance(
