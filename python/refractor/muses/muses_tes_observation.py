@@ -12,6 +12,7 @@ from .mpy import (
 )
 import os
 import numpy as np
+import scipy
 import refractor.framework as rf  # type: ignore
 import copy
 from typing import Any, Self
@@ -435,8 +436,6 @@ class MusesTesObservation(MusesObservationImp):
     ) -> None:
         # Update i_radianceStruct in place
 
-        import refractor.muses_py as mpy
-
         apodStrength = apodStrength.lower()
 
         # this radiance may have different filters or windows.  Go through and
@@ -522,7 +521,7 @@ class MusesTesObservation(MusesObservationImp):
             fn = freqNew[ntotal : ntotal + n]
 
             ###################### guts of the apodization #######################
-            frq_conv, rad_conv = mpy.apodize(apodStrength, f, r, maxOPD, o_frequency=fn)
+            frq_conv, rad_conv = cls.apodize(apodStrength, f, r, maxOPD, o_frequency=fn)
 
             # calculate nesr... note could conv rad with this but padding
             # is set to NESR.  So just have 2 calls
@@ -578,6 +577,118 @@ class MusesTesObservation(MusesObservationImp):
         ]
         i_radianceStruct["radiance"] = radNew
         i_radianceStruct["NESR"] = nesrNew
+
+    @classmethod
+    def apodize(cls, i_apodstr, i_frequency, i_radiance, i_maxopd, o_frequency=None):
+        """
+        Apodize spectra.  Allow apodization functions:  rectangle and
+        Norton-Beer weak, moderate, or strong.
+
+        :param i_apodstr: rectangle, weak, moderate, or strong
+        :param i_frequency: input frequency array, wavenumber, in units cm-1
+        :param i_radiance: rectangle, weak, moderate, or strong
+        :param i_maxopd: maximum optical path difference in cm
+        :param o_frequency: output frequency array
+        """
+
+        if None in o_frequency:
+            spacing = 0.5 / i_maxopd
+            nn = (max(i_frequency) - min(i_frequency)) / spacing + 0.5
+            o_frequency = min(i_frequency) + np.array(range(int(nn))) * spacing
+
+        spacing_in = i_frequency[1] - i_frequency[0]
+        spacing_out = o_frequency[1] - o_frequency[0]
+
+        nfactor = int((spacing_out / spacing_in) + 0.5)
+        n_in = len(i_frequency)
+        n_out = len(o_frequency)
+
+        # find next power of 2 for mono points
+        i2 = 1
+        p2 = 2
+        while p2 < n_in:
+            i2 = i2 + 1
+            p2 = p2 * 2
+
+        # zero-pad to next power of 2
+        padmono = np.zeros((p2), dtype=np.float64)
+        padmono[0:n_in] = i_radiance
+
+        # pad with last data point
+        # (comment out next line if zero-padding is wanted)
+        padmono[n_in : p2 - 1] = i_radiance[n_in - 1]
+
+        # real-to-complex FFTW to interferogram space
+        ifgm = scipy.fft.fft(padmono)
+
+        # find ifgm spacing and perform apodization
+        apodfn = np.zeros((p2 // 2), dtype=np.float64)
+        dx = 1 / (p2 * spacing_in)
+        A = 1 / i_maxopd
+        Xi = np.array(range(p2 // 2)) * dx
+        XiA = Xi * A
+        ind = np.where(Xi < i_maxopd)[0]
+
+        if i_apodstr.lower() == "rectangle":
+            apodfn[ind] = 1.0
+        elif i_apodstr.lower() == "weak":
+            U = 1 - XiA[ind] * XiA[ind]
+            apodfn[ind] = 0.384093 - 0.087577 * U + 0.703484 * (U * U)
+        elif i_apodstr.lower() == "moderate":
+            U = 1 - XiA[ind] * XiA[ind]
+            apodfn[ind] = 0.152442 - 0.136176 * U + 0.983734 * (U * U)
+        elif i_apodstr.lower() == "strong":
+            U = 1 - XiA[ind] * XiA[ind]
+            U2 = U * U
+            apodfn[ind] = 0.045355 + 0.554883 * U2 + 0.399782 * (U2 * U2)
+
+        # make hermitian apodization function to apply to double-sided ifgm
+        hermapod = cls.hermitian_array(apodfn)
+        ifgm_apod = ifgm * hermapod
+
+        # complex-to-real FFTW to spectral space
+        convolved = scipy.fft.ifft(ifgm_apod)
+
+        # calculate first point for output grid
+        ifirst = max(np.where(i_frequency < min(o_frequency) + spacing_in / 2))
+
+        # sample points to convolved grid
+        isample = np.array(range(n_out)) * nfactor + ifirst
+        # o_radiance = np.zeros((n_out), dtype = np.float64)
+        o_radiance = convolved[isample]
+
+        return o_frequency, o_radiance
+
+    @classmethod
+    def hermitian_array(
+        cls, i_array: np.ndarray, f_expand: int = 1, direction: int = 1
+    ) -> np.ndarray:
+        """Make input array hermitian.  Output array is returned that is twice
+        the size of the input array.  If direction is 1, the returned array
+        has the original array on the left side of the final array.
+        If direction is 2, the returned array has the original array on the right
+        side of the final array
+
+        :param i_array: array on evenly spaced grid, presumably in interferogram space
+        :param f_expand: expansion of final array.  Default = 1.
+        :param direction:  f direction is 1, the returned array
+        has the original array on the left side of the final array.  Right side is mirror
+        image.  If direction is 2, the returned array has the original array on the right
+        side of the final array, left side is mirror image.
+        """
+        asize = len(i_array)
+        hsize = 2 * asize * f_expand
+        herm_arr = np.zeros((hsize), dtype=np.float64)
+        ind = asize - np.array(range(asize)) - 1
+
+        if direction == 1:
+            herm_arr[0:asize] = i_array
+            herm_arr[asize:hsize] = i_array[ind]
+        else:
+            herm_arr[asize:] = i_array
+            herm_arr[ind] = i_array
+
+        return herm_arr
 
 
 ObservationHandleSet.add_default_handle(
