@@ -102,7 +102,7 @@ def test_tes_steps(isolated_dir, ifile_hlp, tes_test_in_dir):
         tes_test_in_dir.parent / "TES-Aura_L1B-Nadir_FP2B_r0000002147-o00978_F04_07.h5"
     )
     l1b_index = [54, 54, 54, 54]
-    l1b_avgflag = 0
+    l1b_avgflag = '0'
     windows = [
         {"filter": "2B1"},
         {"filter": "1B2"},
@@ -119,7 +119,7 @@ def test_tes_steps(isolated_dir, ifile_hlp, tes_test_in_dir):
     with osp_setup(ifile_hlp):
         o_tes = mpy.read_tes_l1b(i_fileid, windows)
     o_tes2 = MusesTesObservation.read_tes(
-        filename, l1b_index, l1b_avgflag, windows, ifile_hlp
+        filename, l1b_index, int(l1b_avgflag), windows, ifile_hlp
     )
 
     compare_muses_py_dict(o_tes2, o_tes, "read_tes")
