@@ -102,7 +102,6 @@ from .misc import (
 from .mpy import (
     mpy_read_airs_l1b,
     mpy_read_omi,
-    mpy_read_tes_l1b,
     mpy_read_tropomi,
     mpy_read_tropomi_surface_altitude,
 )
@@ -514,7 +513,6 @@ __all__ = [
     "mpy_radiance_from_observation_list",
     "mpy_read_airs_l1b",
     "mpy_read_omi",
-    "mpy_read_tes_l1b",
     "mpy_read_tropomi",
     "mpy_read_tropomi_surface_altitude",
     "order_species",

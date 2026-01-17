@@ -65,7 +65,7 @@ class MusesTesObservation(MusesObservationImp):
         cls,
         filename: str | os.PathLike[str],
         l1b_index: list[int],
-        l1b_avgflag: int,
+        l1b_avgflag: bool,
         run: int,
         sequence: int,
         scan: int,
@@ -90,23 +90,25 @@ class MusesTesObservation(MusesObservationImp):
         cls,
         filename: str | os.PathLike[str] | InputFilePath,
         l1b_index: list[int],
-        l1b_avgflag: int,
+        l1b_avgflag: bool,
         windows: list[dict[str, Any]],
         ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
-        filters = ['2B1','1B2','2A1','1A1']
-        fpas = ['2B','1B','2A','1A']
-        wavenumberOut = np.zeros((20000),dtype=np.float32)
-        spectraOut = np.zeros((20000),dtype=np.float64)
-        nesrOut = np.zeros((20000),dtype=np.float64)
-        filterOut = np.empty((20000), dtype='<U3')
+        if ifile_hlp is None:
+            ifile_hlp = InputFileHelper()
+        filters = ["2B1", "1B2", "2A1", "1A1"]
+        fpas = ["2B", "1B", "2A", "1A"]
+        wavenumberOut = np.zeros((20000), dtype=np.float32)
+        spectraOut = np.zeros((20000), dtype=np.float64)
+        nesrOut = np.zeros((20000), dtype=np.float64)
+        filterOut = np.empty((20000), dtype="<U3")
 
         count = 0
         filename = InputFilePath.create_input_file_path(filename)
         for ifilter, (flt, nmpas, indx) in enumerate(zip(filters, fpas, l1b_index)):
             with ifile_hlp.open_h5(filename.sub_fname("FP2B", f"FP{nmpas}")) as fh:
-                delta = fh[f"Filter{flt}"].attrs['Delta_Frequency']
-                start = fh[f"Filter{flt}"].attrs['Start_Frequency']
+                delta = fh[f"Filter{flt}"].attrs["Delta_Frequency"]
+                start = fh[f"Filter{flt}"].attrs["Start_Frequency"]
                 n_freq = fh[f"Filter{flt}/NESR"].shape[2]
                 # get all things same across all filters, e.g. surface elevation.
                 if ifilter == 1:
@@ -117,11 +119,11 @@ class MusesTesObservation(MusesObservationImp):
                     surface_elevation = geo_info[20]
 
                     # boresightNadirRadians
-                    boresight_nadir_radians = geo_info[30] * np.pi / 180.
+                    boresight_nadir_radians = geo_info[30] * np.pi / 180.0
                     # orbitInclinationAngle
                     orbit_inclination_angle = geo_info[6]
                     # viewMode
-                    view_mode = 'Nadir'
+                    view_mode = "Nadir"
                     # instrumentAzimuth
                     instrument_azimuth = geo_info[33]
                     # instrumentLatitude
@@ -137,47 +139,89 @@ class MusesTesObservation(MusesObservationImp):
                     instrument_altitude = geo_info[42]
 
                 # calculate wavenumber
-                wavenumberOut[count:count + n_freq] = np.array(range(n_freq))*delta + start
-                filterOut[count:count + n_freq] = flt
-                if l1b_avgflag == 0:
+                wavenumberOut[count : count + n_freq] = (
+                    np.array(range(n_freq)) * delta + start
+                )
+                filterOut[count : count + n_freq] = flt
+                if not l1b_avgflag:
                     # 1 scene
-                    nesr = fh[f"Filter{flt}/NESR"][:,indx,:]
-                    spectra = fh[f"Filter{flt}/Spectra"][:, indx,:]
-                    error = fh[f"Filter{flt}/QA/L1B_Target_Spectra/L1B_General_Error_Flag"][:, indx]
+                    nesr = fh[f"Filter{flt}/NESR"][:, indx, :]
+                    spectra = fh[f"Filter{flt}/Spectra"][:, indx, :]
+                    error = fh[
+                        f"Filter{flt}/QA/L1B_Target_Spectra/L1B_General_Error_Flag"
+                    ][:, indx]
                     indgood = np.where(error == 0)[0]
 
                     # do averaging over the good of the 16 pixels
                     for ii in range(n_freq):
-                        ind = np.where(nesr[indgood,ii] > 0)[0]
+                        ind = np.where(nesr[indgood, ii] > 0)[0]
                         if len(ind) > 0:
                             indgood2 = indgood[ind]
-                            nesrOut[count + ii] = np.sqrt(1/np.sum(1 / nesr[indgood2,ii] / nesr[indgood2,ii]))
-                            spectraOut[count + ii] = np.sum(spectra[indgood2,ii] / nesr[indgood2,ii] / nesr[indgood2,ii]) * nesrOut[count + ii] * nesrOut[count + ii]
+                            nesrOut[count + ii] = np.sqrt(
+                                1 / np.sum(1 / nesr[indgood2, ii] / nesr[indgood2, ii])
+                            )
+                            spectraOut[count + ii] = (
+                                np.sum(
+                                    spectra[indgood2, ii]
+                                    / nesr[indgood2, ii]
+                                    / nesr[indgood2, ii]
+                                )
+                                * nesrOut[count + ii]
+                                * nesrOut[count + ii]
+                            )
                         else:
                             # all bad, set nesrOut to negative
-                            nesrOut[count + ii] = np.sqrt(1/np.sum(1 / nesr[indgood,ii] / nesr[indgood,ii]))
-                            spectraOut[count + ii] = np.sum(spectra[indgood,ii] / nesr[indgood,ii] / nesr[indgood,ii]) * nesrOut[count + ii] * nesrOut[count + ii]
+                            nesrOut[count + ii] = np.sqrt(
+                                1 / np.sum(1 / nesr[indgood, ii] / nesr[indgood, ii])
+                            )
+                            spectraOut[count + ii] = (
+                                np.sum(
+                                    spectra[indgood, ii]
+                                    / nesr[indgood, ii]
+                                    / nesr[indgood, ii]
+                                )
+                                * nesrOut[count + ii]
+                                * nesrOut[count + ii]
+                            )
                             nesrOut[count + ii] = -nesrOut[count + ii]
                 else:
                     # 2 adjacent scenes
-                    nesr = fh[f"Filter{flt}/NESR"][:,indx:indx+2,:]
-                    spectra = fh[f"Filter{flt}/Spectra"][:, indx:indx+2,:]
-                    error = fh[f"Filter{flt}/QA/L1B_Target_Spectra/L1B_General_Error_Flag"][:, indx:indx+2].flatten()
+                    nesr = fh[f"Filter{flt}/NESR"][:, indx : indx + 2, :]
+                    spectra = fh[f"Filter{flt}/Spectra"][:, indx : indx + 2, :]
+                    error = fh[
+                        f"Filter{flt}/QA/L1B_Target_Spectra/L1B_General_Error_Flag"
+                    ][:, indx : indx + 2].flatten()
                     indgood = np.where(error == 0)[0]
 
-                    # do averaging over the good of the 16 pixels and 2 observations 
+                    # do averaging over the good of the 16 pixels and 2 observations
                     for ii in range(n_freq):
-                        nx = nesr[:,:,ii].flatten()  # flattened so we can index good detectors
-                        sx = spectra[:,:,ii].flatten() # flattened so we can index good detectors
+                        nx = nesr[
+                            :, :, ii
+                        ].flatten()  # flattened so we can index good detectors
+                        sx = spectra[
+                            :, :, ii
+                        ].flatten()  # flattened so we can index good detectors
                         ind = np.where(nx[indgood] > 0)[0]
                         if len(ind) > 0:
                             indgood2 = indgood[ind]
-                            nesrOut[count + ii] = np.sqrt(1/np.sum(1 / nx[indgood2] / nx[indgood2]))
-                            spectraOut[count + ii] = np.sum(sx[indgood] / nx[indgood2] / nx[indgood2]) * nesrOut[count + ii] * nesrOut[count + ii]
+                            nesrOut[count + ii] = np.sqrt(
+                                1 / np.sum(1 / nx[indgood2] / nx[indgood2])
+                            )
+                            spectraOut[count + ii] = (
+                                np.sum(sx[indgood] / nx[indgood2] / nx[indgood2])
+                                * nesrOut[count + ii]
+                                * nesrOut[count + ii]
+                            )
                         else:
                             # all bad, set nesrOut to negative
-                            nesrOut[count + ii] = np.sqrt(1/np.sum(1 / nx[indgood] / nx[indgood]))
-                            spectraOut[count + ii] = np.sum(sx[indgood] / nx[indgood] / nx[indgood]) * nesrOut[count + ii] * nesrOut[count + ii]
+                            nesrOut[count + ii] = np.sqrt(
+                                1 / np.sum(1 / nx[indgood] / nx[indgood])
+                            )
+                            spectraOut[count + ii] = (
+                                np.sum(sx[indgood] / nx[indgood] / nx[indgood])
+                                * nesrOut[count + ii]
+                                * nesrOut[count + ii]
+                            )
                             nesrOut[count + ii] = -nesrOut[count + ii]
 
                 count = count + n_freq
@@ -188,25 +232,26 @@ class MusesTesObservation(MusesObservationImp):
         nesrOut = nesrOut[0:count]
         filterOut = filterOut[0:count]
 
-        import refractor.muses_py as mpy
-        radianceStruct = mpy.radiance_data(spectraOut, nesrOut, [0], wavenumberOut, filterOut, 'TES')
+        radianceStruct = cls.radiance_data(
+            spectraOut, nesrOut, wavenumberOut, filterOut, "TES"
+        )
 
-        o_tes = {'radianceStruct':radianceStruct
-            ,'surfaceElevation':surface_elevation
-            ,'boresightNadirRadians':boresight_nadir_radians
-            ,'orbitInclinationAngle':orbit_inclination_angle
-            ,'viewMode':view_mode
-            ,'instrumentAzimuth':instrument_azimuth
-            ,'instrumentLatitude':instrument_latitude
-            ,'geoPointing':geo_pointing
-            ,'targetRadius':target_radius
-            ,'instrumentRadius':instrument_radius
-            ,'orbitAscending':orbit_ascending
-            ,'instrumentAltitude':instrument_altitude / 1000 # km
-            }
+        o_tes = {
+            "radianceStruct": radianceStruct,
+            "surfaceElevation": surface_elevation,
+            "boresightNadirRadians": boresight_nadir_radians,
+            "orbitInclinationAngle": orbit_inclination_angle,
+            "viewMode": view_mode,
+            "instrumentAzimuth": instrument_azimuth,
+            "instrumentLatitude": instrument_latitude,
+            "geoPointing": geo_pointing,
+            "targetRadius": target_radius,
+            "instrumentRadius": instrument_radius,
+            "orbitAscending": orbit_ascending,
+            "instrumentAltitude": instrument_altitude / 1000,  # km
+        }
 
         return o_tes
-    
 
     @classmethod
     def _apodization(
@@ -386,7 +431,7 @@ class MusesTesObservation(MusesObservationImp):
         cls,
         filename: str | os.PathLike[str],
         l1b_index: list[int],
-        l1b_avgflag: int,
+        l1b_avgflag: bool,
         run: int,
         sequence: int,
         scan: int,
@@ -444,7 +489,7 @@ class MusesTesObservation(MusesObservationImp):
             filter_list = mid.filter_list_dict[InstrumentIdentifier("TES")]
             filename = mid["TES_filename_L1B"]
             l1b_index = [int(i) for i in mid["TES_filename_L1B_Index"].split(",")]
-            l1b_avgflag = int(mid["TES_L1B_Average_Flag"])
+            l1b_avgflag = False if int(mid["TES_L1B_Average_Flag"]) == 0 else True
             run = int(mid["TES_Run"])
             sequence = int(mid["TES_Sequence"])
             scan = int(mid["TES_Scan"])
@@ -581,9 +626,6 @@ class MusesTesObservation(MusesObservationImp):
             convSpacing = np.mean(
                 float(i_spacing[indFilter])
             )  # take mean to ensure is a # not an array
-            maxOPD = np.mean(
-                float(i_maxOPD[indFilter])
-            )  # take mean to ensure is a # not an array
 
             n = int((frequency[i2] - frequency[i1]) / convSpacing + 1 + 0.5)
             ntotal = ntotal + n
@@ -608,7 +650,7 @@ class MusesTesObservation(MusesObservationImp):
 
             indFilter = np.where(i_filter == filter[i1])[0]
             convSpacing = np.mean(np.float64(i_spacing[indFilter]))
-            maxOPD = np.mean(np.float64(i_maxOPD[indFilter]))
+            maxOPD = float(np.mean(np.float64(i_maxOPD[indFilter])))
 
             n = int((frequency[i2 - 1] - frequency[i1]) / convSpacing + 1 + 0.5)
             freqNew[ntotal : ntotal + n] = frequency[i1] + np.array(
@@ -679,7 +721,14 @@ class MusesTesObservation(MusesObservationImp):
         i_radianceStruct["NESR"] = nesrNew
 
     @classmethod
-    def apodize(cls, i_apodstr, i_frequency, i_radiance, i_maxopd, o_frequency=None):
+    def apodize(
+        cls,
+        i_apodstr: str,
+        i_frequency: np.ndarray,
+        i_radiance: np.ndarray,
+        i_maxopd: float,
+        o_frequency: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Apodize spectra.  Allow apodization functions:  rectangle and
         Norton-Beer weak, moderate, or strong.
@@ -691,7 +740,7 @@ class MusesTesObservation(MusesObservationImp):
         :param o_frequency: output frequency array
         """
 
-        if None in o_frequency:
+        if o_frequency is None:
             spacing = 0.5 / i_maxopd
             nn = (max(i_frequency) - min(i_frequency)) / spacing + 0.5
             o_frequency = min(i_frequency) + np.array(range(int(nn))) * spacing
@@ -789,6 +838,79 @@ class MusesTesObservation(MusesObservationImp):
             herm_arr[ind] = i_array
 
         return herm_arr
+
+    @classmethod
+    def radiance_data(
+        cls,
+        i_radiance: np.ndarray,
+        i_nesr: np.ndarray,
+        i_frequency: np.ndarray,
+        filters: np.ndarray,
+        i_instrument: str,
+    ) -> dict[str, Any]:
+        # Create a standard structure (dictionary in Python).
+        o_radianceStruct = cls.radiance_new_struct(i_frequency, filters, i_instrument)
+
+        # Put 3 more elements in the dictionary.
+        o_radianceStruct["radiance"] = i_radiance.astype(np.float64)
+        o_radianceStruct["NESR"] = i_nesr.astype(np.float64)
+        o_radianceStruct["pixelsUsed"][:, :] = 1
+
+        return o_radianceStruct
+
+    @classmethod
+    def radiance_new_struct(
+        cls, i_frequency: np.ndarray, i_filterArray: np.ndarray, i_instrument: str
+    ) -> dict[str, Any]:
+        nfreq = len(i_frequency)
+
+        filterArray = i_filterArray
+        filterNames = [str(t) for t in list(dict.fromkeys(filterArray))]
+
+        nfilters = len(filterNames)
+        filterSizes = [
+            int(np.count_nonzero(np.array(filterArray) == v)) for v in filterNames
+        ]
+
+        uniqueInstruments = [
+            i_instrument,
+        ]
+        instrumentSizes = [
+            nfreq,
+        ]
+
+        o_radianceStruct = {
+            "filename": "",
+            "instrument": "",
+            "comments": "",
+            "preferences": "",
+            "detectors": [
+                0,
+            ],
+            "mws": "",
+            "numDetectorsOrig": 1,
+            "numDetectors": 1,
+            "num_frequencies": nfreq,
+            "radiance": "dummy_radiance",
+            "NESR": "dummy_NESR",
+            "frequency": i_frequency,
+            "valid": "yes",
+            "filterSizes": filterSizes,
+            "filterNames": filterNames,
+            "instrumentSizes": instrumentSizes,
+            "instrumentNames": uniqueInstruments,
+            "pixelsUsed": np.zeros(shape=(1, nfilters), dtype=int),
+            "interpixelVar": np.zeros(shape=(nfilters), dtype=np.float32),
+            "freqShift": 0.0,
+            "imaginaryMean": 0.0,
+            "imaginaryRMS": 0.0,
+            "bt8": 0.0,
+            "bt10": 0.0,
+            "bt11": 0.0,
+            "scanDirection": 0,
+        }
+
+        return o_radianceStruct
 
 
 ObservationHandleSet.add_default_handle(

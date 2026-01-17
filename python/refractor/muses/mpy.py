@@ -34,7 +34,6 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 # Used in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
 mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
-mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
 mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
 mpy_read_tropomi_surface_altitude = partial(
     muses_py_wrapper, "read_tropomi_surface_altitude"
@@ -46,7 +45,6 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 __all__ = [
     "mpy_read_airs_l1b",
     "mpy_read_omi",
-    "mpy_read_tes_l1b",
     "mpy_read_tropomi",
     "mpy_read_tropomi_surface_altitude",
 ]
