@@ -4,6 +4,7 @@ from .tes_file import TesFile
 from loguru import logger
 import os
 import netCDF4
+import pyhdf  # type: ignore
 import re
 import h5py  # type: ignore
 from typing import Any, Iterator
@@ -438,6 +439,22 @@ class InputFileHelper:
     def open_tes(self, fname: str | os.PathLike[str] | InputFilePath) -> TesFile:
         self.notify_file_input(fname)
         return TesFile(str(fname) if isinstance(fname, InputFilePath) else fname)
+
+    def open_hdf4_sd(
+        self, fname: str | os.PathLike[str] | InputFilePath
+    ) -> pyhdf.SD.SD:
+        # If you don't remember the details, a HDF4 file is open with pyhdf.HDF
+        # *except* for SD that get opened directly. Not a lot of sense in this, it is
+        # just the way the library works.
+        self.notify_file_input(fname)
+        return pyhdf.SD.SD(str(fname))
+
+    def open_hdf4(self, fname: str | os.PathLike[str] | InputFilePath) -> pyhdf.HDF:
+        # If you don't remember the details, a HDF4 file is open with pyhdf.HDF
+        # *except* for SD that get opened directly. Not a lot of sense in this, it is
+        # just the way the library works.
+        self.notify_file_input(fname)
+        return pyhdf.HDF.HDF(str(fname))
 
 
 __all__ = [

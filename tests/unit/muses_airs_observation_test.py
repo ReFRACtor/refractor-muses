@@ -85,4 +85,20 @@ def test_airs_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     t = o_airs["radiance"]["radiance"]
     del o_airs["radiance"]
     o_airs["radiance"] = t
+    for vname in (
+        "latitude",
+        "longitude",
+        "time",
+        "satAzi",
+        "satZen",
+        "scanAng",
+        "landFraction",
+        "solazi",
+        "sunGlintDistance",
+        "sza",
+        "surfaceAltitude",
+    ):
+        o_airs[vname] = float(o_airs[vname])
+    for vname in ("state",):
+        o_airs[vname] = int(o_airs[vname])
     compare_muses_py_dict(o_airs2, o_airs, "read_airs")
