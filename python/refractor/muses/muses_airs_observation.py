@@ -90,10 +90,15 @@ class MusesAirsObservation(MusesObservationImp):
         have a starting point for possibly cleaning up."""
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
-        # Hardcoded path
-        ifile_hlp.notify_file_input(
+
+        # take out AIRS points identified bad through comparisons of OSS and
+        # ELANOR (places that are hard to model by RT or issues with ILS
+        with ifile_hlp.open_ncdf(
             ifile_hlp.osp_dir / "AIRS/Bad_Frequencies/airs_bad_frequencies.nc"
-        )
+        ) as fh:
+            freq = fh["FREQUENCY"][:]
+            bad = fh["BAD"][:]
+            bfreq = freq[bad == 1]
         f_sd = None
         f_hdf = None
         f_vs = None
@@ -102,7 +107,7 @@ class MusesAirsObservation(MusesObservationImp):
                 f_sd = ifile_hlp.open_hdf4_sd(filename)
                 f_hdf = ifile_hlp.open_hdf4(filename)
                 f_vs = f_hdf.vstart()
-                o_airs = cls.read_airs_l1b(f_sd, f_hdf, f_vs, xtrack, atrack)
+                o_airs = cls.read_airs_l1b(f_sd, f_hdf, f_vs, bfreq, xtrack, atrack)
             finally:
                 if f_sd is not None:
                     f_sd.end()
@@ -261,11 +266,10 @@ class MusesAirsObservation(MusesObservationImp):
         f_sd: pyhdf.SD.SD,
         f_hdf: pyhdf.HDF.HDF,
         f_vs: pyhdf.VS.VS,
+        bfreq: np.ndarray,
         iXtrack: int,
         iTrack: int,
     ) -> dict[str, Any]:
-        from refractor.muses_py import cdf_read_bad_frequencies_cache
-
         # Get the 3 geolocation fields: 'Latitude', 'Longitude', and 'Time'
 
         lon_var = f_sd.select("Longitude")[iTrack, iXtrack]
@@ -528,22 +532,10 @@ class MusesAirsObservation(MusesObservationImp):
 
         # take out AIRS points identified bad through comparisons of OSS and
         # ELANOR (places that are hard to model by RT or issues with ILS
-        # my_file = cdf_read('../OSP/AIRS/Bad_Frequencies/airs_bad_frequencies.nc')
-        cdf_file_name = "../OSP/AIRS/Bad_Frequencies/airs_bad_frequencies.nc"
-        my_file = cdf_read_bad_frequencies_cache(cdf_file_name)
 
-        ind = np.where(my_file["BAD"] == 1)[0]
-
-        freqlist = my_file["FREQUENCY"]
-        freqlist = freqlist[ind]
-
-        num_bad_points = 0
-        for ii in range(0, len(freqlist)):
-            indbad2 = np.where(np.abs(airs["frequency"] - freqlist[ii]) < 0.1)[0]
-            if len(indbad2) > 0:
-                airs["NESR"][indbad2] = -999.0
-                airs["radiance"][indbad2] = 0
-                num_bad_points += 1
+        for bfreqpt in bfreq:
+            airs["NESR"][np.abs(airs["frequency"] - bfreqpt) < 0.1] = -999.0
+            airs["radiance"][np.abs(airs["frequency"] - bfreqpt) < 0.1] = 0
 
         return airs
 
