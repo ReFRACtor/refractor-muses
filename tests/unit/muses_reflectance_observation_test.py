@@ -216,6 +216,7 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     o_tropomi2 = MusesTropomiObservation.read_tropomi(
         filename_dict, xtrack_dict, atrack_dict, utc_time, windows, ifile_hlp=ifile_hlp
     )
+    del o_tropomi["Cloud"]["tropomi_file"]
     compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
 
 
