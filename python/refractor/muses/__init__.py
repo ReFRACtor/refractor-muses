@@ -99,10 +99,6 @@ from .misc import (
     greatcircle,
     osp_setup,
 )
-from .mpy import (
-    mpy_read_tropomi,
-    mpy_read_tropomi_surface_altitude,
-)
 from .muses_airs_observation import (
     MusesAirsObservation,
 )
@@ -509,8 +505,6 @@ __all__ = [
     "is_atmospheric_species",
     "modify_strategy_table",
     "mpy_radiance_from_observation_list",
-    "mpy_read_tropomi",
-    "mpy_read_tropomi_surface_altitude",
     "order_species",
     "osp_setup",
     "species_type",

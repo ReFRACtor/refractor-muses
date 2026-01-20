@@ -8,10 +8,6 @@ from .muses_observation import (
     MusesObservation,
 )
 from .muses_spectral_window import MusesSpectralWindow
-from .mpy import (
-    mpy_read_tropomi,
-    mpy_read_tropomi_surface_altitude,
-)
 from .misc import AttrDictAdapter
 import os
 import numpy as np
@@ -341,6 +337,17 @@ class MusesReflectanceObservation(MusesObservationImp):
             fill_value="extrapolate",
         )
 
+    @classmethod
+    def idl_interpol_1d(
+        cls,
+        i_vector: np.ndarray,
+        i_abscissaValues: np.ndarray,
+        i_abscissaResult: np.ndarray,
+    ) -> np.ndarray:
+        return scipy.interpolate.interp1d(
+            i_abscissaValues, i_vector, fill_value="extrapolate"
+        )(i_abscissaResult)
+
     @property
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         self._filter_data_name = self.filter_list
@@ -478,6 +485,67 @@ class MusesReflectanceObservation(MusesObservationImp):
                 sensor_index, skip_jacobian=False
             ).spectral_range.data_ad
 
+    @classmethod
+    def combine_omi_calibration(
+        cls, iXtrack_all: list[int], calibrationFilename: str
+    ) -> dict[str, Any]:
+        from refractor.muses_py import read_omi_calibration
+
+        # IDL_LEGACY_NOTE: This function combine_omi_calibration is the same as Combine_OMI_Calibration function in ms-setup/Combine_OMI_Calibration.pro file.
+        ixtrack_uv1 = iXtrack_all[0]
+        ixtrack = iXtrack_all[1]
+        ixtrack_uv2_pair = iXtrack_all[2]
+
+        # ===========================================
+        # * Get Spectral Radiance Calibration Factors
+        # ===========================================
+        # For UV2
+
+        iUV = 2
+        cal_uv2 = read_omi_calibration(ixtrack, iUV, calibrationFilename)
+        cal_uv2_pair = read_omi_calibration(ixtrack_uv2_pair, iUV, calibrationFilename)
+
+        # * For UV1
+        iUV = 1
+        cal_uv1 = read_omi_calibration(ixtrack_uv1, iUV, calibrationFilename)
+
+        # Convert to AttrDictAdapter so we can use the dot '.' notation.
+        cal_uv2 = AttrDictAdapter(cal_uv2)
+        cal_uv2_pair = AttrDictAdapter(cal_uv2_pair)
+        cal_uv1 = AttrDictAdapter(cal_uv1)
+
+        Wavelength_Filter_UV1 = np.asarray(["UV1" for ii in range(cal_uv1.nw)])
+        Wavelength_Filter_UV2 = np.asarray(["UV2" for ii in range(cal_uv2.nw)])
+        Wavelength_Filter = np.concatenate(
+            (Wavelength_Filter_UV1, Wavelength_Filter_UV2), axis=0
+        )
+
+        Calibration = np.concatenate(
+            (
+                cal_uv1.calibration,
+                (cal_uv2.calibration[:] + cal_uv2_pair.calibration[:])
+                / np.float64(2.0),
+            ),
+            axis=0,
+        )
+        Wavelength = np.concatenate(
+            (
+                cal_uv1.wavelength,
+                (cal_uv2.wavelength[:] + cal_uv2_pair.wavelength[:]) / np.float64(2.0),
+            ),
+            axis=0,
+        )
+
+        o_combined_radcal_bands = {
+            "omi_rad_calibration_fn": cal_uv2.omi_file,  # Filename of radiance calibration factors
+            "Wavelength": Wavelength,  # Wavelength Grid; Full Band
+            "CalibrationFactor": Calibration,  # Calibration Factor; Full Band
+            "Wavelength_Filter": Wavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
+            "usage_pixels": iXtrack_all,  # index for healthy pixel
+        }
+
+        return o_combined_radcal_bands
+
 
 class MusesTropomiObservation(MusesReflectanceObservation):
     """Observation for Tropomi"""
@@ -572,17 +640,19 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         i_windows: list[dict[str, str]],
         ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
+        if ifile_hlp is None:
+            ifile_hlp = InputFileHelper()
         with osp_setup(ifile_hlp):
-            if ifile_hlp is not None:
-                for k, v in filename_dict.items():
-                    ifile_hlp.notify_file_input(v)
-                ifile_hlp.notify_file_input(
-                    ifile_hlp.osp_dir
-                    / "OMI"
-                    / "OMI_LER"
-                    / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
-                )
-            o_tropomi = mpy_read_tropomi(
+            for k, v in filename_dict.items():
+                ifile_hlp.notify_file_input(v)
+            ifile_hlp.notify_file_input(
+                ifile_hlp.osp_dir
+                / "OMI"
+                / "OMI_LER"
+                / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
+            )
+            o_tropomi = cls.read_tropomi_l1b(
+                ifile_hlp,
                 {k: str(v) for (k, v) in filename_dict.items()},
                 xtrack_dict,
                 atrack_dict,
@@ -594,21 +664,245 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             for i in range(
                 len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
             ):
-                surfaceAltitude = mpy_read_tropomi_surface_altitude(
-                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
-                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
-                )
                 o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
-                    surfaceAltitude
+                    cls.read_tropomi_surface_altitude(
+                        ifile_hlp,
+                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
+                    )
                 )
+        return o_tropomi
+
+    @classmethod
+    def read_tropomi_l1b(
+        cls,
+        ifile_hlp: InputFileHelper,
+        filenames: dict[str, str],
+        iXTracks: dict[str, int],
+        iATracks: dict[str, int],
+        UtcDateTime: str,
+        windows: list[dict[str, str]],
+        calibrationFilename: bool = False,
+        albedo_from_dler: bool = False,
+    ) -> dict[str, Any]:
+        # EM - Will probs have to include a calibration file, not sure how to do that yet
+        from refractor.muses_py import (
+            read_tropomi_cloud,
+            read_tropomi_surface_albedo,
+            daily_tropomi_irad,
+        )
+
+        # ======================
+        #  Earth Shine Radiances
+        # ======================
+        # EM - Deal with differing TROPOMI bands in this function
+        erad = AttrDictAdapter(
+            cls.combine_tropomi_erad(filenames, iXTracks, iATracks, windows, ifile_hlp)
+        )
+
+        # ============================
+        #  For OMI, 3 Year Mean Solar Radiances used here
+        #  For TROPOMI, trying daily solar irradiance files
+        # ============================
+        irad = AttrDictAdapter(daily_tropomi_irad(filenames, iXTracks, windows))
+
+        # ============================
+        #  Get Calibration Factors
+        # ============================
+        if calibrationFilename:
+            if True:
+                raise RuntimeError("This hasn't been updated for tropomi")
+            # We have the code that was in read_tropomi in py-retrieve, but you can
+            # tell that this hasn't been updated for tropomi. Leave as a placeholder,
+            # but this doesn't actually work for tropomi yet.
+            logger.warning(
+                "TROPOMI calibration functions likely need updated to work with the new filename/track index dictionary convention implemented for NIR. If you get an error in a few lines, update combine_tropomi_calibration first"
+            )
+            rad_cal = AttrDictAdapter(
+                cls.combine_omi_calibration(iXTracks, calibrationFilename)
+            )
+
+            # ===============================================
+            # * Earth Shine Radiances with calibration applied
+            # ===============================================
+            temp_ind1 = np.where(rad_cal.Wavelength_Filter == "UV1")[0]
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV1")[0]
+
+            temp_cf1 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+            temp_cf2 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+
+            # PYTHON_NOTE: It seems the Python version has more
+            # precisions for temp_cf1 and temp_cf2 which causes
+            # problems later.  PYTHON_NOTE: We are also changing to
+            # float since it causes problem comparing to IDL.
+            temp_cf1 = temp_cf1.astype(np.float64)
+            temp_cf2 = temp_cf2.astype(np.float64)
+
+            CALIBRATEDEARTHRADIANCE_uv1v = []
+            for ii in range(0, len(temp_ind2)):
+                CALIBRATEDEARTHRADIANCE_uv1v.append(
+                    erad.EarthRadiance[temp_ind2[ii]] / temp_cf2[ii]
+                )
+
+            CALIBRATEDEARTHRADIANCE_uv1 = np.asarray(CALIBRATEDEARTHRADIANCE_uv1v)
+
+            temp_ind1 = np.where(rad_cal.Wavelength_Filter == "UV2")[0]
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV2")[0]
+
+            temp_cf1 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+            temp_cf2 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+
+            temp_cf1 = temp_cf1.astype(np.float64)
+            temp_cf2 = temp_cf2.astype(np.float64)
+
+            CALIBRATEDEARTHRADIANCE_uv2 = erad.EarthRadiance[temp_ind2] / temp_cf2[:]
+            CALIBRATEDEARTHRADIANCE = np.concatenate(
+                (CALIBRATEDEARTHRADIANCE_uv1, CALIBRATEDEARTHRADIANCE_uv2), axis=0
+            )
+
+            erad.CalibratedEarthRadiance = CALIBRATEDEARTHRADIANCE  # Adding another key to ObjectView by merely using the dot '.' notation and an assignment.
+
+        else:
+            o_combined_radcal_bands = {
+                "tropomi_rad_calibration_fn": "N/A",  # Filename of radiance calibration factors
+                "Wavelength": erad.Wavelength,  # Wavelength Grid; Full Band
+                "CalibrationFactor": np.ones(
+                    len(erad.EarthRadiance)
+                ),  # Calibration Factor; Full Band
+                "Wavelength_Filter": erad.EarthWavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
+                "usage_pixels": iXTracks,  # index for healthy pixel, JLL: update if a list is needed instead of a dict
+            }
+            rad_cal = AttrDictAdapter(
+                o_combined_radcal_bands
+            )  # No calibration, set calibration factor as 1s
+            erad.CalibratedEarthRadiance = erad.EarthRadiance
+
+        # ====================================================
+        # * Solar IRRadiances with sunEarthDistance Adjustement
+        # ====================================================
+        # one_au = np.float64(149597890000.0)
+        one_au = np.float64(1.0)
+        temp_cf = (one_au / erad.ObservationTable["EarthSunDistance"][0]) ** 2.0
+        ADJUSTEDSOLARRADIANCE = irad.SolarRadiance[:] * temp_cf
+        irad.AdjustedSolarRadiance = ADJUSTEDSOLARRADIANCE.copy()
+
+        # ===============================================
+        # * align solar and earth radiance wavelength grid
+        # ===============================================
+        window_track = ""
+        for ii2 in windows:
+            if (
+                ii2["instrument"] == "TROPOMI"
+            ):  # EM - Necessary for dual band approaches
+                if window_track != ii2["filter"]:
+                    window_track = ii2["filter"]
+                    temp_ind1 = np.where(erad.EarthWavelength_Filter == ii2["filter"])[
+                        0
+                    ]
+                    temp_ind2 = np.where(irad.SolarWavelength_Filter == ii2["filter"])[
+                        0
+                    ]
+                    irad.SolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+                        irad.SolarRadiance[temp_ind2],
+                        irad.Wavelength[temp_ind2],
+                        erad.Wavelength[temp_ind1],
+                    )
+                    irad.AdjustedSolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+                        ADJUSTEDSOLARRADIANCE[temp_ind2],
+                        irad.Wavelength[temp_ind2],
+                        erad.Wavelength[temp_ind1],
+                    )
+                else:
+                    continue
+            else:
+                pass
+
+        # ============================
+        # * Get CloudInformation
+        # ============================
+        cloudInfo = read_tropomi_cloud(
+            filenames["CLOUD"], int(iXTracks["CLOUD"]), iATracks["CLOUD"]
+        )
+
+        # ======================
+        # * Get TROPOMI SurfaceAlbedo
+        # ======================
+        temp = UtcDateTime.split("-")
+        TMonth = int(temp[1])
+        TLongitude = erad.ObservationTable["Longitude"][0]
+        TLatitude = erad.ObservationTable["Latitude"][0]
+
+        # JLL 2023-09-13: I've kept EM's implementation that uses the
+        # OMI LER database for BAND3 (and bands 1--6) but added a
+        # clause to read from a TROPOMI DLER database for Bands 7 &
+        # 8. (NB: bands 1, 2, 4, 5, and 6 need to know which
+        # wavelength to read from in the OMI LER database.)  Although
+        # o_tropomi is returned and passed around the rest of
+        # py-retrieve, it does not appear that the SurfaceAlbedo dict
+        # is referenced anywhere in the code other than the initial
+        # UIP setup below, so I've changed it to allow multiple bands'
+        # albedos to be returned.
+        tropomi_filters = sorted(
+            {win["filter"] for win in windows if win["instrument"] == "TROPOMI"}
+        )
+        SurfaceAlbedo = read_tropomi_surface_albedo(
+            TLongitude,
+            TLatitude,
+            TMonth,
+            tropomi_filters,
+            tropomi_radiances={
+                "Earth_Radiance": erad.__dict__,
+                "Solar_Radiance": irad.__dict__,
+            },
+            swir_from_radiances=not albedo_from_dler,
+        )
+
+        # * Define output parameter
+        o_tropomi = {
+            "Earth_Radiance": erad.__dict__,
+            "Solar_Radiance": irad.__dict__,
+            "Radiance_Calibration": rad_cal.__dict__,
+            "SurfaceAlbedo": SurfaceAlbedo,
+            "Cloud": cloudInfo,
+        }
+
+        if not np.all(
+            np.isfinite(o_tropomi["Earth_Radiance"]["CalibratedEarthRadiance"])
+        ):
+            raise RuntimeError("CalibratedEarthRadiance not finite")
+        if not np.all(np.isfinite(o_tropomi["Earth_Radiance"]["EarthRadiance"])):
+            raise RuntimeError("EarthRadiance not finite")
+        if not np.all(np.isfinite(o_tropomi["Earth_Radiance"]["Wavelength"])):
+            raise RuntimeError("Wavelength not finite")
+        if not np.all(
+            np.isfinite(o_tropomi["Solar_Radiance"]["AdjustedSolarRadiance"])
+        ):
+            raise RuntimeError("AdjustedSolarRadiance not finite")
+
         return o_tropomi
 
     @classmethod
     def combine_tropomi_erad(
         cls,
         tropomi_fns: dict[str, str],
-        iXTracks: dict[str, str],
-        iATracks: dict[str, str],
+        iXTracks: dict[str, int],
+        iATracks: dict[str, int],
         windows: list[dict[str, str]],
         ifile_hlp: InputFileHelper,
     ) -> dict[str, Any]:
@@ -851,6 +1145,30 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "MeasurementQualityFlags": MeasurementQualityFlags,
         }
         return o_tropomi_rad
+
+    @classmethod
+    def read_tropomi_surface_altitude(
+        cls, ifile_hlp: InputFileHelper, Latitude: float, Longitude: float
+    ) -> float:
+        # The Surface Altitude product for TROPOMI
+        # see: https://www.temis.nl/data/gmted2010/index.php
+        with ifile_hlp.open_ncdf(
+            ifile_hlp.osp_dir / "TROPOMI" / "DEM" / "GMTED2010_15n015_00625deg.nc"
+        ) as fh:
+            fh.set_auto_maskandscale(False)
+
+            # DEM Latitude
+            Latitude_DEM = fh["latitude"][:]
+
+            # DEM Longitude
+            Longitude_DEM = fh["longitude"][:]
+
+            # Find closest coordinate
+            xi = np.abs(Latitude_DEM - Latitude).argmin()
+            yi = np.abs(Longitude_DEM - Longitude).argmin()
+
+            o_tropomi_SurfaceAltitude = fh["elevation"][xi, yi]
+            return o_tropomi_SurfaceAltitude
 
     def desc(self) -> str:
         return "MusesTropomiObservation"
@@ -1608,17 +1926,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
         return o_omi
 
     @classmethod
-    def idl_interpol_1d(
-        cls,
-        i_vector: np.ndarray,
-        i_abscissaValues: np.ndarray,
-        i_abscissaResult: np.ndarray,
-    ) -> np.ndarray:
-        return scipy.interpolate.interp1d(
-            i_abscissaValues, i_vector, fill_value="extrapolate"
-        )(i_abscissaResult)
-
-    @classmethod
     def combine_omi_erad(cls, omi_fn: str, iXTrack: int, iTrack: int) -> dict[str, Any]:
         from refractor.muses_py import read_omi_erad, compute_omi_sca
 
@@ -2069,67 +2376,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
         }
 
         return o_omi_cloud
-
-    @classmethod
-    def combine_omi_calibration(
-        cls, iXtrack_all: list[int], calibrationFilename: str
-    ) -> dict[str, Any]:
-        from refractor.muses_py import read_omi_calibration
-
-        # IDL_LEGACY_NOTE: This function combine_omi_calibration is the same as Combine_OMI_Calibration function in ms-setup/Combine_OMI_Calibration.pro file.
-        ixtrack_uv1 = iXtrack_all[0]
-        ixtrack = iXtrack_all[1]
-        ixtrack_uv2_pair = iXtrack_all[2]
-
-        # ===========================================
-        # * Get Spectral Radiance Calibration Factors
-        # ===========================================
-        # For UV2
-
-        iUV = 2
-        cal_uv2 = read_omi_calibration(ixtrack, iUV, calibrationFilename)
-        cal_uv2_pair = read_omi_calibration(ixtrack_uv2_pair, iUV, calibrationFilename)
-
-        # * For UV1
-        iUV = 1
-        cal_uv1 = read_omi_calibration(ixtrack_uv1, iUV, calibrationFilename)
-
-        # Convert to AttrDictAdapter so we can use the dot '.' notation.
-        cal_uv2 = AttrDictAdapter(cal_uv2)
-        cal_uv2_pair = AttrDictAdapter(cal_uv2_pair)
-        cal_uv1 = AttrDictAdapter(cal_uv1)
-
-        Wavelength_Filter_UV1 = np.asarray(["UV1" for ii in range(cal_uv1.nw)])
-        Wavelength_Filter_UV2 = np.asarray(["UV2" for ii in range(cal_uv2.nw)])
-        Wavelength_Filter = np.concatenate(
-            (Wavelength_Filter_UV1, Wavelength_Filter_UV2), axis=0
-        )
-
-        Calibration = np.concatenate(
-            (
-                cal_uv1.calibration,
-                (cal_uv2.calibration[:] + cal_uv2_pair.calibration[:])
-                / np.float64(2.0),
-            ),
-            axis=0,
-        )
-        Wavelength = np.concatenate(
-            (
-                cal_uv1.wavelength,
-                (cal_uv2.wavelength[:] + cal_uv2_pair.wavelength[:]) / np.float64(2.0),
-            ),
-            axis=0,
-        )
-
-        o_combined_radcal_bands = {
-            "omi_rad_calibration_fn": cal_uv2.omi_file,  # Filename of radiance calibration factors
-            "Wavelength": Wavelength,  # Wavelength Grid; Full Band
-            "CalibrationFactor": Calibration,  # Calibration Factor; Full Band
-            "Wavelength_Filter": Wavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
-            "usage_pixels": iXtrack_all,  # index for healthy pixel
-        }
-
-        return o_combined_radcal_bands
 
     @classmethod
     def combine_omi_yearly_mean_irad(cls, iXtrack_all: list[int]) -> dict[str, Any]:
