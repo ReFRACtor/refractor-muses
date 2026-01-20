@@ -79,6 +79,8 @@ if have_muses_py:
     from py_retrieve.app.airs_setup.read_airs_l1b import *  # type: ignore
     from py_retrieve.app.tropomi_setup import *  # type: ignore
     from py_retrieve.app.tools.convolve import *  # type: ignore
+    from py_retrieve.app.tools import *  # type: ignore
+    from py_retrieve.app.omi_setup import *  # type: ignore
 
 del _broken
 del _i

@@ -11,7 +11,6 @@ from .muses_spectral_window import MusesSpectralWindow
 from .mpy import (
     mpy_read_tropomi,
     mpy_read_tropomi_surface_altitude,
-    mpy_read_omi,
 )
 from .misc import AttrDictAdapter
 import os
@@ -27,11 +26,12 @@ from typing import Any, Self
 import typing
 import math
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
-from .input_file_helper import InputFileHelper
+from .input_file_helper import InputFileHelper, InputFilePath
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     import netCDF4
+    import h5py  # type: ignore
 
 # Logically you might expect MusesOmiObservation and MusesTropomiObservation to be in
 # refractor.omi and refractor.tropomi. However they share a whole lot in common, both
@@ -1123,13 +1123,13 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @classmethod
     def _read_data(
         cls,
-        filename: str | os.PathLike[str],
+        filename: str | os.PathLike[str] | InputFilePath,
         xtrack_uv1: int,
         xtrack_uv2: int,
         atrack: int,
         utc_time: str,
-        calibration_filename: str | os.PathLike[str],
-        cld_filename: str | os.PathLike[str] | None = None,
+        calibration_filename: str | os.PathLike[str] | InputFilePath,
+        cld_filename: str | os.PathLike[str] | InputFilePath,
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         o_omi = cls.read_omi(
@@ -1167,33 +1167,40 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @classmethod
     def read_omi(
         cls,
-        filename: str | os.PathLike[str],
+        filename: str | os.PathLike[str] | InputFilePath,
         xtrack_uv2: int,
         atrack: int,
         utc_time: str,
-        calibration_filename: str | os.PathLike[str],
-        cld_filename: str | os.PathLike[str] | None = None,
+        calibration_filename: str | os.PathLike[str] | InputFilePath,
+        cld_filename: str | os.PathLike[str] | InputFilePath,
         ifile_hlp: InputFileHelper | None = None,
     ) -> dict[str, Any]:
-        with osp_setup(ifile_hlp):
-            if ifile_hlp is not None:
-                ifile_hlp.notify_file_input(filename)
-                ifile_hlp.notify_file_input(calibration_filename)
-                if cld_filename:
-                    ifile_hlp.notify_file_input(cld_filename)
-                ifile_hlp.notify_file_input(
-                    ifile_hlp.osp_dir
-                    / "OMI"
-                    / "OMI_LER"
-                    / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
-                )
-            o_omi = mpy_read_omi(
+        if cld_filename is None:
+            raise RuntimeError(
+                "The old py-retrieve code had logic for searching for a cloud file if not supplied. However it isn't clear if this logic is still working, and in any case we don't have a test for this. So now we require cld_filename it be supplied. We can revisit this if it becomes an issue"
+            )
+        if ifile_hlp is None:
+            ifile_hlp = InputFileHelper()
+        with (
+            ifile_hlp.open_h5(cld_filename) as f_cld,
+            ifile_hlp.open_h5(
+                ifile_hlp.osp_dir
+                / "OMI"
+                / "OMI_LER"
+                / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
+            ) as f_alb,
+            osp_setup(ifile_hlp),
+        ):
+            ifile_hlp.notify_file_input(filename)
+            ifile_hlp.notify_file_input(calibration_filename)
+            o_omi = cls.read_omi_l1b(
                 str(filename),
                 xtrack_uv2,
                 atrack,
                 utc_time,
                 str(calibration_filename),
-                cldFilename=str(cld_filename) if cld_filename is not None else None,
+                f_cld,
+                f_alb,
             )
         return o_omi
 
@@ -1243,14 +1250,14 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @classmethod
     def create_from_filename(
         cls,
-        filename: str | os.PathLike[str],
+        filename: str | os.PathLike[str] | InputFilePath,
         xtrack_uv1: int,
         xtrack_uv2: int,
         atrack: int,
         utc_time: str,
-        calibration_filename: str,
+        calibration_filename: str | os.PathLike[str] | InputFilePath,
         filter_list: list[FilterIdentifier],
-        cld_filename: str | None = None,
+        cld_filename: str | os.PathLike[str] | InputFilePath,
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
@@ -1269,7 +1276,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             atrack,
             utc_time,
             calibration_filename,
-            cld_filename=cld_filename,
+            cld_filename,
             ifile_hlp=ifile_hlp,
         )
         return cls(o_omi, sdesc, filter_list)
@@ -1332,7 +1339,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 atrack,
                 utc_time,
                 calibration_filename,
-                cld_filename=cld_filename,
+                cld_filename,
                 ifile_hlp=ifile_hlp,
             )
             obs = cls(o_omi, sdesc, filter_list, coeff=coeff, mp=mp)
@@ -1410,6 +1417,916 @@ class MusesOmiObservation(MusesReflectanceObservation):
             ),
             "m",
         )
+
+    @classmethod
+    def read_omi_l1b(
+        cls,
+        filename: str,
+        iXTrack: int,
+        iTrack: int,
+        UtcDateTime: str,
+        calibrationFilename: str,
+        f_cld: h5py.File,
+        f_alb: h5py.File,
+    ) -> dict[str, Any]:
+        # ======================
+        #  Earth Shine Radiances
+        # ======================
+        eradd = cls.combine_omi_erad(filename, iXTrack, iTrack)
+        if eradd is None:
+            raise RuntimeError("combine_omi_erad failed")
+
+        erad = AttrDictAdapter(eradd)
+
+        # ============================
+        #  3 Year Mean Solar Radiances
+        # ============================
+        iradd = cls.combine_omi_yearly_mean_irad(erad.iXtrack_all)
+        irad = AttrDictAdapter(iradd)
+
+        if calibrationFilename:
+            # ============================
+            #  Get Calibration Factors
+            # ============================
+            rad_cal = AttrDictAdapter(
+                cls.combine_omi_calibration(erad.iXtrack_all, calibrationFilename)
+            )
+
+            # ===============================================
+            # * Earth Shine Radiances with calibration applied
+            # ===============================================
+            temp_ind1 = np.where(rad_cal.Wavelength_Filter == "UV1")[0]
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV1")[0]
+
+            temp_cf1 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+            temp_cf2 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+
+            # PYTHON_NOTE: It seems the Python version has more
+            # precisions for temp_cf1 and temp_cf2 which causes
+            # problems later.  PYTHON_NOTE: We are also changing to
+            # float since it causes problem comparing to IDL.
+            temp_cf1 = temp_cf1.astype(np.float64)
+            temp_cf2 = temp_cf2.astype(np.float64)
+
+            CALIBRATEDEARTHRADIANCE_uv1v = []
+            for ii in range(0, len(temp_ind2)):
+                CALIBRATEDEARTHRADIANCE_uv1v.append(
+                    erad.EarthRadiance[temp_ind2[ii]] / temp_cf2[ii]
+                )
+
+            CALIBRATEDEARTHRADIANCE_uv1 = np.asarray(CALIBRATEDEARTHRADIANCE_uv1v)
+
+            temp_ind1 = np.where(rad_cal.Wavelength_Filter == "UV2")[0]
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV2")[0]
+
+            temp_cf1 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+            temp_cf2 = cls.idl_interpol_1d(
+                rad_cal.CalibrationFactor[temp_ind1],
+                rad_cal.Wavelength[temp_ind1],
+                erad.Wavelength[temp_ind2],
+            )
+
+            temp_cf1 = temp_cf1.astype(
+                np.float64
+            )  # PYTHON_NOTE: We are also changing to float since it causes problem comparing to IDL.
+            temp_cf2 = temp_cf2.astype(
+                np.float64
+            )  # PYTHON_NOTE: We are also changing to float since it causes problem comparing to IDL.
+
+            CALIBRATEDEARTHRADIANCE_uv2 = erad.EarthRadiance[temp_ind2] / temp_cf2[:]
+            CALIBRATEDEARTHRADIANCE = np.concatenate(
+                (CALIBRATEDEARTHRADIANCE_uv1, CALIBRATEDEARTHRADIANCE_uv2), axis=0
+            )
+
+            erad.CalibratedEarthRadiance = CALIBRATEDEARTHRADIANCE  # Adding another key to AttrDictAdapter by merely using the dot '.' notation and an assignment.
+        else:
+            # ===============================================
+            # * Mimic Read_OMI_Without_RadCal.pro
+            # ===============================================
+            # Note: Continuing to use "Calibrated" naming though these will be uncalibrated radiances. Name change?
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV1")[0]
+            CALIBRATEDEARTHRADIANCE_uv1v = []
+            for ii in range(0, len(temp_ind2)):
+                CALIBRATEDEARTHRADIANCE_uv1v.append(erad.EarthRadiance[temp_ind2[ii]])
+            CALIBRATEDEARTHRADIANCE_uv1 = np.asarray(CALIBRATEDEARTHRADIANCE_uv1v)
+
+            temp_ind2 = np.where(erad.EarthWavelength_Filter == "UV2")[0]
+            CALIBRATEDEARTHRADIANCE_uv2 = erad.EarthRadiance[temp_ind2]
+
+            CALIBRATEDEARTHRADIANCE = np.concatenate(
+                (CALIBRATEDEARTHRADIANCE_uv1, CALIBRATEDEARTHRADIANCE_uv2), axis=0
+            )
+
+            erad.CalibratedEarthRadiance = CALIBRATEDEARTHRADIANCE
+
+            # Even though we don't use rad_cal, attempts to output it's __dict__ occur below. Create empty object.
+            rad_cal = AttrDictAdapter({})
+
+        # ====================================================
+        # * Solar IRRadiances with sunEarthDistance Adjustement
+        # ====================================================
+        one_au = np.float64(149597890000.0)
+        temp_cf = (one_au / erad.ObservationTable["EarthSunDistance"][0]) ** 2.0
+        ADJUSTEDSOLARRADIANCE = irad.SolarRadiance[:] * temp_cf
+        irad.AdjustedSolarRadiance = ADJUSTEDSOLARRADIANCE.copy()
+
+        # ===============================================
+        # * align solar and earth radiance wavelength grid
+        # ===============================================
+        temp_ind1 = np.where(erad.EarthWavelength_Filter == "UV1")[0]
+        temp_ind2 = np.where(irad.SolarWavelength_Filter == "UV1")[0]
+        irad.SolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+            irad.SolarRadiance[temp_ind2],
+            irad.Wavelength[temp_ind2],
+            erad.Wavelength[temp_ind1],
+        )
+        irad.AdjustedSolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+            ADJUSTEDSOLARRADIANCE[temp_ind2],
+            irad.Wavelength[temp_ind2],
+            erad.Wavelength[temp_ind1],
+        )
+
+        temp_ind1 = np.where(erad.EarthWavelength_Filter == "UV2")[0]
+        temp_ind2 = np.where(irad.SolarWavelength_Filter == "UV2")[0]
+        irad.SolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+            irad.SolarRadiance[temp_ind2],
+            irad.Wavelength[temp_ind2],
+            erad.Wavelength[temp_ind1],
+        )
+        irad.AdjustedSolarRadiance[temp_ind1] = cls.idl_interpol_1d(
+            ADJUSTEDSOLARRADIANCE[temp_ind2],
+            irad.Wavelength[temp_ind2],
+            erad.Wavelength[temp_ind1],
+        )
+
+        # ============================
+        # * Get CloudInformation
+        # ============================
+        cloudInfo = cls.read_omi_cloud(f_cld, iXTrack, iTrack)
+
+        # ======================
+        # * Get OMI SurfaceAlbedo
+        # ======================
+        temp = UtcDateTime.split("-")
+        TMonth = int(temp[1])
+        TLongitude = erad.ObservationTable["Longitude"][0]
+        TLatitude = erad.ObservationTable["Latitude"][0]
+        SurfaceAlbedo = cls.read_omi_surface_albedo(
+            f_alb, TLongitude, TLatitude, TMonth
+        )
+
+        # * Define output parameter
+        o_omi = {
+            "Earth_Radiance": erad.__dict__,
+            "Solar_Radiance": irad.__dict__,
+            "Radiance_Calibration": rad_cal.__dict__,
+            "SurfaceAlbedo": SurfaceAlbedo,
+            "Cloud": cloudInfo,
+        }
+
+        if not np.all(np.isfinite(o_omi["Earth_Radiance"]["CalibratedEarthRadiance"])):
+            raise RuntimeError("CalibratedEarthRadiance not finite")
+        if not np.all(np.isfinite(o_omi["Earth_Radiance"]["EarthRadiance"])):
+            raise RuntimeError("EarthRadiance not finite")
+        if not np.all(np.isfinite(o_omi["Earth_Radiance"]["Wavelength"])):
+            raise RuntimeError("Wavelength not finite")
+        if not np.all(np.isfinite(o_omi["Solar_Radiance"]["AdjustedSolarRadiance"])):
+            raise RuntimeError("AdjustedSolarRadiance not finite")
+
+        return o_omi
+
+    @classmethod
+    def idl_interpol_1d(
+        cls,
+        i_vector: np.ndarray,
+        i_abscissaValues: np.ndarray,
+        i_abscissaResult: np.ndarray,
+    ) -> np.ndarray:
+        return scipy.interpolate.interp1d(
+            i_abscissaValues, i_vector, fill_value="extrapolate"
+        )(i_abscissaResult)
+
+    @classmethod
+    def combine_omi_erad(cls, omi_fn: str, iXTrack: int, iTrack: int) -> dict[str, Any]:
+        from refractor.muses_py import read_omi_erad, compute_omi_sca
+
+        # Return a struture variable that has
+        #   (1) OMI L1b measured earth spectral radiances/wavelength grid
+        #   (2) OMI L1b viewing geometry
+
+        o_combined_erad_bands = (
+            None  # Set to None so we can return if something goes wrong.
+        )
+
+        iUV = 2  # filter band index uv2 = 2; uv1 = 1
+        erad_uv2d = read_omi_erad(omi_fn, iXTrack, iTrack, iUV)
+        if erad_uv2d is None:
+            raise RuntimeError("error in read_omi_erad")
+
+        erad_uv2 = AttrDictAdapter(erad_uv2d)
+
+        erad_uv1d = {}
+        erad_uv2_paird = {}
+        if erad_uv2.MeasurementMode == "NORMAL":  # normal mode
+            ixtrack_uv1 = math.floor(iXTrack / 2.0)
+
+            if iXTrack == (2 * ixtrack_uv1):
+                ixtrack_uv2_pair = 2 * ixtrack_uv1 + 1
+
+            if iXTrack == (2 * ixtrack_uv1 + 1):
+                ixtrack_uv2_pair = 2 * ixtrack_uv1
+
+            iUV = 1  # filter band index uv2 = 2; uv1 = 1
+            erad_uv1d = read_omi_erad(omi_fn, ixtrack_uv1, iTrack, iUV)
+            if erad_uv1d is None:
+                raise RuntimeError("error in read_omi_erad")
+
+            iUV = 2  # filter band index uv2 = 2; uv1 = 1
+            erad_uv2_paird = read_omi_erad(omi_fn, ixtrack_uv2_pair, iTrack, iUV)
+        elif erad_uv2.MeasurementMode == "ZOOM":  # zoom mode
+            if iXTrack == 29 or iXTrack == 0:
+                raise RuntimeError(
+                    "UV2 Pixel Index in ZOOM mode &  = 0 or 29, there is no UV1 Pair match .."
+                )
+
+            if iXTrack > 0 and iXTrack < 29:
+                temp_mod = iXTrack % 2
+                if temp_mod == 0:
+                    ixtrack_uv1 = (iXTrack + 14) // 2
+                    ixtrack_uv2_pair = 2 * ixtrack_uv1 - 15
+                elif temp_mod == 1:
+                    ixtrack_uv1 = (iXTrack + 15) // 2
+                    ixtrack_uv2_pair = 2 * ixtrack_uv1 - 15 + 1
+
+                iUV = 1  # filter band index uv2 = 2; uv1 = 1
+                erad_uv1d = read_omi_erad(omi_fn, ixtrack_uv1, iTrack, iUV)
+                if erad_uv1d is None:
+                    raise RuntimeError("error in read_omi_erad")
+
+                iUV = 2  # filter band index uv2 = 2; uv1 = 1
+                erad_uv2_paird = read_omi_erad(omi_fn, ixtrack_uv2_pair, iTrack, iUV)
+                if erad_uv2_paird is None:
+                    raise RuntimeError("error in read_omi_erad")
+        else:  # unknown mode.
+            raise RuntimeError("OMI is not in NORMAL mode nor ZOOM mode")
+
+        erad_uv1 = AttrDictAdapter(erad_uv1d)
+        erad_uv2_pair = AttrDictAdapter(erad_uv2_paird)
+
+        iXtrack_all = [ixtrack_uv1, iXTrack, ixtrack_uv2_pair]
+
+        # * Evaluate the Quality of Earth Shine Radiances
+        EarthWavelength_Filter_UV1 = np.asarray(
+            ["UUU" for ii in range(0, erad_uv1.PixelQualityFlags.shape[0])]
+        )
+        EarthWavelength_Filter_UV2 = np.asarray(
+            ["UUU" for ii in range(0, erad_uv2.PixelQualityFlags.shape[0])]
+        )
+
+        EarthWavelength_Filter_UV1[:] = "UV1"
+        EarthWavelength_Filter_UV2[:] = "UV2"
+
+        EarthWavelength_Filter = np.concatenate(
+            (EarthWavelength_Filter_UV1, EarthWavelength_Filter_UV2), axis=0
+        )
+
+        uv1_erad_good_qf = np.where(erad_uv1.PixelQualityFlags == 0)[0]
+        uv2_erad_good_qf = np.where(erad_uv2.PixelQualityFlags == 0)[0]
+        uv2_erad_good_qf_pair = np.where(erad_uv2_pair.PixelQualityFlags == 0)[0]
+
+        # * when both UV2 pixels are bad, will not process this target scene
+        case_select = 0
+        if len(uv2_erad_good_qf) > 0 and len(uv2_erad_good_qf_pair) > 0:
+            case_select = 1
+
+        if len(uv2_erad_good_qf) == 0 and len(uv2_erad_good_qf_pair) > 0:
+            case_select = 2
+
+        if len(uv2_erad_good_qf) > 0 and len(uv2_erad_good_qf_pair) == 0:
+            case_select = 3
+
+        if len(uv2_erad_good_qf == 0) and len(uv2_erad_good_qf_pair) == 0:
+            case_select = 4
+
+        if case_select == 1:
+            usage_pixelsv = [iXTrack, ixtrack_uv2_pair]
+        elif case_select == 2:
+            erad_uv2 = erad_uv2_pair
+            uv2_erad_good_qf = uv2_erad_good_qf_pair
+            usage_pixelsv = [-999, ixtrack_uv2_pair]
+        elif case_select == 3:
+            erad_uv2_pair = erad_uv2
+            uv2_erad_good_qf_pair = uv2_erad_good_qf
+            usage_pixelsv = [iXTrack, -999]
+        elif case_select == 4:
+            raise RuntimeError("CASE_SELECT_4:OMI Bad Quality UV2 Spectrum")
+        else:
+            raise RuntimeError("Unexpected value for case_select")
+
+        usage_pixels = np.asarray(usage_pixelsv)
+        usage_pixels = np.concatenate((np.asarray([ixtrack_uv1]), usage_pixels), axis=0)
+
+        # * when UV1 is bad, will continue processing but print out warning
+        if len(uv1_erad_good_qf) == 0:
+            logger.info(
+                f"OMI Bad Quality UV1 Spectrum at ATRACK {iTrack} XTrack {iXTrack}"
+            )
+            logger.info(
+                "Suggest to only use spectral region within the UV2 filter bands"
+            )
+            usage_pixels[0] = -999
+
+        # Assigned the Earth Spectra --- Wavelength and Radiances
+        uv1_erad_bad_qf = np.where(erad_uv1.PixelQualityFlags != 0)[0]
+        uv2_erad_bad_qf = np.where(
+            (erad_uv2.PixelQualityFlags != 0) | (erad_uv2_pair.PixelQualityFlags != 0)
+        )[0]
+
+        erad_uv1.Radiance[uv1_erad_bad_qf] = -999.0
+        erad_uv1.NESR[uv1_erad_bad_qf] = -999.0
+
+        erad_uv2.Radiance[uv2_erad_bad_qf] = -999.0
+        erad_uv2.NESR[uv2_erad_bad_qf] = -999.0
+
+        erad_uv2_pair.Radiance[uv2_erad_bad_qf] = -999.0
+        erad_uv2_pair.NESR[uv2_erad_bad_qf] = -999.0
+
+        temp_wav = (erad_uv2.Wavelength + erad_uv2_pair.Wavelength) / 2.0
+        temp_rad = (erad_uv2.Radiance + erad_uv2_pair.Radiance) / 2.0
+        temp_nesr = (erad_uv2.NESR + erad_uv2_pair.NESR) / 2.0
+
+        temp_rad[uv2_erad_bad_qf] = np.float64(-999.0)
+        temp_nesr[uv2_erad_bad_qf] = np.float64(-999.0)
+
+        EarthWavelength = np.concatenate(
+            (np.flip(erad_uv1.Wavelength, axis=0), temp_wav), axis=0
+        )
+        EarthRadiance = np.concatenate(
+            (np.flip(erad_uv1.Radiance, axis=0), temp_rad), axis=0
+        )
+        EarthRadianceNESR = np.concatenate(
+            (np.flip(erad_uv1.NESR, axis=0), temp_nesr), axis=0
+        )
+
+        # filter out bad channels using PIXELQUALITYFLAGS
+        temp_bad = uv2_erad_bad_qf.copy()
+        if len(temp_bad) > 0:
+            EarthRadiance[temp_bad] = 0.0
+            EarthRadianceNESR[temp_bad] = -999.0
+
+        # filter out spectral spikes
+        temp_bad = np.where((EarthRadianceNESR <= 0.0) | (EarthRadianceNESR > 1.0e12))[
+            0
+        ]
+        if len(temp_bad) > 0:
+            EarthRadiance[temp_bad] = 0.0
+            EarthRadianceNESR[temp_bad] = -999.0
+
+        # filter out secondary spectral spikes
+        mean_nesr_ind = np.where((EarthRadianceNESR > 0.0) & (EarthWavelength < 350.0))[
+            0
+        ]
+        mean_nesr = np.mean(EarthRadianceNESR[mean_nesr_ind])
+        two_sigma_std_nesr = np.std(EarthRadianceNESR[mean_nesr_ind]) * 2.0
+
+        temp_bad = np.where(
+            (EarthRadianceNESR >= (mean_nesr + two_sigma_std_nesr))
+            & (EarthWavelength < 350.0)
+        )[0]
+        if len(temp_bad) > 0:
+            EarthRadiance[temp_bad] = 0.0
+            EarthRadianceNESR[temp_bad] = -999.0
+
+        # ===================================
+        # Dejian Feb 17, 2017
+        # base upon 2016 OMI L1B calibration
+        # Manually filter out bad chanels
+        # ===================================
+
+        # UV1 pixel 3
+        if ixtrack_uv1 == 3:
+            temp_bad = np.where(
+                (EarthWavelength > 293.00)
+                & ((EarthWavelength <= 294.25) & (EarthWavelength_Filter == "UV1"))
+            )[0]
+            if len(temp_bad) > 0:
+                EarthRadiance[temp_bad] = 0.0
+                EarthRadianceNESR[temp_bad] = -999.0
+
+        # UV1 pixel 7
+        if ixtrack_uv1 == 7:
+            temp_bad = np.where(
+                (EarthWavelength > 310.40)
+                & ((EarthWavelength <= 311.0) & (EarthWavelength_Filter == "UV1"))
+            )[0]
+            if len(temp_bad) > 0:
+                EarthRadiance[temp_bad] = 0.0
+                EarthRadianceNESR[temp_bad] = -999.0
+
+        # UV1 pixel 21
+        if ixtrack_uv1 == 21:
+            temp_bad = np.where(
+                (EarthWavelength > 294.9)
+                & ((EarthWavelength <= 296.2) & (EarthWavelength_Filter == "UV1"))
+            )[0]
+            if len(temp_bad) > 0:
+                EarthRadiance[temp_bad] = 0.0
+                EarthRadianceNESR[temp_bad] = -999.0
+
+        # Not implemented because the value of do_old_bad_pixel_map is 0.
+
+        # Viewing Angle Definition
+
+        # uv1 raz
+        raz_uv1 = np.abs(erad_uv1.ViewingAzimuthAngle - erad_uv1.SolarAzimuthAngle)
+        if raz_uv1 > 180.0:
+            raz_uv1 = np.float64(360.0) - raz_uv1
+        raz_uv1 = np.float64(180.0) - raz_uv1
+
+        # uv1 sca
+        sca_uv1 = compute_omi_sca(
+            erad_uv1.ViewingZenithAngle, erad_uv1.SolarZenithAngle, raz_uv1
+        )
+
+        # uv2 raz
+        raz_uv2 = abs(erad_uv2.ViewingAzimuthAngle - erad_uv2.SolarAzimuthAngle)
+        raz_uv2_pair = abs(
+            erad_uv2_pair.ViewingAzimuthAngle - erad_uv2_pair.SolarAzimuthAngle
+        )
+
+        if raz_uv2 > 180.0:
+            raz_uv2 = np.float64(360.0) - raz_uv2
+
+        if raz_uv2_pair > 180.0:
+            raz_uv2_pair = np.float64(360.0) - raz_uv2_pair
+
+        raz_uv2 = np.float64(180.0) - raz_uv2
+        raz_uv2_pair = np.float64(180.0) - raz_uv2_pair
+
+        # uv2 sca
+        sca_uv2 = compute_omi_sca(
+            erad_uv2.ViewingZenithAngle, erad_uv2.SolarZenithAngle, raz_uv2
+        )
+        sca_uv2_pair = compute_omi_sca(
+            erad_uv2_pair.ViewingZenithAngle,
+            erad_uv2_pair.SolarZenithAngle,
+            raz_uv2_pair,
+        )
+
+        o_ObservationTable = {
+            "ATRACK": [erad_uv1.iTrack, erad_uv2.iTrack, erad_uv2_pair.iTrack],
+            "XTRACK": [erad_uv1.iXTrack, erad_uv2.iXTrack, erad_uv2_pair.iXTrack],
+            "Latitude": [erad_uv1.Latitude, erad_uv2.Latitude, erad_uv2_pair.Latitude],
+            "Longitude": [
+                erad_uv1.Longitude,
+                erad_uv2.Longitude,
+                erad_uv2_pair.Longitude,
+            ],
+            "Time": [erad_uv1.Time, erad_uv2.Time, erad_uv2_pair.Time],
+            "SpacecraftLatitude": [
+                erad_uv1.SpacecraftLatitude,
+                erad_uv2.SpacecraftLatitude,
+                erad_uv2_pair.SpacecraftLatitude,
+            ],
+            "SpacecraftLongitude": [
+                erad_uv1.SpacecraftLongitude,
+                erad_uv2.SpacecraftLongitude,
+                erad_uv2_pair.SpacecraftLongitude,
+            ],
+            "SpacecraftAltitude": [
+                erad_uv1.SpacecraftAltitude,
+                erad_uv2.SpacecraftAltitude,
+                erad_uv2_pair.SpacecraftAltitude,
+            ],
+            "TerrainHeight": [
+                erad_uv1.TerrainHeight,
+                erad_uv2.TerrainHeight,
+                erad_uv2_pair.TerrainHeight,
+            ],  # Surface Altitude
+            "SolarAzimuthAngle": [
+                erad_uv1.SolarAzimuthAngle,
+                erad_uv2.SolarAzimuthAngle,
+                erad_uv2_pair.SolarAzimuthAngle,
+            ],
+            "SolarZenithAngle": [
+                erad_uv1.SolarZenithAngle,
+                erad_uv2.SolarZenithAngle,
+                erad_uv2_pair.SolarZenithAngle,
+            ],
+            "ViewingAzimuthAngle": [
+                erad_uv1.ViewingAzimuthAngle,
+                erad_uv2.ViewingAzimuthAngle,
+                erad_uv2_pair.ViewingAzimuthAngle,
+            ],
+            "ViewingZenithAngle": [
+                erad_uv1.ViewingZenithAngle,
+                erad_uv2.ViewingZenithAngle,
+                erad_uv2_pair.ViewingZenithAngle,
+            ],
+            "RelativeAzimuthAngle": [raz_uv1, raz_uv2, raz_uv2_pair],
+            "ScatteringAngle": [sca_uv1, sca_uv2, sca_uv2_pair],
+            "EarthSunDistance": [
+                erad_uv1.EarthSunDistance,
+                erad_uv2.EarthSunDistance,
+                erad_uv2_pair.EarthSunDistance,
+            ],
+            "MeasurementMode": [
+                erad_uv1.MeasurementMode,
+                erad_uv2.MeasurementMode,
+                erad_uv2_pair.MeasurementMode,
+            ],
+            "Filter_Band_Name": ["UV1", "UV2", "UV2"],
+        }
+
+        # ----- Output Parameter
+        o_combined_erad_bands = {
+            "omi_earth_rad_fn": erad_uv2.omi_file,  # L1B Earth Radiance Full Path and File Name
+            "Wavelength": EarthWavelength,  # Wavelength Grid; Full Band
+            "EarthRadiance": EarthRadiance,  # Earth Shine Radiance; Full Band
+            "EarthRadianceNESR": EarthRadianceNESR,  # NESR of Earth Shine Radiance ; Full Band;
+            "EarthWavelength_Filter": EarthWavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
+            "usage_pixels": usage_pixels,  # index for healthy pixel
+            "ObservationTable": o_ObservationTable,  # Observation Geometry Including Pixel Indexa; Latitut and Longitude; Viewing Geometry
+            "iXtrack_all": iXtrack_all,
+        }
+
+        return o_combined_erad_bands
+
+    @classmethod
+    def read_omi_cloud(
+        cls, f_cld: h5py.File, iXtrack: int, iTrack: int
+    ) -> dict[str, Any]:
+        # * GroundPixelQualityFlags
+        GroundPixelQualityFlags = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/GroundPixelQualityFlags"
+        ][iTrack, iXtrack]
+
+        # * Latitude
+        Latitude = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
+        ][iTrack, iXtrack]
+
+        # * Longitude
+        Longitude = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
+        ][iTrack, iXtrack]
+
+        # * ProcessingQualityFlags
+        ProcessingQualityFlags = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/ProcessingQualityFlags"
+        ][iTrack, iXtrack]
+
+        # * CloudFraction
+        CloudFraction = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
+        ][iTrack, iXtrack]
+
+        # * CloudPressure
+        CloudPressure = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
+        ][iTrack, iXtrack]
+
+        # * CloudFractionPrecision
+        CloudFractionPrecision = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFractionPrecision"
+        ][iTrack, iXtrack]
+
+        # * CloudPressurePrecision
+        CloudPressurePrecision = f_cld[
+            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressurePrecision"
+        ][iTrack, iXtrack]
+
+        # * Flag of interpolation
+        interpolationflag = 0
+
+        # interpolation when needed
+
+        # On suggestion from Susan's email on 07/24/2019, instead of using scipy.interpolation.gridata, we will:
+        # 1) find all "good" observations within 0.5 degrees.  If there are observations, use this selection.  If not use all "good" observations with 1.5 degrees.
+        # 2) average CloudFraction_all and CloudPressure_all rather than trying to find the "best" interpolated result.
+
+        if (CloudPressure < 0.0) or (CloudFraction < 0.0):
+            CloudFraction_all = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
+            ][:]
+            CloudPressure_all = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
+            ][:]
+            Latitude_all = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
+            ][:]
+            Longitude_all = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
+            ][:]
+
+            lat_lon_ind = (
+                (CloudFraction_all >= 0.0)
+                & (Longitude_all > Longitude - 1.5)
+                & (Longitude_all < Longitude + 1.5)
+                & (Latitude_all > Latitude - 1.5)
+                & (Latitude_all < Latitude + 1.5)
+            )
+            if np.count_nonzero(lat_lon_ind) > 0:
+                # Try 0.5
+                lat_lon_ind2 = (
+                    (CloudFraction_all >= 0.0)
+                    & (Longitude_all > Longitude - 0.5)
+                    & (Longitude_all < Longitude + 0.5)
+                    & (Latitude_all > Latitude - 0.5)
+                    & (Latitude_all < Latitude + 0.5)
+                )
+
+                if np.count_nonzero(lat_lon_ind2) > 0:
+                    lat_lon_ind = lat_lon_ind2
+
+                CloudFraction = np.mean(CloudFraction_all[lat_lon_ind])
+                CloudPressure = np.mean(CloudPressure_all[lat_lon_ind])
+
+                interpolationflag = 1
+
+        o_omi_cloud = {
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "CloudPressure": CloudPressure,
+            "CloudFraction": CloudFraction,
+            "ProcessingQualityFlags": ProcessingQualityFlags,
+            "GroundPixelQualityFlags": GroundPixelQualityFlags,
+            "CloudFraction_err": CloudFractionPrecision,
+            "CloudPressure_err": CloudPressurePrecision,
+            "Interpolationflag": interpolationflag,
+        }
+
+        return o_omi_cloud
+
+    @classmethod
+    def combine_omi_calibration(
+        cls, iXtrack_all: list[int], calibrationFilename: str
+    ) -> dict[str, Any]:
+        from refractor.muses_py import read_omi_calibration
+
+        # IDL_LEGACY_NOTE: This function combine_omi_calibration is the same as Combine_OMI_Calibration function in ms-setup/Combine_OMI_Calibration.pro file.
+        ixtrack_uv1 = iXtrack_all[0]
+        ixtrack = iXtrack_all[1]
+        ixtrack_uv2_pair = iXtrack_all[2]
+
+        # ===========================================
+        # * Get Spectral Radiance Calibration Factors
+        # ===========================================
+        # For UV2
+
+        iUV = 2
+        cal_uv2 = read_omi_calibration(ixtrack, iUV, calibrationFilename)
+        cal_uv2_pair = read_omi_calibration(ixtrack_uv2_pair, iUV, calibrationFilename)
+
+        # * For UV1
+        iUV = 1
+        cal_uv1 = read_omi_calibration(ixtrack_uv1, iUV, calibrationFilename)
+
+        # Convert to AttrDictAdapter so we can use the dot '.' notation.
+        cal_uv2 = AttrDictAdapter(cal_uv2)
+        cal_uv2_pair = AttrDictAdapter(cal_uv2_pair)
+        cal_uv1 = AttrDictAdapter(cal_uv1)
+
+        Wavelength_Filter_UV1 = np.asarray(["UV1" for ii in range(cal_uv1.nw)])
+        Wavelength_Filter_UV2 = np.asarray(["UV2" for ii in range(cal_uv2.nw)])
+        Wavelength_Filter = np.concatenate(
+            (Wavelength_Filter_UV1, Wavelength_Filter_UV2), axis=0
+        )
+
+        Calibration = np.concatenate(
+            (
+                cal_uv1.calibration,
+                (cal_uv2.calibration[:] + cal_uv2_pair.calibration[:])
+                / np.float64(2.0),
+            ),
+            axis=0,
+        )
+        Wavelength = np.concatenate(
+            (
+                cal_uv1.wavelength,
+                (cal_uv2.wavelength[:] + cal_uv2_pair.wavelength[:]) / np.float64(2.0),
+            ),
+            axis=0,
+        )
+
+        o_combined_radcal_bands = {
+            "omi_rad_calibration_fn": cal_uv2.omi_file,  # Filename of radiance calibration factors
+            "Wavelength": Wavelength,  # Wavelength Grid; Full Band
+            "CalibrationFactor": Calibration,  # Calibration Factor; Full Band
+            "Wavelength_Filter": Wavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
+            "usage_pixels": iXtrack_all,  # index for healthy pixel
+        }
+
+        return o_combined_radcal_bands
+
+    @classmethod
+    def combine_omi_yearly_mean_irad(cls, iXtrack_all: list[int]) -> dict[str, Any]:
+        from refractor.muses_py import read_omi_osp_irad
+        # IDL_LEGACY_NOTE: This function combine_omi_yearly_mean_irad is the same as Combine_OMI_YearlyMeanIrad function in ms-setup/Combine_OMI_YearlyMeanIrad.pro file.
+        # Description:
+        # Return a struture variable that has
+        #   (1) OMI L1b measured solar spectral radiances/wavelength grid
+        #
+        #
+        # ==================================================================
+        # Dependency:
+        #  readhdfsd.pro   --- read maxtrix
+
+        # Input: omi_fn: OMI L1B Earth Radiance file name
+        #        iXtrack : CrossTrack Index
+        #
+        # Output:
+        #       combined_irad_bands
+        # =======================================================
+        # Author:
+        #
+        #   Dejian Fu; November 17th, 2014
+        #
+        #           Dejian.fu@jpl.nasa.gov
+        # ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ixtrack_uv1 = iXtrack_all[0]
+        ixtrack = iXtrack_all[1]
+        ixtrack_uv2_pair = iXtrack_all[2]
+
+        # ==============================
+        # * Get 3 Yearly Mean Solar Spec
+        # ==============================
+        # For UV2
+        iUV = 2
+        irad_uv2 = read_omi_osp_irad(ixtrack, iUV)
+        irad_uv2_pair = read_omi_osp_irad(ixtrack_uv2_pair, iUV)
+
+        # * For uv1
+        iUV = 1
+        irad_uv1 = read_omi_osp_irad(ixtrack_uv1, iUV)
+
+        # Convert our dictionaries so we use the dot '.' notation.
+        irad_uv2 = AttrDictAdapter(irad_uv2)
+        irad_uv2_pair = AttrDictAdapter(irad_uv2_pair)
+        irad_uv1 = AttrDictAdapter(irad_uv1)
+
+        # * Define output parameter
+        Wavelength_Filter_UV1 = np.asarray(
+            ["UV1" for ii in range(0, len(irad_uv1.Sol))]
+        )
+        Wavelength_Filter_UV2 = np.asarray(
+            ["UV2" for ii in range(0, len(irad_uv2.Sol))]
+        )
+        Wavelength_Filter = np.concatenate(
+            (Wavelength_Filter_UV1, Wavelength_Filter_UV2), axis=0
+        )
+
+        Radiance = np.concatenate(
+            (irad_uv1.Sol, (irad_uv2.Sol[:] + irad_uv2_pair.Sol[:]) / np.float64(2.0)),
+            axis=0,
+        )
+        RadianceNESR = np.concatenate(
+            (irad_uv1.Pre, (irad_uv2.Pre[:] + irad_uv2_pair.Pre[:]) / np.float64(2.0)),
+            axis=0,
+        )
+        Wavelength = np.concatenate(
+            (irad_uv1.Wav, (irad_uv2.Wav[:] + irad_uv2_pair.Wav[:]) / np.float64(2.0)),
+            axis=0,
+        )
+
+        o_combined_irad_bands = {
+            "omi_solar_rad_fn": irad_uv2.omi_file,  # L1B Earth Radiance Full Path and File Name
+            "Wavelength": Wavelength,  #  Wavelength Grid; Full Band
+            "SolarRadiance": Radiance,  #  Earth Shine Radiance; Full Band
+            "SolarRadianceNESR": RadianceNESR,  #  NESR of Earth Shine Radiance ; Full Band
+            "SolarWavelength_Filter": Wavelength_Filter,  #  Optical Filter Name for each Channel; Full Bands
+            "usage_pixels": iXtrack_all,  #  index for healthy pixel
+        }
+
+        return o_combined_irad_bands
+
+    @classmethod
+    def read_omi_surface_albedo(
+        cls, f_alb: h5py.File, TLongitude: float, TLatitude: float, TMonth: int
+    ) -> dict[str, Any]:
+        from refractor.muses_py import get_distance
+
+        # Get month index
+        month_ind = TMonth - 1
+
+        # Set wavelength index
+        wave_ind = 0
+
+        # Surface Albedo
+        ScaleFactor = np.float64(0.0010)
+
+        # Latitude
+        Latitude = f_alb[
+            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Latitude"
+        ][:]
+
+        # Longitude
+        Longitude = f_alb[
+            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Longitude"
+        ][:]
+
+        temp_lat_ind = np.where(
+            (Latitude > (TLatitude - 2.0)) & (Latitude < (TLatitude + 2.0))
+        )[0]
+        temp_lon_ind = np.where(
+            (Longitude > (TLongitude - 2.0)) & (Longitude < (TLongitude + 2.0))
+        )[0]
+
+        min_dist = 999.0
+        min_temp_lat_ind = np.amin(temp_lat_ind)
+        max_temp_lat_ind = np.amax(temp_lat_ind)
+        min_temp_lon_ind = np.amin(temp_lon_ind)
+        max_temp_lon_ind = np.amax(temp_lon_ind)
+
+        lat_ind = 0
+        lon_ind = 0
+        for ilat in range(min_temp_lat_ind, max_temp_lat_ind):
+            for ilon in range(min_temp_lon_ind, max_temp_lon_ind):
+                (temp_dist, _, _) = get_distance(
+                    Latitude[ilat], Longitude[ilon], TLatitude, TLongitude
+                )
+                # At this point, temp_dist is in Kilometers.
+                if temp_dist <= min_dist:
+                    lat_ind = ilat
+                    lon_ind = ilon
+                    min_dist = temp_dist
+
+        Latitude = Latitude[lat_ind]
+        Longitude = Longitude[lon_ind]
+
+        # MonthlyMinimumSurfaceReflectance
+        MonthlyMinimumSurfaceReflectance = (
+            f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlyMinimumSurfaceReflectance"
+            ][month_ind, wave_ind, lat_ind, lon_ind]
+            * ScaleFactor
+        )
+
+        # MonthlySurfaceReflectance
+        MonthlySurfaceReflectance = (
+            f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectance"
+            ][month_ind, wave_ind, lat_ind, lon_ind]
+            * ScaleFactor
+        )
+
+        # MonthlySurfaceReflectanceFlag
+        MonthlySurfaceReflectanceFlag = f_alb[
+            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectanceFlag"
+        ][month_ind, lat_ind, lon_ind]
+
+        # Wavelength
+        Wavelength = f_alb[
+            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Wavelength"
+        ][wave_ind]
+
+        # YearlyMinimumSurfaceReflectance
+        YearlyMinimumSurfaceReflectance = (
+            f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlyMinimumSurfaceReflectance"
+            ][wave_ind, lat_ind, lon_ind]
+            * ScaleFactor
+        )
+
+        # YearlySurfaceReflectance
+        YearlySurfaceReflectance = (
+            f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectance"
+            ][wave_ind, lat_ind, lon_ind]
+            * ScaleFactor
+        )
+
+        # YearlySurfaceReflectanceFlag
+        YearlySurfaceReflectanceFlag = f_alb[
+            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectanceFlag"
+        ][lat_ind, lon_ind]
+
+        o_omi_SurfaceAlbedo = {
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "MonthlyMinimumSurfaceReflectance": MonthlyMinimumSurfaceReflectance,
+            "MonthlySurfaceReflectance": MonthlySurfaceReflectance,
+            "MonthlySurfaceReflectanceFlag": MonthlySurfaceReflectanceFlag,
+            "Wavelength": Wavelength,
+            "YearlyMinimumSurfaceReflectance": YearlyMinimumSurfaceReflectance,
+            "YearlySurfaceReflectance": YearlySurfaceReflectance,
+            "YearlySurfaceReflectanceFlag": YearlySurfaceReflectanceFlag,
+        }
+
+        return o_omi_SurfaceAlbedo
 
 
 ObservationHandleSet.add_default_handle(

@@ -243,7 +243,7 @@ def test_omi_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
             atrack,
             utc_time,
             str(calibration_filename),
-            cldFilename=str(cld_filename),
+            cldFilename=str(cld_filename) if cld_filename is not None else None,
         )
     o_omi2 = MusesOmiObservation.read_omi(
         filename,
@@ -254,5 +254,6 @@ def test_omi_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
         cld_filename,
         ifile_hlp,
     )
-
+    del o_omi["Cloud"]["omi_file"]
+    del o_omi["SurfaceAlbedo"]["omi_file"]
     compare_muses_py_dict(o_omi2, o_omi, "read_omi")

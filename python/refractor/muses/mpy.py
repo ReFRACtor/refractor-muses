@@ -37,12 +37,10 @@ mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
 mpy_read_tropomi_surface_altitude = partial(
     muses_py_wrapper, "read_tropomi_surface_altitude"
 )
-mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 
 # Functions we can we want to replace
 __all__ = [
-    "mpy_read_omi",
     "mpy_read_tropomi",
     "mpy_read_tropomi_surface_altitude",
 ]
