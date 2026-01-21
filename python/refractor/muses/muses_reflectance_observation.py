@@ -27,7 +27,13 @@ from .input_file_helper import InputFileHelper, InputFilePath
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     import netCDF4
-    import h5py  # type: ignore
+
+# ************************************************************************************
+# TODO Clean this up. We have focused on copying over all the py-retrieve code, but
+# we have kind of large monolithic classes here. Should break this up a bit, the
+# solar model and surface albedo for example should be separate classes with separate
+# testing. But we'll leave this in place for now.
+# ************************************************************************************
 
 # Logically you might expect MusesOmiObservation and MusesTropomiObservation to be in
 # refractor.omi and refractor.tropomi. However they share a whole lot in common, both
@@ -282,7 +288,7 @@ class MusesReflectanceObservation(MusesObservationImp):
     ) -> scipy.interpolate.interp1d:
         """The interpolation in MusesOpticalDepth has a specific form. This isn't
         substantially different than just our self._solar_interp, but the values
-        calculated are different. In particular, the is a bug in the code where the
+        calculated are different. In particular, there is a bug in the code where the
         wrong SpectralDomain is used. We match this wrong behavior to match the existing
         code, but this should get fixed at some point.
 
@@ -344,6 +350,9 @@ class MusesReflectanceObservation(MusesObservationImp):
         i_abscissaValues: np.ndarray,
         i_abscissaResult: np.ndarray,
     ) -> np.ndarray:
+        # This is just a scipy object that is immediately used. But convenient to wrap
+        # this is a simple function. Can possibly remove this over time, although no
+        # strong reason to right now.
         return scipy.interpolate.interp1d(
             i_abscissaValues, i_vector, fill_value="extrapolate"
         )(i_abscissaResult)
@@ -487,11 +496,11 @@ class MusesReflectanceObservation(MusesObservationImp):
 
     @classmethod
     def combine_omi_calibration(
-        cls, iXtrack_all: list[int], calibrationFilename: str
-    ) -> dict[str, Any]:
-        from refractor.muses_py import read_omi_calibration
-
-        # IDL_LEGACY_NOTE: This function combine_omi_calibration is the same as Combine_OMI_Calibration function in ms-setup/Combine_OMI_Calibration.pro file.
+        cls,
+        ifile_hlp: InputFileHelper,
+        iXtrack_all: list[int],
+        calibrationFilename: str | os.PathLike[str] | InputFilePath,
+    ) -> AttrDictAdapter:
         ixtrack_uv1 = iXtrack_all[0]
         ixtrack = iXtrack_all[1]
         ixtrack_uv2_pair = iXtrack_all[2]
@@ -499,20 +508,16 @@ class MusesReflectanceObservation(MusesObservationImp):
         # ===========================================
         # * Get Spectral Radiance Calibration Factors
         # ===========================================
-        # For UV2
 
-        iUV = 2
-        cal_uv2 = read_omi_calibration(ixtrack, iUV, calibrationFilename)
-        cal_uv2_pair = read_omi_calibration(ixtrack_uv2_pair, iUV, calibrationFilename)
-
-        # * For UV1
-        iUV = 1
-        cal_uv1 = read_omi_calibration(ixtrack_uv1, iUV, calibrationFilename)
-
-        # Convert to AttrDictAdapter so we can use the dot '.' notation.
-        cal_uv2 = AttrDictAdapter(cal_uv2)
-        cal_uv2_pair = AttrDictAdapter(cal_uv2_pair)
-        cal_uv1 = AttrDictAdapter(cal_uv1)
+        cal_uv2 = cls.read_omi_calibration(
+            ifile_hlp, ixtrack, calibrationFilename, iUV=2
+        )
+        cal_uv2_pair = cls.read_omi_calibration(
+            ifile_hlp, ixtrack_uv2_pair, calibrationFilename, iUV=2
+        )
+        cal_uv1 = cls.read_omi_calibration(
+            ifile_hlp, ixtrack_uv1, calibrationFilename, iUV=1
+        )
 
         Wavelength_Filter_UV1 = np.asarray(["UV1" for ii in range(cal_uv1.nw)])
         Wavelength_Filter_UV2 = np.asarray(["UV2" for ii in range(cal_uv2.nw)])
@@ -537,115 +542,159 @@ class MusesReflectanceObservation(MusesObservationImp):
         )
 
         o_combined_radcal_bands = {
-            "omi_rad_calibration_fn": cal_uv2.omi_file,  # Filename of radiance calibration factors
             "Wavelength": Wavelength,  # Wavelength Grid; Full Band
             "CalibrationFactor": Calibration,  # Calibration Factor; Full Band
             "Wavelength_Filter": Wavelength_Filter,  # Optical Filter Name for each Channel; Full Bands;
             "usage_pixels": iXtrack_all,  # index for healthy pixel
         }
 
-        return o_combined_radcal_bands
+        return AttrDictAdapter(o_combined_radcal_bands)
+
+    @classmethod
+    def read_omi_calibration(
+        cls,
+        ifile_hlp: InputFileHelper,
+        omi_ind: int,
+        calibrationFilename: str | os.PathLike[str] | InputFilePath,
+        iUV: int,
+    ) -> AttrDictAdapter:
+        logger.info("calibrationFilename", calibrationFilename)
+        with ifile_hlp.open_h5(calibrationFilename) as fh:
+            if iUV == 1:
+                corr = fh["CORR1"][:, omi_ind]
+                wave = fh["WAVE1"][:]
+                if np.amax(wave) < 315:
+                    wave = np.append(wave, 315)
+                    corr = np.append(corr, 1)
+
+                if np.amin(wave) > 263:
+                    wave = np.concatenate((np.asarray([263]), wave), axis=0)
+                    corr = np.concatenate((np.asarray([1]), corr), axis=0)
+
+                nw = len(corr)
+            else:
+                corr = fh["CORR2"][:, omi_ind]
+                wave = fh["WAVE2"][:]
+                if np.amax(wave) < 386:
+                    wave = np.append(wave, 386)
+                    corr = np.append(corr, 1)
+
+                if np.amin(wave) > 306:
+                    wave = np.concatenate((np.asarray([306]), wave), axis=0)
+                    corr = np.concatenate((np.asarray([1]), corr), axis=0)
+                nw = len(corr)
+
+        o_omi_calibration = {"nw": nw, "wavelength": wave, "calibration": corr}
+        return AttrDictAdapter(o_omi_calibration)
 
     @classmethod
     def read_omi_surface_albedo(
-        cls, f_alb: h5py.File, TLongitude: float, TLatitude: float, TMonth: int
+        cls,
+        ifile_hlp: InputFileHelper,
+        TLongitude: float,
+        TLatitude: float,
+        TMonth: int,
     ) -> dict[str, Any]:
-        from refractor.muses_py import get_distance
+        with ifile_hlp.open_h5(
+            ifile_hlp.osp_dir
+            / "OMI"
+            / "OMI_LER"
+            / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
+        ) as f_alb:
+            # Get month index
+            month_ind = TMonth - 1
 
-        # Get month index
-        month_ind = TMonth - 1
+            # Set wavelength index
+            wave_ind = 0
 
-        # Set wavelength index
-        wave_ind = 0
+            # Surface Albedo
+            ScaleFactor = np.float64(0.0010)
 
-        # Surface Albedo
-        ScaleFactor = np.float64(0.0010)
+            # Latitude
+            Latitude = f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Latitude"
+            ][:]
 
-        # Latitude
-        Latitude = f_alb[
-            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Latitude"
-        ][:]
+            # Longitude
+            Longitude = f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Longitude"
+            ][:]
 
-        # Longitude
-        Longitude = f_alb[
-            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Longitude"
-        ][:]
+            temp_lat_ind = np.where(
+                (Latitude > (TLatitude - 2.0)) & (Latitude < (TLatitude + 2.0))
+            )[0]
+            temp_lon_ind = np.where(
+                (Longitude > (TLongitude - 2.0)) & (Longitude < (TLongitude + 2.0))
+            )[0]
 
-        temp_lat_ind = np.where(
-            (Latitude > (TLatitude - 2.0)) & (Latitude < (TLatitude + 2.0))
-        )[0]
-        temp_lon_ind = np.where(
-            (Longitude > (TLongitude - 2.0)) & (Longitude < (TLongitude + 2.0))
-        )[0]
+            min_dist = 999.0
+            min_temp_lat_ind = np.amin(temp_lat_ind)
+            max_temp_lat_ind = np.amax(temp_lat_ind)
+            min_temp_lon_ind = np.amin(temp_lon_ind)
+            max_temp_lon_ind = np.amax(temp_lon_ind)
 
-        min_dist = 999.0
-        min_temp_lat_ind = np.amin(temp_lat_ind)
-        max_temp_lat_ind = np.amax(temp_lat_ind)
-        min_temp_lon_ind = np.amin(temp_lon_ind)
-        max_temp_lon_ind = np.amax(temp_lon_ind)
+            lat_ind = 0
+            lon_ind = 0
+            for ilat in range(min_temp_lat_ind, max_temp_lat_ind):
+                for ilon in range(min_temp_lon_ind, max_temp_lon_ind):
+                    temp_dist = cls.get_distance(
+                        Latitude[ilat], Longitude[ilon], TLatitude, TLongitude
+                    )
+                    # At this point, temp_dist is in Kilometers.
+                    if temp_dist <= min_dist:
+                        lat_ind = ilat
+                        lon_ind = ilon
+                        min_dist = temp_dist
 
-        lat_ind = 0
-        lon_ind = 0
-        for ilat in range(min_temp_lat_ind, max_temp_lat_ind):
-            for ilon in range(min_temp_lon_ind, max_temp_lon_ind):
-                (temp_dist, _, _) = get_distance(
-                    Latitude[ilat], Longitude[ilon], TLatitude, TLongitude
-                )
-                # At this point, temp_dist is in Kilometers.
-                if temp_dist <= min_dist:
-                    lat_ind = ilat
-                    lon_ind = ilon
-                    min_dist = temp_dist
+            Latitude = Latitude[lat_ind]
+            Longitude = Longitude[lon_ind]
 
-        Latitude = Latitude[lat_ind]
-        Longitude = Longitude[lon_ind]
+            # MonthlyMinimumSurfaceReflectance
+            MonthlyMinimumSurfaceReflectance = (
+                f_alb[
+                    "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlyMinimumSurfaceReflectance"
+                ][month_ind, wave_ind, lat_ind, lon_ind]
+                * ScaleFactor
+            )
 
-        # MonthlyMinimumSurfaceReflectance
-        MonthlyMinimumSurfaceReflectance = (
-            f_alb[
-                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlyMinimumSurfaceReflectance"
-            ][month_ind, wave_ind, lat_ind, lon_ind]
-            * ScaleFactor
-        )
+            # MonthlySurfaceReflectance
+            MonthlySurfaceReflectance = (
+                f_alb[
+                    "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectance"
+                ][month_ind, wave_ind, lat_ind, lon_ind]
+                * ScaleFactor
+            )
 
-        # MonthlySurfaceReflectance
-        MonthlySurfaceReflectance = (
-            f_alb[
-                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectance"
-            ][month_ind, wave_ind, lat_ind, lon_ind]
-            * ScaleFactor
-        )
+            # MonthlySurfaceReflectanceFlag
+            MonthlySurfaceReflectanceFlag = f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectanceFlag"
+            ][month_ind, lat_ind, lon_ind]
 
-        # MonthlySurfaceReflectanceFlag
-        MonthlySurfaceReflectanceFlag = f_alb[
-            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/MonthlySurfaceReflectanceFlag"
-        ][month_ind, lat_ind, lon_ind]
+            # Wavelength
+            Wavelength = f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Wavelength"
+            ][wave_ind]
 
-        # Wavelength
-        Wavelength = f_alb[
-            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/Wavelength"
-        ][wave_ind]
+            # YearlyMinimumSurfaceReflectance
+            YearlyMinimumSurfaceReflectance = (
+                f_alb[
+                    "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlyMinimumSurfaceReflectance"
+                ][wave_ind, lat_ind, lon_ind]
+                * ScaleFactor
+            )
 
-        # YearlyMinimumSurfaceReflectance
-        YearlyMinimumSurfaceReflectance = (
-            f_alb[
-                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlyMinimumSurfaceReflectance"
-            ][wave_ind, lat_ind, lon_ind]
-            * ScaleFactor
-        )
+            # YearlySurfaceReflectance
+            YearlySurfaceReflectance = (
+                f_alb[
+                    "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectance"
+                ][wave_ind, lat_ind, lon_ind]
+                * ScaleFactor
+            )
 
-        # YearlySurfaceReflectance
-        YearlySurfaceReflectance = (
-            f_alb[
-                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectance"
-            ][wave_ind, lat_ind, lon_ind]
-            * ScaleFactor
-        )
-
-        # YearlySurfaceReflectanceFlag
-        YearlySurfaceReflectanceFlag = f_alb[
-            "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectanceFlag"
-        ][lat_ind, lon_ind]
+            # YearlySurfaceReflectanceFlag
+            YearlySurfaceReflectanceFlag = f_alb[
+                "/HDFEOS/GRIDS/EarthSurfaceReflectanceClimatology/Data Fields/YearlySurfaceReflectanceFlag"
+            ][lat_ind, lon_ind]
 
         o_omi_SurfaceAlbedo = {
             "Latitude": Latitude,
@@ -661,9 +710,63 @@ class MusesReflectanceObservation(MusesObservationImp):
 
         return o_omi_SurfaceAlbedo
 
+    @classmethod
+    def get_distance(
+        cls,
+        latitude1In: float,
+        longitude1In: float,
+        latitude2In: float,
+        longitude2In: float,
+    ) -> float:
+        """find distance between two latitude, longitudes. input in degrees return in km"""
+
+        latitude1 = latitude1In * 3.141592 / np.float64(180.0)
+        latitude2 = latitude2In * 3.141592 / np.float64(180.0)
+        longitude1 = longitude1In * 3.141592 / np.float64(180.0)
+        longitude2 = longitude2In * 3.141592 / np.float64(180.0)
+
+        distance2 = math.cos(latitude1) * math.cos(latitude1) * (
+            longitude1 - longitude2
+        ) * (longitude1 - longitude2) + (latitude1 - latitude2) * (
+            latitude1 - latitude2
+        )
+        radiusEarth = 6.356779e03 + (6.37816e3 - 6.356779e03) * math.cos(latitude1)
+
+        o_distance = math.sqrt(distance2) * radiusEarth
+
+        return o_distance
+
+    @classmethod
+    def compute_sca(cls, vza: float, sza: float, raz: float) -> float:
+        temp1 = (
+            -1
+            * math.cos(math.pi * vza / np.float64(180.0))
+            * math.cos(math.pi * sza / np.float64(180.0))
+        )
+        temp2 = math.sqrt(
+            1
+            - math.cos(math.pi * vza / np.float64(180.0))
+            * math.cos(math.pi * vza / np.float64(180.0))
+        )
+        temp3 = math.sqrt(
+            1
+            - math.cos(math.pi * sza / np.float64(180.0))
+            * math.cos(math.pi * sza / np.float64(180.0))
+        )
+        temp4 = math.cos(math.pi * (raz / np.float64(180.0)))
+        o_sca = temp1 + (temp2 * temp3 * temp4)
+        o_sca = np.float64(180.0) - math.acos(o_sca) * np.float64(180.0) / math.pi
+        return o_sca
+
 
 class MusesTropomiObservation(MusesReflectanceObservation):
     """Observation for Tropomi"""
+
+    UV_BANDS = {"BAND1", "BAND2"}
+    UVIS_BANDS = {"BAND3", "BAND4"}
+    NIR_BANDS = {"BAND5", "BAND6"}
+    SWIR_BANDS = {"BAND7", "BAND8"}
+    UVN_BANDS = UV_BANDS | UVIS_BANDS | NIR_BANDS
 
     def __init__(
         self,
@@ -758,78 +861,61 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
         # TODO Remove osp_setup below
-        with (
-            ifile_hlp.open_ncdf(filename_dict["CLOUD"]) as f_cld,
-            ifile_hlp.open_h5(
-                ifile_hlp.osp_dir
-                / "OMI"
-                / "OMI_LER"
-                / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
-            ) as f_alb,
-            osp_setup(ifile_hlp),
-        ):
-            f_cld.set_auto_maskandscale(False)
-            for k, v in filename_dict.items():
-                ifile_hlp.notify_file_input(v)
+        with osp_setup(ifile_hlp):
             o_tropomi = cls.read_tropomi_l1b(
                 ifile_hlp,
-                f_cld,
-                {k: str(v) for (k, v) in filename_dict.items()},
+                filename_dict,
                 xtrack_dict,
                 atrack_dict,
                 utc_time,
                 i_windows,
             )
-            # Reading of the surface height is done separately. In muses-py this
-            # was a side effect of setting up the StateInfo.
-            for i in range(
-                len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
-            ):
-                o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
-                    cls.read_tropomi_surface_altitude(
-                        ifile_hlp,
-                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
-                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
-                    )
+        # Reading of the surface height is done separately. In muses-py this
+        # was a side effect of setting up the StateInfo.
+        for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
+            o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
+                cls.read_tropomi_surface_altitude(
+                    ifile_hlp,
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
                 )
+            )
         return o_tropomi
 
     @classmethod
     def read_tropomi_l1b(
         cls,
         ifile_hlp: InputFileHelper,
-        f_cld: netCDF4.Dataset,
-        filenames: dict[str, str],
+        filename_dict: dict[str, str | os.PathLike[str] | InputFilePath],
         iXTracks: dict[str, int],
         iATracks: dict[str, int],
         UtcDateTime: str,
         windows: list[dict[str, str]],
-        calibrationFilename: bool = False,
+        calibrationFilename: str | os.PathLike[str] | InputFilePath | None = None,
         albedo_from_dler: bool = False,
     ) -> dict[str, Any]:
         # EM - Will probs have to include a calibration file, not sure how to do that yet
-        from refractor.muses_py import (
-            read_tropomi_surface_albedo,
-        )
 
         # ======================
         #  Earth Shine Radiances
         # ======================
         # EM - Deal with differing TROPOMI bands in this function
         erad = AttrDictAdapter(
-            cls.combine_tropomi_erad(filenames, iXTracks, iATracks, windows, ifile_hlp)
+            cls.combine_tropomi_erad(
+                filename_dict, iXTracks, iATracks, windows, ifile_hlp
+            )
         )
 
         # ============================
         #  For OMI, 3 Year Mean Solar Radiances used here
         #  For TROPOMI, trying daily solar irradiance files
         # ============================
-        irad = AttrDictAdapter(cls.daily_tropomi_irad(filenames, iXTracks, windows))
+        irad = AttrDictAdapter(cls.daily_tropomi_irad(filename_dict, iXTracks, windows))
 
         # ============================
         #  Get Calibration Factors
         # ============================
-        if calibrationFilename:
+        if calibrationFilename is not None:
             if True:
                 raise RuntimeError("This hasn't been updated for tropomi")
             # We have the code that was in read_tropomi in py-retrieve, but you can
@@ -838,8 +924,8 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             logger.warning(
                 "TROPOMI calibration functions likely need updated to work with the new filename/track index dictionary convention implemented for NIR. If you get an error in a few lines, update combine_tropomi_calibration first"
             )
-            rad_cal = AttrDictAdapter(
-                cls.combine_omi_calibration(iXTracks, calibrationFilename)
+            rad_cal = cls.combine_omi_calibration(
+                ifile_hlp, iXTracks, calibrationFilename
             )
 
             # ===============================================
@@ -957,7 +1043,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         # * Get CloudInformation
         # ============================
         cloudInfo = cls.read_tropomi_cloud(
-            f_cld, int(iXTracks["CLOUD"]), iATracks["CLOUD"]
+            ifile_hlp, filename_dict["CLOUD"], int(iXTracks["CLOUD"]), iATracks["CLOUD"]
         )
 
         # ======================
@@ -981,7 +1067,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         tropomi_filters = sorted(
             {win["filter"] for win in windows if win["instrument"] == "TROPOMI"}
         )
-        SurfaceAlbedo = read_tropomi_surface_albedo(
+        SurfaceAlbedo = cls.read_tropomi_surface_albedo(
             TLongitude,
             TLatitude,
             TMonth,
@@ -1018,15 +1104,117 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         return o_tropomi
 
     @classmethod
-    def daily_tropomi_irad(cls, irrFilenames, iXtracks, windows) -> dict[str, Any]:
-        from refractor.muses_py import read_tropomi_daily_irad, tropomi_constants
+    def read_tropomi_surface_albedo(
+        cls,
+        TLongitude: float,
+        TLatitude: float,
+        TMonth: int,
+        BandFilters: list[str],
+        tropomi_radiances: dict,
+        swir_from_radiances: bool = True,
+    ) -> dict[str, Any]:
+        from py_retrieve.app.tropomi_setup.read_tropomi_surface_albedo import (
+            _read_omi_ler_for_tropomi,
+            _read_tropomi_dler,
+            _infer_tropomi_ler_from_radiances,
+        )
+
+        # Description: Read Earth Surface Albedo from OMI L3 HDF5 file
+        # This is identical to the OMI script, since this should still be relevant for TROPOMI
+        # ===========================================================================
+        # Dependency:
+        #           readh5d.pro   --- read hdf5
+        # Input:
+        #  T, the first character of input parameters, refers to target scene
+        #  TLongitude        ---- from measurement_ID.asc
+        #  TLatitude         ---- from measurement_ID.asc
+        #  TDate             -----from measurement_ID.asc
+        #  BandFilter        -----the filter strings e.g. ["BAND3"] indicating which windows to load
+        #  tropomi_radiances -----
+        #  swir_from_radiances----whether to calculate SWIR albedo from the radiances (True) or use the DLER (False)
+        #
+        # BAND7 and BAND8 will use a TROPOMI DLER file that includes a NIR wavelength. BAND1
+        # through BAND6 will use the old OMI LER file.
+        #
+        # Output:
+        #
+        # tropomi_SurfaceAlbedo = {$
+        #     tropomi_file                         : tropomi_file,                     $
+        #     Latitude                         : Latitude,                     $
+        #     Longitude                        : Longitude,                    $
+        #     MonthlyMinimumSurfaceReflectance : MonthlyMinimumSurfaceReflectance,$
+        #     MonthlySurfaceReflectance        : MonthlySurfaceReflectance,      $
+        #     MonthlySurfaceReflectanceFlag    : MonthlySurfaceReflectanceFlag,  $
+        #     Wavelength                       : Wavelength,                     $
+        #     YearlyMinimumSurfaceReflectance  : YearlyMinimumSurfaceReflectance, $
+        #     YearlySurfaceReflectance         : YearlySurfaceReflectance,       $
+        #     YearlySurfaceReflectanceFlag     : YearlySurfaceReflectanceFlag $
+        #     }
+        # =======================================================
+        # Author:
+        #
+        #   Dejian Fu; November 18th, 2014
+        #           Dejian.fu@jpl.nasa.gov
+        # Mod:
+        # March 2021 - E Malina
+        # Sept  2023 - J Laughner (added DLER for NIR bands)
+        # ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        o_tropomi = dict()
+        tropomi_obs_table = tropomi_radiances["Earth_Radiance"]["ObservationTable"]
+        for band_filter in BandFilters:
+            if band_filter in cls.UVN_BANDS:
+                band_reflectance_dict = _read_omi_ler_for_tropomi(
+                    TLongitude, TLatitude, TMonth, band_filter
+                )
+            elif band_filter in cls.SWIR_BANDS and swir_from_radiances:
+                tropomi_sza_deg = [
+                    sza
+                    for sza, band in zip(
+                        tropomi_obs_table["SolarZenithAngle"],
+                        tropomi_obs_table["Filter_Band_Name"],
+                    )
+                    if band == band_filter
+                ]
+                if len(tropomi_sza_deg) != 1:
+                    raise ValueError(
+                        f"Could not find a unique {band_filter} in the tropomi_obs_table"
+                    )
+                band_reflectance_dict = _infer_tropomi_ler_from_radiances(
+                    tropomi_radiances, tropomi_sza_deg[0], band_filter
+                )
+            elif band_filter in cls.SWIR_BANDS:
+                band_reflectance_dict = _read_tropomi_dler(
+                    TLongitude, TLatitude, TMonth, 2314.0
+                )
+            else:
+                raise ValueError(
+                    f'No prior surface reflectance source defined for TROPOMI filter "{band_filter}"'
+                )
+
+            # Rename all keys by prefixing the band name, e.g. "Wavelength" -> "BAND3_Wavelength", then add these key-value
+            # pairs to the combined output dict
+            band_reflectance_dict = {
+                f"{band_filter}_{k}": v for k, v in band_reflectance_dict.items()
+            }
+            o_tropomi.update(band_reflectance_dict)
+
+        return o_tropomi
+
+    @classmethod
+    def daily_tropomi_irad(
+        cls,
+        irrFilenames: dict[str, str | os.PathLike[str] | InputFilePath],
+        iXtracks: dict[str, int],
+        windows: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        from refractor.muses_py import read_tropomi_daily_irad
 
         # Define arrays for storing
         Radiance = []
         RadianceNESR = []
         Wavelength = []
         Wavelength_Filter_total = []
-        current_band = []
+        current_band = ""
         oXtrack = []
 
         for i, band in enumerate(windows):
@@ -1038,9 +1226,9 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             ):  # EM Note - This is necessary for dual band retrievals, so non TROPOMI data is not passed.
                 if current_band != band["filter"]:
                     current_band = band["filter"]
-                    if current_band in tropomi_constants.UVN_BANDS:
+                    if current_band in cls.UVN_BANDS:
                         key = "IRR_BAND_1to6"
-                    elif current_band in tropomi_constants.SWIR_BANDS:
+                    elif current_band in cls.SWIR_BANDS:
                         key = "IRR_BAND_7to8"
                     else:
                         raise NotImplementedError(
@@ -1094,159 +1282,159 @@ class MusesTropomiObservation(MusesReflectanceObservation):
 
     @classmethod
     def read_tropomi_cloud(
-        cls, fh_cloud: netCDF4.Dataset, iXtrack: int, iTrack: int
+        cls,
+        ifile_hlp: InputFileHelper,
+        cloud_fname: str | os.PathLike[str] | InputFilePath,
+        iXtrack: int,
+        iTrack: int,
     ) -> dict[str, Any]:
-        # GroundPixelQualityFlags
-        GroundPixelQualityFlags = fh_cloud[
-            "/PRODUCT/SUPPORT_DATA/GEOLOCATIONS/geolocation_flags"
-        ][0, iTrack, iXtrack]
-
-        # Latitude
-        Latitude = fh_cloud["PRODUCT/latitude"][0, iTrack, iXtrack]
-
-        # Longitude
-        Longitude = fh_cloud["PRODUCT/longitude"][0, iTrack, iXtrack]
-
-        # ProcessingQualityFlags
-        ProcessingQualityFlags = fh_cloud[
-            "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/processing_quality_flags"
-        ][0, iTrack, iXtrack]
-
-        # CloudFraction
-        CloudFraction_crb = fh_cloud["PRODUCT/cloud_fraction"][0, iTrack, iXtrack]
-
-        # VK Depending on the dataset version the cloud_fraction_nir variable may be available or not
-        try:
-            CloudFraction = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_nir"
+        with ifile_hlp.open_ncdf(cloud_fname) as fh_cloud:
+            fh_cloud.set_auto_maskandscale(False)
+            GroundPixelQualityFlags = fh_cloud[
+                "/PRODUCT/SUPPORT_DATA/GEOLOCATIONS/geolocation_flags"
             ][0, iTrack, iXtrack]
-        except IndexError:
-            logger.warning("Using cloud_fraction instead of cloud_fraction_nir")
-            CloudFraction = CloudFraction_crb
-
-        # EM NOTE - I inserted an arbitrary number, subject to change
-        if np.abs(CloudFraction_crb - CloudFraction) > 0.05:
-            logger.warning(
-                "TROPOMI CAL and CRB cloud fraction values are significantly different"
-            )
-
-        if CloudFraction >= 9.0e36:
-            logger.warning(
-                "TROPOMI CloudFraction >= 9.0e+36. Likely a fill value. Assuming CloudFraction of 0.1"
-            )
-            CloudFraction = 0.1
-
-        # CloudPressure
-        CloudPressure = fh_cloud["PRODUCT/cloud_top_pressure"][0, iTrack, iXtrack]
-        # NOTE - CTP is provided in Pa, need to convert to hPA
-        CloudPressure = CloudPressure * 0.01
-
-        if CloudPressure >= 9.0e34:
-            CloudPressure = fh_cloud["PRODUCT/cloud_top_pressure"][
-                0, iTrack, iXtrack + 1
-            ]
-            CloudPressure = CloudPressure * 0.01
-
-        if CloudPressure >= 9.0e34:
-            logger.warning(
-                "TROPOMI CloudPressure >= 9.0e+36. Likely a fill value. Assuming CloudPressure of 1016.914 hPa"
-            )
-            # set to same surface pressure as OSP/L2_Setup/ops/L2_Setup/State_AtmProfiles.asc
-            CloudPressure = 1016.914
-
-        # CloudFractionPrecision
-        try:
-            CloudFractionPrecision = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_precision_nir"
+            Latitude = fh_cloud["PRODUCT/latitude"][0, iTrack, iXtrack]
+            Longitude = fh_cloud["PRODUCT/longitude"][0, iTrack, iXtrack]
+            ProcessingQualityFlags = fh_cloud[
+                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/processing_quality_flags"
             ][0, iTrack, iXtrack]
-        except IndexError:
-            CloudFractionPrecision = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_precision"
-            ][0, iTrack, iXtrack]
-            logger.warning(
-                "using cloud_fraction_crb_precision instead of cloud_fraction_crb_precision_nir"
-            )
+            CloudFraction_crb = fh_cloud["PRODUCT/cloud_fraction"][0, iTrack, iXtrack]
 
-        # CloudPressurePrecision
-        CloudPressurePrecision = fh_cloud["PRODUCT/cloud_top_pressure_precision"][
-            0, iTrack, iXtrack
-        ]
+            # VK Depending on the dataset version the
+            # cloud_fraction_nir variable may be available or not
+            try:
+                CloudFraction = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_nir"
+                ][0, iTrack, iXtrack]
+            except IndexError:
+                logger.warning("Using cloud_fraction instead of cloud_fraction_nir")
+                CloudFraction = CloudFraction_crb
 
-        # Cloud Albedo
-        try:
-            CloudAlbedo = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_nir"
-            ][0, iTrack, iXtrack]
-        except IndexError:
-            CloudAlbedo = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb"
-            ][0, iTrack, iXtrack]
-            logger.warning("Using cloud_albedo_crb instead of cloud_albedo_crb_nir")
-
-        if CloudAlbedo >= 9.0e36:
-            logger.warning(
-                "TROPOMI CloudAlbedo >= 9.0e+36. Likely a fill value. Assuming CloudAlbedo of 0.8"
-            )
-            CloudAlbedo = 0.8
-
-        if np.isnan(CloudAlbedo):
-            logger.warning("TROPOMI cloud product albedo is NaN, using 0.8")
-            CloudAlbedo = 0.8
-
-        # * Cloud Albedo Precision
-        try:
-            CloudAlbedoPrecision = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_precision_nir"
-            ][0, iTrack, iXtrack]
-        except IndexError:
-            logger.warning(
-                "using cloud_albedo_crb_precision instead of cloud_albedo_crb_precision_nir"
-            )
-            CloudAlbedoPrecision = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_precision"
-            ][0, iTrack, iXtrack]
-
-        # * Flag of interpolation
-        interpolationflag = 0
-
-        # interpolation when needed
-
-        # On suggestion from Susan's email on 07/24/2019, instead of using scipy.interpolation.gridata, we will:
-        # 1) find all "good" observations within 0.5 degrees.  If there are observations, use this selection.  If not use all "good" observations with 1.5 degrees.
-        # 2) average CloudFraction_all and CloudPressure_all rather than trying to find the "best" interpolated result.
-
-        if (CloudPressure < 0.0) or (CloudFraction < 0.0):
-            CloudFraction_all = fh_cloud["PRODUCT/cloud_fraction"][:]
-            CloudPressure_all = fh_cloud[
-                "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_pressure_crb"
-            ]
-            Latitude_all = fh_cloud["PRODUCT/latitude"][:]
-            Longitude_all = fh_cloud["PRODUCT/longitude"][:]
-
-            lat_lon_ind = (
-                (CloudFraction_all >= 0.0)
-                & (Longitude_all > Longitude - 1.5)
-                & (Longitude_all < Longitude + 1.5)
-                & (Latitude_all > Latitude - 1.5)
-                & (Latitude_all < Latitude + 1.5)
-            )
-            if np.count_nonzero(lat_lon_ind) > 0:
-                # Try 0.5
-                lat_lon_ind2 = (
-                    (CloudFraction_all >= 0.0)
-                    & (Longitude_all > Longitude - 0.5)
-                    & (Longitude_all < Longitude + 0.5)
-                    & (Latitude_all > Latitude - 0.5)
-                    & (Latitude_all < Latitude + 0.5)
+            # EM NOTE - I inserted an arbitrary number, subject to change
+            if np.abs(CloudFraction_crb - CloudFraction) > 0.05:
+                logger.warning(
+                    "TROPOMI CAL and CRB cloud fraction values are significantly different"
                 )
 
-                if np.count_nonzero(lat_lon_ind2) > 0:
-                    lat_lon_ind = lat_lon_ind2
+            if CloudFraction >= 9.0e36:
+                logger.warning(
+                    "TROPOMI CloudFraction >= 9.0e+36. Likely a fill value. Assuming CloudFraction of 0.1"
+                )
+                CloudFraction = 0.1
 
-                CloudFraction = np.mean(CloudFraction_all[lat_lon_ind])
-                CloudPressure = np.mean(CloudPressure_all[lat_lon_ind])
+            CloudPressure = fh_cloud["PRODUCT/cloud_top_pressure"][0, iTrack, iXtrack]
+            # NOTE - CTP is provided in Pa, need to convert to hPA
+            CloudPressure = CloudPressure * 0.01
 
-                interpolationflag = 1
+            if CloudPressure >= 9.0e34:
+                CloudPressure = fh_cloud["PRODUCT/cloud_top_pressure"][
+                    0, iTrack, iXtrack + 1
+                ]
+                CloudPressure = CloudPressure * 0.01
+
+            if CloudPressure >= 9.0e34:
+                logger.warning(
+                    "TROPOMI CloudPressure >= 9.0e+36. Likely a fill value. Assuming CloudPressure of 1016.914 hPa"
+                )
+                # set to same surface pressure as OSP/L2_Setup/ops/L2_Setup/State_AtmProfiles.asc
+                CloudPressure = 1016.914
+
+            try:
+                CloudFractionPrecision = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_precision_nir"
+                ][0, iTrack, iXtrack]
+            except IndexError:
+                CloudFractionPrecision = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_precision"
+                ][0, iTrack, iXtrack]
+                logger.warning(
+                    "using cloud_fraction_crb_precision instead of cloud_fraction_crb_precision_nir"
+                )
+
+            CloudPressurePrecision = fh_cloud["PRODUCT/cloud_top_pressure_precision"][
+                0, iTrack, iXtrack
+            ]
+
+            try:
+                CloudAlbedo = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_nir"
+                ][0, iTrack, iXtrack]
+            except IndexError:
+                CloudAlbedo = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb"
+                ][0, iTrack, iXtrack]
+                logger.warning("Using cloud_albedo_crb instead of cloud_albedo_crb_nir")
+
+            if CloudAlbedo >= 9.0e36:
+                logger.warning(
+                    "TROPOMI CloudAlbedo >= 9.0e+36. Likely a fill value. Assuming CloudAlbedo of 0.8"
+                )
+                CloudAlbedo = 0.8
+
+            if np.isnan(CloudAlbedo):
+                logger.warning("TROPOMI cloud product albedo is NaN, using 0.8")
+                CloudAlbedo = 0.8
+
+            try:
+                CloudAlbedoPrecision = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_precision_nir"
+                ][0, iTrack, iXtrack]
+            except IndexError:
+                logger.warning(
+                    "using cloud_albedo_crb_precision instead of cloud_albedo_crb_precision_nir"
+                )
+                CloudAlbedoPrecision = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_albedo_crb_precision"
+                ][0, iTrack, iXtrack]
+
+            # * Flag of interpolation
+            interpolationflag = 0
+
+            # interpolation when needed
+
+            # On suggestion from Susan's email on 07/24/2019, instead
+            # of using scipy.interpolation.gridata, we will:
+            #
+            # 1) find all "good" observations within 0.5 degrees.  If
+            # there are observations, use this selection.  If not use
+            # all "good" observations with 1.5 degrees.
+            #
+            # 2) average CloudFraction_all and CloudPressure_all
+            # rather than trying to find the "best" interpolated
+            # result.
+
+            if (CloudPressure < 0.0) or (CloudFraction < 0.0):
+                CloudFraction_all = fh_cloud["PRODUCT/cloud_fraction"][:]
+                CloudPressure_all = fh_cloud[
+                    "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_pressure_crb"
+                ]
+                Latitude_all = fh_cloud["PRODUCT/latitude"][:]
+                Longitude_all = fh_cloud["PRODUCT/longitude"][:]
+
+                lat_lon_ind = (
+                    (CloudFraction_all >= 0.0)
+                    & (Longitude_all > Longitude - 1.5)
+                    & (Longitude_all < Longitude + 1.5)
+                    & (Latitude_all > Latitude - 1.5)
+                    & (Latitude_all < Latitude + 1.5)
+                )
+                if np.count_nonzero(lat_lon_ind) > 0:
+                    # Try 0.5
+                    lat_lon_ind2 = (
+                        (CloudFraction_all >= 0.0)
+                        & (Longitude_all > Longitude - 0.5)
+                        & (Longitude_all < Longitude + 0.5)
+                        & (Latitude_all > Latitude - 0.5)
+                        & (Latitude_all < Latitude + 0.5)
+                    )
+
+                    if np.count_nonzero(lat_lon_ind2) > 0:
+                        lat_lon_ind = lat_lon_ind2
+
+                    CloudFraction = np.mean(CloudFraction_all[lat_lon_ind])
+                    CloudPressure = np.mean(CloudPressure_all[lat_lon_ind])
+
+                    interpolationflag = 1
 
         o_tropomi_cloud = {
             "Latitude": Latitude,
@@ -1267,7 +1455,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     @classmethod
     def combine_tropomi_erad(
         cls,
-        tropomi_fns: dict[str, str],
+        tropomi_fns: dict[str, str | os.PathLike[str] | InputFilePath],
         iXTracks: dict[str, int],
         iATracks: dict[str, int],
         windows: list[dict[str, str]],
@@ -1346,7 +1534,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                     raz = np.float64(180.0) - raz
 
                     # Compute scattering
-                    sca = cls.compute_tropomi_sca(
+                    sca = cls.compute_sca(
                         erad.ViewingZenithAngle, erad.SolarZenithAngle, raz
                     )
 
@@ -1399,28 +1587,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         }
 
         return o_combined_erad_bands
-
-    @classmethod
-    def compute_tropomi_sca(cls, vza: float, sza: float, raz: float) -> float:
-        temp1 = (
-            -1
-            * math.cos(math.pi * vza / np.float64(180.0))
-            * math.cos(math.pi * sza / np.float64(180.0))
-        )
-        temp2 = math.sqrt(
-            1
-            - math.cos(math.pi * vza / np.float64(180.0))
-            * math.cos(math.pi * vza / np.float64(180.0))
-        )
-        temp3 = math.sqrt(
-            1
-            - math.cos(math.pi * sza / np.float64(180.0))
-            * math.cos(math.pi * sza / np.float64(180.0))
-        )
-        temp4 = math.cos(math.pi * (raz / np.float64(180.0)))
-        o_sca = temp1 + (temp2 * temp3 * temp4)
-        o_sca = np.float64(180.0) - math.acos(o_sca) * np.float64(180.0) / math.pi
-        return o_sca
 
     @classmethod
     def read_tropomi_erad(
@@ -1867,26 +2033,15 @@ class MusesOmiObservation(MusesReflectanceObservation):
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
         # TODO Remove osp_setup below
-        with (
-            ifile_hlp.open_h5(cld_filename) as f_cld,
-            ifile_hlp.open_h5(
-                ifile_hlp.osp_dir
-                / "OMI"
-                / "OMI_LER"
-                / "OMI-Aura_L3-OMLER_2005m01-2009m12_v003-2010m0503t063707.he5"
-            ) as f_alb,
-            osp_setup(ifile_hlp),
-        ):
-            ifile_hlp.notify_file_input(filename)
-            ifile_hlp.notify_file_input(calibration_filename)
+        with osp_setup(ifile_hlp):
             o_omi = cls.read_omi_l1b(
-                str(filename),
+                ifile_hlp,
+                filename,
                 xtrack_uv2,
                 atrack,
                 utc_time,
-                str(calibration_filename),
-                f_cld,
-                f_alb,
+                calibration_filename,
+                cld_filename,
             )
         return o_omi
 
@@ -2107,18 +2262,18 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @classmethod
     def read_omi_l1b(
         cls,
-        filename: str,
+        ifile_hlp: InputFileHelper,
+        filename: str | os.PathLike[str] | InputFilePath,
         iXTrack: int,
         iTrack: int,
         UtcDateTime: str,
-        calibrationFilename: str,
-        f_cld: h5py.File,
-        f_alb: h5py.File,
+        calibrationFilename: str | os.PathLike[str] | InputFilePath | None,
+        cloud_filename: str | os.PathLike[str] | InputFilePath,
     ) -> dict[str, Any]:
         # ======================
         #  Earth Shine Radiances
         # ======================
-        eradd = cls.combine_omi_erad(filename, iXTrack, iTrack)
+        eradd = cls.combine_omi_erad(ifile_hlp, filename, iXTrack, iTrack)
         if eradd is None:
             raise RuntimeError("combine_omi_erad failed")
 
@@ -2127,15 +2282,15 @@ class MusesOmiObservation(MusesReflectanceObservation):
         # ============================
         #  3 Year Mean Solar Radiances
         # ============================
-        iradd = cls.combine_omi_yearly_mean_irad(erad.iXtrack_all)
+        iradd = cls.combine_omi_yearly_mean_irad(ifile_hlp, erad.iXtrack_all)
         irad = AttrDictAdapter(iradd)
 
-        if calibrationFilename:
+        if calibrationFilename is not None:
             # ============================
             #  Get Calibration Factors
             # ============================
-            rad_cal = AttrDictAdapter(
-                cls.combine_omi_calibration(erad.iXtrack_all, calibrationFilename)
+            rad_cal = cls.combine_omi_calibration(
+                ifile_hlp, erad.iXtrack_all, calibrationFilename
             )
 
             # ===============================================
@@ -2260,7 +2415,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         # ============================
         # * Get CloudInformation
         # ============================
-        cloudInfo = cls.read_omi_cloud(f_cld, iXTrack, iTrack)
+        cloudInfo = cls.read_omi_cloud(ifile_hlp, cloud_filename, iXTrack, iTrack)
 
         # ======================
         # * Get OMI SurfaceAlbedo
@@ -2270,7 +2425,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         TLongitude = erad.ObservationTable["Longitude"][0]
         TLatitude = erad.ObservationTable["Latitude"][0]
         SurfaceAlbedo = cls.read_omi_surface_albedo(
-            f_alb, TLongitude, TLatitude, TMonth
+            ifile_hlp, TLongitude, TLatitude, TMonth
         )
 
         # * Define output parameter
@@ -2294,26 +2449,19 @@ class MusesOmiObservation(MusesReflectanceObservation):
         return o_omi
 
     @classmethod
-    def combine_omi_erad(cls, omi_fn: str, iXTrack: int, iTrack: int) -> dict[str, Any]:
-        from refractor.muses_py import read_omi_erad, compute_omi_sca
-
+    def combine_omi_erad(
+        cls,
+        ifile_hlp: InputFileHelper,
+        omi_fn: str | os.PathLike[str] | InputFilePath,
+        iXTrack: int,
+        iTrack: int,
+    ) -> dict[str, Any]:
         # Return a struture variable that has
         #   (1) OMI L1b measured earth spectral radiances/wavelength grid
         #   (2) OMI L1b viewing geometry
 
-        o_combined_erad_bands = (
-            None  # Set to None so we can return if something goes wrong.
-        )
+        erad_uv2 = cls.read_omi_erad(ifile_hlp, omi_fn, iXTrack, iTrack, iUV=2)
 
-        iUV = 2  # filter band index uv2 = 2; uv1 = 1
-        erad_uv2d = read_omi_erad(omi_fn, iXTrack, iTrack, iUV)
-        if erad_uv2d is None:
-            raise RuntimeError("error in read_omi_erad")
-
-        erad_uv2 = AttrDictAdapter(erad_uv2d)
-
-        erad_uv1d = {}
-        erad_uv2_paird = {}
         if erad_uv2.MeasurementMode == "NORMAL":  # normal mode
             ixtrack_uv1 = math.floor(iXTrack / 2.0)
 
@@ -2323,13 +2471,11 @@ class MusesOmiObservation(MusesReflectanceObservation):
             if iXTrack == (2 * ixtrack_uv1 + 1):
                 ixtrack_uv2_pair = 2 * ixtrack_uv1
 
-            iUV = 1  # filter band index uv2 = 2; uv1 = 1
-            erad_uv1d = read_omi_erad(omi_fn, ixtrack_uv1, iTrack, iUV)
-            if erad_uv1d is None:
-                raise RuntimeError("error in read_omi_erad")
+            erad_uv1 = cls.read_omi_erad(ifile_hlp, omi_fn, ixtrack_uv1, iTrack, iUV=1)
 
-            iUV = 2  # filter band index uv2 = 2; uv1 = 1
-            erad_uv2_paird = read_omi_erad(omi_fn, ixtrack_uv2_pair, iTrack, iUV)
+            erad_uv2_pair = cls.read_omi_erad(
+                ifile_hlp, omi_fn, ixtrack_uv2_pair, iTrack, iUV=2
+            )
         elif erad_uv2.MeasurementMode == "ZOOM":  # zoom mode
             if iXTrack == 29 or iXTrack == 0:
                 raise RuntimeError(
@@ -2345,20 +2491,14 @@ class MusesOmiObservation(MusesReflectanceObservation):
                     ixtrack_uv1 = (iXTrack + 15) // 2
                     ixtrack_uv2_pair = 2 * ixtrack_uv1 - 15 + 1
 
-                iUV = 1  # filter band index uv2 = 2; uv1 = 1
-                erad_uv1d = read_omi_erad(omi_fn, ixtrack_uv1, iTrack, iUV)
-                if erad_uv1d is None:
-                    raise RuntimeError("error in read_omi_erad")
-
-                iUV = 2  # filter band index uv2 = 2; uv1 = 1
-                erad_uv2_paird = read_omi_erad(omi_fn, ixtrack_uv2_pair, iTrack, iUV)
-                if erad_uv2_paird is None:
-                    raise RuntimeError("error in read_omi_erad")
+                erad_uv1 = cls.read_omi_erad(
+                    ifile_hlp, omi_fn, ixtrack_uv1, iTrack, iUV=1
+                )
+                erad_uv2_pair = cls.read_omi_erad(
+                    ifile_hlp, omi_fn, ixtrack_uv2_pair, iTrack, iUV=2
+                )
         else:  # unknown mode.
             raise RuntimeError("OMI is not in NORMAL mode nor ZOOM mode")
-
-        erad_uv1 = AttrDictAdapter(erad_uv1d)
-        erad_uv2_pair = AttrDictAdapter(erad_uv2_paird)
 
         iXtrack_all = [ixtrack_uv1, iXTrack, ixtrack_uv2_pair]
 
@@ -2531,7 +2671,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         raz_uv1 = np.float64(180.0) - raz_uv1
 
         # uv1 sca
-        sca_uv1 = compute_omi_sca(
+        sca_uv1 = cls.compute_sca(
             erad_uv1.ViewingZenithAngle, erad_uv1.SolarZenithAngle, raz_uv1
         )
 
@@ -2551,10 +2691,10 @@ class MusesOmiObservation(MusesReflectanceObservation):
         raz_uv2_pair = np.float64(180.0) - raz_uv2_pair
 
         # uv2 sca
-        sca_uv2 = compute_omi_sca(
+        sca_uv2 = cls.compute_sca(
             erad_uv2.ViewingZenithAngle, erad_uv2.SolarZenithAngle, raz_uv2
         )
-        sca_uv2_pair = compute_omi_sca(
+        sca_uv2_pair = cls.compute_sca(
             erad_uv2_pair.ViewingZenithAngle,
             erad_uv2_pair.SolarZenithAngle,
             raz_uv2_pair,
@@ -2627,7 +2767,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
 
         # ----- Output Parameter
         o_combined_erad_bands = {
-            "omi_earth_rad_fn": erad_uv2.omi_file,  # L1B Earth Radiance Full Path and File Name
             "Wavelength": EarthWavelength,  # Wavelength Grid; Full Band
             "EarthRadiance": EarthRadiance,  # Earth Shine Radiance; Full Band
             "EarthRadianceNESR": EarthRadianceNESR,  # NESR of Earth Shine Radiance ; Full Band;
@@ -2640,96 +2779,280 @@ class MusesOmiObservation(MusesReflectanceObservation):
         return o_combined_erad_bands
 
     @classmethod
-    def read_omi_cloud(
-        cls, f_cld: h5py.File, iXtrack: int, iTrack: int
-    ) -> dict[str, Any]:
-        # * GroundPixelQualityFlags
-        GroundPixelQualityFlags = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/GroundPixelQualityFlags"
-        ][iTrack, iXtrack]
+    def read_omi_erad(
+        cls,
+        ifile_hlp: InputFileHelper,
+        omi_file: str | os.PathLike[str] | InputFilePath,
+        iXTrack: int,
+        iTrack: int,
+        iUV: int,
+    ) -> AttrDictAdapter:
+        from refractor.muses_py import read_omi_erad
 
-        # * Latitude
-        Latitude = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
-        ][iTrack, iXtrack]
+        return AttrDictAdapter(read_omi_erad(str(omi_file), iXTrack, iTrack, iUV))
+        f_sd = None
+        f_hdf = None
+        f_vs = None
+        f_vg = None
+        try:
+            f_sd = ifile_hlp.open_hdf4_sd(omi_file)
+            f_hdf = ifile_hlp.open_hdf4(omi_file)
+            f_vs = f_hdf.vstart()
+            f_vg = f_hdf.vgstart()
 
-        # * Longitude
-        Longitude = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
-        ][iTrack, iXtrack]
+            # pyhdf doesn't directly support groups. We have values that are separated
+            # by UV1 and UV2. In hdf5, these would just be different groups. For using pyhdf,
+            # we just have a mapping from a SDS name to the possibly multiple references that
+            # have that name. We then use the iUV to select. This uses the fact that UV1
+            # comes first, then UV2.
+            nm_ref = [(f_sd.select(i).info()[0], i) for i in range(f_sd.info()[0])]
+            # Put into dict with a list of references matching each name
+            nm_reflist = {
+                k: [ref for nm, ref in nm_ref if nm == k]
+                for k in list(dict.fromkeys([t[0] for t in nm_ref]))
+            }
+            # Map name to reference for our iUV
+            nm_to_ref = {}
+            for nm, reflist in nm_reflist.items():
+                if len(reflist) == 1:
+                    nm_to_ref[nm] = reflist[0]
+                else:
+                    nm_to_ref[nm] = reflist[iUV - 1]
 
-        # * ProcessingQualityFlags
-        ProcessingQualityFlags = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/ProcessingQualityFlags"
-        ][iTrack, iXtrack]
-
-        # * CloudFraction
-        CloudFraction = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
-        ][iTrack, iXtrack]
-
-        # * CloudPressure
-        CloudPressure = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
-        ][iTrack, iXtrack]
-
-        # * CloudFractionPrecision
-        CloudFractionPrecision = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFractionPrecision"
-        ][iTrack, iXtrack]
-
-        # * CloudPressurePrecision
-        CloudPressurePrecision = f_cld[
-            "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressurePrecision"
-        ][iTrack, iXtrack]
-
-        # * Flag of interpolation
-        interpolationflag = 0
-
-        # interpolation when needed
-
-        # On suggestion from Susan's email on 07/24/2019, instead of using scipy.interpolation.gridata, we will:
-        # 1) find all "good" observations within 0.5 degrees.  If there are observations, use this selection.  If not use all "good" observations with 1.5 degrees.
-        # 2) average CloudFraction_all and CloudPressure_all rather than trying to find the "best" interpolated result.
-
-        if (CloudPressure < 0.0) or (CloudFraction < 0.0):
-            CloudFraction_all = f_cld[
-                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
-            ][:]
-            CloudPressure_all = f_cld[
-                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
-            ][:]
-            Latitude_all = f_cld[
-                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
-            ][:]
-            Longitude_all = f_cld[
-                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
-            ][:]
-
-            lat_lon_ind = (
-                (CloudFraction_all >= 0.0)
-                & (Longitude_all > Longitude - 1.5)
-                & (Longitude_all < Longitude + 1.5)
-                & (Latitude_all > Latitude - 1.5)
-                & (Latitude_all < Latitude + 1.5)
-            )
-            if np.count_nonzero(lat_lon_ind) > 0:
-                # Try 0.5
-                lat_lon_ind2 = (
-                    (CloudFraction_all >= 0.0)
-                    & (Longitude_all > Longitude - 0.5)
-                    & (Longitude_all < Longitude + 0.5)
-                    & (Latitude_all > Latitude - 0.5)
-                    & (Latitude_all < Latitude + 0.5)
+            SpacecraftLatitude = np.array(f_vs.attach("SpacecraftLatitude")[:])[
+                iXTrack, 0
+            ]
+            SpacecraftLongitude = np.array(f_vs.attach("SpacecraftLongitude")[:])[
+                iXTrack, 0
+            ]
+            SpacecraftAltitude = np.array(f_vs.attach("SpacecraftAltitude")[:])[
+                iXTrack, 0
+            ]
+            SolarAzimuthAngle = f_sd.select(nm_to_ref["SolarAzimuthAngle"])[
+                iTrack, iXTrack
+            ]
+            SolarZenithAngle = f_sd.select(nm_to_ref["SolarZenithAngle"])[
+                iTrack, iXTrack
+            ]
+            ViewingAzimuthAngle = f_sd.select(nm_to_ref["ViewingAzimuthAngle"])[
+                iTrack, iXTrack
+            ]
+            ViewingZenithAngle = f_sd.select(nm_to_ref["ViewingZenithAngle"])[
+                iTrack, iXTrack
+            ]
+            Latitude = f_sd.select(nm_to_ref["Latitude"])[iTrack, iXTrack]
+            Longitude = f_sd.select(nm_to_ref["Longitude"])[iTrack, iXTrack]
+            Time = np.array(f_vs.attach("Time")[:])[iXTrack, 0]
+            TerrainHeight = f_sd.select(nm_to_ref["TerrainHeight"])[iTrack, iXTrack]
+            EarthSunDistance = np.array(f_vs.attach("EarthSunDistance")[:])[0, 0]
+            GroundPixelQualityFlags = f_sd.select(nm_to_ref["GroundPixelQualityFlags"])[
+                iTrack, iXTrack
+            ]
+            XtrackQualityFlags = f_sd.select(nm_to_ref["XTrackQualityFlags"])[
+                iTrack, iXTrack
+            ]
+            if XtrackQualityFlags != 0:
+                logger.warning(
+                    f"XtrackQualityFlag: {XtrackQualityFlags} is set to non-zero, {omi_file}"
                 )
+            PixelQualityFlags = f_sd.select(nm_to_ref["PixelQualityFlags"])[
+                iTrack, iXTrack
+            ]
+            MeasurementQualityFlags = np.array(
+                f_vs.attach("MeasurementQualityFlags")[:]
+            )[iTrack, 0]
+            WavelengthCoefficientPrecision = f_sd.select(
+                nm_to_ref["WavelengthCoefficientPrecision"]
+            )[iTrack, iXTrack].astype(np.float64)
 
-                if np.count_nonzero(lat_lon_ind2) > 0:
-                    lat_lon_ind = lat_lon_ind2
+            WavelengthReferenceColumn = float(
+                np.array(f_vs.attach("WavelengthReferenceColumn")[:])[iTrack, 0]
+            )
 
-                CloudFraction = np.mean(CloudFraction_all[lat_lon_ind])
-                CloudPressure = np.mean(CloudPressure_all[lat_lon_ind])
+            WavelengthCoefficient = f_sd.select(nm_to_ref["WavelengthCoefficient"])[
+                iTrack, iXTrack
+            ].astype(np.float64)
 
-                interpolationflag = 1
+            ImageBinningFactor = np.array(f_vs.attach("ImageBinningFactor")[:])[
+                iTrack, 0
+            ]
+
+            if ImageBinningFactor == 8:
+                MeasurementMode = "NORMAL"
+            elif ImageBinningFactor == 4:
+                MeasurementMode == "ZOOM"
+            else:
+                MeasurementMode = "DUMMY_MEASUREMENTMODE"
+
+            RadianceMantissa = f_sd.select(nm_to_ref["RadianceMantissa"])[
+                iTrack, iXTrack, :
+            ].astype(np.float64)
+            RadiancePrecisionMantissa = f_sd.select(
+                nm_to_ref["RadiancePrecisionMantissa"]
+            )[iTrack, iXTrack, :].astype(np.float64)
+            RadianceExponent = f_sd.select(nm_to_ref["RadianceExponent"])[
+                iTrack, iXTrack, :
+            ].astype(np.float64)
+            # compute the radiances and nesr
+            Radiance = RadianceMantissa * (10.0**RadianceExponent)
+            Radiance_err = RadiancePrecisionMantissa * (10.0**RadianceExponent)
+            unit = "photons nm-1 s-1 sr-1"
+
+            # Compute wavelength
+            for p in range(0, WavelengthCoefficient.shape[0]):
+                if p == 0:
+                    Wavelength = (
+                        (WavelengthCoefficient[p])
+                        * np.float64(1.0)
+                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
+                        ** p
+                    )
+                    Wavelength_err = (
+                        (WavelengthCoefficientPrecision[p])
+                        * np.float64(1.0)
+                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
+                        ** p
+                    )
+                else:
+                    Wavelength += (
+                        (WavelengthCoefficient[p])
+                        * np.float64(1.0)
+                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
+                        ** p
+                    )
+                    Wavelength_err += (
+                        (WavelengthCoefficientPrecision[p])
+                        * np.float64(1.0)
+                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
+                        ** p
+                    )
+
+        finally:
+            if f_sd is not None:
+                f_sd.end()
+            if f_vg is not None:
+                f_vg.end()
+            if f_vs is not None:
+                f_vs.end()
+            if f_hdf is not None:
+                f_hdf.close()
+
+        o_omi_rad = {
+            "iTrack": iTrack,
+            "iXTrack": iXTrack,
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "Time": Time,
+            "SpacecraftLatitude": SpacecraftLatitude,
+            "SpacecraftLongitude": SpacecraftLongitude,
+            "SpacecraftAltitude": SpacecraftAltitude,
+            "Wavelength": Wavelength,
+            "Radiance": Radiance,
+            "NESR": Radiance_err,
+            "Unit": unit,
+            "TerrainHeight": TerrainHeight,
+            "SolarAzimuthAngle": SolarAzimuthAngle,
+            "SolarZenithAngle": SolarZenithAngle,
+            "ViewingAzimuthAngle": ViewingAzimuthAngle,
+            "ViewingZenithAngle": ViewingZenithAngle,
+            "EarthSunDistance": EarthSunDistance,
+            "GroundPixelQualityFlags": GroundPixelQualityFlags,
+            "XtrackQualityFlags": XtrackQualityFlags,
+            "RadianceMantissa": RadianceMantissa,
+            "RadiancePrecisionMantissa": RadiancePrecisionMantissa,
+            "RadianceExponent": RadianceExponent,
+            "WavelenghtCoefficient": WavelengthCoefficient,
+            "WavelenghtCoefficientPrecision": WavelengthCoefficientPrecision,
+            "WavelengthReferenceColumn": WavelengthReferenceColumn,
+            "PixelQualityFlags": PixelQualityFlags,
+            "MeasurementQualityFlags": MeasurementQualityFlags,
+            "MeasurementMode": MeasurementMode,
+        }
+
+        return AttrDictAdapter(o_omi_rad)
+
+    @classmethod
+    def read_omi_cloud(
+        cls,
+        ifile_hlp: InputFileHelper,
+        cloud_filename: str | os.PathLike[str] | InputFilePath,
+        iXtrack: int,
+        iTrack: int,
+    ) -> dict[str, Any]:
+        with ifile_hlp.open_h5(cloud_filename) as f_cld:
+            GroundPixelQualityFlags = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/GroundPixelQualityFlags"
+            ][iTrack, iXtrack]
+            Latitude = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
+            ][iTrack, iXtrack]
+            Longitude = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
+            ][iTrack, iXtrack]
+            ProcessingQualityFlags = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/ProcessingQualityFlags"
+            ][iTrack, iXtrack]
+
+            CloudFraction = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
+            ][iTrack, iXtrack]
+            CloudPressure = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
+            ][iTrack, iXtrack]
+            CloudFractionPrecision = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFractionPrecision"
+            ][iTrack, iXtrack]
+            CloudPressurePrecision = f_cld[
+                "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressurePrecision"
+            ][iTrack, iXtrack]
+
+            # * Flag of interpolation
+            interpolationflag = 0
+
+            # interpolation when needed
+
+            # On suggestion from Susan's email on 07/24/2019, instead of using scipy.interpolation.gridata, we will:
+            # 1) find all "good" observations within 0.5 degrees.  If there are observations, use this selection.  If not use all "good" observations with 1.5 degrees.
+            # 2) average CloudFraction_all and CloudPressure_all rather than trying to find the "best" interpolated result.
+
+            if (CloudPressure < 0.0) or (CloudFraction < 0.0):
+                CloudFraction_all = f_cld[
+                    "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudFraction"
+                ][:]
+                CloudPressure_all = f_cld[
+                    "/HDFEOS/SWATHS/CloudFractionAndPressure/Data Fields/CloudPressure"
+                ][:]
+                Latitude_all = f_cld[
+                    "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Latitude"
+                ][:]
+                Longitude_all = f_cld[
+                    "/HDFEOS/SWATHS/CloudFractionAndPressure/Geolocation Fields/Longitude"
+                ][:]
+
+                lat_lon_ind = (
+                    (CloudFraction_all >= 0.0)
+                    & (Longitude_all > Longitude - 1.5)
+                    & (Longitude_all < Longitude + 1.5)
+                    & (Latitude_all > Latitude - 1.5)
+                    & (Latitude_all < Latitude + 1.5)
+                )
+                if np.count_nonzero(lat_lon_ind) > 0:
+                    # Try 0.5
+                    lat_lon_ind2 = (
+                        (CloudFraction_all >= 0.0)
+                        & (Longitude_all > Longitude - 0.5)
+                        & (Longitude_all < Longitude + 0.5)
+                        & (Latitude_all > Latitude - 0.5)
+                        & (Latitude_all < Latitude + 0.5)
+                    )
+
+                    if np.count_nonzero(lat_lon_ind2) > 0:
+                        lat_lon_ind = lat_lon_ind2
+
+                    CloudFraction = np.mean(CloudFraction_all[lat_lon_ind])
+                    CloudPressure = np.mean(CloudPressure_all[lat_lon_ind])
+
+                    interpolationflag = 1
 
         o_omi_cloud = {
             "Latitude": Latitude,
@@ -2746,31 +3069,9 @@ class MusesOmiObservation(MusesReflectanceObservation):
         return o_omi_cloud
 
     @classmethod
-    def combine_omi_yearly_mean_irad(cls, iXtrack_all: list[int]) -> dict[str, Any]:
-        from refractor.muses_py import read_omi_osp_irad
-        # IDL_LEGACY_NOTE: This function combine_omi_yearly_mean_irad is the same as Combine_OMI_YearlyMeanIrad function in ms-setup/Combine_OMI_YearlyMeanIrad.pro file.
-        # Description:
-        # Return a struture variable that has
-        #   (1) OMI L1b measured solar spectral radiances/wavelength grid
-        #
-        #
-        # ==================================================================
-        # Dependency:
-        #  readhdfsd.pro   --- read maxtrix
-
-        # Input: omi_fn: OMI L1B Earth Radiance file name
-        #        iXtrack : CrossTrack Index
-        #
-        # Output:
-        #       combined_irad_bands
-        # =======================================================
-        # Author:
-        #
-        #   Dejian Fu; November 17th, 2014
-        #
-        #           Dejian.fu@jpl.nasa.gov
-        # ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+    def combine_omi_yearly_mean_irad(
+        cls, ifile_hlp: InputFileHelper, iXtrack_all: list[int]
+    ) -> dict[str, Any]:
         ixtrack_uv1 = iXtrack_all[0]
         ixtrack = iXtrack_all[1]
         ixtrack_uv2_pair = iXtrack_all[2]
@@ -2778,19 +3079,9 @@ class MusesOmiObservation(MusesReflectanceObservation):
         # ==============================
         # * Get 3 Yearly Mean Solar Spec
         # ==============================
-        # For UV2
-        iUV = 2
-        irad_uv2 = read_omi_osp_irad(ixtrack, iUV)
-        irad_uv2_pair = read_omi_osp_irad(ixtrack_uv2_pair, iUV)
-
-        # * For uv1
-        iUV = 1
-        irad_uv1 = read_omi_osp_irad(ixtrack_uv1, iUV)
-
-        # Convert our dictionaries so we use the dot '.' notation.
-        irad_uv2 = AttrDictAdapter(irad_uv2)
-        irad_uv2_pair = AttrDictAdapter(irad_uv2_pair)
-        irad_uv1 = AttrDictAdapter(irad_uv1)
+        irad_uv2 = cls.read_omi_osp_irad(ifile_hlp, ixtrack, iUV=2)
+        irad_uv2_pair = cls.read_omi_osp_irad(ifile_hlp, ixtrack_uv2_pair, iUV=2)
+        irad_uv1 = cls.read_omi_osp_irad(ifile_hlp, ixtrack_uv1, iUV=1)
 
         # * Define output parameter
         Wavelength_Filter_UV1 = np.asarray(
@@ -2817,7 +3108,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
         )
 
         o_combined_irad_bands = {
-            "omi_solar_rad_fn": irad_uv2.omi_file,  # L1B Earth Radiance Full Path and File Name
             "Wavelength": Wavelength,  #  Wavelength Grid; Full Band
             "SolarRadiance": Radiance,  #  Earth Shine Radiance; Full Band
             "SolarRadianceNESR": RadianceNESR,  #  NESR of Earth Shine Radiance ; Full Band
@@ -2826,6 +3116,34 @@ class MusesOmiObservation(MusesReflectanceObservation):
         }
 
         return o_combined_irad_bands
+
+    @classmethod
+    def read_omi_osp_irad(
+        cls, ifile_hlp: InputFileHelper, omi_ind: int, iUV: int
+    ) -> AttrDictAdapter:
+        with ifile_hlp.open_h5(
+            ifile_hlp.osp_dir / "OMI" / "OMI_Solar" / "omisol_v003_avg_nshi_backup.h5"
+        ) as fh:
+            if iUV == 1:
+                band = "UV1"
+            elif iUV == 2:
+                band = "UV2"
+            else:
+                raise RuntimeError("Unknown iUV value")
+
+            NUM_ARRAY = fh[f"NUM_{band}"][:]
+            PRE_ARRAY = fh[f"PRE_{band}"][:, omi_ind]
+            SOL_ARRAY = fh[f"SOL_{band}"][:, omi_ind]
+            WAV_ARRAY = fh[f"WAV_{band}"][:, omi_ind]
+
+        o_omi_irad = {
+            "Num": NUM_ARRAY,
+            "Pre": PRE_ARRAY,
+            "Sol": SOL_ARRAY,
+            "Wav": WAV_ARRAY,
+        }
+
+        return AttrDictAdapter(o_omi_irad)
 
 
 ObservationHandleSet.add_default_handle(

@@ -257,4 +257,7 @@ def test_omi_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     )
     del o_omi["Cloud"]["omi_file"]
     del o_omi["SurfaceAlbedo"]["omi_file"]
+    del o_omi["Solar_Radiance"]["omi_solar_rad_fn"]
+    del o_omi["Radiance_Calibration"]["omi_rad_calibration_fn"]
+    del o_omi["Earth_Radiance"]["omi_earth_rad_fn"]
     compare_muses_py_dict(o_omi2, o_omi, "read_omi")
