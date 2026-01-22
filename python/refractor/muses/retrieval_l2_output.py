@@ -96,7 +96,7 @@ class RetrievalL2Output(RetrievalOutput):
 
     def finalize_file_number(self) -> None:
         """Rename all the files that our FileNumberHandle is handling."""
-        logger.debug("Finalizing file number is output file names")
+        logger.debug("Finalizing file number in output file names")
         for fnum in self.file_number_dict.values():
             fnum.finalize()
         self.file_number_dict = {}

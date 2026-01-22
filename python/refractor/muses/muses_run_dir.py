@@ -36,8 +36,11 @@ class MusesRunDir:
         saved in the test/in directory"""
         refractor_sounding_dir = Path(refractor_sounding_dir).absolute()
         path_prefix = Path(path_prefix).absolute()
-        sid = open(refractor_sounding_dir / "sounding.txt").read().rstrip()
-        self.run_dir = path_prefix / f"{sid}"
+        if (refractor_sounding_dir / "sounding.txt").exists():
+            sid = open(refractor_sounding_dir / "sounding.txt").read().rstrip()
+            self.run_dir = path_prefix / f"{sid}"
+        else:
+            self.run_dir = path_prefix
         subprocess.run(["mkdir", "-p", str(self.run_dir)])
         if osp_sym_link:
             # The old py-retrieve code used relative paths to find the OSP and GMAO.
@@ -48,7 +51,10 @@ class MusesRunDir:
             (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir.path_for_muses_py))
             (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir.path_for_muses_py))
         for f in ("Table", "DateTime"):
-            shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
+            if (refractor_sounding_dir / f"{f}.asc").exists():
+                shutil.copy(
+                    refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
+                )
         if obs_sym_link:
             # Needed by py-retrieve OMI and TROPOMI code
             for f2 in refractor_sounding_dir.glob("*_obs.pkl"):

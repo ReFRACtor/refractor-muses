@@ -146,11 +146,16 @@ class MusesPyQaDataHandle(QaDataHandle):
         # We'll add grabbing the stuff out of RetrievalConfiguration
         # in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        self.run_dir = (
-            retrieval_config["outputDirectory"] / retrieval_config["sessionID"]
-        )
-        self.viewing_mode = retrieval_config["viewingMode"]
-        self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
+        # Not all retrievals have QA. Just short circuit the set up if we
+        # aren't doing anything with QA. This would cause errors later, but it
+        # *should* be the case that we if don't have QA support we don't try to
+        # create a QA file
+        if "QualityFlagDirectory" in measurement_id:
+            self.run_dir = (
+                retrieval_config["outputDirectory"] / retrieval_config["sessionID"]
+            )
+            self.viewing_mode = retrieval_config["viewingMode"]
+            self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
         self.ifile_hlp = retrieval_config.input_file_helper
 
     def quality_flag_file_name(

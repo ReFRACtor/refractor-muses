@@ -137,6 +137,11 @@ def cris_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def cris_ml_test_in_dir(test_base_path):
+    return test_base_path / "cris/in/ml_1"
+
+
+@pytest.fixture(scope="session")
 def cris_ml_dir(test_base_path):
     return test_base_path / "cris/in/ml_weight/225"
 

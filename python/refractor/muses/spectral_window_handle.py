@@ -149,10 +149,16 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.retrieval_config = retrieval_config
-        self.filter_metadata = FileFilterMetadata(
-            measurement_id["defaultSpectralWindowsDefinitionFilename"],
-            retrieval_config.input_file_helper,
-        )
+        # Not all retrievals have spectral windows (e.g, a ML only retrieval).
+        # Just short circuit the set up if we
+        # aren't doing anything with spectral windows. This would cause errors later, but it
+        # *should* be the case that we if don't have spectal windows support we don't try to
+        # create a spectral window
+        if "defaultSpectralWindowsDefinitionFilename" in retrieval_config:
+            self.filter_metadata = FileFilterMetadata(
+                retrieval_config["defaultSpectralWindowsDefinitionFilename"],
+                retrieval_config.input_file_helper,
+            )
 
     def spectral_window_dict(
         self,

@@ -95,34 +95,40 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # the table Make sure to use os.path.join or pathlib.Path's /
         # operator so that if defaultStrategyTableFilename is already
         # an absolute path, we don't prepend the default directory.
-        f = res.input_file_helper.open_tes(
-            res["defaultStrategyTableDirectory"] / res["defaultStrategyTableFilename"]
-        )
-        d = dict(f)
-        d.update(res._data)
-        res._data = d
+        if "defaultStrategyTableDirectory" in res:
+            f = res.input_file_helper.open_tes(
+                res["defaultStrategyTableDirectory"]
+                / res["defaultStrategyTableFilename"]
+            )
+            d = dict(f)
+            d.update(res._data)
+            res._data = d
         # Add in cloud parameters.
-        f = res.input_file_helper.open_tes(res["CloudParameterFilename"])
-        res._data.update(f)
+        if "CloudParameterFilename" in res:
+            f = res.input_file_helper.open_tes(res["CloudParameterFilename"])
+            res._data.update(f)
         # Add in initial guess configuration
-        f = res.input_file_helper.open_tes(
-            res["initialGuessSetupDirectory"] / "L2_Setup_Control_Initial.asc"
-        )
-        res._data.update(f)
+        if "initialGuessSetupDirectory" in res:
+            f = res.input_file_helper.open_tes(
+                res["initialGuessSetupDirectory"] / "L2_Setup_Control_Initial.asc"
+            )
+            res._data.update(f)
         # For some odd reason, Single_State_Directory is not relative path like
         # most others. No idea why this is different, but set up so we can handle
         # the same way
-        res["Single_State_Directory"] = str(
-            Path("../OSP", res["Single_State_Directory"])
-        )
-        f = res.input_file_helper.open_tes(res["allTESPressureLevelsFilename"])
-        # This is the pressure levels that species information uses. This
-        # is generally the initial pressure levels the forward model
-        # is performed on, although these are distinct concepts. This
-        # is really a column that might make sense to include in the
-        # species information files, but is kept in this separate
-        # file.
-        res["pressure_species_input"] = list(f.checked_table["Pressure"])
+        if "Single_State_Directory" in res:
+            res["Single_State_Directory"] = str(
+                Path("../OSP", res["Single_State_Directory"])
+            )
+        if "allTESPressureLevelsFilename" in res:
+            f = res.input_file_helper.open_tes(res["allTESPressureLevelsFilename"])
+            # This is the pressure levels that species information uses. This
+            # is generally the initial pressure levels the forward model
+            # is performed on, although these are distinct concepts. This
+            # is really a column that might make sense to include in the
+            # species information files, but is kept in this separate
+            # file.
+            res["pressure_species_input"] = list(f.checked_table["Pressure"])
 
         # Make run dir available
         res["run_dir"] = strategy_table_dir
@@ -147,14 +153,15 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # lists the required options. Note sure if this is complete,
         # but if we are missing one of these then muses-py marks this
         # as a failure
-        f = res.input_file_helper.open_tes(
-            res["tableOptionsFilename"],
-        )
-        for k in f.keys():
-            if k not in res:
-                raise RuntimeError(
-                    f"Required option {k} is not found in the file {fname}"
-                )
+        if "tableOptionsFilename" in res:
+            f = res.input_file_helper.open_tes(
+                res["tableOptionsFilename"],
+            )
+            for k in f.keys():
+                if k not in res:
+                    raise RuntimeError(
+                        f"Required option {k} is not found in the file {fname}"
+                    )
 
         # muses-py created some derived quantities. I think we can
         # skip this, we'll at least try that for now.

@@ -17,6 +17,9 @@ from .cris_pixel_corners import (
 from .date_to_julian_day import (
     date_to_julian_day,
 )
+from .dummy_spectral_window_handle import (
+    DummySpectralWindowHandle,
+)
 from .maps import (  # type: ignore
     map_data_1d,
 )
@@ -30,11 +33,14 @@ from .parula_cmap import (
 from .read_nc import (
     read_nc,
 )
+from .retrieval_ml_output import RetrievalMlOutput
+from .retrieval_strategy_step_ml import RetrievalStrategyStepMl
 from .rmsd_two_var import (
     rmsd_two_var,
 )
 
 __all__ = [
+    "DummySpectralWindowHandle",
     "cris_colprior_from_l1b",
     "cris_pixel_corners",
     "date_to_julian_day",

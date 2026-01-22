@@ -837,13 +837,16 @@ class MusesStrategyStepList(MusesStrategyImp):
             cstep.measurement_id = measurement_id
             cstep.is_skipped = False
             p = cstep.retrieval_step_parameters["cost_function_params"]
-            p["delta_value"] = int(measurement_id["LMDelta"].split()[0])
-            if p["conv_tolerance"] is None:
-                p["conv_tolerance"] = [
-                    float(measurement_id["ConvTolerance_CostThresh"]),
-                    float(measurement_id["ConvTolerance_pThresh"]),
-                    float(measurement_id["ConvTolerance_JacThresh"]),
-                ]
+            # Not all retrievals have cost function parameters, so only
+            # update if we have these
+            if "LMDelta" in retrieval_config:
+                p["delta_value"] = int(retrieval_config["LMDelta"].split()[0])
+                if p["conv_tolerance"] is None:
+                    p["conv_tolerance"] = [
+                        float(retrieval_config["ConvTolerance_CostThresh"]),
+                        float(retrieval_config["ConvTolerance_pThresh"]),
+                        float(retrieval_config["ConvTolerance_JacThresh"]),
+                    ]
             sdict = self.spectral_window_handle_set.spectral_window_dict(cstep, None)
             cstep.current_strategy_step_dict["instrument_name"] = list(sdict.keys())
             for k, v in sdict.items():

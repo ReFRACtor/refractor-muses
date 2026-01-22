@@ -1,4 +1,3 @@
-# These are the arguments passed to cli function that loads this code.
 from __future__ import annotations
 from refractor.muses import (
     RetrievalStrategy,
@@ -111,7 +110,7 @@ class MyNh3(StateElementFromClimatologyNh3):
         nh3type = "ENH"
 
         # End of my change
-        
+
         clim_dir = retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         # TODO Check if this is actually correct
         # Oddly the initial value comes from the prior file (so is_constraint is
