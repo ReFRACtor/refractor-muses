@@ -2796,22 +2796,22 @@ class MusesOmiObservation(MusesReflectanceObservation):
 
             # pyhdf doesn't directly support groups. We have values that are separated
             # by UV1 and UV2. In hdf5, these would just be different groups. For using pyhdf,
-            # we just have a mapping from a SDS name to the possibly multiple references that
+            # we just have a mapping from a SDS name to the possibly multiple indices that
             # have that name. We then use the iUV to select. This uses the fact that UV1
             # comes first, then UV2.
-            snm_ref = [(f_sd.select(i).info()[0], i) for i in range(f_sd.info()[0])]
+            snm_idx = [(f_sd.select(i).info()[0], i) for i in range(f_sd.info()[0])]
             # Put into dict with a list of references matching each name
-            snm_reflist = {
-                k: [ref for nm, ref in snm_ref if nm == k]
-                for k in list(dict.fromkeys([t[0] for t in snm_ref]))
+            snm_idxlist = {
+                k: [ref for nm, ref in snm_idx if nm == k]
+                for k in list(dict.fromkeys([t[0] for t in snm_idx]))
             }
             # Map name to reference for our iUV
-            snm_to_ref = {}
-            for nm, reflist in snm_reflist.items():
+            snm_to_idx = {}
+            for nm, reflist in snm_idxlist.items():
                 if len(reflist) == 1:
-                    snm_to_ref[nm] = reflist[0]
+                    snm_to_idx[nm] = reflist[0]
                 else:
-                    snm_to_ref[nm] = reflist[iUV - 1]
+                    snm_to_idx[nm] = reflist[iUV - 1]
 
             # Similar issue for vdata
             vnm_ref = [(t[0], t[2]) for t in f_vs.vdatainfo()]
@@ -2836,37 +2836,42 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 np.array(f_vs.attach(vnm_to_ref["SpacecraftAltitude"])[:])[iTrack, 0]
             )
             SolarAzimuthAngle = np.float32(
-                f_sd.select(snm_to_ref["SolarAzimuthAngle"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["SolarAzimuthAngle"])[iTrack, iXTrack]
             )
             SolarZenithAngle = np.float32(
-                f_sd.select(snm_to_ref["SolarZenithAngle"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["SolarZenithAngle"])[iTrack, iXTrack]
             )
             ViewingAzimuthAngle = np.float32(
-                f_sd.select(snm_to_ref["ViewingAzimuthAngle"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["ViewingAzimuthAngle"])[iTrack, iXTrack]
             )
             ViewingZenithAngle = np.float32(
-                f_sd.select(snm_to_ref["ViewingZenithAngle"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["ViewingZenithAngle"])[iTrack, iXTrack]
             )
-            Latitude = np.float32(f_sd.select(snm_to_ref["Latitude"])[iTrack, iXTrack])
+            Latitude = np.float32(f_sd.select(snm_to_idx["Latitude"])[iTrack, iXTrack])
             Longitude = np.float32(
-                f_sd.select(snm_to_ref["Longitude"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["Longitude"])[iTrack, iXTrack]
             )
             Time = float(np.array(f_vs.attach(vnm_to_ref["Time"])[:])[iTrack, 0])
             TerrainHeight = np.int16(
-                f_sd.select(snm_to_ref["TerrainHeight"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["TerrainHeight"])[iTrack, iXTrack]
             )
+            # EarthSunDistance is a attribute, so handled slightly differently
             EarthSunDistance = float(np.array(f_vs.attach("EarthSunDistance")[:])[0, 0])
+            # As far as I can tell, this is a bug in pyhdf. GroundPixelQualityFlags returns
+            # the wrong value (a fixed value of '1') unless we pull in the entire array.
+            # Don't see this with any other field, I'm not sure what the issue is here.
+            # Easy enough to work around, but isn't clear why we need to do this.
             GroundPixelQualityFlags = f_sd.select(
-                snm_to_ref["GroundPixelQualityFlags"]
+                snm_to_idx["GroundPixelQualityFlags"]
             )[:][iTrack, iXTrack]
             XtrackQualityFlags = np.uint8(
-                f_sd.select(snm_to_ref["XTrackQualityFlags"])[iTrack, iXTrack]
+                f_sd.select(snm_to_idx["XTrackQualityFlags"])[iTrack, iXTrack]
             )
             if XtrackQualityFlags != 0:
                 logger.warning(
                     f"XtrackQualityFlag: {XtrackQualityFlags} is set to non-zero, {omi_file}"
                 )
-            PixelQualityFlags = f_sd.select(snm_to_ref["PixelQualityFlags"])[
+            PixelQualityFlags = f_sd.select(snm_to_idx["PixelQualityFlags"])[
                 iTrack, iXTrack
             ]
             MeasurementQualityFlags = int(
@@ -2875,7 +2880,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 ]
             )
             WavelengthCoefficientPrecision = f_sd.select(
-                snm_to_ref["WavelengthCoefficientPrecision"]
+                snm_to_idx["WavelengthCoefficientPrecision"]
             )[iTrack, iXTrack]
 
             WavelengthReferenceColumn = np.float64(
@@ -2884,7 +2889,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 ]
             )
 
-            WavelengthCoefficient = f_sd.select(snm_to_ref["WavelengthCoefficient"])[
+            WavelengthCoefficient = f_sd.select(snm_to_idx["WavelengthCoefficient"])[
                 iTrack, iXTrack
             ].astype(np.float64)
 
@@ -2899,13 +2904,13 @@ class MusesOmiObservation(MusesReflectanceObservation):
             else:
                 MeasurementMode = "DUMMY_MEASUREMENTMODE"
 
-            RadianceMantissa = f_sd.select(snm_to_ref["RadianceMantissa"])[
+            RadianceMantissa = f_sd.select(snm_to_idx["RadianceMantissa"])[
                 iTrack, iXTrack, :
             ].astype(np.float64)
             RadiancePrecisionMantissa = f_sd.select(
-                snm_to_ref["RadiancePrecisionMantissa"]
+                snm_to_idx["RadiancePrecisionMantissa"]
             )[iTrack, iXTrack, :].astype(np.float64)
-            RadianceExponent = f_sd.select(snm_to_ref["RadianceExponent"])[
+            RadianceExponent = f_sd.select(snm_to_idx["RadianceExponent"])[
                 iTrack, iXTrack, :
             ].astype(np.float64)
             # compute the radiances and nesr
