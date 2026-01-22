@@ -217,6 +217,7 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
         filename_dict, xtrack_dict, atrack_dict, utc_time, windows, ifile_hlp=ifile_hlp
     )
     del o_tropomi["Cloud"]["tropomi_file"]
+    del o_tropomi["Solar_Radiance"]["omi_solar_rad_fn"]
     compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
 
 

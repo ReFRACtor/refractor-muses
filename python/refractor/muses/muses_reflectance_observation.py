@@ -1260,9 +1260,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 pass
 
         o_combined_irad_bands = {
-            "omi_solar_rad_fn": irad.tropomi_file[
-                0
-            ],  # L1B Earth Radiance Full Path and File Name
             "Wavelength": np.concatenate(
                 [i for i in Wavelength], axis=0
             ),  #  Wavelength Grid; Full Band
@@ -2787,9 +2784,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
         iTrack: int,
         iUV: int,
     ) -> AttrDictAdapter:
-        from refractor.muses_py import read_omi_erad
-
-        return AttrDictAdapter(read_omi_erad(str(omi_file), iXTrack, iTrack, iUV))
         f_sd = None
         f_hdf = None
         f_vs = None
@@ -2805,77 +2799,98 @@ class MusesOmiObservation(MusesReflectanceObservation):
             # we just have a mapping from a SDS name to the possibly multiple references that
             # have that name. We then use the iUV to select. This uses the fact that UV1
             # comes first, then UV2.
-            nm_ref = [(f_sd.select(i).info()[0], i) for i in range(f_sd.info()[0])]
+            snm_ref = [(f_sd.select(i).info()[0], i) for i in range(f_sd.info()[0])]
             # Put into dict with a list of references matching each name
-            nm_reflist = {
-                k: [ref for nm, ref in nm_ref if nm == k]
-                for k in list(dict.fromkeys([t[0] for t in nm_ref]))
+            snm_reflist = {
+                k: [ref for nm, ref in snm_ref if nm == k]
+                for k in list(dict.fromkeys([t[0] for t in snm_ref]))
             }
             # Map name to reference for our iUV
-            nm_to_ref = {}
-            for nm, reflist in nm_reflist.items():
+            snm_to_ref = {}
+            for nm, reflist in snm_reflist.items():
                 if len(reflist) == 1:
-                    nm_to_ref[nm] = reflist[0]
+                    snm_to_ref[nm] = reflist[0]
                 else:
-                    nm_to_ref[nm] = reflist[iUV - 1]
+                    snm_to_ref[nm] = reflist[iUV - 1]
 
-            SpacecraftLatitude = np.array(f_vs.attach("SpacecraftLatitude")[:])[
-                iXTrack, 0
-            ]
-            SpacecraftLongitude = np.array(f_vs.attach("SpacecraftLongitude")[:])[
-                iXTrack, 0
-            ]
-            SpacecraftAltitude = np.array(f_vs.attach("SpacecraftAltitude")[:])[
-                iXTrack, 0
-            ]
-            SolarAzimuthAngle = f_sd.select(nm_to_ref["SolarAzimuthAngle"])[
-                iTrack, iXTrack
-            ]
-            SolarZenithAngle = f_sd.select(nm_to_ref["SolarZenithAngle"])[
-                iTrack, iXTrack
-            ]
-            ViewingAzimuthAngle = f_sd.select(nm_to_ref["ViewingAzimuthAngle"])[
-                iTrack, iXTrack
-            ]
-            ViewingZenithAngle = f_sd.select(nm_to_ref["ViewingZenithAngle"])[
-                iTrack, iXTrack
-            ]
-            Latitude = f_sd.select(nm_to_ref["Latitude"])[iTrack, iXTrack]
-            Longitude = f_sd.select(nm_to_ref["Longitude"])[iTrack, iXTrack]
-            Time = np.array(f_vs.attach("Time")[:])[iXTrack, 0]
-            TerrainHeight = f_sd.select(nm_to_ref["TerrainHeight"])[iTrack, iXTrack]
-            EarthSunDistance = np.array(f_vs.attach("EarthSunDistance")[:])[0, 0]
-            GroundPixelQualityFlags = f_sd.select(nm_to_ref["GroundPixelQualityFlags"])[
-                iTrack, iXTrack
-            ]
-            XtrackQualityFlags = f_sd.select(nm_to_ref["XTrackQualityFlags"])[
-                iTrack, iXTrack
-            ]
+            # Similar issue for vdata
+            vnm_ref = [(t[0], t[2]) for t in f_vs.vdatainfo()]
+            vnm_reflist = {
+                k: [ref for nm, ref in vnm_ref if nm == k]
+                for k in list(dict.fromkeys([t[0] for t in vnm_ref]))
+            }
+            vnm_to_ref = {}
+            for nm, reflist in vnm_reflist.items():
+                if len(reflist) == 1:
+                    vnm_to_ref[nm] = reflist[0]
+                else:
+                    vnm_to_ref[nm] = reflist[iUV - 1]
+
+            SpacecraftLatitude = float(
+                np.array(f_vs.attach(vnm_to_ref["SpacecraftLatitude"])[:])[iTrack, 0]
+            )
+            SpacecraftLongitude = float(
+                np.array(f_vs.attach(vnm_to_ref["SpacecraftLongitude"])[:])[iTrack, 0]
+            )
+            SpacecraftAltitude = float(
+                np.array(f_vs.attach(vnm_to_ref["SpacecraftAltitude"])[:])[iTrack, 0]
+            )
+            SolarAzimuthAngle = np.float32(
+                f_sd.select(snm_to_ref["SolarAzimuthAngle"])[iTrack, iXTrack]
+            )
+            SolarZenithAngle = np.float32(
+                f_sd.select(snm_to_ref["SolarZenithAngle"])[iTrack, iXTrack]
+            )
+            ViewingAzimuthAngle = np.float32(
+                f_sd.select(snm_to_ref["ViewingAzimuthAngle"])[iTrack, iXTrack]
+            )
+            ViewingZenithAngle = np.float32(
+                f_sd.select(snm_to_ref["ViewingZenithAngle"])[iTrack, iXTrack]
+            )
+            Latitude = np.float32(f_sd.select(snm_to_ref["Latitude"])[iTrack, iXTrack])
+            Longitude = np.float32(
+                f_sd.select(snm_to_ref["Longitude"])[iTrack, iXTrack]
+            )
+            Time = float(np.array(f_vs.attach(vnm_to_ref["Time"])[:])[iTrack, 0])
+            TerrainHeight = np.int16(
+                f_sd.select(snm_to_ref["TerrainHeight"])[iTrack, iXTrack]
+            )
+            EarthSunDistance = float(np.array(f_vs.attach("EarthSunDistance")[:])[0, 0])
+            GroundPixelQualityFlags = f_sd.select(
+                snm_to_ref["GroundPixelQualityFlags"]
+            )[:][iTrack, iXTrack]
+            XtrackQualityFlags = np.uint8(
+                f_sd.select(snm_to_ref["XTrackQualityFlags"])[iTrack, iXTrack]
+            )
             if XtrackQualityFlags != 0:
                 logger.warning(
                     f"XtrackQualityFlag: {XtrackQualityFlags} is set to non-zero, {omi_file}"
                 )
-            PixelQualityFlags = f_sd.select(nm_to_ref["PixelQualityFlags"])[
+            PixelQualityFlags = f_sd.select(snm_to_ref["PixelQualityFlags"])[
                 iTrack, iXTrack
             ]
-            MeasurementQualityFlags = np.array(
-                f_vs.attach("MeasurementQualityFlags")[:]
-            )[iTrack, 0]
+            MeasurementQualityFlags = int(
+                np.array(f_vs.attach(vnm_to_ref["MeasurementQualityFlags"])[:])[
+                    iTrack, 0
+                ]
+            )
             WavelengthCoefficientPrecision = f_sd.select(
-                nm_to_ref["WavelengthCoefficientPrecision"]
-            )[iTrack, iXTrack].astype(np.float64)
+                snm_to_ref["WavelengthCoefficientPrecision"]
+            )[iTrack, iXTrack]
 
-            WavelengthReferenceColumn = float(
-                np.array(f_vs.attach("WavelengthReferenceColumn")[:])[iTrack, 0]
+            WavelengthReferenceColumn = np.float64(
+                np.array(f_vs.attach(vnm_to_ref["WavelengthReferenceColumn"])[:])[
+                    iTrack, 0
+                ]
             )
 
-            WavelengthCoefficient = f_sd.select(nm_to_ref["WavelengthCoefficient"])[
+            WavelengthCoefficient = f_sd.select(snm_to_ref["WavelengthCoefficient"])[
                 iTrack, iXTrack
             ].astype(np.float64)
 
-            ImageBinningFactor = np.array(f_vs.attach("ImageBinningFactor")[:])[
-                iTrack, 0
-            ]
+            ImageBinningFactor = np.array(
+                f_vs.attach(vnm_to_ref["ImageBinningFactor"])[:]
+            )[iTrack, 0]
 
             if ImageBinningFactor == 8:
                 MeasurementMode = "NORMAL"
@@ -2884,13 +2899,13 @@ class MusesOmiObservation(MusesReflectanceObservation):
             else:
                 MeasurementMode = "DUMMY_MEASUREMENTMODE"
 
-            RadianceMantissa = f_sd.select(nm_to_ref["RadianceMantissa"])[
+            RadianceMantissa = f_sd.select(snm_to_ref["RadianceMantissa"])[
                 iTrack, iXTrack, :
             ].astype(np.float64)
             RadiancePrecisionMantissa = f_sd.select(
-                nm_to_ref["RadiancePrecisionMantissa"]
+                snm_to_ref["RadiancePrecisionMantissa"]
             )[iTrack, iXTrack, :].astype(np.float64)
-            RadianceExponent = f_sd.select(nm_to_ref["RadianceExponent"])[
+            RadianceExponent = f_sd.select(snm_to_ref["RadianceExponent"])[
                 iTrack, iXTrack, :
             ].astype(np.float64)
             # compute the radiances and nesr
@@ -2899,33 +2914,13 @@ class MusesOmiObservation(MusesReflectanceObservation):
             unit = "photons nm-1 s-1 sr-1"
 
             # Compute wavelength
-            for p in range(0, WavelengthCoefficient.shape[0]):
-                if p == 0:
-                    Wavelength = (
-                        (WavelengthCoefficient[p])
-                        * np.float64(1.0)
-                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
-                        ** p
-                    )
-                    Wavelength_err = (
-                        (WavelengthCoefficientPrecision[p])
-                        * np.float64(1.0)
-                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
-                        ** p
-                    )
-                else:
-                    Wavelength += (
-                        (WavelengthCoefficient[p])
-                        * np.float64(1.0)
-                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
-                        ** p
-                    )
-                    Wavelength_err += (
-                        (WavelengthCoefficientPrecision[p])
-                        * np.float64(1.0)
-                        * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn)
-                        ** p
-                    )
+            Wavelength = sum(
+                WavelengthCoefficient[p]
+                * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn) ** p
+                for p in range(WavelengthCoefficient.shape[0])
+            )
+            # Not actually used, so don't compute
+            # Wavelength_err = sum(WavelengthCoefficientPrecision[p] * (np.arange(Radiance.shape[0]) - WavelengthReferenceColumn) ** p for p in range(WavelengthCoefficient.shape[0]))
 
         finally:
             if f_sd is not None:
@@ -2968,7 +2963,6 @@ class MusesOmiObservation(MusesReflectanceObservation):
             "MeasurementQualityFlags": MeasurementQualityFlags,
             "MeasurementMode": MeasurementMode,
         }
-
         return AttrDictAdapter(o_omi_rad)
 
     @classmethod
