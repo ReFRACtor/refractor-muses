@@ -900,17 +900,15 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         #  Earth Shine Radiances
         # ======================
         # EM - Deal with differing TROPOMI bands in this function
-        erad = AttrDictAdapter(
-            cls.combine_tropomi_erad(
-                filename_dict, iXTracks, iATracks, windows, ifile_hlp
-            )
+        erad = cls.combine_tropomi_erad(
+            filename_dict, iXTracks, iATracks, windows, ifile_hlp
         )
 
         # ============================
         #  For OMI, 3 Year Mean Solar Radiances used here
         #  For TROPOMI, trying daily solar irradiance files
         # ============================
-        irad = AttrDictAdapter(cls.daily_tropomi_irad(filename_dict, iXTracks, windows))
+        irad = cls.daily_tropomi_irad(ifile_hlp, filename_dict, iXTracks, windows)
 
         # ============================
         #  Get Calibration Factors
@@ -1203,12 +1201,11 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     @classmethod
     def daily_tropomi_irad(
         cls,
+        ifile_hlp: InputFileHelper,
         irrFilenames: dict[str, str | os.PathLike[str] | InputFilePath],
         iXtracks: dict[str, int],
         windows: list[dict[str, str]],
-    ) -> dict[str, Any]:
-        from refractor.muses_py import read_tropomi_daily_irad
-
+    ) -> AttrDictAdapter:
         # Define arrays for storing
         Radiance = []
         RadianceNESR = []
@@ -1234,14 +1231,12 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                         raise NotImplementedError(
                             f"Reading TROPOMI irradiance for {current_band}"
                         )
-                    irad = read_tropomi_daily_irad(
-                        irrFilenames[key], int(float(iXtracks[key])), band["filter"]
+                    irad = cls.read_tropomi_daily_irad(
+                        ifile_hlp,
+                        irrFilenames[key],
+                        int(float(iXtracks[key])),
+                        band["filter"],
                     )
-                    if irad is None:
-                        raise RuntimeError("Call to read_tropomi_daily_irad failed")
-                    else:
-                        # Convert our dictionaries so we use the dot '.' notation.
-                        irad = AttrDictAdapter(irad)
 
                     Radiance.append(irad.Sol)
                     RadianceNESR.append(irad.Pre)
@@ -1275,7 +1270,58 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "usage_pixels": oXtrack,  #  index for healthy pixel
         }
 
-        return o_combined_irad_bands
+        return AttrDictAdapter(o_combined_irad_bands)
+
+    @classmethod
+    def read_tropomi_daily_irad(
+        cls,
+        ifile_hlp: InputFileHelper,
+        irrad_file: str | os.PathLike[str] | InputFilePath,
+        iXtrack: int,
+        iBand: str,
+    ) -> AttrDictAdapter:
+        with ifile_hlp.open_ncdf(irrad_file) as fh:
+            fh.set_auto_maskandscale(False)
+            observations_data_grp = f"{iBand}_IRRADIANCE/STANDARD_MODE/OBSERVATIONS"
+            instrument_data_grp = f"{iBand}_IRRADIANCE/STANDARD_MODE/INSTRUMENT"
+
+            # Irradiance
+            # Indexs are time, scanline, ground pixel, spectral pixel
+            Irradiance = fh[f"{observations_data_grp}/irradiance"][
+                0, 0, iXtrack, :
+            ].astype(np.float64)
+            # Irradiance systematic error
+            # Indexs are time, scanline, ground pixel, spectral pixel
+            # Not used, so don't bother reading
+            # irradiance_error = fh[f"{observations_data_grp}/irradiance_error"][0, 0, iXtrack, :].astype(np.float64)
+
+            # TROPOMI stores noise in dB, must convert
+            # irradiance_error = Irradiance / (10 ** (irradiance_error / 10))
+
+            # Irradiance precision
+            # Indexs are time, scanline, ground pixel, spectral pixel
+            irradiance_noise = fh[f"{observations_data_grp}/irradiance_noise"][
+                0, 0, iXtrack, :
+            ].astype(np.float64)
+
+            # TROPOMI stores noise in dB, must convert
+            irradiance_noise = Irradiance / (10 ** (irradiance_noise / 10))
+
+            # Irradiance_err = np.sqrt(irradiance_noise**2 + irradiance_error**2)
+            Irradiance_err = np.abs(irradiance_noise)
+
+            # Wavelength
+            Wavelength = fh[f"{instrument_data_grp}/nominal_wavelength"][0, iXtrack, :]
+
+        # Define output
+        o_tropomi_irad = {
+            "tropomi_file": irrad_file,
+            "Pre": Irradiance_err,
+            "Sol": Irradiance,
+            "Wav": Wavelength,
+        }
+
+        return AttrDictAdapter(o_tropomi_irad)
 
     @classmethod
     def read_tropomi_cloud(
@@ -1457,7 +1503,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         iATracks: dict[str, int],
         windows: list[dict[str, str]],
         ifile_hlp: InputFileHelper,
-    ) -> dict[str, Any]:
+    ) -> AttrDictAdapter:
         o_ObservationTable: dict[str, Any] = {
             "ATRACK": [],
             "XTRACK": [],
@@ -1503,7 +1549,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                         # Without this, various returned things are masked_array. We
                         # handle masking separately, so we want to skip this.
                         fh.set_auto_maskandscale(False)
-                        eradd = cls.read_tropomi_erad(
+                        erad = cls.read_tropomi_erad(
                             fh,
                             int(float(iXTracks[current_band])),
                             int(iATracks[current_band]),
@@ -1511,10 +1557,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                         )
                     finally:
                         fh.close()
-                    if eradd is None:
-                        raise RuntimeError("Trouble reading erad")
-                    else:
-                        erad = AttrDictAdapter(eradd)
 
                     EarthWavelength_Filter = np.asarray(
                         ["UUUUU" for ii in range(0, erad.PixelQualityFlags.shape[0])]
@@ -1583,12 +1625,12 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "ObservationTable": o_ObservationTable,
         }
 
-        return o_combined_erad_bands
+        return AttrDictAdapter(o_combined_erad_bands)
 
     @classmethod
     def read_tropomi_erad(
         cls, fh: netCDF4.Dataset, iXTrack: int, iTrack: int, iBand: str
-    ) -> dict[str, Any]:
+    ) -> AttrDictAdapter:
         geo_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/GEODATA"
         observations_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/OBSERVATIONS"
         instrument_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/INSTRUMENT"
@@ -1674,7 +1716,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "PixelQualityFlags": PixelQualityFlags,
             "MeasurementQualityFlags": MeasurementQualityFlags,
         }
-        return o_tropomi_rad
+        return AttrDictAdapter(o_tropomi_rad)
 
     @classmethod
     def read_tropomi_surface_altitude(
@@ -2270,17 +2312,12 @@ class MusesOmiObservation(MusesReflectanceObservation):
         # ======================
         #  Earth Shine Radiances
         # ======================
-        eradd = cls.combine_omi_erad(ifile_hlp, filename, iXTrack, iTrack)
-        if eradd is None:
-            raise RuntimeError("combine_omi_erad failed")
-
-        erad = AttrDictAdapter(eradd)
+        erad = cls.combine_omi_erad(ifile_hlp, filename, iXTrack, iTrack)
 
         # ============================
         #  3 Year Mean Solar Radiances
         # ============================
-        iradd = cls.combine_omi_yearly_mean_irad(ifile_hlp, erad.iXtrack_all)
-        irad = AttrDictAdapter(iradd)
+        irad = cls.combine_omi_yearly_mean_irad(ifile_hlp, erad.iXtrack_all)
 
         if calibrationFilename is not None:
             # ============================
@@ -2452,11 +2489,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         omi_fn: str | os.PathLike[str] | InputFilePath,
         iXTrack: int,
         iTrack: int,
-    ) -> dict[str, Any]:
-        # Return a struture variable that has
-        #   (1) OMI L1b measured earth spectral radiances/wavelength grid
-        #   (2) OMI L1b viewing geometry
-
+    ) -> AttrDictAdapter:
         erad_uv2 = cls.read_omi_erad(ifile_hlp, omi_fn, iXTrack, iTrack, iUV=2)
 
         if erad_uv2.MeasurementMode == "NORMAL":  # normal mode
@@ -2773,7 +2806,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             "iXtrack_all": iXtrack_all,
         }
 
-        return o_combined_erad_bands
+        return AttrDictAdapter(o_combined_erad_bands)
 
     @classmethod
     def read_omi_erad(
@@ -3070,7 +3103,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
     @classmethod
     def combine_omi_yearly_mean_irad(
         cls, ifile_hlp: InputFileHelper, iXtrack_all: list[int]
-    ) -> dict[str, Any]:
+    ) -> AttrDictAdapter:
         ixtrack_uv1 = iXtrack_all[0]
         ixtrack = iXtrack_all[1]
         ixtrack_uv2_pair = iXtrack_all[2]
@@ -3114,7 +3147,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             "usage_pixels": iXtrack_all,  #  index for healthy pixel
         }
 
-        return o_combined_irad_bands
+        return AttrDictAdapter(o_combined_irad_bands)
 
     @classmethod
     def read_omi_osp_irad(

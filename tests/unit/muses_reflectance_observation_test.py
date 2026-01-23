@@ -198,7 +198,7 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
         filename_dict, xtrack_dict, atrack_dict, windows, ifile_hlp
     )
-    compare_muses_py_dict(erad2, erad, "erad")
+    compare_muses_py_dict(erad2.__dict__, erad, "erad")
 
     with osp_setup(ifile_hlp):
         o_tropomi = mpy.read_tropomi(
