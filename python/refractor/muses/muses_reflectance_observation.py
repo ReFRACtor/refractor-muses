@@ -1066,6 +1066,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             {win["filter"] for win in windows if win["instrument"] == "TROPOMI"}
         )
         SurfaceAlbedo = cls.read_tropomi_surface_albedo(
+            ifile_hlp,
             TLongitude,
             TLatitude,
             TMonth,
@@ -1104,6 +1105,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     @classmethod
     def read_tropomi_surface_albedo(
         cls,
+        ifile_hlp: InputFileHelper,
         TLongitude: float,
         TLatitude: float,
         TMonth: int,
@@ -1112,57 +1114,18 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         swir_from_radiances: bool = True,
     ) -> dict[str, Any]:
         from py_retrieve.app.tropomi_setup.read_tropomi_surface_albedo import (
-            _read_omi_ler_for_tropomi,
             _read_tropomi_dler,
             _infer_tropomi_ler_from_radiances,
         )
 
-        # Description: Read Earth Surface Albedo from OMI L3 HDF5 file
-        # This is identical to the OMI script, since this should still be relevant for TROPOMI
-        # ===========================================================================
-        # Dependency:
-        #           readh5d.pro   --- read hdf5
-        # Input:
-        #  T, the first character of input parameters, refers to target scene
-        #  TLongitude        ---- from measurement_ID.asc
-        #  TLatitude         ---- from measurement_ID.asc
-        #  TDate             -----from measurement_ID.asc
-        #  BandFilter        -----the filter strings e.g. ["BAND3"] indicating which windows to load
-        #  tropomi_radiances -----
-        #  swir_from_radiances----whether to calculate SWIR albedo from the radiances (True) or use the DLER (False)
-        #
-        # BAND7 and BAND8 will use a TROPOMI DLER file that includes a NIR wavelength. BAND1
-        # through BAND6 will use the old OMI LER file.
-        #
-        # Output:
-        #
-        # tropomi_SurfaceAlbedo = {$
-        #     tropomi_file                         : tropomi_file,                     $
-        #     Latitude                         : Latitude,                     $
-        #     Longitude                        : Longitude,                    $
-        #     MonthlyMinimumSurfaceReflectance : MonthlyMinimumSurfaceReflectance,$
-        #     MonthlySurfaceReflectance        : MonthlySurfaceReflectance,      $
-        #     MonthlySurfaceReflectanceFlag    : MonthlySurfaceReflectanceFlag,  $
-        #     Wavelength                       : Wavelength,                     $
-        #     YearlyMinimumSurfaceReflectance  : YearlyMinimumSurfaceReflectance, $
-        #     YearlySurfaceReflectance         : YearlySurfaceReflectance,       $
-        #     YearlySurfaceReflectanceFlag     : YearlySurfaceReflectanceFlag $
-        #     }
-        # =======================================================
-        # Author:
-        #
-        #   Dejian Fu; November 18th, 2014
-        #           Dejian.fu@jpl.nasa.gov
-        # Mod:
-        # March 2021 - E Malina
-        # Sept  2023 - J Laughner (added DLER for NIR bands)
-        # ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         o_tropomi = dict()
         tropomi_obs_table = tropomi_radiances["Earth_Radiance"]["ObservationTable"]
         for band_filter in BandFilters:
             if band_filter in cls.UVN_BANDS:
-                band_reflectance_dict = _read_omi_ler_for_tropomi(
-                    TLongitude, TLatitude, TMonth, band_filter
+                if band_filter != 'BAND3':
+                    raise NotImplementedError(f'OMI LER database wavelength index not defined for TROPOMI {band_filter}')
+                band_reflectance_dict = cls.read_omi_surface_albedo(
+                    ifile_hlp, TLongitude, TLatitude, TMonth
                 )
             elif band_filter in cls.SWIR_BANDS and swir_from_radiances:
                 tropomi_sza_deg = [
@@ -1613,7 +1576,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 pass
 
         o_combined_erad_bands = {
-            "omi_earth_rad_fn": band_filenames,
             "Wavelength": np.concatenate([i for i in wavelength_total], axis=0),
             "EarthRadiance": np.concatenate([i for i in radiance_total], axis=0),
             "EarthRadianceNESR": np.concatenate(

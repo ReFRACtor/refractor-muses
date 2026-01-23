@@ -198,6 +198,7 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
         filename_dict, xtrack_dict, atrack_dict, windows, ifile_hlp
     )
+    del erad["omi_earth_rad_fn"]
     compare_muses_py_dict(erad2.__dict__, erad, "erad")
 
     with osp_setup(ifile_hlp):
@@ -218,6 +219,8 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     )
     del o_tropomi["Cloud"]["tropomi_file"]
     del o_tropomi["Solar_Radiance"]["omi_solar_rad_fn"]
+    del o_tropomi["SurfaceAlbedo"]["BAND3_tropomi_file"]
+    del o_tropomi["Earth_Radiance"]["omi_earth_rad_fn"]
     compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
 
 
