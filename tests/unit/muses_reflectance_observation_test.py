@@ -173,27 +173,37 @@ def test_omi_bad_sample(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
 
 
 @require_muses_py
-def test_tropomi_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
+def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
     import refractor.muses_py as mpy
 
     filename_dict = {
         "CLOUD": str(
-            joint_tropomi_test_in_dir.parent
-            / "S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+            tropomi_band7_test_in_dir.parent
+            / "S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
         ),
         "BAND3": str(
-            joint_tropomi_test_in_dir.parent
-            / "S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
+            tropomi_band7_test_in_dir.parent
+            / "S5P_RPRO_L1B_RA_BD3_20220628T185806_20220628T203935_24394_03_020100_20230104T092546.nc"
+        ),
+        "BAND7": str(
+            tropomi_band7_test_in_dir.parent
+            / "S5P_OFFL_L1B_RA_BD7_20220628T185806_20220628T203935_24394_02_020000_20220628T222834.nc"
         ),
         "IRR_BAND_1to6": str(
-            joint_tropomi_test_in_dir.parent
-            / "S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+            tropomi_band7_test_in_dir.parent
+            / "S5P_RPRO_L1B_IR_UVN_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
+        ),
+        "IRR_BAND_7to8": str(
+            tropomi_band7_test_in_dir.parent
+            / "S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
         ),
     }
-    xtrack_dict = {"CLOUD": "226", "BAND3": "226", "IRR_BAND_1to6": "226"}
-    atrack_dict = {"CLOUD": "2995", "BAND3": "2995"}
-    windows = [{"instrument": "TROPOMI", "filter": "BAND3"}]
-    utc_time = "2019-08-07T06:24:33.584090Z"
+    xtrack_dict = {"CLOUD": "227", "BAND3": "227", "IRR_BAND_1to6": "227", "BAND7" : "108",
+                   "IRR_BAND_7to8": "108"}
+    atrack_dict = {"CLOUD": "1008", "BAND3": "1008", "BAND7": "1008"}
+    windows = [{"instrument": "TROPOMI", "filter": "BAND3"},
+               {"instrument": "TROPOMI", "filter": "BAND7"}]
+    utc_time = "2022-06-28T19:33:47.130000Z"
     erad = mpy.combine_tropomi_erad(filename_dict, xtrack_dict, atrack_dict, windows)
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
         filename_dict, xtrack_dict, atrack_dict, windows, ifile_hlp
