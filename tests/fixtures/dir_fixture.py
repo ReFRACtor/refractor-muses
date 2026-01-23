@@ -104,12 +104,13 @@ def ifile_hlp(
     # directories used for IRK, and "swir" stuff used by the new tropomi swir stuff.
     if False:
         ifile_hlp = InputFileHelper(osp_dir=osp_real_dir, gmao_dir=gmao_real_dir)
-        ifile_hlp.add_observer(
-            InputFileSave(Path(str(ifile_hlp.osp_dir)), test_base_path / "OSP")
-        )
-        ifile_hlp.add_observer(
-            InputFileSave(Path(str(ifile_hlp.gmao_dir)), test_base_path / "GMAO")
-        )
+        if True:
+            ifile_hlp.add_observer(
+                InputFileSave(Path(str(ifile_hlp.osp_dir)), test_base_path / "OSP")
+            )
+            ifile_hlp.add_observer(
+                InputFileSave(Path(str(ifile_hlp.gmao_dir)), test_base_path / "GMAO")
+            )
         return ifile_hlp
     return InputFileHelper(
         osp_dir=InputFilePathDelta(osp_dir, osp_delta_dir), gmao_dir=gmao_dir

@@ -857,6 +857,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         utc_time: str,
         i_windows: list[dict[str, str]],
         ifile_hlp: InputFileHelper | None = None,
+        albedo_from_dler: bool = False,
     ) -> dict[str, Any]:
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
@@ -869,6 +870,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 atrack_dict,
                 utc_time,
                 i_windows,
+                albedo_from_dler=albedo_from_dler,
             )
         # Reading of the surface height is done separately. In muses-py this
         # was a side effect of setting up the StateInfo.
@@ -1114,7 +1116,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         swir_from_radiances: bool = True,
     ) -> dict[str, Any]:
         from py_retrieve.app.tropomi_setup.read_tropomi_surface_albedo import (
-            _read_tropomi_dler,
             _infer_tropomi_ler_from_radiances,
         )
 
@@ -1122,8 +1123,10 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         tropomi_obs_table = tropomi_radiances["Earth_Radiance"]["ObservationTable"]
         for band_filter in BandFilters:
             if band_filter in cls.UVN_BANDS:
-                if band_filter != 'BAND3':
-                    raise NotImplementedError(f'OMI LER database wavelength index not defined for TROPOMI {band_filter}')
+                if band_filter != "BAND3":
+                    raise NotImplementedError(
+                        f"OMI LER database wavelength index not defined for TROPOMI {band_filter}"
+                    )
                 band_reflectance_dict = cls.read_omi_surface_albedo(
                     ifile_hlp, TLongitude, TLatitude, TMonth
                 )
@@ -1144,8 +1147,8 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                     tropomi_radiances, tropomi_sza_deg[0], band_filter
                 )
             elif band_filter in cls.SWIR_BANDS:
-                band_reflectance_dict = _read_tropomi_dler(
-                    TLongitude, TLatitude, TMonth, 2314.0
+                band_reflectance_dict = cls.read_tropomi_dler(
+                    ifile_hlp, TLongitude, TLatitude, TMonth, 2314.0
                 )
             else:
                 raise ValueError(
@@ -1160,6 +1163,98 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             o_tropomi.update(band_reflectance_dict)
 
         return o_tropomi
+
+    @classmethod
+    def read_tropomi_dler(
+        cls,
+        ifile_hlp: InputFileHelper,
+        TLongitude: float,
+        TLatitude: float,
+        TMonth: int,
+        Wavelength: float,
+    ) -> dict[str, Any]:
+        with ifile_hlp.open_ncdf(
+            ifile_hlp.osp_dir
+            / "TROPOMI"
+            / "DLER"
+            / "TROPOMI_Sentinel-5P_0125x0125_surface_DLER_v2.0.nc"
+        ) as ds:
+            dler_longitude = ds["longitude"][:].filled(np.nan)
+            dler_latitude = ds["latitude"][:].filled(np.nan)
+            dler_wavelengths = ds["wavelength"][:].filled(np.nan)
+
+            lon_ind, lat_ind, min_dist = cls.find_grid_inds(
+                TLongitude=TLongitude,
+                TLatitude=TLatitude,
+                GridLongitudes=dler_longitude,
+                GridLatitudes=dler_latitude,
+            )
+            month_ind = (
+                TMonth - 1
+            )  # Assumes that TMonth is 1 to 12, and that the DLER month dimension is ordered Jan to Dec
+            wavelength_ind = np.argmin(np.abs(dler_wavelengths - Wavelength))
+
+            # The calls to np.float64() and int() ensure these values
+            # have the same type as if we infer the albedo from
+            # radiances. The .item() calls are necessary to get actual
+            # scalar types, rather than 0D arrays.
+            monthly_surface_reflectance = np.float64(
+                ds["minimum_LER_clear"][
+                    month_ind, wavelength_ind, lon_ind, lat_ind
+                ].item()
+            )
+            monthly_reflectance_flag = int(
+                ds["flag"][month_ind, wavelength_ind, lon_ind, lat_ind].item()
+            )
+
+        return {
+            "Latitude": dler_latitude[lat_ind],
+            "Longitude": dler_longitude[lon_ind],
+            "Wavelength": dler_wavelengths[wavelength_ind],
+            # This DLER file only provides the minimum surface reflectance, so we'll use that for both keys in the output dict
+            "MonthlyMinimumSurfaceReflectance": monthly_surface_reflectance,
+            "MonthlySurfaceReflectance": monthly_surface_reflectance,
+            "MonthlySurfaceReflectanceFlag": monthly_reflectance_flag,
+            # This DLER does not provide a yearly average reflectance, so we're not including those keys (that way we'll get an error if they become necessary)
+        }
+
+    @classmethod
+    def find_grid_inds(
+        cls,
+        TLongitude: float,
+        TLatitude: float,
+        GridLongitudes: np.ndarray,
+        GridLatitudes: np.ndarray,
+    ) -> tuple[int, int, float]:
+        temp_lat_ind = np.where((GridLatitudes > (TLatitude - 2.0)) & (
+            GridLatitudes < (TLatitude + 2.0)
+        ))[0]
+        temp_lon_ind = np.where((GridLongitudes > (TLongitude - 2.0)) & (
+            GridLongitudes < (TLongitude + 2.0)
+        ))[0]
+
+        min_dist = 999.0
+        min_temp_lat_ind = np.amin(temp_lat_ind)
+        max_temp_lat_ind = np.amax(temp_lat_ind)
+        min_temp_lon_ind = np.amin(temp_lon_ind)
+        max_temp_lon_ind = np.amax(temp_lon_ind)
+        lat_ind = 0
+        lon_ind = 0
+        for ilat in range(min_temp_lat_ind, max_temp_lat_ind):
+            for ilon in range(min_temp_lon_ind, max_temp_lon_ind):
+                temp_dist = cls.get_distance(
+                    GridLatitudes[ilat], GridLongitudes[ilon], TLatitude, TLongitude
+                )
+                # At this point, temp_dist is in Kilometers.
+                if temp_dist <= min_dist:
+                    lat_ind = ilat
+                    lon_ind = ilon
+                    min_dist = temp_dist
+
+        assert min_dist < 999.0, (
+            "Failed to find an albedo grid cell closer than the starting assumed distance of 999 km"
+        )
+        return lon_ind, lat_ind, min_dist
 
     @classmethod
     def daily_tropomi_irad(
@@ -2033,17 +2128,15 @@ class MusesOmiObservation(MusesReflectanceObservation):
             )
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
-        # TODO Remove osp_setup below
-        with osp_setup(ifile_hlp):
-            o_omi = cls.read_omi_l1b(
-                ifile_hlp,
-                filename,
-                xtrack_uv2,
-                atrack,
-                utc_time,
-                calibration_filename,
-                cld_filename,
-            )
+        o_omi = cls.read_omi_l1b(
+            ifile_hlp,
+            filename,
+            xtrack_uv2,
+            atrack,
+            utc_time,
+            calibration_filename,
+            cld_filename,
+        )
         return o_omi
 
     def desc(self) -> str:

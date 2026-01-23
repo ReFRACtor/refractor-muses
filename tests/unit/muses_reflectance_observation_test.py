@@ -198,11 +198,18 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
             / "S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
         ),
     }
-    xtrack_dict = {"CLOUD": "227", "BAND3": "227", "IRR_BAND_1to6": "227", "BAND7" : "108",
-                   "IRR_BAND_7to8": "108"}
+    xtrack_dict = {
+        "CLOUD": "227",
+        "BAND3": "227",
+        "IRR_BAND_1to6": "227",
+        "BAND7": "108",
+        "IRR_BAND_7to8": "108",
+    }
     atrack_dict = {"CLOUD": "1008", "BAND3": "1008", "BAND7": "1008"}
-    windows = [{"instrument": "TROPOMI", "filter": "BAND3"},
-               {"instrument": "TROPOMI", "filter": "BAND7"}]
+    windows = [
+        {"instrument": "TROPOMI", "filter": "BAND3"},
+        {"instrument": "TROPOMI", "filter": "BAND7"},
+    ]
     utc_time = "2022-06-28T19:33:47.130000Z"
     erad = mpy.combine_tropomi_erad(filename_dict, xtrack_dict, atrack_dict, windows)
     erad2 = MusesTropomiObservation.combine_tropomi_erad(
@@ -211,9 +218,15 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
     del erad["omi_earth_rad_fn"]
     compare_muses_py_dict(erad2.__dict__, erad, "erad")
 
+    albedo_from_dler = False
     with osp_setup(ifile_hlp):
         o_tropomi = mpy.read_tropomi(
-            filename_dict, xtrack_dict, atrack_dict, utc_time, windows
+            filename_dict,
+            xtrack_dict,
+            atrack_dict,
+            utc_time,
+            windows,
+            albedo_from_dler=albedo_from_dler,
         )
         for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
             surfaceAltitude = mpy.read_tropomi_surface_altitude(
@@ -225,11 +238,18 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
             )
 
     o_tropomi2 = MusesTropomiObservation.read_tropomi(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, windows, ifile_hlp=ifile_hlp
+        filename_dict,
+        xtrack_dict,
+        atrack_dict,
+        utc_time,
+        windows,
+        ifile_hlp=ifile_hlp,
+        albedo_from_dler=albedo_from_dler,
     )
     del o_tropomi["Cloud"]["tropomi_file"]
     del o_tropomi["Solar_Radiance"]["omi_solar_rad_fn"]
     del o_tropomi["SurfaceAlbedo"]["BAND3_tropomi_file"]
+    del o_tropomi["SurfaceAlbedo"]["BAND7_tropomi_file"]
     del o_tropomi["Earth_Radiance"]["omi_earth_rad_fn"]
     compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
 
