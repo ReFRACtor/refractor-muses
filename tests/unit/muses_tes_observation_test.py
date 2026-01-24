@@ -7,7 +7,6 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
-    osp_setup,
 )
 import pytest
 from fixtures.require_check import require_muses_py
@@ -97,6 +96,7 @@ def test_create_muses_tes_observation(isolated_dir, ifile_hlp, tes_test_in_dir):
 @require_muses_py
 def test_tes_steps(isolated_dir, ifile_hlp, tes_test_in_dir):
     import refractor.muses_py as mpy
+    from refractor.old_py_retrieve_wrapper import osp_setup
 
     filename = (
         tes_test_in_dir.parent / "TES-Aura_L1B-Nadir_FP2B_r0000002147-o00978_F04_07.h5"

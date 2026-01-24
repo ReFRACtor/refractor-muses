@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .misc import osp_setup
 from .observation_handle import ObservationHandleSet
 from .muses_observation import (
     MusesObservationImp,
@@ -861,17 +860,15 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     ) -> dict[str, Any]:
         if ifile_hlp is None:
             ifile_hlp = InputFileHelper()
-        # TODO Remove osp_setup below
-        with osp_setup(ifile_hlp):
-            o_tropomi = cls.read_tropomi_l1b(
-                ifile_hlp,
-                filename_dict,
-                xtrack_dict,
-                atrack_dict,
-                utc_time,
-                i_windows,
-                albedo_from_dler=albedo_from_dler,
-            )
+        o_tropomi = cls.read_tropomi_l1b(
+            ifile_hlp,
+            filename_dict,
+            xtrack_dict,
+            atrack_dict,
+            utc_time,
+            i_windows,
+            albedo_from_dler=albedo_from_dler,
+        )
         # Reading of the surface height is done separately. In muses-py this
         # was a side effect of setting up the StateInfo.
         for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
@@ -1115,10 +1112,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         tropomi_radiances: dict,
         swir_from_radiances: bool = True,
     ) -> dict[str, Any]:
-        from py_retrieve.app.tropomi_setup.read_tropomi_surface_albedo import (
-            _infer_tropomi_ler_from_radiances,
-        )
-
         o_tropomi = dict()
         tropomi_obs_table = tropomi_radiances["Earth_Radiance"]["ObservationTable"]
         for band_filter in BandFilters:
@@ -1143,7 +1136,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                     raise ValueError(
                         f"Could not find a unique {band_filter} in the tropomi_obs_table"
                     )
-                band_reflectance_dict = _infer_tropomi_ler_from_radiances(
+                band_reflectance_dict = cls.infer_tropomi_ler_from_radiances(
                     tropomi_radiances, tropomi_sza_deg[0], band_filter
                 )
             elif band_filter in cls.SWIR_BANDS:
@@ -1219,6 +1212,57 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         }
 
     @classmethod
+    def infer_tropomi_ler_from_radiances(
+        cls,
+        tropomi_radiances: dict[str, Any],
+        sza_deg: float,
+        band_filter: str,
+        npoints: int = 10,
+    ) -> dict[str, Any]:
+        wavelength = tropomi_radiances["Earth_Radiance"]["Wavelength"]
+        norm_rad = (
+            tropomi_radiances["Earth_Radiance"]["CalibratedEarthRadiance"]
+            / tropomi_radiances["Solar_Radiance"]["AdjustedSolarRadiance"]
+        )
+        rad_filters = tropomi_radiances["Earth_Radiance"]["EarthWavelength_Filter"]
+        nesr = tropomi_radiances["Earth_Radiance"]["EarthRadianceNESR"]
+        xx_rad = (rad_filters == band_filter) & (nesr > 0.0)
+
+        # Calculate the initial guess albedo from the ratio of
+        # radiance to irradiance, accounting for angle of indicence
+        # etc.  This approximates what is done for OCO-2 (see
+        # https://github.jpl.nasa.gov/OCO/RtRetrievalFramework/blob/85b39aac8096d3387c1569d2cb9a7ceedcd48e82/input/common/config/config_common.lua#L2537
+        # as of 21 Nov 2023, the function
+        # `ConfigCommon.calculate_albedo_from_radiance_constant`). This
+        # is kludgy:
+        #
+        # 1. we're just assuming that the 10 points with
+        # the greatest radiance are an okay representation of the
+        # continuum,
+        #
+        # 2. we're not accounting for H2O/CH4/etc. absorption at those
+        # wavelengths, and
+        #
+        # 3. we're just using the full band rather than any specific
+        # microwindow.
+        mean_top_rad = np.nanmean(np.sort(norm_rad[xx_rad])[-npoints:])
+        approx_ler = mean_top_rad * np.pi / np.cos(np.deg2rad(sza_deg))
+
+        return {
+            "Latitude": None,
+            "Longitude": None,
+            "Wavelength": np.nanmean(wavelength[xx_rad]),
+            # This DLER file only provides the minimum surface
+            # reflectance, so we'll follow that for consistency
+            "MonthlyMinimumSurfaceReflectance": approx_ler,
+            "MonthlySurfaceReflectance": approx_ler,
+            # The DLER file seems to have positive flags, so we'll use
+            # a negative flag to signal that the LER came from the
+            # radiances
+            "MonthlySurfaceReflectanceFlag": -1,
+        }
+
+    @classmethod
     def find_grid_inds(
         cls,
         TLongitude: float,
@@ -1226,12 +1270,13 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         GridLongitudes: np.ndarray,
         GridLatitudes: np.ndarray,
     ) -> tuple[int, int, float]:
-        temp_lat_ind = np.where((GridLatitudes > (TLatitude - 2.0)) & (
-            GridLatitudes < (TLatitude + 2.0)
-        ))[0]
-        temp_lon_ind = np.where((GridLongitudes > (TLongitude - 2.0)) & (
-            GridLongitudes < (TLongitude + 2.0)
-        ))[0]
+        temp_lat_ind = np.where(
+            (GridLatitudes > (TLatitude - 2.0)) & (GridLatitudes < (TLatitude + 2.0))
+        )[0]
+        temp_lon_ind = np.where(
+            (GridLongitudes > (TLongitude - 2.0))
+            & (GridLongitudes < (TLongitude + 2.0))
+        )[0]
 
         min_dist = 999.0
         min_temp_lat_ind = np.amin(temp_lat_ind)
@@ -1373,7 +1418,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
 
         # Define output
         o_tropomi_irad = {
-            "tropomi_file": irrad_file,
             "Pre": Irradiance_err,
             "Sol": Irradiance,
             "Wav": Wavelength,
@@ -1749,7 +1793,6 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         snr = np.mean(Radiance / Radiance_err)
         unit = "mol m-2 nm-1 s-1 sr-1"
         o_tropomi_rad = {
-            "tropomi_file": fh.filepath(),
             "iTrack": iTrack,
             "iXTrack": iXTrack,
             "Latitude": Latitude,

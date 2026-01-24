@@ -1,45 +1,13 @@
 from __future__ import annotations
-from contextlib import contextmanager
-from .input_file_helper import InputFileHelper
-import tempfile
-import os
 import math
 from collections import UserDict
 from collections.abc import MutableMapping
 import numpy as np
 import copy
-from typing import Generator, Any, Iterator
+from typing import Any, Iterator
 
 
 # TODO Once we clean up input, get rid of this function
-@contextmanager
-def osp_setup(
-    ifile_hlp: InputFileHelper | None = None,
-) -> Generator[None, None, None]:
-    """Some of the readers assume the OSP is available as "../OSP". We
-    are trying to get away from assuming we are in a run directory
-    whenever we do things, it limits using the code in various
-    contexts.  So this handles things by taking the osp_dir and
-    setting up a temporary directory so things look like muses_py
-    assumes.
-
-    We can perhaps just move the muses-py code over at some point and
-    handle this more cleanly, but for now we do this.
-    """
-    if ifile_hlp is None:
-        ifile_hlp = InputFileHelper()
-    curdir = os.path.abspath(os.path.curdir)
-    try:
-        with tempfile.TemporaryDirectory() as tname:
-            os.chdir(tname)
-            os.symlink(str(ifile_hlp.osp_dir.path_for_muses_py), "OSP")
-            os.mkdir("subdir")
-            os.chdir("./subdir")
-            yield
-    finally:
-        os.chdir(curdir)
-
-
 def greatcircle(
     lat_deg1: float, lon_deg1: float, lat_deg2: float, lon_deg2: float
 ) -> float:
@@ -200,4 +168,4 @@ class ResultIrk(UserDict):
                     self.data[k][k2] = np.array(self.data[k][k2])
 
 
-__all__ = ["osp_setup", "greatcircle", "AttrDictAdapter", "ResultIrk"]
+__all__ = ["greatcircle", "AttrDictAdapter", "ResultIrk"]

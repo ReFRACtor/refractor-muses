@@ -8,7 +8,6 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
-    osp_setup,
 )
 import refractor.framework as rf
 from fixtures.require_check import require_muses_py
@@ -175,6 +174,7 @@ def test_omi_bad_sample(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
 @require_muses_py
 def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
     import refractor.muses_py as mpy
+    from refractor.old_py_retrieve_wrapper import osp_setup
 
     filename_dict = {
         "CLOUD": str(
@@ -257,6 +257,7 @@ def test_tropomi_steps(isolated_dir, ifile_hlp, tropomi_band7_test_in_dir):
 @require_muses_py
 def test_omi_steps(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     import refractor.muses_py as mpy
+    from refractor.old_py_retrieve_wrapper import osp_setup
 
     filename = (
         joint_omi_test_in_dir.parent

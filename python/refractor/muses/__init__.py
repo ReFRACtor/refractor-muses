@@ -97,7 +97,6 @@ from .misc import (
     AttrDictAdapter,
     ResultIrk,
     greatcircle,
-    osp_setup,
 )
 from .muses_airs_observation import (
     MusesAirsObservation,
@@ -506,7 +505,6 @@ __all__ = [
     "modify_strategy_table",
     "mpy_radiance_from_observation_list",
     "order_species",
-    "osp_setup",
     "species_type",
 ]
 

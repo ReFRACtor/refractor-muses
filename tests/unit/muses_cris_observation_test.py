@@ -6,7 +6,6 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
-    osp_setup,
 )
 from fixtures.require_check import require_muses_py
 from fixtures.compare_run import compare_muses_py_dict
@@ -61,6 +60,7 @@ def test_create_muses_cris_observation(
 @require_muses_py
 def test_cris_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     import refractor.muses_py as mpy
+    from refractor.old_py_retrieve_wrapper import osp_setup
 
     filename = (
         joint_tropomi_test_in_dir.parent
@@ -88,6 +88,7 @@ def test_cris_steps(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
 def test_cris_noaa(isolated_dir, ifile_hlp, test_base_path):
     # Test reading a NOAA version of the data
     import refractor.muses_py as mpy
+    from refractor.old_py_retrieve_wrapper import osp_setup
 
     filename = (
         test_base_path

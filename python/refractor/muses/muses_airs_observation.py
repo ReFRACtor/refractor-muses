@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .misc import osp_setup
 from .observation_handle import ObservationHandleSet
 from .muses_observation import (
     MusesObservationImp,
@@ -102,19 +101,18 @@ class MusesAirsObservation(MusesObservationImp):
         f_sd = None
         f_hdf = None
         f_vs = None
-        with osp_setup(ifile_hlp):
-            try:
-                f_sd = ifile_hlp.open_hdf4_sd(filename)
-                f_hdf = ifile_hlp.open_hdf4(filename)
-                f_vs = f_hdf.vstart()
-                o_airs = cls.read_airs_l1b(f_sd, f_hdf, f_vs, bfreq, xtrack, atrack)
-            finally:
-                if f_sd is not None:
-                    f_sd.end()
-                if f_vs is not None:
-                    f_vs.end()
-                if f_hdf is not None:
-                    f_hdf.close()
+        try:
+            f_sd = ifile_hlp.open_hdf4_sd(filename)
+            f_hdf = ifile_hlp.open_hdf4(filename)
+            f_vs = f_hdf.vstart()
+            o_airs = cls.read_airs_l1b(f_sd, f_hdf, f_vs, bfreq, xtrack, atrack)
+        finally:
+            if f_sd is not None:
+                f_sd.end()
+            if f_vs is not None:
+                f_vs.end()
+            if f_hdf is not None:
+                f_hdf.close()
         # Not sure why, but data isn't fully sorted by wavenumber. Go ahead and
         # fix this. Also convert radiance to float64 (it is float32). frequency
         # and NESR are already float64

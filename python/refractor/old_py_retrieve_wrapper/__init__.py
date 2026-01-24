@@ -57,6 +57,7 @@ from .omi_radiance import (  # type: ignore
     OmiRadiancePyRetrieve,
     OmiRadianceToUip,
 )
+from .osp_support import osp_setup
 from .pyretrieve_capture_directory import (
     PyRetrieveCaptureDirectory,
 )

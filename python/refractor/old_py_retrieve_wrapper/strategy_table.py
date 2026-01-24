@@ -6,7 +6,6 @@ from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
-    osp_setup,
     order_species,
     InstrumentIdentifier,
     FilterIdentifier,
@@ -15,6 +14,7 @@ from refractor.muses import (
     InputFilePath,
     InputFileHelper,
 )
+from .osp_support import osp_setup
 from contextlib import contextmanager
 import os
 import numpy as np
