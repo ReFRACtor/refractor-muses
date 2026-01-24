@@ -14,6 +14,8 @@ if typing.TYPE_CHECKING:
         RetrievalType,
         StateElementIdentifier,
         MusesSpectralWindow,
+        RetrievalResult,
+        CurrentState,
     )
 
 # This has various things that we use to have in refractor.muses. We
@@ -172,7 +174,11 @@ def muses_py_register_replacement_function(func_name: str, obj: Any) -> None:
     mpy.register_replacement_function(func_name, obj)
 
 
-def muses_py_plot_results(*args: Any) -> None:
+def muses_py_plot_results(
+    cstate: CurrentState,
+    step_directory: str | os.PathLike[str] | InputFilePath,
+    results: RetrievalResult,
+) -> None:
     """This creates the output plots used in the debug output. This code is
     fairly involved, and I don't think this actually gets used anymore. We
     can bring this over to refractor if needed, but for now just call the old
@@ -180,8 +186,17 @@ def muses_py_plot_results(*args: Any) -> None:
 
     We silently skip the output is we don't have muses_py available. We can change
     this logic if we want to treat this as an error instead."""
+    from refractor.muses_py_fm import FakeStateInfo, FakeRetrievalInfo
+
+    fstate_info = FakeStateInfo(cstate)
+    fretrieval_info = FakeRetrievalInfo(cstate)
     if mpy.have_muses_py:
-        mpy.plot_results(*args)
+        mpy.plot_results(
+            str(step_directory) + "/",
+            results,
+            fretrieval_info,
+            fstate_info,
+        )
 
 
 def muses_py_plot_radiance(*args: Any) -> None:

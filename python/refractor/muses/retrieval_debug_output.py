@@ -1,8 +1,6 @@
 from __future__ import annotations
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
-from .fake_state_info import FakeStateInfo
-from .fake_retrieval_info import FakeRetrievalInfo
 from loguru import logger
 import os
 import pickle
@@ -93,18 +91,15 @@ class RetrievalPlotResult(RetrievalOutput):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
-        fstate_info = FakeStateInfo(self.current_state)
-        fretrieval_info = FakeRetrievalInfo(self.current_state)
         # Just skip if we don't have muses_py. This is a pretty involved function, and
         # I'm not even sure these plots are used anymore. In any case, this is debug output
         # and skipping if we don't have muses-py is pretty reasonable
         from refractor.old_py_retrieve_wrapper import muses_py_plot_results
 
         muses_py_plot_results(
-            str(self.step_directory) + "/",
-            self.results,
-            fretrieval_info,
-            fstate_info,
+            self.current_state,  # type:ignore[arg-type]
+            self.step_directory,
+            self.results,  # type:ignore[arg-type]
         )
 
 

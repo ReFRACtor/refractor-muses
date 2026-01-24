@@ -1,7 +1,5 @@
 from __future__ import annotations
 from .muses_altitude_pge import MusesAltitudePge
-from .fake_state_info import FakeStateInfo
-from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
 import numpy as np
 import typing
@@ -16,6 +14,9 @@ class ColumnResultSummary:
     def __init__(
         self, current_state: CurrentState, error_analysis: ErrorAnalysis
     ) -> None:
+        # Temp, we want to remove this
+        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
+
         self.current_state = current_state
         stateInfo = FakeStateInfo(current_state)
         retrievalInfo = FakeRetrievalInfo(current_state)

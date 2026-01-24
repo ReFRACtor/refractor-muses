@@ -24,8 +24,6 @@ from refractor.muses import (
     AttrDictAdapter,
     InstrumentIdentifier,
     FilterIdentifier,
-    FakeStateInfo,
-    FakeRetrievalInfo,
     RetrievalConfiguration,
     AdapterRetrievalConfiguration,
     CurrentState,
@@ -33,6 +31,8 @@ from refractor.muses import (
     InputFileHelper,
 )
 from .muses_py_call import muses_py_call
+from .fake_retrieval_info import FakeRetrievalInfo
+from .fake_state_info import FakeStateInfo
 import refractor.framework as rf  # type: ignore
 import os
 from loguru import logger

@@ -5,6 +5,12 @@
 from .current_state_uip import (
     CurrentStateUip,
 )
+from .fake_retrieval_info import (
+    FakeRetrievalInfo,
+)
+from .fake_state_info import (
+    FakeStateInfo,
+)
 from .mpy import (
     have_muses_py,
     mpy_atmosphere_level,
@@ -62,6 +68,8 @@ from .uip_updater import (
 __all__ = [
     "AttrDictAdapter",
     "CurrentStateUip",
+    "FakeRetrievalInfo",
+    "FakeStateInfo",
     "MaxAPosterioriSqrtConstraintUpdateUip",
     "MusesAirsForwardModel",
     "MusesCrisForwardModel",

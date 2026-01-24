@@ -1,6 +1,4 @@
 from __future__ import annotations
-from .fake_state_info import FakeStateInfo
-from .fake_retrieval_info import FakeRetrievalInfo
 from .misc import AttrDictAdapter
 import numpy as np
 import math
@@ -11,6 +9,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
+    from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
 
 
 class ErrorAnalysis:
@@ -31,6 +30,9 @@ class ErrorAnalysis:
         current_strategy_step: CurrentStrategyStep,
         retrieval_result: RetrievalResult,
     ) -> None:
+        # Temp, we want to remove this
+        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
+
         # TODO Clean up passing in RetrievalResult, instead we should just pass in the
         # pieces we need.
         fstate_info = FakeStateInfo(current_state)

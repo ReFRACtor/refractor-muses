@@ -1,6 +1,4 @@
 from __future__ import annotations
-from .fake_state_info import FakeStateInfo
-from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
 from .muses_altitude_pge import MusesAltitudePge
 from .misc import AttrDictAdapter
@@ -11,6 +9,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .error_analysis import ErrorAnalysis
     from .current_state import CurrentState
+    from refactor.muses_py_fm import FakeRetrievalInfo
 
 
 # Needs a lot of cleanup, we are just shoving stuff into place
@@ -21,6 +20,9 @@ class CloudResultSummary:
         result_list: np.ndarray,
         error_analysis: ErrorAnalysis,
     ) -> None:
+        # Temp, we want to remove this
+        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
+
         self.current_state = current_state
         stateInfo = FakeStateInfo(self.current_state)
         retrievalInfo = FakeRetrievalInfo(self.current_state)

@@ -1,5 +1,4 @@
 from refractor.muses import (
-    FakeStateInfo,
     MusesOmiObservation,
     MeasurementIdFile,
     RetrievalConfiguration,
@@ -9,7 +8,7 @@ from refractor.muses import (
     MusesAirsObservation,
     MusesCrisObservation,
 )
-from refractor.muses_py_fm import RefractorUip
+from refractor.muses_py_fm import RefractorUip, FakeStateInfo
 from refractor.old_py_retrieve_wrapper import StateInfoOld, CurrentStateStateInfoOld
 import refractor.muses_py as mpy
 from fixtures.require_check import require_muses_py_fm

@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
-from .fake_state_info import FakeStateInfo
 from loguru import logger
 import abc
 import os
@@ -16,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
     from .input_file_helper import InputFileHelper, InputFilePath
+    from refractor.muses_py_fm import FakeStateInfo
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -191,6 +191,9 @@ class MusesPyQaDataHandle(QaDataHandle):
         """This does the QA calculation, and returns the master quality flag
         results. A good result returns "GOOD".
         """
+        # Temp, we want to remove this
+        from refractor.muses_py_fm import FakeStateInfo
+
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         if self.ifile_hlp is None:
             raise RuntimeError("Need to call notify_update_target first")

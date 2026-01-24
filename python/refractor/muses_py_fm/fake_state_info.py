@@ -1,12 +1,10 @@
 from __future__ import annotations
-from .identifier import StateElementIdentifier, InstrumentIdentifier
 import numpy as np
 import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
-    from .muses_observation import MusesObservation
+    from refractor.muses import CurrentState, MusesObservation
 
 
 class FakeStateInfo:
@@ -34,6 +32,8 @@ class FakeStateInfo:
         current_state: CurrentState,
         obs_list: list[MusesObservation] | None = None,
     ):
+        from refractor.muses import StateElementIdentifier, InstrumentIdentifier
+
         self._current: dict[str, Any] = {}
         self._initial: dict[str, Any] = {}
         self._initial_initial: dict[str, Any] = {}
@@ -526,6 +526,8 @@ class FakeStateInfo:
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
+        from refractor.muses import StateElementIdentifier
+
         return self.current_state.state_value(StateElementIdentifier(state_name))[0]
 
     def fill_omi(self, current_state: CurrentState, obs: MusesObservation) -> None:

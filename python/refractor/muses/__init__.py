@@ -44,12 +44,6 @@ from .eof_state_element import (
 from .error_analysis import (
     ErrorAnalysis,
 )
-from .fake_retrieval_info import (
-    FakeRetrievalInfo,
-)
-from .fake_state_info import (
-    FakeStateInfo,
-)
 from .filter_metadata import (
     DictFilterMetadata,
     FileFilterMetadata,
@@ -349,8 +343,6 @@ __all__ = [
     "CurrentStrategyStepDict",
     "DictFilterMetadata",
     "ErrorAnalysis",
-    "FakeRetrievalInfo",
-    "FakeStateInfo",
     "FileFilterMetadata",
     "FilterIdentifier",
     "FilterMetadata",

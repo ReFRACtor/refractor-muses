@@ -1,12 +1,10 @@
 from __future__ import annotations
-from .misc import AttrDictAdapter
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
-    from .identifier import StateElementIdentifier
+    from refractor.muses import CurrentState, StateElementIdentifier, AttrDictAdapter
 
 
 class FakeRetrievalInfo:
@@ -40,6 +38,8 @@ class FakeRetrievalInfo:
         this reformats things so the systematic forward model looks just like the
         forward model. Could do the same thing with some flag handling in the UIP code, but
         this is the way py-retrieve currently has things set up."""
+        from refractor.muses import AttrDictAdapter
+
         return AttrDictAdapter(
             {
                 "parameterStartFM": self.parameterStartSys,
