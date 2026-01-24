@@ -43,7 +43,7 @@ def muses_py_call(
     # For MusesForwardModel, we don't need to be in the rundir. But for a number
     # of old_py_retrieve tests, we do since we are using older code
     change_to_rundir: bool = False,
-    # Normally osswrapper handles setting MUSES_PYOSS_LIBRARY_DIR, since this
+    # Normally oss_handle handles setting MUSES_PYOSS_LIBRARY_DIR, since this
     # is just needed by oss which we normally wrap. But for some old pyretrieve
     # code, we don't do that. So optionally handle MUSES_PYOSS_LIBRARY_DIR here,
     # just for support of old_py_retrieve_wrapper code.

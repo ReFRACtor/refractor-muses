@@ -4,7 +4,7 @@ from refractor.muses import (
     RetrievalConfiguration,
     InstrumentIdentifier,
 )
-from refractor.muses_py_fm import RefractorUip, osswrapper, muses_py_call
+from refractor.muses_py_fm import RefractorUip, oss_handle, muses_py_call
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
     joint_tropomi_residual_fm_jac,
@@ -91,7 +91,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
-        with osswrapper(rf_uip.uip, ifile_hlp):
+        with oss_handle.handle(rf_uip, ifile_hlp):
             (
                 o_radiance2,
                 jac_fm2,
@@ -164,7 +164,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
-        with osswrapper(rf_uip.uip, ifile_hlp):
+        with oss_handle.handle(rf_uip, ifile_hlp):
             (
                 o_radiance2,
                 jac_fm2,

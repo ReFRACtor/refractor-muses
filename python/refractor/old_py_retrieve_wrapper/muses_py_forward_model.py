@@ -5,7 +5,7 @@
 from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
-from refractor.muses_py_fm import RefractorUip, osswrapper, muses_py_call
+from refractor.muses_py_fm import RefractorUip, oss_handle, muses_py_call
 from .replace_function_helper import (
     suppress_replacement,
     register_replacement_function_in_block,
@@ -342,7 +342,7 @@ class RefractorTropOrOmiFmBase:
             include_pyoss=True,
             change_to_rundir=True,
         ):
-            with osswrapper(rf_uip.uip, ifile_hlp):
+            with oss_handle.handle(rf_uip, ifile_hlp):
                 if self.func_name == "tropomi_fm":
                     return self.tropomi_fm(rf_uip.uip_all("TROPOMI"))
                 else:

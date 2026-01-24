@@ -54,6 +54,9 @@ from .muses_py_call import (
     ring_cli_from_path,
     vlidort_cli_from_path,
 )
+from .oss_handle import (
+    oss_handle,
+)
 from .osswrapper import (
     osswrapper,
 )
@@ -107,6 +110,7 @@ __all__ = [
     "mpy_tropomi_fm",
     "mpy_update_uip",
     "muses_py_call",
+    "oss_handle",
     "osswrapper",
     "ring_cli_from_path",
     "vlidort_cli_from_path",

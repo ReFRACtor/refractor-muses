@@ -38,7 +38,7 @@ mpy_omi_fm = partial(muses_py_wrapper_keep, "omi_fm")
 mpy_cli_options = muses_py.cli_options if have_muses_py else None
 mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
 
-# Used in osswrapper, can keep
+# Used in oss_handle, can keep
 mpy_register_observer_function = partial(
     muses_py_wrapper_keep, "register_observer_function"
 )

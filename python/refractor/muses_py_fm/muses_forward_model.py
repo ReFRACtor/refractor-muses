@@ -1,7 +1,7 @@
 from __future__ import annotations
-from .mpy import mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
+from .mpy import mpy_tropomi_fm, mpy_omi_fm
 from .muses_py_call import muses_py_call
-from .osswrapper import osswrapper
+from .oss_handle import oss_handle
 from refractor.muses import (
     ForwardModelHandle,
     ForwardModelHandleSet,
@@ -210,8 +210,8 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
-        with osswrapper(self.rf_uip.uip, self.rconf.input_file_helper):
-            rad, jac = mpy_fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
+        with oss_handle.handle(self.rf_uip, self.rconf.input_file_helper) as ohandle:
+            rad, jac = ohandle.radiance_and_jacobian(self.instrument_name)
         # This is for the full set of frequences that fm_oss_stack works with
         # (which of course includes bad samples)
         gmask = self.bad_sample_mask(sensor_index) != True

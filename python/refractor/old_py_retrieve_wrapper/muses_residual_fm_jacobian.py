@@ -9,7 +9,7 @@ from refractor.muses import (
 )
 from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
 from .replace_function_helper import register_replacement_function_in_block
-from refractor.muses_py_fm import osswrapper, muses_py_call
+from refractor.muses_py_fm import oss_handle, muses_py_call, RefractorUip
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import logging
@@ -71,7 +71,7 @@ class MusesResidualFmJacobian:
         with muses_py_call(
             self.run_dir, vlidort_nstokes=vlidort_nstokes, include_pyoss=True
         ):
-            with osswrapper(self.params["uip"], ifile_hlp):
+            with oss_handle.handle(RefractorUip(self.params["uip"]), ifile_hlp):
                 return mpy.residual_fm_jacobian(**self.params)
 
     @classmethod

@@ -49,8 +49,12 @@ def test_retrieval_strategy_cris_tropomi(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
-        writeOutput=True,
-        writePlots=True,
+        # Nice to test the diagnostic stuff, but this adds about 30 seconds
+        # to the run and isn't actually used in determining if our output is
+        # good. Normally have this turned off, and we test the plotting etc.
+        # Separately.
+        # writeOutput=True,
+        # writePlots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
@@ -115,8 +119,8 @@ def test_retrieval_cris(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
-        writeOutput=True,
-        writePlots=True,
+        # writeOutput=True,
+        # writePlots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
