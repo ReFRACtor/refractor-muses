@@ -12,10 +12,11 @@ import refractor.framework as rf
 rf.Logger.set_implementation(rf.FpLogger())
 
 rs = RetrievalStrategy(None)
-rs.forward_model_handle_set.add_handle(TropomiForwardModelHandle(use_pca=True,
+if True:
+    rs.forward_model_handle_set.add_handle(TropomiForwardModelHandle(use_pca=True,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)
-rs.forward_model_handle_set.add_handle(OmiForwardModelHandle(use_pca=True,
+    rs.forward_model_handle_set.add_handle(OmiForwardModelHandle(use_pca=True,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)
 if False:

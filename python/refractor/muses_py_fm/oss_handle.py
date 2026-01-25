@@ -8,6 +8,8 @@ from .mpy import (
     mpy_fm_oss_windows,
     mpy_fm_oss_delete,
     mpy_fm_oss_stack,
+    mpy_redo_fm_oss_init,
+    
 )
 from contextlib import contextmanager
 
@@ -62,9 +64,11 @@ class WatchOss:
 
     def notify_function_call(self, func_name: str, parms: dict[str, Any]) -> None:
         if func_name == "fm_oss_init":
-            oss_handle.have_oss = True
+            oss_handle.have_oss_py_retrieve = True
             oss_handle.first_oss_initialize = False
+            breakpoint()
         elif func_name == "fm_oss_delete":
+            oss_handle.have_oss_py_retrieve = False
             oss_handle.have_oss = False
 
 
@@ -115,7 +119,10 @@ class OssHandle:
         # initialized or not. Also, we need special handling for the first time
         # fm_oss_init is called.
         self.have_oss = False
-        self.first_oss_initialize = False
+        self.first_oss_initialize = True
+        # We also want to stay out of the way if we are calling thing through
+        # py-retrieve, which handles is for us
+        self.have_oss_py_retrieve = False
         # Used by fm_oss_load to point to the pyoss library.
         # This is a wrapper, that is created in py-retrieve
         # (in setup.py, as a C extension). We determine the
@@ -145,63 +152,56 @@ class OssHandle:
                 break
         if inst is None:
             return
-        # While developing, skip suppression so real errors don't
-        # disappear
-        # with suppress_stdout():
-        if True:
-            self.rf_uip.uip.pop("frequencyList", None)
-            uip_all = self.rf_uip.uip_all(InstrumentIdentifier(inst))
-            # Special handling for the first time through, working
-            # around what is a bug or "feature" of the OSS code
-            if self.first_oss_initialize:
-                with suppress_replacement("fm_oss_init"):
-                    (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
-                        AttrDictAdapter(uip_all),
-                        inst,
-                        i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
-                    )
-                mpy_fm_oss_windows(AttrDictAdapter(uip_all))
-                with suppress_replacement("fm_oss_delete"):
-                    mpy_fm_oss_delete()
+        self.rf_uip.uip.pop("frequencyList", None)
+        uip_all = self.rf_uip.uip_all(InstrumentIdentifier(inst))
+        t = {'jacobians': uip_all["jacobians"],
+             'atmosphere_params' : uip_all["atmosphere_params"],
+             'atmosphere' : np.empty(uip_all["atmosphere"].shape),
+             'emissivity' : {'frequency' : np.empty(uip_all["emissivity"]["frequency"].shape)},
+             }
+        if inst == "CRIS":
+            t['crisPars'] = {"l1bType" : uip_all["crisPars"]["l1bType"] }
+        with suppress_replacement("fm_oss_init"), suppress_stdout():
+            (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
+                AttrDictAdapter(t),
+                inst,
+                i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
+            )
+        self.rf_uip.uip["oss_jacobianList"] = jacobianList
+        self.rf_uip.uip["oss_frequencyListFull"] = frequencyListFullOSS
+        self.oss_dir_lut = t["oss_dir_lut"]
+        self.oss_jacobianList = jacobianList
+        self.oss_frequencyListFull = frequencyListFullOSS
+        # List of files used by fm_oss_init
+        for t2 in ("sel_file", "od_file", "sol_file", "fix_file", "chsel_file"):
+            fname = t[t2]
+            if fname != "NULL":
+                self.ifile_hlp.notify_file_input(fname)
+        # Special handling for the first time through, working
+        # around what is a bug or "feature" of the OSS code
+        if self.first_oss_initialize:
+            with suppress_replacement("fm_oss_init"), suppress_stdout():
+                mpy_redo_fm_oss_init(AttrDictAdapter(t))
                 self.first_oss_initialize = False
-            with suppress_replacement("fm_oss_init"):
-                (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
-                    AttrDictAdapter(uip_all),
-                    inst,
-                    i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
-                )
-                self.rf_uip.uip["oss_jacobianList"] = jacobianList
-            # This can potentially change oss_frequencyList.
-            # Neither py-retrieve or refractor is set up to handle
-            # that.
-            mpy_fm_oss_windows(AttrDictAdapter(uip_all))
-            flen = len(uip_all["frequencyList"])
-            flen2 = len(uip_all["oss_frequencyList"])
-            if flen != flen2:
-                raise RuntimeError(
-                    "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
-                )
-            self.have_oss = True
+        # This can potentially change oss_frequencyList.
+        # Neither py-retrieve or refractor is set up to handle
+        # that.
+        uip_all = self.rf_uip.uip_all(InstrumentIdentifier(inst))
+        mpy_fm_oss_windows(AttrDictAdapter(uip_all))
+        self.oss_frequencyList = uip_all["oss_frequencyList"]
+        flen = len(uip_all["frequencyList"])
+        flen2 = len(uip_all["oss_frequencyList"])
+        if flen != flen2:
+            raise RuntimeError(
+                "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
+            )
+        self.have_oss = True
 
         if uip_all is not None:
-            self.oss_dir_lut = uip_all["oss_dir_lut"]
-            self.oss_jacobianList = uip_all["oss_jacobianList"]
-            self.oss_frequencyList = uip_all["oss_frequencyList"]
-            self.oss_frequencyListFull = uip_all["oss_frequencyListFull"]
             self.rf_uip.uip["oss_dir_lut"] = self.oss_dir_lut
             self.rf_uip.uip["oss_jacobianList"] = self.oss_jacobianList
             self.rf_uip.uip["oss_frequencyList"] = self.oss_frequencyList
             self.rf_uip.uip["oss_frequencyListFull"] = self.oss_frequencyListFull
-            # List of files used by fm_oss_init
-            for t in ("sel_file", "od_file", "sol_file", "fix_file", "chsel_file"):
-                fname = uip_all[t]
-                if fname != "NULL":
-                    self.ifile_hlp.notify_file_input(fname)
-        else:
-            self.oss_dir_lut = None
-            self.oss_jacobianList = None
-            self.oss_frequencyList = None
-            self.oss_frequencyListFull = None
 
     @contextmanager
     def handle(
@@ -215,7 +215,8 @@ class OssHandle:
             self.ifile_hlp = ifile_hlp
         self.rf_uip = rf_uip
         assert ifile_hlp is not None
-        self.initialize_oss()
+        if not self.have_oss_py_retrieve:
+            self.initialize_oss()
         yield self
 
     def radiance_and_jacobian(

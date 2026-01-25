@@ -81,6 +81,7 @@ if have_muses_py:
     from py_retrieve.app.tools.convolve import *  # type: ignore
     from py_retrieve.app.tools import *  # type: ignore
     from py_retrieve.app.omi_setup import *  # type: ignore
+    from py_retrieve.app.fm_oss.fm_oss_init import *  # type: ignore
 
 del _broken
 del _i
