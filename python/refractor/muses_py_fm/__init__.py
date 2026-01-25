@@ -57,9 +57,6 @@ from .muses_py_call import (
 from .oss_handle import (
     oss_handle,
 )
-from .osswrapper import (
-    osswrapper,
-)
 from .refractor_uip import (
     AttrDictAdapter,
     RefractorUip,
@@ -111,7 +108,6 @@ __all__ = [
     "mpy_update_uip",
     "muses_py_call",
     "oss_handle",
-    "osswrapper",
     "ring_cli_from_path",
     "vlidort_cli_from_path",
 ]
