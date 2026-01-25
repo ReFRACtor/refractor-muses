@@ -137,41 +137,55 @@ class OssHandle:
         *always* cleans up and recreates the OSSWrapper data."""
         from refractor.muses import AttrDictAdapter, InstrumentIdentifier
 
+        cris_l1b_type = ''
+        if InstrumentIdentifier("CRIS") in self.rf_uip.instrument:
+            jacobians = self.rf_uip.uip["uip_CRIS"]["jacobians"]
+            frequency_list = self.rf_uip.uip["uip_CRIS"]["frequencyList"]
+            cris_l1b_type = self.rf_uip.uip["crisPars"]["l1bType"]
+            inst = InstrumentIdentifier("CRIS")
+        elif InstrumentIdentifier("AIRS") in self.rf_uip.instrument:
+            jacobians = self.rf_uip.uip["uip_AIRS"]["jacobians"]
+            frequency_list = self.rf_uip.uip["uip_AIRS"]["frequencyList"]
+            inst = InstrumentIdentifier("AIRS")
+        elif InstrumentIdentifier("TES") in self.rf_uip.instrument:
+            jacobians = self.rf_uip.uip["uip_TES"]["jacobians"]
+            frequency_list = self.rf_uip.uip["uip_TES"]["frequencyList"]
+            inst = InstrumentIdentifier("TES")
+        else:
+            # Don't recognize the instrument, so we can't initialize OSS
+            return
+        atmosphere_params = self.rf_uip.uip["atmosphere_params"]
+        nlevels = self.rf_uip.uip["atmosphere"].shape[1]
+        nfreq = self.rf_uip.uip["emissivity"]["frequency"].shape[0]
+        self.oss_init(inst, jacobians, atmosphere_params, nlevels, nfreq, cris_l1b_type)
+        self.oss_window(frequency_list, self.oss_frequency_list_full)
+        self.rf_uip.uip["oss_dir_lut"] = self.oss_dir_lut
+        self.rf_uip.uip["oss_jacobianList"] = self.oss_jacobian_list
+        self.rf_uip.uip["oss_frequencyListFull"] = self.oss_frequency_list_full
+        self.rf_uip.uip["oss_frequencyList"] = self.oss_frequency_list
+        self.have_oss = True
+
+    def oss_init(self, inst : InstrumentIdentifier, jacobians : list[str], atmosphere_params: list[str], nlevels: int,
+                 nfreq: int, cris_l1b_type : str) -> None:
+        from refractor.muses import AttrDictAdapter
+        
         if self.have_oss:
             with suppress_replacement("fm_oss_delete"):
                 mpy_fm_oss_delete()
             self.have_oss = False
-        uip_all = None
-        inst = None
-        for iv in ("CRIS", "AIRS", "TES"):
-            # I don't think the logic here is correct if we have multiple
-            # instruments. But I don't think we ever have more than one,
-            # so we can just assume that here. Revisit if needed.
-            if f"uip_{iv}" in self.rf_uip.uip:
-                inst = iv
-                break
-        if inst is None:
-            return
-        self.rf_uip.uip.pop("frequencyList", None)
-        uip_all = self.rf_uip.uip_all(InstrumentIdentifier(inst))
-        t = {'jacobians': uip_all["jacobians"],
-             'atmosphere_params' : uip_all["atmosphere_params"],
-             'atmosphere' : np.empty(uip_all["atmosphere"].shape),
-             'emissivity' : {'frequency' : np.empty(uip_all["emissivity"]["frequency"].shape)},
+        t = {'jacobians': jacobians,
+             'atmosphere_params' : atmosphere_params,
+             'atmosphere' : np.empty((1, nlevels)),
+             'emissivity' : {'frequency' : np.empty((nfreq,))},
+              'crisPars' : {'l1bType' : cris_l1b_type}
              }
-        if inst == "CRIS":
-            t['crisPars'] = {"l1bType" : uip_all["crisPars"]["l1bType"] }
         with suppress_replacement("fm_oss_init"), suppress_stdout():
-            (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
+            (_, self.oss_frequency_list_full, self.oss_jacobian_list) = mpy_fm_oss_init(
                 AttrDictAdapter(t),
-                inst,
+                str(inst),
                 i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
             )
-        self.rf_uip.uip["oss_jacobianList"] = jacobianList
-        self.rf_uip.uip["oss_frequencyListFull"] = frequencyListFullOSS
         self.oss_dir_lut = t["oss_dir_lut"]
-        self.oss_jacobianList = jacobianList
-        self.oss_frequencyListFull = frequencyListFullOSS
         # List of files used by fm_oss_init
         for t2 in ("sel_file", "od_file", "sol_file", "fix_file", "chsel_file"):
             fname = t[t2]
@@ -183,25 +197,20 @@ class OssHandle:
             with suppress_replacement("fm_oss_init"), suppress_stdout():
                 mpy_redo_fm_oss_init(AttrDictAdapter(t))
                 self.first_oss_initialize = False
-        # This can potentially change oss_frequencyList.
-        # Neither py-retrieve or refractor is set up to handle
-        # that.
-        uip_all = self.rf_uip.uip_all(InstrumentIdentifier(inst))
-        mpy_fm_oss_windows(AttrDictAdapter(uip_all))
-        self.oss_frequencyList = uip_all["oss_frequencyList"]
-        flen = len(uip_all["frequencyList"])
-        flen2 = len(uip_all["oss_frequencyList"])
-        if flen != flen2:
+
+    def oss_window(self, frequency_list: list[float], oss_frequency_list_full : np.ndarray) -> None:
+        from refractor.muses import AttrDictAdapter
+        
+        t = {"frequencyList" : frequency_list,
+             "oss_frequencyListFull" : oss_frequency_list_full}
+        mpy_fm_oss_windows(AttrDictAdapter(t))
+        self.frequency_list = frequency_list
+        self.oss_frequency_list = t["oss_frequencyList"]
+        if len(self.frequency_list) != len(self.oss_frequency_list):
             raise RuntimeError(
                 "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
             )
-        self.have_oss = True
-
-        if uip_all is not None:
-            self.rf_uip.uip["oss_dir_lut"] = self.oss_dir_lut
-            self.rf_uip.uip["oss_jacobianList"] = self.oss_jacobianList
-            self.rf_uip.uip["oss_frequencyList"] = self.oss_frequencyList
-            self.rf_uip.uip["oss_frequencyListFull"] = self.oss_frequencyListFull
+        
 
     @contextmanager
     def handle(
