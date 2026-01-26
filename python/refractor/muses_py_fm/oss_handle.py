@@ -9,7 +9,6 @@ from .mpy import (
     mpy_fm_oss_delete,
     mpy_fm_oss_stack,
     mpy_redo_fm_oss_init,
-    
 )
 from contextlib import contextmanager
 
@@ -115,6 +114,7 @@ class OssHandle:
     """
 
     def __init__(self) -> None:
+        from refractor.muses import InstrumentIdentifier
         # Because OSSWrapper in muses_oss is global, we need to know if one has been
         # initialized or not. Also, we need special handling for the first time
         # fm_oss_init is called.
@@ -130,14 +130,25 @@ class OssHandle:
         # it here. Kind of a round about way, but this is deep
         # in py-retrieve and we don't want to change how it works.
         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy_pyoss_dir
+        self.oss_dir_lut = ''
+        self.oss_jacobian_list: list[str] = []
+        self.oss_frequency_list_full = np.empty((0,))
+        self.oss_frequency_list = np.empty((0,))
+        self.frequency_list : np.empty((0,))
+        self.inst = InstrumentIdentifier("None")
+        self.jacobians: list[str] = []
+        self.atmosphere_params: list[str] = []
+        self.nlevels = -1
+        self.nfreq = -1
+        self.cris_l1b_type = ''
 
     def initialize_oss(self) -> None:
         """Do the initialization for oss. This deletes any existing oss, so the logic
         of if we do this or not gets handled at a higher level - initialize_oss
         *always* cleans up and recreates the OSSWrapper data."""
-        from refractor.muses import AttrDictAdapter, InstrumentIdentifier
+        from refractor.muses import InstrumentIdentifier
 
-        cris_l1b_type = ''
+        cris_l1b_type = ""
         if InstrumentIdentifier("CRIS") in self.rf_uip.instrument:
             jacobians = self.rf_uip.uip["uip_CRIS"]["jacobians"]
             frequency_list = self.rf_uip.uip["uip_CRIS"]["frequencyList"]
@@ -165,20 +176,49 @@ class OssHandle:
         self.rf_uip.uip["oss_frequencyList"] = self.oss_frequency_list
         self.have_oss = True
 
-    def oss_init(self, inst : InstrumentIdentifier, jacobians : list[str], atmosphere_params: list[str], nlevels: int,
-                 nfreq: int, cris_l1b_type : str) -> None:
+    def oss_init(
+        self,
+        inst: InstrumentIdentifier,
+        jacobians: list[str],
+        atmosphere_params: list[str],
+        nlevels: int,
+        nfreq: int,
+        cris_l1b_type: str,
+    ) -> None:
         from refractor.muses import AttrDictAdapter
-        
+
+        # Check if we already have oss, and if all the arguments are the same as
+        # the last time we were called. If so, we can skip actually doing the
+        # initialization
+        if (
+            self.have_oss
+            and self.inst == inst
+            and self.jacobians == list(jacobians)
+            and self.atmosphere_params == list(atmosphere_params)
+            and self.nlevels == nlevels
+            and self.nfreq == nfreq
+            and self.cris_l1b_type == cris_l1b_type
+        ):
+            self.skipped_init = True
+            return
+        self.skipped_init = False
+        self.inst = inst
+        self.jacobians = list(jacobians)
+        self.atmosphere_params = list(atmosphere_params)
+        self.nlevels = nlevels
+        self.nfreq = nfreq
+        self.cris_l1b_type = cris_l1b_type
         if self.have_oss:
             with suppress_replacement("fm_oss_delete"):
                 mpy_fm_oss_delete()
             self.have_oss = False
-        t = {'jacobians': jacobians,
-             'atmosphere_params' : atmosphere_params,
-             'atmosphere' : np.empty((1, nlevels)),
-             'emissivity' : {'frequency' : np.empty((nfreq,))},
-              'crisPars' : {'l1bType' : cris_l1b_type}
-             }
+        t : dict[str, Any] = {
+            "jacobians": jacobians,
+            "atmosphere_params": atmosphere_params,
+            "atmosphere": np.empty((1, nlevels)),
+            "emissivity": {"frequency": np.empty((nfreq,))},
+            "crisPars": {"l1bType": cris_l1b_type},
+        }
         with suppress_replacement("fm_oss_init"), suppress_stdout():
             (_, self.oss_frequency_list_full, self.oss_jacobian_list) = mpy_fm_oss_init(
                 AttrDictAdapter(t),
@@ -198,11 +238,19 @@ class OssHandle:
                 mpy_redo_fm_oss_init(AttrDictAdapter(t))
                 self.first_oss_initialize = False
 
-    def oss_window(self, frequency_list: list[float], oss_frequency_list_full : np.ndarray) -> None:
+    def oss_window(
+        self, frequency_list: np.ndarray, oss_frequency_list_full: np.ndarray
+    ) -> None:
         from refractor.muses import AttrDictAdapter
-        
-        t = {"frequencyList" : frequency_list,
-             "oss_frequencyListFull" : oss_frequency_list_full}
+
+        # If we didn't reinitialize the data, and the frequency_list is the same as the
+        # last call, we can skip setting the windows again
+        if self.skipped_init and np.allclose(frequency_list, self.frequency_list):
+            return
+        t : dict[str, Any] = {
+            "frequencyList": frequency_list,
+            "oss_frequencyListFull": oss_frequency_list_full,
+        }
         mpy_fm_oss_windows(AttrDictAdapter(t))
         self.frequency_list = frequency_list
         self.oss_frequency_list = t["oss_frequencyList"]
@@ -210,7 +258,6 @@ class OssHandle:
             raise RuntimeError(
                 "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
             )
-        
 
     @contextmanager
     def handle(
