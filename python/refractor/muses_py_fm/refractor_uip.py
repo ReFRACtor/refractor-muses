@@ -1760,7 +1760,7 @@ class RefractorUip:
         cls,
         i_stateInfo: dict[str, Any] | AttrDictAdapter | FakeStateInfo,
         i_strategy_table: dict[str, Any],
-        i_windows: list[Any],
+        i_windows_in: list[Any],
         i_retrievalInfo: dict[str, Any] | AttrDictAdapter | FakeRetrievalInfo,
         i_airs: MusesObservation | None,
         i_tes: MusesObservation | None,
@@ -1779,37 +1779,37 @@ class RefractorUip:
         This can be used instead of angles found in i_stateInfo. This is used
         by the IRK calculation.
         """
-        i_windows = copy.deepcopy(i_windows)
         # Filter to only include the desired instrument
         if only_create_instrument is not None:
             i_windows = [
-                w for w in i_windows if w["instrument"] == str(only_create_instrument)
+                w
+                for w in i_windows_in
+                if w["instrument"] == str(only_create_instrument)
             ]
+        else:
+            i_windows = i_windows_in
         # Bit if a kludge here, but we adjust the windows for the CRIS instrument
         if i_cris is not None:
             for win in i_windows:
                 if win["instrument"] == "CRIS":  # EM - Necessary for joint retrievals
                     i_cris.window_fix_for_uip(win)
 
-        # Temp, we are sorting out the interface of i_retrievalInfo
         if hasattr(i_retrievalInfo, "retrieval_info_obj"):
-            retrieval_info = copy.deepcopy(i_retrievalInfo.retrieval_info_obj)
+            retrieval_info = i_retrievalInfo.retrieval_info_obj
+        elif isinstance(i_retrievalInfo, dict):
+            retrieval_info = AttrDictAdapter(i_retrievalInfo)
         else:
-            retrieval_info = copy.deepcopy(i_retrievalInfo)
-            if isinstance(retrieval_info, dict):
-                retrieval_info = AttrDictAdapter(retrieval_info)
-        # Temp, and also with i_stateInfo
+            retrieval_info = i_retrievalInfo
         if hasattr(i_stateInfo, "state_info_obj"):
-            i_state = copy.deepcopy(i_stateInfo.state_info_obj)
+            i_state = i_stateInfo.state_info_obj
+        elif isinstance(i_stateInfo, dict):
+            i_state = AttrDictAdapter(i_stateInfo)
         else:
-            i_state = copy.deepcopy(i_stateInfo)
-            if isinstance(i_state, dict):
-                i_state = AttrDictAdapter(i_state)
-        # Temp, and also with i_table
+            i_state = i_stateInfo
         if hasattr(i_strategy_table, "strategy_table_dict"):
-            i_table = copy.deepcopy(i_strategy_table.strategy_table_dict)
+            i_table = i_strategy_table.strategy_table_dict
         else:
-            i_table = copy.deepcopy(i_strategy_table)
+            i_table = i_strategy_table
 
         jacobian_speciesNames = retrieval_info.species[0 : retrieval_info.n_species]
 
@@ -1871,42 +1871,34 @@ class RefractorUip:
                 if retrieval_info.mapType[i] == "linear"
                 and retrieval_info.species[i] not in ("EMIS", "TSUR", "TATM")
             ]
-            uip["speciesList"] = copy.deepcopy(
-                retrieval_info.speciesList[0 : retrieval_info.n_totalParameters]
-            )
-            uip["speciesListFM"] = copy.deepcopy(
-                retrieval_info.speciesListFM[0 : retrieval_info.n_totalParametersFM]
-            )
-            uip["mapTypeListFM"] = copy.deepcopy(
-                retrieval_info.mapTypeListFM[0 : retrieval_info.n_totalParametersFM]
-            )
-            uip["initialGuessListFM"] = copy.deepcopy(
-                retrieval_info.initialGuessListFM[
-                    0 : retrieval_info.n_totalParametersFM
-                ]
-            )
-            uip["constraintVectorListFM"] = copy.deepcopy(
-                retrieval_info.constraintVectorListFM[
-                    0 : retrieval_info.n_totalParametersFM
-                ]
-            )  # only needed for PCA map type.
+            uip["speciesList"] = retrieval_info.speciesList[
+                0 : retrieval_info.n_totalParameters
+            ]
+            uip["speciesListFM"] = retrieval_info.speciesListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]
+            uip["mapTypeListFM"] = retrieval_info.mapTypeListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]
+            uip["initialGuessListFM"] = retrieval_info.initialGuessListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]
+            uip["constraintVectorListFM"] = retrieval_info.constraintVectorListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]  # only needed for PCA map type.
         else:
             uip["jacobiansLinear"] = [""]
-            uip["speciesList"] = copy.deepcopy(retrieval_info.speciesList)
-            uip["speciesListFM"] = copy.deepcopy(retrieval_info.speciesListFM)
-            uip["mapTypeListFM"] = copy.deepcopy(
-                retrieval_info.mapTypeListFM[0 : retrieval_info.n_totalParametersFM]
-            )
-            uip["initialGuessListFM"] = copy.deepcopy(
-                retrieval_info.initialGuessListFM[
-                    0 : retrieval_info.n_totalParametersFM
-                ]
-            )
-            uip["constraintVectorListFM"] = copy.deepcopy(
-                retrieval_info.constraintVectorListFM[
-                    0 : retrieval_info.n_totalParametersFM
-                ]
-            )  # only needed for PCA map type.
+            uip["speciesList"] = retrieval_info.speciesList
+            uip["speciesListFM"] = retrieval_info.speciesListFM
+            uip["mapTypeListFM"] = retrieval_info.mapTypeListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]
+            uip["initialGuessListFM"] = retrieval_info.initialGuessListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]
+            uip["constraintVectorListFM"] = retrieval_info.constraintVectorListFM[
+                0 : retrieval_info.n_totalParametersFM
+            ]  # only needed for PCA map type.
         uip["microwindows_all"] = i_windows
         # Basis matrix if available, this isn't in run_forward_model.
         if (

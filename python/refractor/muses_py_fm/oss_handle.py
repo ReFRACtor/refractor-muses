@@ -116,6 +116,7 @@ class OssHandle:
 
     def __init__(self) -> None:
         from refractor.muses import InstrumentIdentifier
+
         # Because OSSWrapper in muses_oss is global, we need to know if one has been
         # initialized or not. Also, we need special handling for the first time
         # fm_oss_init is called.
@@ -131,17 +132,17 @@ class OssHandle:
         # it here. Kind of a round about way, but this is deep
         # in py-retrieve and we don't want to change how it works.
         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy_pyoss_dir
-        self.oss_dir_lut = ''
+        self.oss_dir_lut = ""
         self.oss_jacobian_list: list[str] = []
         self.oss_frequency_list_full = np.empty((0,))
         self.oss_frequency_list = np.empty((0,))
-        self.frequency_list : np.empty((0,))
+        self.frequency_list = np.empty((0,))
         self.inst = InstrumentIdentifier("None")
         self.jacobians: list[str] = []
         self.atmosphere_params: list[str] = []
         self.nlevels = -1
         self.nfreq = -1
-        self.cris_l1b_type = ''
+        self.cris_l1b_type = ""
 
     def initialize_oss(self) -> None:
         """Do the initialization for oss. This deletes any existing oss, so the logic
@@ -204,16 +205,16 @@ class OssHandle:
             # the initialization of the OSS turns out to be a bottle neck and it
             # much faster to just update the jacobians w/o doing the full initialization.
             if self.jacobians != list(jacobians):
-                t : dict[str, Any] = {
+                t1: dict[str, Any] = {
                     "jacobians": jacobians,
                     "atmosphere_params": atmosphere_params,
                     "atmosphere": np.empty((1, nlevels)),
                 }
-                self.oss_jacobian_list = mpy_fm_oss_update_jac(AttrDictAdapter(t))
+                self.oss_jacobian_list = mpy_fm_oss_update_jac(AttrDictAdapter(t1))
                 self.jacobians = list(jacobians)
             self.skipped_init = True
             return
-            
+
         self.skipped_init = False
         self.inst = inst
         self.jacobians = list(jacobians)
@@ -225,14 +226,14 @@ class OssHandle:
             with suppress_replacement("fm_oss_delete"):
                 mpy_fm_oss_delete()
             self.have_oss = False
-        t : dict[str, Any] = {
+        t: dict[str, Any] = {
             "jacobians": jacobians,
             "atmosphere_params": atmosphere_params,
             "atmosphere": np.empty((1, nlevels)),
             "emissivity": {"frequency": np.empty((nfreq,))},
             "crisPars": {"l1bType": cris_l1b_type},
         }
-        
+
         # **********************************************************************
         # Important NOTE: If you set a breakpoint or something in this block,
         # make *sure* to remove the suppress_stdout in the call to this function.
@@ -268,13 +269,17 @@ class OssHandle:
 
         # If we didn't reinitialize the data, and the frequency_list is the same as the
         # last call, we can skip setting the windows again
-        if self.skipped_init and frequency_list.shape == self.frequency_list.shape and np.allclose(frequency_list, self.frequency_list):
+        if (
+            self.skipped_init
+            and frequency_list.shape == self.frequency_list.shape
+            and np.allclose(frequency_list, self.frequency_list)
+        ):
             return
-        t : dict[str, Any] = {
+        t: dict[str, Any] = {
             "frequencyList": frequency_list,
             "oss_frequencyListFull": oss_frequency_list_full,
         }
-        if(self.skipped_init):
+        if self.skipped_init:
             mpy_fm_oss_reload_windows(AttrDictAdapter(t))
         else:
             mpy_fm_oss_windows(AttrDictAdapter(t))
