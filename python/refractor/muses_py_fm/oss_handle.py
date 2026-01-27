@@ -5,7 +5,9 @@ from .mpy import (
     mpy_register_replacement_function,
     mpy_pyoss_dir,
     mpy_fm_oss_init,
+    mpy_fm_oss_update_jac,
     mpy_fm_oss_windows,
+    mpy_fm_oss_reload_windows,
     mpy_fm_oss_delete,
     mpy_fm_oss_stack,
     mpy_redo_fm_oss_init,
@@ -65,7 +67,6 @@ class WatchOss:
         if func_name == "fm_oss_init":
             oss_handle.have_oss_py_retrieve = True
             oss_handle.first_oss_initialize = False
-            breakpoint()
         elif func_name == "fm_oss_delete":
             oss_handle.have_oss_py_retrieve = False
             oss_handle.have_oss = False
@@ -193,14 +194,26 @@ class OssHandle:
         if (
             self.have_oss
             and self.inst == inst
-            and self.jacobians == list(jacobians)
             and self.atmosphere_params == list(atmosphere_params)
             and self.nlevels == nlevels
             and self.nfreq == nfreq
             and self.cris_l1b_type == cris_l1b_type
         ):
+            # The most common change (what happens in a retrieval) is that only
+            # the jacobians change. We have special handling for this, because
+            # the initialization of the OSS turns out to be a bottle neck and it
+            # much faster to just update the jacobians w/o doing the full initialization.
+            if self.jacobians != list(jacobians):
+                t : dict[str, Any] = {
+                    "jacobians": jacobians,
+                    "atmosphere_params": atmosphere_params,
+                    "atmosphere": np.empty((1, nlevels)),
+                }
+                self.oss_jacobian_list = mpy_fm_oss_update_jac(AttrDictAdapter(t))
+                self.jacobians = list(jacobians)
             self.skipped_init = True
             return
+            
         self.skipped_init = False
         self.inst = inst
         self.jacobians = list(jacobians)
@@ -219,12 +232,22 @@ class OssHandle:
             "emissivity": {"frequency": np.empty((nfreq,))},
             "crisPars": {"l1bType": cris_l1b_type},
         }
+        
+        # **********************************************************************
+        # Important NOTE: If you set a breakpoint or something in this block,
+        # make *sure* to remove the suppress_stdout in the call to this function.
+        # I've got hit by this several times, and tried to figure out why
+        # the programs hangs - waiting for a pdb that never shows up on the
+        # terminal because we have suppressed stdout
+        # **********************************************************************
+
         with suppress_replacement("fm_oss_init"), suppress_stdout():
             (_, self.oss_frequency_list_full, self.oss_jacobian_list) = mpy_fm_oss_init(
                 AttrDictAdapter(t),
                 str(inst),
                 i_osp_dir=self.ifile_hlp.osp_dir.path_for_muses_py,
             )
+
         self.oss_dir_lut = t["oss_dir_lut"]
         # List of files used by fm_oss_init
         for t2 in ("sel_file", "od_file", "sol_file", "fix_file", "chsel_file"):
@@ -245,13 +268,16 @@ class OssHandle:
 
         # If we didn't reinitialize the data, and the frequency_list is the same as the
         # last call, we can skip setting the windows again
-        if self.skipped_init and np.allclose(frequency_list, self.frequency_list):
+        if self.skipped_init and frequency_list.shape == self.frequency_list.shape and np.allclose(frequency_list, self.frequency_list):
             return
         t : dict[str, Any] = {
             "frequencyList": frequency_list,
             "oss_frequencyListFull": oss_frequency_list_full,
         }
-        mpy_fm_oss_windows(AttrDictAdapter(t))
+        if(self.skipped_init):
+            mpy_fm_oss_reload_windows(AttrDictAdapter(t))
+        else:
+            mpy_fm_oss_windows(AttrDictAdapter(t))
         self.frequency_list = frequency_list
         self.oss_frequency_list = t["oss_frequencyList"]
         if len(self.frequency_list) != len(self.oss_frequency_list):

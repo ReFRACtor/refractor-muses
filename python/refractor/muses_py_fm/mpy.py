@@ -44,8 +44,10 @@ mpy_register_observer_function = partial(
 )
 mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
 mpy_fm_oss_init = partial(muses_py_wrapper_keep, "fm_oss_init")
+mpy_fm_oss_update_jac = partial(muses_py_wrapper_keep, "fm_oss_update_jac")
 mpy_redo_fm_oss_init = partial(muses_py_wrapper_keep, "redo_fm_oss_init")
 mpy_fm_oss_windows = partial(muses_py_wrapper_keep, "fm_oss_windows")
+mpy_fm_oss_reload_windows = partial(muses_py_wrapper_keep, "fm_oss_reload_windows")
 mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
 
 # Used by refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
@@ -79,9 +81,11 @@ __all__ = [
     "mpy_cli_options",
     "mpy_fm_oss_delete",
     "mpy_fm_oss_init",
+    "mpy_fm_oss_update_jac",
     "mpy_redo_fm_oss_init",
     "mpy_fm_oss_stack",
     "mpy_fm_oss_windows",
+    "mpy_fm_oss_reload_windows",
     "mpy_get_omi_radiance",
     "mpy_get_tropomi_radiance",
     "mpy_make_maps",

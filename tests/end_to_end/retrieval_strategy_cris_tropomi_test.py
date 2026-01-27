@@ -61,14 +61,17 @@ def test_retrieval_strategy_cris_tropomi(
         # Record input file, just for our information
         rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver(
-            "retrieval_strategy_retrieval_step", "starting run_step"
-        )
-        rs.add_observer(rscap)
-        rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "systematic_jacobian"
-        )
-        rs.add_observer(rscap2)
+        if False:
+            # Turn this off if you are looking at timing. This is only about
+            # 10% addition, but that can skew things a bit
+            rscap = RetrievalStrategyCaptureObserver(
+                "retrieval_strategy_retrieval_step", "starting run_step"
+            )
+            rs.add_observer(rscap)
+            rscap2 = RetrievalStrategyCaptureObserver(
+                "retrieval_result", "systematic_jacobian"
+            )
+            rs.add_observer(rscap2)
         compare_dir = joint_tropomi_test_expected_dir
         if run_refractor:
             # Use refractor forward model.
