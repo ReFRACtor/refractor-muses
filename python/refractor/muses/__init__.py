@@ -101,6 +101,11 @@ from .muses_altitude_pge import (
 from .muses_cris_observation import (
     MusesCrisObservation,
 )
+from .muses_forward_model_vlidort import (
+    MusesForwardModelVlidortBase,
+    MusesOmiForwardModelVlidort,
+    MusesTropomiForwardModelVlidort,
+)
 from .muses_levmar_solver import (
     MusesLevmarSolver,
     SolverLogFileWriter,
@@ -372,10 +377,12 @@ __all__ = [
     "MusesAirsObservation",
     "MusesAltitudePge",
     "MusesCrisObservation",
+    "MusesForwardModelVlidortBase",
     "MusesLevmarSolver",
     "MusesObservation",
     "MusesObservationHandle",
     "MusesObservationHandlePickleSave",
+    "MusesOmiForwardModelVlidort",
     "MusesOmiObservation",
     "MusesOpticalDepth",
     "MusesPyQaDataHandle",
@@ -395,6 +402,7 @@ __all__ = [
     "MusesStrategyModifyHandle",
     "MusesStrategyStepList",
     "MusesTesObservation",
+    "MusesTropomiForwardModelVlidort",
     "MusesTropomiObservation",
     "NoHandleFound",
     "ObservationCombine",

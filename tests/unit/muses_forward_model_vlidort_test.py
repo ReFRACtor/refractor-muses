@@ -1,0 +1,72 @@
+from refractor.muses import (
+    InstrumentIdentifier,
+    MusesTropomiForwardModelVlidort,
+    MusesOmiForwardModelVlidort,
+)
+from refractor.muses_py_fm import (
+    MusesTropomiForwardModel,
+    MusesOmiForwardModel,
+)
+from fixtures.require_check import require_muses_py_fm
+import numpy.testing as npt
+
+
+@require_muses_py_fm
+def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
+    rs, rstep, _ = joint_tropomi_step_12_no_run_dir
+    obs_tropomi = rs.observation_handle_set.observation(
+        InstrumentIdentifier("TROPOMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+        None,
+    )
+    obs_tropomi.spectral_window.include_bad_sample = True
+    fm = MusesTropomiForwardModelVlidort(
+        rs.current_state,
+        obs_tropomi,
+        rs.retrieval_config,
+    )
+    s = fm.radiance(0)
+    rad = s.spectral_range.data
+    jac = s.spectral_range.data_ad.jacobian
+
+    fmcmp = MusesTropomiForwardModel(
+        rs.current_state,
+        obs_tropomi,
+        rs.retrieval_config,
+    )
+    scmp = fmcmp.radiance(0)
+    radcmp = scmp.spectral_range.data
+    jaccmp = scmp.spectral_range.data_ad.jacobian
+
+    assert rad.shape == radcmp.shape
+    assert jac.shape == jaccmp.shape
+    npt.assert_allclose(rad, radcmp)
+    npt.assert_allclose(jac, jaccmp)
+
+
+@require_muses_py_fm
+def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
+    rs, rstep, _ = joint_omi_step_8_no_run_dir
+    obs_omi = rs.observation_handle_set.observation(
+        InstrumentIdentifier("OMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
+        None,
+    )
+    obs_omi.spectral_window.include_bad_sample = True
+
+    fm = MusesOmiForwardModelVlidort(rs.current_state, obs_omi, rs.retrieval_config)
+    s = fm.radiance(0)
+    rad = s.spectral_range.data
+    jac = s.spectral_range.data_ad.jacobian
+
+    fmcmp = MusesOmiForwardModel(rs.current_state, obs_omi, rs.retrieval_config)
+    scmp = fmcmp.radiance(0)
+    radcmp = scmp.spectral_range.data
+    jaccmp = scmp.spectral_range.data_ad.jacobian
+
+    assert rad.shape == radcmp.shape
+    assert jac.shape == jaccmp.shape
+    npt.assert_allclose(rad, radcmp)
+    npt.assert_allclose(jac, jaccmp)
