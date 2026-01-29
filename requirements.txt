@@ -1,25 +1,21 @@
-# Required Python packages
-# Use with pip install -r requirements.txt
-numpy
-docopt-ng
-loguru
-# Not sure if we will end up using this, but go ahead and include for now
-loguru-config
-
-# For unit testing
-pytest
-pytest-loguru
-pytest-cov
-pytest-xdist
-
-# Also depends on py_retrieve.app, but that isn't a normal pip
-# package so don't list here
-
-# Franks ML depends in these
-scipy
-matplotlib
-cartopy
-tensorflow
-netcdf4
-juypterlab
-scikit-learn
+attrs==25.4.0
+cartopy==0.25.0
+docopt-ng==0.9.0
+h5py==3.15.1
+loguru==0.7.3
+matplotlib==3.10.8
+netcdf4==1.7.4
+numpy==2.4.1
+pandas==3.0.0
+py_retrieve==0.1.0
+pyhdf==0.11.6
+Pympler==1.1
+pytest==9.0.2
+pytz==2025.2
+refactor==0.6.3
+scikit_learn==1.8.0
+scipy==1.17.0
+seaborn==0.13.2
+setuptools==80.10.1
+tensorflow==2.20.0
+texttable==1.7.0
