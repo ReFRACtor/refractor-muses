@@ -242,7 +242,8 @@ class OssHandle:
         # terminal because we have suppressed stdout
         # **********************************************************************
 
-        with suppress_replacement("fm_oss_init"), suppress_stdout():
+        # with suppress_replacement("fm_oss_init"), suppress_stdout():
+        with suppress_replacement("fm_oss_init"):
             (_, self.oss_frequency_list_full, self.oss_jacobian_list) = mpy_fm_oss_init(
                 AttrDictAdapter(t),
                 str(inst),

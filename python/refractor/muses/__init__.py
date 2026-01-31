@@ -101,6 +101,9 @@ from .muses_altitude_pge import (
 from .muses_cris_observation import (
     MusesCrisObservation,
 )
+from .muses_forward_model_oss import (
+    oss_handle,
+)
 from .muses_forward_model_vlidort import (
     MusesForwardModelVlidortBase,
     MusesOmiForwardModelVlidort,
@@ -505,6 +508,7 @@ __all__ = [
     "modify_strategy_table",
     "mpy_radiance_from_observation_list",
     "order_species",
+    "oss_handle",
     "species_type",
 ]
 

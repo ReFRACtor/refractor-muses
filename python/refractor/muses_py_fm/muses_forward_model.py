@@ -925,14 +925,15 @@ ForwardModelHandleSet.add_default_handle(
     MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel),
     priority_order=-1,
 )
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
-    priority_order=-1,
-)
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=-1,
+    )
 
 __all__ = [
     "MusesCrisForwardModel",

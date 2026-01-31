@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
+from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from functools import cached_property
 from loguru import logger
 import tempfile
@@ -8,11 +9,12 @@ import numpy as np
 import copy
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
+    from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MusesObservation
     from .cost_function import CostFunction
@@ -254,6 +256,607 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 
+    def fm_call2(self, i_uip, is_tropomi: bool,
+                 i_osp_dir=None, i_obs=None, skip_raman_copy=False):
+        # Temp, we'll pull some of this over and get other parts into mpy
+        from refractor.muses_py import (
+            pack_omi_jacobian,
+            rev_and_fm_map,
+            rtf_omi,
+            get_omi_radiance,
+            pack_tropomi_jacobian,
+            rtf_tropomi,
+            get_tropomi_radiance,
+            raylayer_nadir,
+            atmosphere_level,
+            get_tropomi_o3xsec,
+            get_tropomi_ils,
+            tropomi_rev_and_fm_map,
+        )
+
+        from refractor.muses import AttrDictAdapter
+
+        if is_tropomi:
+            uip_tropomi = i_uip["uip_TROPOMI"]
+
+            # VLIDORT I/O
+            vlidort_input_dir = uip_tropomi["vlidort_input"]
+            Path(vlidort_input_dir).mkdir(parents=True, exist_ok=True)
+
+        # Get atmospheric parameters
+        i_uip["obs_table"]["pointing_angle"] = 0.0
+        atmparams = atmosphere_level(i_uip)
+
+        # Computer layer and level quanity
+        rayInfo = raylayer_nadir(AttrDictAdapter(i_uip), AttrDictAdapter(atmparams))
+
+        mw_account = self.summarize_mw(i_uip)
+        nfreq_tot = mw_account["nfreq_tot"]
+
+        i_uip["num_atm_k"] = sum(
+            jac in i_uip["species"] or jac == "TATM" for jac in i_uip["jacobians"]
+        )
+
+        # Create radiance and ring arrays
+        radiance_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        radiance_clear_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        radiance_cloud_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        radiance_matrix_temperature_clear = np.zeros(
+            shape=(nfreq_tot), dtype=np.float64
+        )
+        radiance_matrix_temperature_cloudy = np.zeros(
+            shape=(nfreq_tot), dtype=np.float64
+        )
+        radiance_temperature_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+
+        ring_clear_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        ring_cloud_ils = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        ring_clear_ils_temperature = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+        ring_cloud_ils_temperature = np.zeros(shape=(nfreq_tot), dtype=np.float64)
+
+        # Create atmospheric jacobians
+        jacobians_atm_ils = None
+        if i_uip["num_atm_k"] > 0:
+            k_temp = []
+
+            for kk in range(i_uip["num_atm_k"]):
+                k_temp.append(
+                    {
+                        "species": "thisisadummystring",
+                        "k": np.zeros(
+                            shape=(atmparams["nlayers"] + 1, nfreq_tot),
+                            dtype=np.float64,
+                        ),
+                    }
+                )
+
+            jacobians_atm_ils = {"k_species": k_temp}
+        # end if (i_uip['num_atm_k'] > 0):
+
+        # Create arrays for the following jacobians:
+        # [Cloud Fraction,Ring Scaling Factor,Earth/Solar Wavelength Shift Parameter,od Wavelength Shift Parameter,od Wavelength Shift Parameter]
+
+        # EM NOTE - Here we are creating empty jacobian arrays for
+        # use, the original OMI code hardcoded a series of parameters,
+        # but for tropomi we have knowledge of the parameter list, and
+        # which band we are using, so we can dynamically create a
+        # range of jacobian arrays based on what band we are
+        # interested in.
+
+        # First declare dictionary, and common elements
+        if is_tropomi:
+            jacobian_dictionary = {
+                "jacobian_cloud_ils": np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "cloud_Surface_Albedo": np.zeros(shape=(nfreq_tot), dtype=np.float64),
+            }
+
+            # Then populate dictionary with elements assigned to specific band
+            for ii in range(0, len(i_uip["microwindows_all"])):
+                for jj in i_uip["tropomiPars"]:
+                    if (
+                        i_uip["microwindows_all"][ii]["filter"] in jj
+                        and "vza" not in jj
+                        and "sza" not in jj
+                        and "raz" not in jj
+                    ):  # Ignoring the angles since these won't be jacobians
+                        jacobian_dictionary[jj] = np.zeros(
+                            shape=(nfreq_tot), dtype=np.float64
+                        )
+                    else:
+                        continue
+        else:
+            jacobian_dictionary = {
+                "jacobian_cloud_ils" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_ring_sf_ils_uv1" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_ring_sf_ils_uv2" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_nradwav_ils_uv1" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_nradwav_ils_uv2" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_odwav_ils_uv1" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_odwav_ils_uv2" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_odwav_slope_ils_uv1" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_odwav_slope_ils_uv2" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_OMISURFACEALBEDOUV1" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_OMISURFACEALBEDOUV2" : np.zeros(shape=(nfreq_tot), dtype=np.float64),
+                "jacobian_OMISURFACEALBEDOSLOPEUV2" : np.zeros(
+                    shape=(nfreq_tot), dtype=np.float64
+                ),
+            }
+
+        jacob_str = []
+        for ii in range(0, len(i_uip["jacobians"])):
+            jacob_str.append(i_uip["jacobians"][ii].upper())
+        jacob_str = np.asarray(jacob_str)
+
+        nlayers = atmparams["nlayers"]
+        atm_clear_jacobians_ils = None
+
+        if i_uip["num_atm_k"] > 0:
+            cnt = 0
+            k_structure = {
+                "species": "thisisadummystring",
+                "k": np.zeros(shape=(nfreq_tot, nlayers), dtype=np.float64),
+            }
+
+            atm_clear_jacobians_ils = []
+            for ii in range(0, i_uip["num_atm_k"]):
+                atm_clear_jacobians_ils.append(
+                    copy.deepcopy(k_structure)
+                )  # Make a deepcopy so each element will have its own memory.
+
+            for ii in range(0, len(jacob_str)):
+                if jacob_str[ii] in ("O3", "SO2", "NO2"):
+                    atm_clear_jacobians_ils[cnt]["species"] = jacob_str[ii]
+                    cnt = cnt + 1
+        if is_tropomi:
+            nlayers_cloud = np.count_nonzero(
+                rayInfo["pbar"] <= i_uip["tropomiPars"]["cloud_pressure"]
+            )
+        else:
+            cloud_pressure = i_uip["omiPars"]["cloud_pressure"]
+            if cloud_pressure < 0:
+                raise RuntimeError(
+                    "i_uip['omiPars']['cloud_pressure'] < 0. Check the OMI Cloud L2 product used as input for OMI cloud variables."
+                )
+
+            nlayers_cloud = np.count_nonzero(rayInfo["pbar"] <= cloud_pressure)
+        atm_cloud_jacobians_ils = None
+
+        if i_uip["num_atm_k"] > 0:
+            cnt = 0
+            k_structure = {
+                "species": "thisisadummystring",
+                "k": np.zeros(shape=(nfreq_tot, nlayers_cloud), dtype=np.float64),
+            }
+
+            atm_cloud_jacobians_ils = []  # replicate(temporary(k_structure),uip.num_atm_k)
+            for ii in range(0, i_uip["num_atm_k"]):
+                atm_cloud_jacobians_ils.append(copy.deepcopy(k_structure))
+
+            for ii in range(0, len(jacob_str)):
+                if jacob_str[ii] in ("O3", "SO2", "NO2"):
+                    atm_cloud_jacobians_ils[cnt]["species"] = jacob_str[ii]
+                    cnt = cnt + 1
+
+        # Update Measured Radiances By Applying Wavelength Shift Parameters
+        if is_tropomi:
+            tropomi_radiance = get_tropomi_radiance(i_uip["tropomiPars"], tropomi0=i_obs)
+        else:
+            omi_radiance = get_omi_radiance(i_uip["omiPars"], omi0=i_obs)
+
+        ############# EM-NOTE TEMP SECTION OF CODE TO UPDATE O3 XSEC FOR TEMPERATURE FIT ##########################
+        # loop over all microwindows
+        for ii_mw in range(0, mw_account["mw_cnt"]):
+            if is_tropomi:
+                ####### We have to recalculate the O3XSEC
+                for i in range(0, len(i_uip["jacobians_all"])):
+                    if i_uip["jacobians_all"][i] == "TROPOMITEMPSHIFTBAND3":
+                        i_uip_temp = i_uip
+                        STARTMW_FM = uip_tropomi["microwindows"][ii_mw]["startmw_fm"][ii_mw]
+                        ENDDMW_FM = uip_tropomi["microwindows"][ii_mw]["enddmw_fm"][ii_mw]
+
+                        if i_uip_temp["ils_tropomi_xsection"] == "APPLY":
+                            mononfreq_spacing = []
+                            num_fwhm_srf = np.float64(4.0)
+                            for imw in range(0, i_uip_temp["mw_count"] + 1):
+                                tempfreqIndex = (
+                                    np.arange(0, (ENDDMW_FM - STARTMW_FM + 1)) + STARTMW_FM
+                                )
+
+                                # AT_LINE 199 Make_UIP_OMI.pro
+                                ilsInfo = get_tropomi_ils(
+                                    i_uip_temp["L2_OSP_PATH"],
+                                    i_uip_temp["fullbandfrequency"],
+                                    tempfreqIndex,
+                                    i_uip_temp["uip_TROPOMI"]["tropomiInfo"][
+                                        "Earth_Radiance"
+                                    ]["EarthWavelength_Filter"],
+                                    i_uip_temp["uip_TROPOMI"]["tropomiInfo"][
+                                        "Earth_Radiance"
+                                    ]["ObservationTable"],
+                                    num_fwhm_srf,
+                                    mononfreq_spacing,
+                                )
+
+                                # EM NOTE - Adding uip_master_temp into this function, in order to retrieve a temperature shift if required
+                                o3_ind = np.where(
+                                    np.asarray(rayInfo["level_params"]["species"]) == "O3"
+                                )[0]
+                                o3_col = rayInfo["column_species"][o3_ind, :]
+
+                                if len(o3_col.shape) == 2 and o3_col.shape[0] == 1:
+                                    o3_col = np.reshape(o3_col, (o3_col.shape[1]))
+
+                                no2_col = None
+
+                                do_temp_shift = True
+                                o3_xsec = get_tropomi_o3xsec(
+                                    i_uip_temp["L2_OSP_PATH"],
+                                    ilsInfo,
+                                    i_uip_temp["TATM"],
+                                    i_uip_temp["fullbandfrequency"],
+                                    tempfreqIndex,
+                                    i_uip_temp,
+                                    do_temp_shift,
+                                    o3_col,
+                                    no2_col,
+                                    i_uip_temp["uip_TROPOMI"]["tropomiInfo"],
+                                )
+
+                                output_filename = f"O3Xsec_MW{imw + 1:03d}.asc"
+                                output_filename = (
+                                    vlidort_input_dir + os.path.sep + output_filename
+                                )
+
+                                with open(output_filename, "w") as file_handle:
+                                    file_handle.write(
+                                        "{:5d}".format(o3_xsec["num_points"])
+                                        + " "
+                                        + str(o3_xsec["nlayer"])
+                                        + "\n"
+                                    )
+                                    for ip in range(0, o3_xsec["num_points"]):
+                                        file_handle.write(
+                                            "{:5d}".format(o3_xsec["freqIndex"][ip])
+                                            + " "
+                                            + "{:19.17f}".format(
+                                                i_uip_temp["fullbandfrequency"][
+                                                    o3_xsec["freqIndex"][ip]
+                                                ]
+                                            )
+                                        )
+                                        for ilayer in range(0, o3_xsec["nlayer"]):
+                                            file_handle.write(
+                                                " "
+                                                + "{:17.16e}".format(
+                                                    o3_xsec["o3xsec"][ip, ilayer]
+                                                )
+                                            )
+
+                                        # Write a carriage return to end one line.
+                                        file_handle.write("\n")
+                                file_handle.close()
+                            # end: for imw in range(0, i_uip_temp['mw_count']+1):
+                        # end: if i_uip_temp['ils_tropomi_xsection'] == 'APPLY':
+                # end: for ii_mw in range(0, mw_account['mw_cnt']):
+                ############# EM-NOTE TEMP SECTION OF CODE TO UPDATE O3 XSEC FOR TEMPERATURE FIT ##########################
+
+            # AT_LINE 201 OMI/omi_fm.pro
+            mw_account["mw_cnt"] = ii_mw
+
+            mws = mw_account["mw_range"][0, ii_mw]
+            mwf = mw_account["mw_range"][1, ii_mw]
+
+            # * measurement wavelength grid after ILS convolved
+            v_ils_mw = mw_account["freq"][mws : mwf + 1]
+
+            if ii_mw == 0:
+                v_ils_total = v_ils_mw  # get ils convolved frequency grid
+
+            if ii_mw > 0:
+                v_ils_total = np.concatenate((v_ils_total, v_ils_mw), axis=0)
+
+            # RADIATIVE TRANSFER for clear sky
+            if is_tropomi:
+                logger.info("Calling rtf_tropomi for clear sky")
+                do_cloud = 0
+                (
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    ring_clear_ils,
+                    radiance_cloud_ils,
+                    ring_cloud_ils,
+                    jacobian_dictionary,
+                    radiance_matrix_temperature_clear,
+                    radiance_matrix_temperature_cloudy,
+                    ring_clear_ils_temperature,
+                    ring_cloud_ils_temperature,
+                    o_success_flag,
+                ) = rtf_tropomi(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    ii_mw,
+                    do_cloud,
+                    nlayers,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    radiance_matrix_temperature_clear,
+                    radiance_matrix_temperature_cloudy,
+                    ring_clear_ils_temperature,
+                    ring_cloud_ils_temperature,
+                    jacobian_dictionary,
+                    i_osp_dir=i_osp_dir,
+                    i_obs=i_obs,
+                    skip_raman_copy=skip_raman_copy,
+                )
+
+                if o_success_flag == 0:
+                    raise RuntimeError("Call to rtf_tropomi failed")
+
+                # RADIATIVE TRANSFER for cloudy sky
+                # Note that the function rtf_tropomi() for cloudy sky uses nlayers_cloud as the 6th parameter insead of nlayers for clear sky.
+                logger.info("Calling rtf_tropomi for cloudy sky")
+                do_cloud = 1
+                (
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    ring_clear_ils,
+                    radiance_cloud_ils,
+                    ring_cloud_ils,
+                    jacobian_dictionary,
+                    radiance_matrix_temperature_clear,
+                    radiance_matrix_temperature_cloudy,
+                    ring_clear_ils_temperature,
+                    ring_cloud_ils_temperature,
+                    o_success_flag,
+                ) = rtf_tropomi(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    ii_mw,
+                    do_cloud,
+                    nlayers_cloud,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    radiance_matrix_temperature_clear,
+                    radiance_matrix_temperature_cloudy,
+                    ring_clear_ils_temperature,
+                    ring_cloud_ils_temperature,
+                    jacobian_dictionary,
+                    i_osp_dir=i_osp_dir,
+                    i_obs=i_obs,
+                    skip_raman_copy=skip_raman_copy,
+                )
+
+                if o_success_flag == 0:
+                    raise RuntimeError("Call to rtf_tropomi failed")
+            else:
+                # RADIATIVE TRANSFER for clear sky
+                logger.info("Calling rtf_omi for clear sky")
+
+                do_cloud = 0
+                (
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    ring_clear_ils,
+                    radiance_cloud_ils,
+                    ring_cloud_ils,
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
+                    o_success_flag,
+                ) = rtf_omi(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    ii_mw,
+                    do_cloud,
+                    nlayers,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
+                    i_osp_dir=i_osp_dir,
+                    i_obs=i_obs,
+                    skip_raman_copy=skip_raman_copy,
+                )
+
+                if o_success_flag == 0:
+                    raise RuntimeError("Call to rtf_omi failed")
+
+                # RADIATIVE TRANSFER for cloud sky
+                logger.info("Calling rtf_omi for cloudy sky")
+
+                # Note that the function rtf_omi() for cloudy sky uses nlayers_cloud as the 6th parameter insead of nlayers for clear sky.
+                do_cloud = 1
+                (
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    ring_clear_ils,
+                    radiance_cloud_ils,
+                    ring_cloud_ils,
+                    jacobian_OMISURFACEALBEDOUV1,
+                    jacobian_OMISURFACEALBEDOUV2,
+                    jacobian_OMISURFACEALBEDOSLOPEUV2,
+                    o_success_flag,
+                ) = rtf_omi(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    ii_mw,
+                    do_cloud,
+                    nlayers_cloud,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
+                    jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
+                    i_osp_dir=i_osp_dir,
+                    i_obs=i_obs,
+                    skip_raman_copy=skip_raman_copy,
+                )
+
+                if o_success_flag == 0:
+                    raise RuntimeError("Call to rtf_omi failed")
+                
+
+            #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
+            #  Combine Cloud/Clear Sky Radiances/Jacobians
+            #  Compute jacobians of cloud fraction, ring scaling factor, and
+            #  wavelength shift parameters
+            #
+            # jacobians that go into rev_and_fm_map for reference
+            # jacobian_ring_sf_ils_uv1, jacobian_ring_sf_ils_uv2,
+            # jacobian_nradwav_ils_uv1, jacobian_nradwav_ils_uv2,
+            # jacobian_odwav_ils_uv1, jacobian_odwav_ils_uv2,
+            # jacobian_odwav_slope_ils_uv1,
+            # jacobian_odwav_slope_ils_uv2
+
+            if is_tropomi:
+                (
+                    jacobians_atm_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    jacobian_dictionary,
+                ) = tropomi_rev_and_fm_map(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    nlayers,
+                    nlayers_cloud,
+                    radiance_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    tropomi_radiance,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    jacobians_atm_ils,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    jacobian_dictionary,
+                    radiance_matrix_temperature_clear,
+                    radiance_matrix_temperature_cloudy,
+                    radiance_temperature_ils,
+                    ring_clear_ils_temperature,
+                    ring_cloud_ils_temperature,
+                    mws,
+                    mwf,
+                    ii_mw,
+                )
+            else:
+                (
+                    jacobians_atm_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    jacobian_cloud_ils,
+                    jacobian_ring_sf_ils_uv1,
+                    jacobian_ring_sf_ils_uv2,
+                    jacobian_nradwav_ils_uv1,
+                    jacobian_nradwav_ils_uv2,
+                    jacobian_odwav_ils_uv1,
+                    jacobian_odwav_ils_uv2,
+                    jacobian_odwav_slope_ils_uv1,
+                    jacobian_odwav_slope_ils_uv2,
+                ) = rev_and_fm_map(
+                    rayInfo,
+                    i_uip,
+                    mw_account,
+                    nlayers,
+                    nlayers_cloud,
+                    radiance_ils,
+                    radiance_clear_ils,
+                    radiance_cloud_ils,
+                    omi_radiance,
+                    ring_clear_ils,
+                    ring_cloud_ils,
+                    jacobians_atm_ils,
+                    atm_clear_jacobians_ils,
+                    atm_cloud_jacobians_ils,
+                    jacobian_dictionary["jacobian_cloud_ils"],
+                    jacobian_dictionary["jacobian_ring_sf_ils_uv1"],
+                    jacobian_dictionary["jacobian_ring_sf_ils_uv2"],
+                    jacobian_dictionary["jacobian_nradwav_ils_uv1"],
+                    jacobian_dictionary["jacobian_nradwav_ils_uv2"],
+                    jacobian_dictionary["jacobian_odwav_ils_uv1"],
+                    jacobian_dictionary["jacobian_odwav_ils_uv2"],
+                    jacobian_dictionary["jacobian_odwav_slope_ils_uv1"],
+                    jacobian_dictionary["jacobian_odwav_slope_ils_uv2"],
+                    mws,
+                    mwf,
+                    ii_mw,
+                )
+                
+        # end for ii_mw in range(0, mw_account['mw_cnt']):
+
+        # Pack Radiance and Jacobians Note that the returned value of
+        # o_jacobian_pack from pack_omi_jacobian() can be None if the
+        # value of num_par is 0, so becareful accessing
+        # o_jacobian_pack.
+        if is_tropomi:
+            (o_radiance_pack, o_jacobian_pack) = pack_tropomi_jacobian(
+                i_uip,
+                radiance_ils,
+                tropomi_radiance,
+                jacobians_atm_ils,
+                jacobian_dictionary,
+                ii_mw,
+            )
+        else:
+            (o_radiance_pack, o_jacobian_pack) = pack_omi_jacobian(
+                i_uip,
+                radiance_ils,
+                omi_radiance,
+                jacobians_atm_ils,
+                jacobian_cloud_ils,
+                jacobian_dictionary["jacobian_ring_sf_ils_uv1"],
+                jacobian_dictionary["jacobian_ring_sf_ils_uv2"],
+                jacobian_dictionary["jacobian_nradwav_ils_uv1"],
+                jacobian_dictionary["jacobian_nradwav_ils_uv2"],
+                jacobian_dictionary["jacobian_odwav_ils_uv1"],
+                jacobian_dictionary["jacobian_odwav_ils_uv2"],
+                jacobian_dictionary["jacobian_odwav_slope_ils_uv1"],
+                jacobian_dictionary["jacobian_odwav_slope_ils_uv2"],
+                jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
+                jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
+                jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
+            )
+            
+
+        # Sanity Check on NAN for radiance and jacobian.
+        if not np.all(np.isfinite(o_radiance_pack)):
+            raise RuntimeError("o_radiance_pack NOT FINITE!")
+
+        if o_jacobian_pack is not None and not np.all(np.isfinite(o_jacobian_pack)):
+            raise RuntimeError("o_jacobian_pack NOT FINITE!")
+
+        # Add o_success_flag to report how the function did.
+        return (
+            o_jacobian_pack,
+            o_radiance_pack,
+        )
+    
+
 
 class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
     def __init__(
@@ -295,8 +898,9 @@ class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
         ):
-            jac, rad, _, success_flag = self.tropomi_fm(
+            jac, rad = self.tropomi_fm(
                 self.rf_uip.uip_all(self.instrument_name),
+                #is_tropomi=True,
                 i_osp_dir=self.rconf.input_file_helper.osp_dir,
                 i_obs=self.obs.radiance_for_uip,
                 skip_raman_copy=True,
@@ -606,7 +1210,7 @@ class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
             )
 
             if o_success_flag == 0:
-                return (None, None, None, o_success_flag)
+                raise RuntimeError("Call to rtf_tropomi failed")
 
             # RADIATIVE TRANSFER for cloudy sky
             # Note that the function rtf_tropomi() for cloudy sky uses nlayers_cloud as the 6th parameter insead of nlayers for clear sky.
@@ -649,7 +1253,7 @@ class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
             )
 
             if o_success_flag == 0:
-                return (None, None, None, o_success_flag)
+                raise RuntimeError("Call to rtf_tropomi failed")
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
@@ -715,20 +1319,10 @@ class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
         if o_jacobian_pack is not None and not np.all(np.isfinite(o_jacobian_pack)):
             raise RuntimeError("o_jacobian_pack NOT FINITE!")
 
-        # Pack wavelength shifted TROPOMI Radiance and NESR
-        o_measured_radiance_pack = {
-            "measured_radiance_field": tropomi_radiance["normalized_rad"][
-                i_uip["freqIndex"]
-            ],
-            "measured_nesr": tropomi_radiance["nesr"][i_uip["freqIndex"]],
-        }
-
         # Add o_success_flag to report how the function did.
         return (
             o_jacobian_pack,
             o_radiance_pack,
-            o_measured_radiance_pack,
-            o_success_flag,
         )
 
 
@@ -772,8 +1366,9 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
         ):
-            jac, rad, _, success_flag = self.omi_fm(
+            jac, rad = self.omi_fm(
                 self.rf_uip.uip_all(self.instrument_name),
+                #is_tropomi=False,
                 i_osp_dir=self.rconf.input_file_helper.osp_dir,
                 i_obs=self.obs.radiance_for_uip,
                 skip_raman_copy=True,
@@ -902,16 +1497,8 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
         # ALLOCATE MEMORY FOR ATMOSPHERIC JACOBIANS for the cloud sky cases
         cloud_pressure = i_uip["omiPars"]["cloud_pressure"]
         if cloud_pressure < 0:
-            logger.error(
+            raise RuntimeError(
                 "i_uip['omiPars']['cloud_pressure'] < 0. Check the OMI Cloud L2 product used as input for OMI cloud variables."
-            )
-
-            o_success_flag = 0
-            return (
-                None,
-                None,
-                None,
-                o_success_flag,
             )
 
         nlayers_cloud = np.count_nonzero(rayInfo["pbar"] <= cloud_pressure)
@@ -1003,12 +1590,7 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
             )
 
             if o_success_flag == 0:
-                return (
-                    None,
-                    None,
-                    None,
-                    o_success_flag,
-                )
+                raise RuntimeError("Call to rtf_omi failed")
 
             # RADIATIVE TRANSFER for cloud sky
             logger.info("Calling rtf_omi for cloudy sky")
@@ -1048,12 +1630,7 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
             )
 
             if o_success_flag == 0:
-                return (
-                    None,
-                    None,
-                    None,
-                    o_success_flag,
-                )
+                raise RuntimeError("Call to rtf_omi failed")
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
@@ -1128,14 +1705,6 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
             jacobian_OMISURFACEALBEDOSLOPEUV2,
         )
 
-        # Pack wavelength shifted OMI Radiance and NESR
-        o_measured_radiance_pack = {
-            "measured_radiance_field": omi_radiance["normalized_rad"][
-                i_uip["freqIndex"]
-            ],
-            "measured_nesr": omi_radiance["nesr"][i_uip["freqIndex"]],
-        }
-
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(o_radiance_pack)):
             raise RuntimeError("o_radiance_pack NOT FINITE!")
@@ -1147,11 +1716,65 @@ class MusesOmiForwardModelVlidort(MusesForwardModelVlidortBase):
         return (
             o_jacobian_pack,
             o_radiance_pack,
-            o_measured_radiance_pack,
-            o_success_flag,
         )
 
+C = TypeVar("C", bound=rf.ForwardModel)
 
+class MusesForwardModelHandle(ForwardModelHandle):
+    def __init__(
+        self,
+        instrument_name: InstrumentIdentifier,
+        cls: type[C],
+        use_vlidort_temp_dir: bool = False,
+        **creator_kwargs: Any,
+    ) -> None:
+        self.creator_kwargs = creator_kwargs
+        self.instrument_name = instrument_name
+        self.cls = cls
+        self.rconf: RetrievalConfiguration | None = None
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
+
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.rconf = retrieval_config
+
+    def forward_model(
+        self,
+        instrument_name: InstrumentIdentifier,
+        current_state: CurrentState,
+        obs: MusesObservation,
+        fm_sv: rf.StateVector,
+        **kwargs: Any,
+    ) -> None | rf.ForwardModel:
+        # Note, we can't just attach to the fm_sv when we create the MusesForwardModel.
+        # The UIP takes in parameters on the RetrievalGridArray, *not*
+        # FullGridMappedArray like the ReFRACtor. This is handled in notify_cost_function
+        # (see MusesForwardModelBase), which gets called when the CostFunction is created.
+
+        if instrument_name != self.instrument_name:
+            return None
+        if self.rconf is None:
+            raise RuntimeError("Need to call notify_update_target before forward_model")
+        logger.debug(f"Creating forward model {self.cls.__name__}")
+        return self.cls(
+            current_state,
+            obs,
+            self.rconf,
+            **kwargs,
+        )
+    
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModelVlidort),
+    priority_order=-1,
+)
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModelVlidort),
+    priority_order=-1,
+)
+    
 __all__ = [
     "MusesForwardModelVlidortBase",
     "MusesTropomiForwardModelVlidort",
