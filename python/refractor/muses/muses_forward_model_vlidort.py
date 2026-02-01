@@ -475,7 +475,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_cloud_ils,
                     jacobian_dictionary,
-                    o_success_flag,
                 ) = self.rtf_tropomi(
                     rayInfo,
                     i_uip,
@@ -495,9 +494,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     skip_raman_copy=skip_raman_copy,
                 )
 
-                if o_success_flag == 0:
-                    raise RuntimeError("Call to rtf_tropomi failed")
-
                 # RADIATIVE TRANSFER for cloudy sky
                 # Note that the function rtf_tropomi() for cloudy sky uses nlayers_cloud as the 6th parameter insead of nlayers for clear sky.
                 logger.info("Calling rtf_tropomi for cloudy sky")
@@ -510,7 +506,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_cloud_ils,
                     jacobian_dictionary,
-                    o_success_flag,
                 ) = self.rtf_tropomi(
                     rayInfo,
                     i_uip,
@@ -529,9 +524,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     i_obs=i_obs,
                     skip_raman_copy=skip_raman_copy,
                 )
-
-                if o_success_flag == 0:
-                    raise RuntimeError("Call to rtf_tropomi failed")
             else:
                 # RADIATIVE TRANSFER for clear sky
                 logger.info("Calling rtf_omi for clear sky")
@@ -547,7 +539,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
                     jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
                     jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
-                    o_success_flag,
                 ) = self.rtf_omi(
                     rayInfo,
                     omi_radiance,
@@ -569,9 +560,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     i_obs=i_obs,
                     skip_raman_copy=skip_raman_copy,
                 )
-
-                if o_success_flag == 0:
-                    raise RuntimeError("Call to rtf_omi failed")
 
                 # RADIATIVE TRANSFER for cloud sky
                 logger.info("Calling rtf_omi for cloudy sky")
@@ -588,7 +576,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     jacobian_OMISURFACEALBEDOUV1,
                     jacobian_OMISURFACEALBEDOUV2,
                     jacobian_OMISURFACEALBEDOSLOPEUV2,
-                    o_success_flag,
                 ) = self.rtf_omi(
                     rayInfo,
                     omi_radiance,
@@ -610,9 +597,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     i_obs=i_obs,
                     skip_raman_copy=skip_raman_copy,
                 )
-
-                if o_success_flag == 0:
-                    raise RuntimeError("Call to rtf_omi failed")
                 
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
@@ -744,7 +728,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         if o_jacobian_pack is not None and not np.all(np.isfinite(o_jacobian_pack)):
             raise RuntimeError("o_jacobian_pack NOT FINITE!")
 
-        # Add o_success_flag to report how the function did.
         return (
             o_jacobian_pack,
             o_radiance_pack,
@@ -833,56 +816,17 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         jacobian_sf_matrix = rt_res.jacobian_sf_matrix
 
         if radiance_matrix is None:
-            logger.warning('Could not read radiance: Radiance.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_OMISURFACEALBEDOUV1,
-                    jacobian_OMISURFACEALBEDOUV2,
-                    jacobian_OMISURFACEALBEDOSLOPEUV2,
-                    o_success_flag)
+            raise RuntimeError('Could not read radiance: Radiance.asc')
 
         if jacobian_o3_matrix is None:
-            logger.warning('Could not read jacobian_o3: IWF.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_OMISURFACEALBEDOUV1,
-                    jacobian_OMISURFACEALBEDOUV2,
-                    jacobian_OMISURFACEALBEDOSLOPEUV2,
-                    o_success_flag)
+            raise RuntimeError('Could not read jacobian_o3: IWF.asc')
 
         if jacobian_sf_matrix is None:
-            logger.warning('Could not read jacobian_sf: surf_WF.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils, 
-                   jacobian_OMISURFACEALBEDOUV1,
-                    jacobian_OMISURFACEALBEDOUV2,
-                    jacobian_OMISURFACEALBEDOSLOPEUV2,
-                    o_success_flag)
+            raise RuntimeError('Could not read jacobian_sf: surf_WF.asc')
 
         ring_matrix = read_rtm_output(rt_res.vlidort_output_iter_dir, 'Ring.asc')
         if ring_matrix is None:
-            logger.warning('Could not read ring: Ring.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_OMISURFACEALBEDOUV1,
-                    jacobian_OMISURFACEALBEDOUV2,
-                    jacobian_OMISURFACEALBEDOSLOPEUV2,
-                    o_success_flag)
-
-        # These are the shape of jacobian_o3_matrix depends on if do_cloud is set or not and filter:
-        #
-        # rtf_omi: JACOBIAN_O3_MATRIX_SHAPE (65, 126)  do_cloud = 0, UV1
-        # rtf_omi: JACOBIAN_O3_MATRIX_SHAPE (61, 126)  do_cloud = 1, UV1
-        # rtf_omii: JACOBIAN_O3_MATRIX_SHAPE (65, 152)  do_cloud = 0, UV2
-        # rtf_omi: JACOBIAN_O3_MATRIX_SHAPE (61, 152)  do_cloud = 1, UV2
+            raise RuntimeError('Could not read ring: Ring.asc')
 
         my_filter = uip_omi['microwindows'][ii_mw]['filter']
 
@@ -1026,7 +970,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             jacobian_OMISURFACEALBEDOUV1,
             jacobian_OMISURFACEALBEDOUV2,
             jacobian_OMISURFACEALBEDOSLOPEUV2,
-            1,
         )
 
     def rtf_tropomi(self,
@@ -1049,10 +992,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
         # various CLI options that determine how to run things later
         debug = cli_options.get('debug', False)
-
-        # EM NOTE - 04-2021 - This script is heavily based on rtf_omi, but has been modified to allow for variable bands.
-
-        o_success_flag = 1  # Start out assume the TROPOMI FM is success.  EM NOTE - Ambitious......
 
         uip_tropomi = i_uip['uip_TROPOMI']
 
@@ -1165,43 +1104,17 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         logger.info(returnCodeFromSystem.stdout)
 
         if radiance_matrix is None:
-            logger.warning('Could not read radiance: Radiance.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_dictionary,
-                    o_success_flag)
+            raise RuntimeError('Could not read radiance: Radiance.asc')
 
         if jacobian_o3_matrix is None:
-            logger.warning('Could not read jacobian_o3: IWF.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_dictionary,
-                    o_success_flag)
-
+            raise RuntimeError('Could not read jacobian_o3: IWF.asc')
 
         if jacobian_sf_matrix is None:
-            logger.warning('Could not read jacobian_sf: surf_WF.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_dictionary,
-                    o_success_flag)
+            raise RuntimeError('Could not read jacobian_sf: surf_WF.asc')
 
         ring_matrix = read_rtm_output(vlidort_output_iter_dir, 'Ring.asc')
         if ring_matrix is None:
-            logger.warning('Could not read ring: Ring.asc')
-            o_success_flag = 0
-            return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                    radiance_clear_ils, ring_clear_ils,
-                    radiance_cloud_ils, ring_cloud_ils,
-                    jacobian_dictionary,
-                    o_success_flag)
-
+            raise RuntimeError('Could not read ring: Ring.asc')
 
         my_filter = uip_tropomi['microwindows'][ii_mw]['filter']
 
@@ -1346,7 +1259,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             radiance_clear_ils, ring_clear_ils,
             radiance_cloud_ils, ring_cloud_ils,
             jacobian_dictionary, 
-            o_success_flag
         )
     
 
