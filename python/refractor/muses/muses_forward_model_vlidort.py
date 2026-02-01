@@ -475,10 +475,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_cloud_ils,
                     jacobian_dictionary,
-                    radiance_matrix_temperature_clear,
-                    radiance_matrix_temperature_cloudy,
-                    ring_clear_ils_temperature,
-                    ring_cloud_ils_temperature,
                     o_success_flag,
                 ) = self.rtf_tropomi(
                     rayInfo,
@@ -493,10 +489,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_clear_ils,
                     ring_cloud_ils,
-                    radiance_matrix_temperature_clear,
-                    radiance_matrix_temperature_cloudy,
-                    ring_clear_ils_temperature,
-                    ring_cloud_ils_temperature,
                     jacobian_dictionary,
                     i_osp_dir=i_osp_dir,
                     i_obs=i_obs,
@@ -518,10 +510,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_cloud_ils,
                     jacobian_dictionary,
-                    radiance_matrix_temperature_clear,
-                    radiance_matrix_temperature_cloudy,
-                    ring_clear_ils_temperature,
-                    ring_cloud_ils_temperature,
                     o_success_flag,
                 ) = self.rtf_tropomi(
                     rayInfo,
@@ -536,10 +524,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     radiance_cloud_ils,
                     ring_clear_ils,
                     ring_cloud_ils,
-                    radiance_matrix_temperature_clear,
-                    radiance_matrix_temperature_cloudy,
-                    ring_clear_ils_temperature,
-                    ring_cloud_ils_temperature,
                     jacobian_dictionary,
                     i_osp_dir=i_osp_dir,
                     i_obs=i_obs,
@@ -782,9 +766,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
         osp_omi_dir = i_osp_dir / "OMI" if i_osp_dir is not None else Path("../OSP/OMI")
 
-        # IDL_LEGACY_NOTE: This function rtf_omi the same as rtf_omi program in OMI/rtf_omi.pro file.
-
-        #
         # Radiative Calculation of OMI FM 
 
         uip_omi = i_uip['uip_OMI']
@@ -1056,10 +1037,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             radiance_cloud_ils=None,
             ring_clear_ils=None,        
             ring_cloud_ils=None,
-            radiance_matrix_temperature_clear=None,
-            radiance_matrix_temperature_cloudy=None,
-            ring_clear_ils_temperature=None,
-            ring_cloud_ils_temperature=None,
             jacobian_dictionary=None,
             i_osp_dir=None,
             i_obs=None,
@@ -1225,68 +1202,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     jacobian_dictionary,
                     o_success_flag)
 
-        ####################### TEMPORARY
-        ##### EM NOTE - HERE WE INVOKE A THIRD RUN OF VLIDORT FOR CALCULATING TEMPERATURE JACOBIANS
-
-        # So a horrible trick here, the O3Xsec file has been saved as O3Xsec_MW_band.asc, for the temperature situation we have created 
-        # an additional O3Xsec file perturbed by a temperature shift. The VLIDORT exe requires a specific name, so we have to rename the
-        # perterbed O3Xsec file to the original file name and then rerun VLIDORT and capture the output
-        # First rename main XSec file to save it
-        captured = 0
-        for i in range(0, len(i_uip['jacobians_all'])):
-            if i_uip['jacobians_all'][i] == 'TROPOMITEMPSHIFTBAND3':
-                logger.info('Calling VLIDORT for temperature jacobians')
-
-                os.rename(
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}.asc', 
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}_temp_hold.asc'
-                ) 
-
-                # Rename temp perterbed file so .exe can find it
-                os.rename(
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}_TEMP.asc',
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}.asc'
-                ) 
-
-                vlidort_output_iter_dir_tempshift = vlidort_output_iter_dir + '/tempshift/'
-                Path(vlidort_output_iter_dir_tempshift).mkdir(parents=True, exist_ok=True)
-
-                # Rerun VLIDORT on new ozone cross sections
-                vlidort_run(default_run_directory, vlidort_input_iter_dir, vlidort_output_iter_dir_tempshift, vlidort_nstokes, vlidort_nstreams)
-
-                # Rename original files so they can be used again
-                os.rename(
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}.asc',
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}_TEMP.asc'
-                ) 
-
-                os.rename(
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}_temp_hold.asc',
-                    f'{vlidort_input_dir}/O3Xsec_MW{ii_mw+1:03d}.asc'
-                )
-
-                # read result files from 
-                radiance_matrix_temperature = read_rtm_output(vlidort_output_iter_dir_tempshift, 'Radiance.asc')
-
-                if radiance_matrix_temperature is None:
-                    logger.warning(f'Could not read radiance: {vlidort_output_iter_dir_tempshift}/Radiance.asc')
-                    o_success_flag = 0
-                    return (atm_clear_jacobians_ils, atm_cloud_jacobians_ils,
-                            radiance_clear_ils, ring_clear_ils,
-                            radiance_cloud_ils, ring_cloud_ils,
-                            jacobian_dictionary,
-                            o_success_flag)
-
-                captured = 1
-            else:
-                if captured == 0:
-                    radiance_matrix_temperature = radiance_matrix
-                    ring_matrix_temperature = ring_matrix
-                else:
-                    continue
-
-        ####################### TEMPORARY
-
 
         my_filter = uip_tropomi['microwindows'][ii_mw]['filter']
 
@@ -1334,20 +1249,16 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 # To solve the issue above, we must shrink the left hand side from 113 to 107 to match the shape of radiance_matrix[1,temp_freq_ind] vector.
                 shrink_left_hand_size = temp_start_ind + radiance_matrix[1, temp_freq_ind].shape[0]
                 radiance_clear_ils[temp_start_ind:shrink_left_hand_size] = radiance_matrix[1, temp_freq_ind]
-                radiance_matrix_temperature_clear[temp_start_ind:shrink_left_hand_size] = radiance_matrix_temperature[1, temp_freq_ind] # NOTE for removal later
             else:
                 radiance_clear_ils[temp_start_ind:temp_endd_ind + 1] = radiance_matrix[1, temp_freq_ind]
-                radiance_matrix_temperature_clear[temp_start_ind:temp_endd_ind + 1] = radiance_matrix_temperature[1, temp_freq_ind]
 
             if ring_matrix[1, temp_freq_ind].shape[0] < ring_clear_ils[temp_start_ind:temp_endd_ind + 1].shape[0]:
                 # ValueError: could not broadcast input array from shape (107) into shape (113)
                 # To solve the issue above, we must shrink the left hand side from 113 to 107 to match to the shape of ring_matrix[1,temp_freq_ind] vector.
                 shrink_left_hand_size = temp_start_ind + ring_matrix[1, temp_freq_ind].shape[0]
                 ring_clear_ils[temp_start_ind:shrink_left_hand_size] = ring_matrix[1, temp_freq_ind][:]
-                ring_clear_ils_temperature[temp_start_ind:shrink_left_hand_size] = ring_matrix_temperature[1, temp_freq_ind][:]
             else:
                 ring_clear_ils[temp_start_ind:temp_endd_ind+1] = ring_matrix[1, temp_freq_ind][:]
-                ring_clear_ils_temperature[temp_start_ind:temp_endd_ind+1] = ring_matrix_temperature[1, temp_freq_ind][:]
 
             if i_uip['num_atm_k'] > 0:
                 for ii in range(0, len(atm_clear_jacobians_ils)):
@@ -1399,20 +1310,16 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             if radiance_matrix[1, temp_freq_ind].shape[0] < radiance_cloud_ils[temp_start_ind:temp_endd_ind + 1].shape[0]:
                 shrink_left_hand_size = temp_start_ind + radiance_matrix[1, temp_freq_ind].shape[0]
                 radiance_cloud_ils[temp_start_ind:shrink_left_hand_size] = radiance_matrix[1, temp_freq_ind][:]
-                radiance_matrix_temperature_cloudy[temp_start_ind:shrink_left_hand_size] = radiance_matrix_temperature[1, temp_freq_ind][:] # NOTE for removal later
             else:
                 radiance_cloud_ils[temp_start_ind:temp_endd_ind+1] = radiance_matrix[1, temp_freq_ind][:]
-                radiance_matrix_temperature_cloudy[temp_start_ind:temp_endd_ind + 1] = radiance_matrix_temperature[1, temp_freq_ind][:]
 
             # ValueError: could not broadcast input array from shape (107) into shape (113)
             # To solve the issue above, we must shrink the left hand side from 113 to 107 to match to the shape of ring_matrix[1,temp_freq_ind]
             if (ring_matrix[1, temp_freq_ind].shape[0] < ring_cloud_ils[temp_start_ind:temp_endd_ind + 1].shape[0]):
                 shrink_left_hand_size = temp_start_ind + ring_matrix[1, temp_freq_ind].shape[0]
                 ring_cloud_ils[temp_start_ind:shrink_left_hand_size] = ring_matrix[1, temp_freq_ind]
-                ring_cloud_ils_temperature[temp_start_ind:shrink_left_hand_size] = ring_matrix_temperature[1, temp_freq_ind][:]
             else:
                 ring_cloud_ils[temp_start_ind:temp_endd_ind + 1] = ring_matrix[1, temp_freq_ind]
-                ring_cloud_ils_temperature[temp_start_ind:temp_endd_ind+1] = ring_matrix_temperature[1, temp_freq_ind][:]
 
             if i_uip['num_atm_k'] > 0:
                 if len(atm_cloud_jacobians_ils) > 0:
@@ -1439,8 +1346,6 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             radiance_clear_ils, ring_clear_ils,
             radiance_cloud_ils, ring_cloud_ils,
             jacobian_dictionary, 
-            radiance_matrix_temperature_clear, radiance_matrix_temperature_cloudy,
-            ring_clear_ils_temperature, ring_cloud_ils_temperature,
             o_success_flag
         )
     
