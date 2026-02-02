@@ -16,22 +16,21 @@ from multiprocessing import Process
 
 version="1.0.0"
 usage="""Usage:
-  refractor-retrieve [options]
+  refractor-retrieve -t <dirlist> [options] | --targets=<dirlist> [options]
   refractor-retrieve -h | --help
   refractor-retrieve -v | --version
 
-Blah blah
+Run a retrieval over a set of target/sounding directories
 
 Options:
   -h --help
       Print this message
+  
+  -t --targets=dirlist
+      Target directories to process. Can be an glob pattern for matching multiple directories.
 
   --debug
       Set logger level to DEBUG, which provides debugging log messages.
-
-  --trace
-      Set logger level to TRACE, which provides both debugging and tracing log
-      messages.
 
   --mpi
       Process multiple targets in parallel using MPI.
@@ -40,25 +39,27 @@ Options:
       Ignored, we take this argument for backwards compatibility with py-retrieve.
       We always use ReFRACtor
 
-  --refractor-config=f
+  --refractor-config=filename
       Use the given refractor config file. If not supplied, we fall back to using
       the old py-retrieve forward models.
 
   --plots
       Generate plots for a subset of the species
 
-  -t --targets=dirlist
-      Target directories
-
   -v --version
       Print program version
-
 """
 args = refractor.muses.docopt_simple(usage, version=version)
 
 # log to stdout instead of stderr, this works better with the mpi log capture
 logger.remove()
-logger.add(sys.stdout)
+
+write_debug_output = False
+if args.debug:
+    logger.add(sys.stdout, level="DEBUG")
+    write_debug_output = True
+else:
+    logger.add(sys.stdout, level="INFO")
 
 #warnings to logger
 showwarning_ = warnings.showwarning
@@ -71,16 +72,7 @@ def showwarning(message, *args, **kwargs):
         showwarning_(message, *args, **kwargs)
 
 warnings.showwarning = showwarning
-
-write_debug_output = False
-if args.trace:
-    # We will add tracing level with loguru
-    logger.setLevel(logging.DEBUG)
-    write_debug_output = True
-elif args.debug:
-    logger.setLevel(logging.DEBUG)
-    write_debug_output = True
-    
+ 
 logger.info("refractor-retrieve is running ...")
 
 if args.refractor_config:
