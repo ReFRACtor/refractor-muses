@@ -7,7 +7,6 @@ from loguru import logger
 import tempfile
 import numpy as np
 import copy
-import os
 import subprocess
 from pathlib import Path
 from typing import Any, TypeVar
@@ -257,19 +256,15 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 
-    def fm_call2(
-        self, i_uip, is_tropomi: bool
-    ):
+    def fm_call2(self, i_uip, is_tropomi: bool):
         # Temp, we'll pull some of this over and get other parts into mpy
         from refractor.muses_py import (
             pack_omi_jacobian,
-            rev_and_fm_map,
             get_omi_radiance,
             pack_tropomi_jacobian,
             get_tropomi_radiance,
             raylayer_nadir,
             atmosphere_level,
-            tropomi_rev_and_fm_map,
         )
 
         from refractor.muses import AttrDictAdapter
@@ -406,14 +401,14 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             jacob_str.append(self.i_uip["jacobians"][ii].upper())
         jacob_str = np.asarray(jacob_str)
 
-        nlayers = atmparams["nlayers"]
+        self.nlayers = atmparams["nlayers"]
         self.atm_clear_jacobians_ils = None
 
         if self.i_uip["num_atm_k"] > 0:
             cnt = 0
             k_structure = {
                 "species": "thisisadummystring",
-                "k": np.zeros(shape=(nfreq_tot, nlayers), dtype=np.float64),
+                "k": np.zeros(shape=(nfreq_tot, self.nlayers), dtype=np.float64),
             }
 
             self.atm_clear_jacobians_ils = []
@@ -427,7 +422,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     self.atm_clear_jacobians_ils[cnt]["species"] = jacob_str[ii]
                     cnt = cnt + 1
         if self.is_tropomi:
-            nlayers_cloud = np.count_nonzero(
+            self.nlayers_cloud = np.count_nonzero(
                 self.rayInfo["pbar"] <= self.i_uip["tropomiPars"]["cloud_pressure"]
             )
         else:
@@ -437,14 +432,16 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     "self.i_uip['omiPars']['cloud_pressure'] < 0. Check the OMI Cloud L2 product used as input for OMI cloud variables."
                 )
 
-            nlayers_cloud = np.count_nonzero(self.rayInfo["pbar"] <= cloud_pressure)
+            self.nlayers_cloud = np.count_nonzero(
+                self.rayInfo["pbar"] <= cloud_pressure
+            )
         self.atm_cloud_jacobians_ils = None
 
         if self.i_uip["num_atm_k"] > 0:
             cnt = 0
             k_structure = {
                 "species": "thisisadummystring",
-                "k": np.zeros(shape=(nfreq_tot, nlayers_cloud), dtype=np.float64),
+                "k": np.zeros(shape=(nfreq_tot, self.nlayers_cloud), dtype=np.float64),
             }
 
             self.atm_cloud_jacobians_ils = []  # replicate(temporary(k_structure),uip.num_atm_k)
@@ -466,126 +463,42 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 self.i_uip["tropomiPars"], tropomi0=self.obs.radiance_for_uip
             )
         else:
-            self.omi_radiance = get_omi_radiance(self.i_uip["omiPars"], omi0=self.obs.radiance_for_uip)
+            self.omi_radiance = get_omi_radiance(
+                self.i_uip["omiPars"], omi0=self.obs.radiance_for_uip
+            )
 
         # loop over all microwindows
-        for ii_mw in range(0, self.mw_account["mw_cnt"]):
+        for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
             # AT_LINE 201 OMI/omi_fm.pro
-            self.mw_account["mw_cnt"] = ii_mw
+            self.mw_account["mw_cnt"] = self.ii_mw
 
-            mws = self.mw_account["mw_range"][0, ii_mw]
-            mwf = self.mw_account["mw_range"][1, ii_mw]
+            self.mws = self.mw_account["mw_range"][0, self.ii_mw]
+            self.mwf = self.mw_account["mw_range"][1, self.ii_mw]
 
             # * measurement wavelength grid after ILS convolved
-            v_ils_mw = self.mw_account["freq"][mws : mwf + 1]
+            v_ils_mw = self.mw_account["freq"][self.mws : self.mwf + 1]
 
-            if ii_mw == 0:
+            if self.ii_mw == 0:
                 v_ils_total = v_ils_mw  # get ils convolved frequency grid
 
-            if ii_mw > 0:
+            if self.ii_mw > 0:
                 v_ils_total = np.concatenate((v_ils_total, v_ils_mw), axis=0)
 
             logger.info("Calling rtf for clear sky")
-            do_cloud = 0
-            self.rtf(
-                ii_mw,
-                do_cloud,
-                nlayers,
-            )
+            self.rtf(do_cloud=0)
 
             logger.info("Calling rtf for cloudy sky")
-            do_cloud = 1
-            self.rtf(
-                ii_mw,
-                do_cloud,
-                nlayers_cloud,
-            )
+            self.rtf(do_cloud=1)
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
             #  Compute jacobians of cloud fraction, ring scaling factor, and
             #  wavelength shift parameters
-            #
-            # jacobians that go into rev_and_fm_map for reference
-            # jacobian_ring_sf_ils_uv1, jacobian_ring_sf_ils_uv2,
-            # jacobian_nradwav_ils_uv1, jacobian_nradwav_ils_uv2,
-            # jacobian_odwav_ils_uv1, jacobian_odwav_ils_uv2,
-            # jacobian_odwav_slope_ils_uv1,
-            # jacobian_odwav_slope_ils_uv2
 
             if self.is_tropomi:
-                (
-                    self.jacobians_atm_ils,
-                    self.radiance_clear_ils,
-                    self.radiance_cloud_ils,
-                    self.jacobian_dictionary,
-                ) = tropomi_rev_and_fm_map(
-                    self.rayInfo,
-                    self.i_uip,
-                    self.mw_account,
-                    nlayers,
-                    nlayers_cloud,
-                    self.radiance_ils,
-                    self.radiance_clear_ils,
-                    self.radiance_cloud_ils,
-                    self.tropomi_radiance,
-                    self.ring_clear_ils,
-                    self.ring_cloud_ils,
-                    self.jacobians_atm_ils,
-                    self.atm_clear_jacobians_ils,
-                    self.atm_cloud_jacobians_ils,
-                    self.jacobian_dictionary,
-                    self.radiance_matrix_temperature_clear,
-                    self.radiance_matrix_temperature_cloudy,
-                    self.radiance_temperature_ils,
-                    self.ring_clear_ils_temperature,
-                    self.ring_cloud_ils_temperature,
-                    mws,
-                    mwf,
-                    ii_mw,
-                )
+                self.tropomi_rev_and_fm_map()
             else:
-                (
-                    self.jacobians_atm_ils,
-                    self.radiance_clear_ils,
-                    self.radiance_cloud_ils,
-                    self.jacobian_cloud_ils,
-                    self.jacobian_ring_sf_ils_uv1,
-                    self.jacobian_ring_sf_ils_uv2,
-                    self.jacobian_nradwav_ils_uv1,
-                    self.jacobian_nradwav_ils_uv2,
-                    self.jacobian_odwav_ils_uv1,
-                    self.jacobian_odwav_ils_uv2,
-                    self.jacobian_odwav_slope_ils_uv1,
-                    self.jacobian_odwav_slope_ils_uv2,
-                ) = rev_and_fm_map(
-                    self.rayInfo,
-                    self.i_uip,
-                    self.mw_account,
-                    nlayers,
-                    nlayers_cloud,
-                    self.radiance_ils,
-                    self.radiance_clear_ils,
-                    self.radiance_cloud_ils,
-                    self.omi_radiance,
-                    self.ring_clear_ils,
-                    self.ring_cloud_ils,
-                    self.jacobians_atm_ils,
-                    self.atm_clear_jacobians_ils,
-                    self.atm_cloud_jacobians_ils,
-                    self.jacobian_dictionary["jacobian_cloud_ils"],
-                    self.jacobian_dictionary["jacobian_ring_sf_ils_uv1"],
-                    self.jacobian_dictionary["jacobian_ring_sf_ils_uv2"],
-                    self.jacobian_dictionary["jacobian_nradwav_ils_uv1"],
-                    self.jacobian_dictionary["jacobian_nradwav_ils_uv2"],
-                    self.jacobian_dictionary["jacobian_odwav_ils_uv1"],
-                    self.jacobian_dictionary["jacobian_odwav_ils_uv2"],
-                    self.jacobian_dictionary["jacobian_odwav_slope_ils_uv1"],
-                    self.jacobian_dictionary["jacobian_odwav_slope_ils_uv2"],
-                    mws,
-                    mwf,
-                    ii_mw,
-                )
+                self.omi_rev_and_fm_map()
 
         # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
@@ -600,7 +513,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 self.tropomi_radiance,
                 self.jacobians_atm_ils,
                 self.jacobian_dictionary,
-                ii_mw,
+                self.ii_mw,
             )
         else:
             (o_radiance_pack, o_jacobian_pack) = pack_omi_jacobian(
@@ -608,7 +521,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 self.radiance_ils,
                 self.omi_radiance,
                 self.jacobians_atm_ils,
-                self.jacobian_cloud_ils,
+                self.jacobian_dictionary["jacobian_cloud_ils"],
                 self.jacobian_dictionary["jacobian_ring_sf_ils_uv1"],
                 self.jacobian_dictionary["jacobian_ring_sf_ils_uv2"],
                 self.jacobian_dictionary["jacobian_nradwav_ils_uv1"],
@@ -636,9 +549,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
     def rtf(
         self,
-        ii_mw,
         do_cloud,
-        fm_nlayers,
     ):
         from refractor.muses_py import (
             apply_omi_isrf_fast,
@@ -672,22 +583,28 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         vlidort_output_iter_dir = vlidort_output_dir + "/IterLast/MWLast/cloudy/"
         Path(vlidort_output_iter_dir).mkdir(parents=True, exist_ok=True)
 
+        fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         if self.is_tropomi:
-            print_tropomi_config(vlidort_input_iter_dir, ii_mw, self.i_uip, fm_nlayers)
+            print_tropomi_config(
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers
+            )
             print_tropomi_vga(
-                vlidort_input_iter_dir, ii_mw, self.i_uip, self.rayInfo, fm_nlayers
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.rayInfo, fm_nlayers
             )
             print_tropomi_surface_albedo(
-                vlidort_input_iter_dir, ii_mw, self.i_uip, do_cloud
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
             )
-            print_tropomi_atm(vlidort_input_iter_dir, self.i_uip, self.rayInfo, fm_nlayers)
+            print_tropomi_atm(
+                vlidort_input_iter_dir, self.i_uip, self.rayInfo, fm_nlayers
+            )
         else:
-            print_omi_config(vlidort_input_iter_dir, ii_mw, self.i_uip, fm_nlayers)
-            print_omi_vga(vlidort_input_iter_dir, ii_mw, self.i_uip, self.rayInfo)
+            print_omi_config(vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers)
+            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.rayInfo)
             print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.rayInfo, fm_nlayers)
             print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.rayInfo)
-            print_omi_surface_albedo(vlidort_input_iter_dir, ii_mw, self.i_uip, do_cloud)
-            
+            print_omi_surface_albedo(
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
+            )
 
         # Run VLIDORT CLI
         vlidort_run(
@@ -718,25 +635,25 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
         if self.is_tropomi:
             tropomi_print_ring_input(
-            vlidort_input_iter_dir,
-            vlidort_output_iter_dir,
-            ii_mw,
-            self.i_uip,
-            self.rayInfo,
-            fm_nlayers,
-            do_cloud,
-            i_obs=self.obs.radiance_for_uip,
+                vlidort_input_iter_dir,
+                vlidort_output_iter_dir,
+                self.ii_mw,
+                self.i_uip,
+                self.rayInfo,
+                fm_nlayers,
+                do_cloud,
+                i_obs=self.obs.radiance_for_uip,
             )
-        else:        
+        else:
             print_ring_input(
-            vlidort_input_iter_dir,
-            vlidort_output_iter_dir,
-            ii_mw,
-            self.i_uip,
-            self.rayInfo,
-            fm_nlayers,
-            do_cloud,
-            i_obs=self.obs.radiance_for_uip,
+                vlidort_input_iter_dir,
+                vlidort_output_iter_dir,
+                self.ii_mw,
+                self.i_uip,
+                self.rayInfo,
+                fm_nlayers,
+                do_cloud,
+                i_obs=self.obs.radiance_for_uip,
             )
 
         raman_inputs_dir = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
@@ -783,7 +700,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
         if ring_matrix is None:
             raise RuntimeError("Could not read ring: Ring.asc")
 
-        my_filter = self.i_uip["microwindows"][ii_mw]["filter"]
+        my_filter = self.i_uip["microwindows"][self.ii_mw]["filter"]
 
         # Note I don't think the ILS actually works. We have this
         # copied from py-retrieve, where I don't believe it works there.
@@ -797,23 +714,25 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
             # MT: Implementing ILS application
             if self.i_uip["ils_tropomi_xsection"] == "POSTCONV":
-                radiance_matrix = apply_tropomi_isrf(self.i_uip, ii_mw, radiance_matrix)
+                radiance_matrix = apply_tropomi_isrf(
+                    self.i_uip, self.ii_mw, radiance_matrix
+                )
                 jacobian_o3_matrix = apply_tropomi_isrf(
-                    self.i_uip, ii_mw, jacobian_o3_matrix
+                    self.i_uip, self.ii_mw, jacobian_o3_matrix
                 )
                 jacobian_sf_matrix = apply_tropomi_isrf(
-                    self.i_uip, ii_mw, jacobian_sf_matrix
+                    self.i_uip, self.ii_mw, jacobian_sf_matrix
                 )
 
             if self.i_uip["ils_tropomi_xsection"] == "FASTCONV":
                 radiance_matrix = apply_tropomi_isrf_fastconv(
-                    self.i_uip, ii_mw, radiance_matrix
+                    self.i_uip, self.ii_mw, radiance_matrix
                 )
                 jacobian_o3_matrix = apply_tropomi_isrf_fastconv(
-                    self.i_uip, ii_mw, jacobian_o3_matrix
+                    self.i_uip, self.ii_mw, jacobian_o3_matrix
                 )
                 jacobian_sf_matrix = apply_tropomi_isrf_fastconv(
-                    self.i_uip, ii_mw, jacobian_sf_matrix
+                    self.i_uip, self.ii_mw, jacobian_sf_matrix
                 )
         else:
             ils_omi_xsection = self.i_uip["ils_omi_xsection"]
@@ -823,13 +742,13 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
             if ils_omi_xsection == "POSTCONV":
                 radiance_matrix = apply_omi_srf(
-                    self.i_uip, ii_mw, radiance_matrix, self.omi_radiance
+                    self.i_uip, self.ii_mw, radiance_matrix, self.omi_radiance
                 )
                 jacobian_o3_matrix = apply_omi_srf(
-                    self.i_uip, ii_mw, jacobian_o3_matrix, self.omi_radiance
+                    self.i_uip, self.ii_mw, jacobian_o3_matrix, self.omi_radiance
                 )
                 jacobian_sf_matrix = apply_omi_srf(
-                    self.i_uip, ii_mw, jacobian_sf_matrix, self.omi_radiance
+                    self.i_uip, self.ii_mw, jacobian_sf_matrix, self.omi_radiance
                 )
 
                 # TODO: VK: Verify. Not sure about this. IDL convolves the optical depth
@@ -837,34 +756,38 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
             # end: if ils_omi_xsection == 'POSTCONV':
 
             if ils_omi_xsection == "SLOWCONV":
-                radiance_matrix = apply_omi_isrf_slow(self.i_uip, ii_mw, radiance_matrix)
+                radiance_matrix = apply_omi_isrf_slow(
+                    self.i_uip, self.ii_mw, radiance_matrix
+                )
                 jacobian_o3_matrix = apply_omi_isrf_slow(
-                    self.i_uip, ii_mw, jacobian_o3_matrix
+                    self.i_uip, self.ii_mw, jacobian_o3_matrix
                 )
                 jacobian_sf_matrix = apply_omi_isrf_slow(
-                    self.i_uip, ii_mw, jacobian_sf_matrix
+                    self.i_uip, self.ii_mw, jacobian_sf_matrix
                 )
 
             if ils_omi_xsection == "FASTCONV":
-                radiance_matrix = apply_omi_isrf_fast(self.i_uip, ii_mw, radiance_matrix)
+                radiance_matrix = apply_omi_isrf_fast(
+                    self.i_uip, self.ii_mw, radiance_matrix
+                )
                 jacobian_o3_matrix = apply_omi_isrf_fast(
-                    self.i_uip, ii_mw, jacobian_o3_matrix
+                    self.i_uip, self.ii_mw, jacobian_o3_matrix
                 )
                 jacobian_sf_matrix = apply_omi_isrf_fast(
-                    self.i_uip, ii_mw, jacobian_sf_matrix
+                    self.i_uip, self.ii_mw, jacobian_sf_matrix
                 )
 
         nfreq = (
-            self.i_uip["microwindows"][ii_mw]["enddmw"][ii_mw]
-            - self.i_uip["microwindows"][ii_mw]["startmw"][ii_mw]
+            self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
+            - self.i_uip["microwindows"][self.ii_mw]["startmw"][self.ii_mw]
             + 1
         )  # from [ 20 194] get 20, from [126 306] get 126 for index 0.
-        my_filter = self.i_uip["microwindows"][ii_mw]["filter"]
+        my_filter = self.i_uip["microwindows"][self.ii_mw]["filter"]
 
         temp_freq_fm = radiance_matrix[0, :]
         temp_freq_ind = np.where(
-            (temp_freq_fm >= self.i_uip["microwindows"][ii_mw]["start"])
-            & (temp_freq_fm <= self.i_uip["microwindows"][ii_mw]["endd"])
+            (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
+            & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
         )[0]
 
         if len(temp_freq_ind) != nfreq:
@@ -874,17 +797,17 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 nfreq,
             )
             logger.error(
-                "self.i_uip['microwindows'][ii_mw]['startmw' ]",
-                self.i_uip["microwindows"][ii_mw]["startmw"],
+                "self.i_uip['microwindows'][self.ii_mw]['startmw' ]",
+                self.i_uip["microwindows"][self.ii_mw]["startmw"],
             )
             logger.error(
-                "self.i_uip['microwindows'][ii_mw]['enddmw' ]",
-                self.i_uip["microwindows"][ii_mw]["enddmw"],
+                "self.i_uip['microwindows'][self.ii_mw]['enddmw' ]",
+                self.i_uip["microwindows"][self.ii_mw]["enddmw"],
             )
             assert False
 
-        temp_start_ind = self.mw_account["mw_range"][0, ii_mw]
-        temp_endd_ind = self.mw_account["mw_range"][1, ii_mw]
+        temp_start_ind = self.mw_account["mw_range"][0, self.ii_mw]
+        temp_endd_ind = self.mw_account["mw_range"][1, self.ii_mw]
 
         # clear sky condition
         if do_cloud == 0:
@@ -966,14 +889,18 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
                 if my_filter != "BAND1":
                     wave_arr = self.i_uip["fullbandfrequency"][
-                        self.i_uip["microwindows"][ii_mw]["startmw"][ii_mw] : self.i_uip[
-                            "microwindows"
-                        ][ii_mw]["enddmw"][ii_mw]
+                        self.i_uip["microwindows"][self.ii_mw]["startmw"][
+                            self.ii_mw
+                        ] : self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
                         + 1
                     ]
 
-                    STARTMW_FM = self.i_uip["microwindows"][ii_mw]["startmw_fm"][ii_mw]
-                    ENDDMW_FM = self.i_uip["microwindows"][ii_mw]["enddmw_fm"][ii_mw]
+                    STARTMW_FM = self.i_uip["microwindows"][self.ii_mw]["startmw_fm"][
+                        self.ii_mw
+                    ]
+                    ENDDMW_FM = self.i_uip["microwindows"][self.ii_mw]["enddmw_fm"][
+                        self.ii_mw
+                    ]
 
                     start_wav = self.i_uip["fullbandfrequency"][STARTMW_FM]
                     endd_wav = self.i_uip["fullbandfrequency"][ENDDMW_FM]
@@ -991,7 +918,8 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                         ].shape[0]
                     ):
                         shrink_left_hand_size = (
-                            temp_start_ind + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
+                            temp_start_ind
+                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
                         )
                         self.jacobian_dictionary[f"surface_albedo_slope_{my_filter}"][
                             temp_start_ind:shrink_left_hand_size
@@ -1026,7 +954,8 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                         ].shape[0]
                     ):
                         shrink_left_hand_size = (
-                            temp_start_ind + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
+                            temp_start_ind
+                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
                         )
                         self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"][
                             temp_start_ind:shrink_left_hand_size
@@ -1038,9 +967,9 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
                     ref_wav = np.float64(320.0)
                     wave_arr = self.i_uip["fullbandfrequency"][
-                        self.i_uip["microwindows"][ii_mw]["startmw"][ii_mw] : self.i_uip[
-                            "microwindows"
-                        ][ii_mw]["enddmw"][ii_mw]
+                        self.i_uip["microwindows"][self.ii_mw]["startmw"][
+                            self.ii_mw
+                        ] : self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
                         + 1
                     ]
                     delta_wav = wave_arr[:] - ref_wav
@@ -1052,7 +981,8 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                         ].shape[0]
                     ):
                         shrink_left_hand_size = (
-                            temp_start_ind + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
+                            temp_start_ind
+                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
                         )
                         self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"][
                             temp_start_ind:shrink_left_hand_size
@@ -1145,8 +1075,481 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                     self.jacobian_dictionary["cloud_Surface_Albedo"][
                         temp_start_ind : temp_endd_ind + 1
                     ] = jacobian_sf_matrix[1, temp_freq_ind]
-            
+
         # end if do_cloud:
+
+    def tropomi_rev_and_fm_map(
+        self,
+    ):
+        # Functionality:
+        # 1. Applied any FM Maping e.g., Layer-to-Level
+        # 2. Combined cloud and clear sky radiances/jacobians
+        uip_tropomi = self.i_uip["uip_TROPOMI"]
+        uip_tropomi_pars = self.i_uip["tropomiPars"]
+
+        STARTMW = uip_tropomi["microwindows"][self.ii_mw]["startmw"][self.ii_mw]
+        ENDDMW = uip_tropomi["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
+
+        wave_arr = uip_tropomi["fullbandfrequency"][STARTMW : ENDDMW + 1]
+
+        # For calculating continuum shift
+        STARTMW_FM = uip_tropomi["microwindows"][self.ii_mw]["startmw_fm"][self.ii_mw]
+        ENDDMW_FM = uip_tropomi["microwindows"][self.ii_mw]["enddmw_fm"][self.ii_mw]
+
+        start_wav = uip_tropomi["fullbandfrequency"][STARTMW_FM]
+        endd_wav = uip_tropomi["fullbandfrequency"][ENDDMW_FM]
+
+        ref_wav = (
+            (np.float64(endd_wav) - np.float64(start_wav)) / np.float64(2.0)
+        ) + np.float64(start_wav)
+        delta_wav = float(1.0) - (wave_arr[:] / ref_wav)
+
+        cloud_cf = np.float64(uip_tropomi_pars["cloud_fraction"])
+
+        # add ring to simulated radiances
+        # Ring is only relevent to bands 1, 2 and 3 of TROPOMI....maybe others, will check
+        my_filter = uip_tropomi["microwindows"][self.ii_mw]["filter"]
+        if my_filter in ["BAND1", "BAND2", "BAND3"]:
+            # EM addtional fit for poor calibration, only applied if called
+            temp_Rext = (
+                np.float64(uip_tropomi_pars[f"resscale_O0_{my_filter}"])
+                + np.float64(uip_tropomi_pars[f"resscale_O1_{my_filter}"]) * delta_wav
+                + np.float64(uip_tropomi_pars[f"resscale_O2_{my_filter}"])
+                * delta_wav**2
+            )
+
+            temp_Rext_p = temp_Rext + np.float64(0.001)
+
+            # clear
+            temp_val = np.float64(uip_tropomi_pars[f"ring_sf_{my_filter}"])
+            temp_val_p = temp_val + np.float64(0.001)
+
+            temp_ring = self.ring_clear_ils[
+                self.mws : self.mwf + 1
+            ] * temp_val + np.float64(1.0)
+            temp_ring_p = self.ring_clear_ils[
+                self.mws : self.mwf + 1
+            ] * temp_val_p + np.float64(1.0)
+
+            self.radiance_clear_ils[self.mws : self.mwf + 1] = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1]
+                * temp_ring[:]
+                * temp_Rext[:]
+            )
+            self.radiance_clear_ils_p = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1]
+                * temp_ring_p[:]
+                * temp_Rext_p[:]
+            )
+
+            # cloudy
+            temp_val = np.float64(uip_tropomi_pars[f"ring_sf_{my_filter}"])
+            temp_val_p = temp_val + np.float64(0.001)
+
+            temp_ring = self.ring_cloud_ils[
+                self.mws : self.mwf + 1
+            ] * temp_val + np.float64(1.0)
+            temp_ring_p = self.ring_cloud_ils[
+                self.mws : self.mwf + 1
+            ] * temp_val_p + np.float64(1.0)
+
+            self.radiance_cloud_ils[self.mws : self.mwf + 1] = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1]
+                * temp_ring[:]
+                * temp_Rext[:]
+            )
+            self.radiance_cloud_ils_p = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1]
+                * temp_ring_p[:]
+                * temp_Rext_p[:]
+            )
+
+            # combined cloud/clear sky radiances
+            self.radiance_ils[self.mws : self.mwf + 1] = self.radiance_cloud_ils[
+                self.mws : self.mwf + 1
+            ] * cloud_cf + self.radiance_clear_ils[self.mws : self.mwf + 1] * (
+                np.float64(1.0) - cloud_cf
+            )
+            self.radiance_ils_p = (
+                self.radiance_cloud_ils_p * cloud_cf
+                + self.radiance_clear_ils_p * (np.float64(1.0) - cloud_cf)
+            )
+
+            dI = self.radiance_ils_p[:] - self.radiance_ils[self.mws : self.mwf + 1]
+            dX = np.float64(0.001)
+
+            # compute continuum scaling jacobians
+            self.jacobian_dictionary[f"resscale_O0_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = (dI / dX) / delta_wav
+            self.jacobian_dictionary[f"resscale_O1_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = dI / dX
+            self.jacobian_dictionary[f"resscale_O2_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = (dI / dX) * delta_wav
+
+            # compute cloud fraction jacobian
+            self.jacobian_dictionary["jacobian_cloud_ils"][self.mws : self.mwf + 1] = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1]
+                - self.radiance_clear_ils[self.mws : self.mwf + 1]
+            )
+
+            # compute Ring Scaling Factor jacobians
+            self.jacobian_dictionary[f"ring_sf_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = dI / dX
+
+            # Calculate solar shift jacobians
+            # EM NOTE - not sure if this is necessary for all bands, so putting into 1, 2 and 3 for the time being
+            temp_jac = self.tropomi_radiance["normwav_jac"][uip_tropomi["freqIndex"]]
+            self.jacobian_dictionary[f"solarshift_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+
+            # compute radiance/irradiance wavelength shift jacobians
+            # EM - NOTE This is possibly useful for other bands as well, will change if necessary
+            temp_jac = self.tropomi_radiance["odwav_jac"][uip_tropomi["freqIndex"]]
+            self.jacobian_dictionary[f"radianceshift_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+
+            # compute radiance/irradiance wavelength squeeze jacobians
+            # EM NOTE - Although this is present, the standard omi implementation doesn't use these.
+            # They may also be useful for other bands, but will cross that bridge later.
+            temp_jac = self.tropomi_radiance["odwav_slope_jac"][
+                uip_tropomi["freqIndex"]
+            ]
+            self.jacobian_dictionary[f"radsqueeze_{my_filter}"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+        # end: if my_filter in ['BAND1', 'BAND2', 'BAND3']:
+
+        # EM NOTE - Other bands will have other parameters to fit, e.g. BANDS 7-8 will need aerosol scattering, these
+        # must be accounted for here in the future.
+
+        # reverse layer index of jacobians for atmospheric species
+        # map them to the forward model levels
+        if self.i_uip["num_atm_k"] > 0:
+            for ii_sp in range(0, self.i_uip["num_atm_k"]):
+                k_clear = copy.deepcopy(
+                    self.atm_clear_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
+                )  # Make a copy so as not to disturb original matrix.
+                k_cloud = copy.deepcopy(
+                    self.atm_cloud_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
+                )  # Make a copy so as not to disturb original matrix.
+
+                temp_array_k_jac = (
+                    k_clear - k_clear
+                )  # This clear out a matrix of shape k_clear.shape
+                for ilay in range(0, self.nlayers):
+                    # layers above cloud top
+                    if ilay <= self.nlayers_cloud - 1:
+                        temp_array_k_jac[:, ilay] = (
+                            k_clear[:, ilay] * (1.0 - cloud_cf)
+                            + k_cloud[:, ilay] * cloud_cf
+                        )
+
+                    # layers below cloud top
+                    if ilay > self.nlayers_cloud - 1:
+                        temp_array_k_jac[:, ilay] = k_clear[:, ilay] * (1.0 - cloud_cf)
+                # end for ilay in range(0,self.nlayers):
+
+                # in order to flip the order of jacobians so that the first row is at surface
+                temp_jac = (
+                    temp_array_k_jac - temp_array_k_jac
+                )  # This clear out a matrix of shape temp_array_k_jac.shape to zeros.
+                for ilay in range(0, self.nlayers):
+                    temp_jac[:, ilay] = temp_array_k_jac[:, self.nlayers - ilay - 1]
+                # end for ilay in range(0,self.nlayers):
+
+                species_k = self.atm_clear_jacobians_ils[ii_sp]["species"]
+                self.jacobians_atm_ils["k_species"][ii_sp]["species"] = species_k
+                temp_array = temp_jac  # Because temp_array will be used on the right hand side, we can do the assignment and not a deepcopy.
+
+                ## Only compare the first layer
+                species_as_np_array = np.asarray(self.i_uip["species"])
+
+                # Loop through all layers to do comparison before the multiplication.
+                for jj_layer in range(0, self.nlayers):
+                    uu = np.where(species_as_np_array == species_k)[0]
+                # end for jj_layer in range(0,self.nlayers):
+
+                for jj_layer in range(0, self.nlayers):
+                    uu = np.where(species_as_np_array == species_k)[0]
+                    if len(uu) > 0:
+                        self.jacobians_atm_ils["k_species"][ii_sp]["k"][
+                            jj_layer, self.mws : self.mwf + 1
+                        ] = (
+                            self.jacobians_atm_ils["k_species"][ii_sp]["k"][
+                                jj_layer, self.mws : self.mwf + 1
+                            ]
+                            + temp_array[:, jj_layer]
+                            * self.rayInfo["map_vmr_l"][uu[0], jj_layer]
+                        )
+
+                        self.jacobians_atm_ils["k_species"][ii_sp]["k"][
+                            jj_layer + 1, self.mws : self.mwf + 1
+                        ] = (
+                            self.jacobians_atm_ils["k_species"][ii_sp]["k"][
+                                jj_layer + 1, self.mws : self.mwf + 1
+                            ]
+                            + temp_array[:, jj_layer]
+                            * self.rayInfo["map_vmr_u"][uu[0], jj_layer]
+                        )
+                    # end if len(uu) > 0:
+                # end for jj_layer in range(0,self.nlayers):
+            # end for ii_sp in range(0,self.i_uip['num_atm_k']):
+        # end if (self.i_uip['num_atm_k'] > 0):
+
+        # AT_LINE 129 OMI/rev_and_fm_map.pro
+        # EM NOTE - What is this??
+        if wave_arr[0] > 335.0:
+            # The array self.jacobians_atm_ils can be None so we look to see if self.i_uip['num_atm_k'] is more than 0 before accessing it.
+            if self.i_uip["num_atm_k"] > 0:
+                self.jacobians_atm_ils["k_species"][:]["k"][
+                    :, self.mws : self.mwf + 1
+                ] = np.float64(0.0)
+
+    def omi_rev_and_fm_map(self):
+        # Description: simulate omi radiances and jacobians
+
+        uip_omi = self.i_uip["uip_OMI"]
+        uip_omi_pars = self.i_uip["omiPars"]
+
+        # Functionality:
+        # 1. Applied any FM Maping e.g., Layer-to-Level
+        # 2. Combined cloud and clear sky radiances/jacobians
+
+        # Create some float64 values we may need.
+        ring_sf_uv1 = np.float64(uip_omi_pars["ring_sf_uv1"])
+        ring_sf_uv2 = np.float64(uip_omi_pars["ring_sf_uv2"])
+        cloud_cf = np.float64(uip_omi_pars["cloud_fraction"])
+
+        # AT_LINE 27 OMI/rev_and_fm_map.pro
+        startmw = uip_omi["microwindows"][self.ii_mw]["startmw"][self.ii_mw]
+        enddmw = uip_omi["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
+
+        wave_arr = uip_omi["fullbandfrequency"][startmw : enddmw + 1]
+
+        my_filter = uip_omi["microwindows"][self.ii_mw]["filter"]
+
+        # AT_LINE 32 OMI/rev_and_fm_map.pro
+        # add ring to simulated radiances
+        if my_filter == "UV1":
+            temp_ring = (
+                np.float64(1.0)
+                + self.ring_clear_ils[self.mws : self.mwf + 1] * ring_sf_uv1
+            )
+            temp_ring_p = np.float64(1.0) + self.ring_clear_ils[
+                self.mws : self.mwf + 1
+            ] * (ring_sf_uv1 + np.float64(0.001))
+
+            self.radiance_clear_ils[self.mws : self.mwf + 1] = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1] * temp_ring[:]
+            )
+            self.radiance_clear_ils_p = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1] * temp_ring_p[:]
+            )
+
+            temp_ring = (
+                np.float64(1.0)
+                + self.ring_cloud_ils[self.mws : self.mwf + 1] * ring_sf_uv1
+            )
+            temp_ring_p = np.float64(1.0) + self.ring_cloud_ils[
+                self.mws : self.mwf + 1
+            ] * (ring_sf_uv1 + np.float64(0.001))
+
+            self.radiance_cloud_ils[self.mws : self.mwf + 1] = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1] * temp_ring[:]
+            )
+            self.radiance_cloud_ils_p = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1] * temp_ring_p[:]
+            )
+        # end if my_filter == 'UV1':
+
+        # AT_LINE 46 OMI/rev_and_fm_map.pro
+        if my_filter == "UV2":
+            temp_ring = (
+                np.float64(1.0)
+                + self.ring_clear_ils[self.mws : self.mwf + 1] * ring_sf_uv2
+            )
+            temp_ring_p = np.float64(1.0) + self.ring_clear_ils[
+                self.mws : self.mwf + 1
+            ] * (ring_sf_uv2 + np.float64(0.001))
+
+            self.radiance_clear_ils[self.mws : self.mwf + 1] = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1] * temp_ring[:]
+            )
+            self.radiance_clear_ils_p = (
+                self.radiance_clear_ils[self.mws : self.mwf + 1] * temp_ring_p[:]
+            )
+
+            temp_ring = (
+                np.float64(1.0)
+                + self.ring_cloud_ils[self.mws : self.mwf + 1] * ring_sf_uv2
+            )
+            temp_ring_p = np.float64(1.0) + self.ring_cloud_ils[
+                self.mws : self.mwf + 1
+            ] * (ring_sf_uv2 + np.float64(0.001))
+
+            self.radiance_cloud_ils[self.mws : self.mwf + 1] = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1] * temp_ring[:]
+            )
+            self.radiance_cloud_ils_p = (
+                self.radiance_cloud_ils[self.mws : self.mwf + 1] * temp_ring_p[:]
+            )
+        # end if my_filter == 'UV2':
+
+        # AT_LINE 60 OMI/rev_and_fm_map.pro
+        # combined cloud/clear sky radiances
+
+        # see:
+        # https://acp.copernicus.org/articles/11/7155/2011/acp-11-7155-2011.pdf
+        # 2.2 Analytical formulation
+        self.radiance_ils[self.mws : self.mwf + 1] = self.radiance_cloud_ils[
+            self.mws : self.mwf + 1
+        ] * cloud_cf + self.radiance_clear_ils[self.mws : self.mwf + 1] * (
+            1.0 - cloud_cf
+        )
+
+        self.radiance_ils_p = (
+            self.radiance_cloud_ils_p * cloud_cf
+            + self.radiance_clear_ils_p * (1.0 - cloud_cf)
+        )
+
+        # compute cloud fraction jacobian
+        self.jacobian_dictionary["jacobian_cloud_ils"][self.mws : self.mwf + 1] = (
+            self.radiance_cloud_ils[self.mws : self.mwf + 1]
+            - self.radiance_clear_ils[self.mws : self.mwf + 1]
+        )
+
+        dI = self.radiance_ils_p[:] - self.radiance_ils[self.mws : self.mwf + 1]
+        dX = np.float64(0.001)
+
+        # AT_LINE 67 OMI/rev_and_fm_map.pro
+        # compute Ring Scaling Factor jacobians
+        if my_filter == "UV1":
+            self.jacobian_dictionary["jacobian_ring_sf_ils_uv1"][
+                self.mws : self.mwf + 1
+            ] = dI / dX
+        if my_filter == "UV2":
+            self.jacobian_dictionary["jacobian_ring_sf_ils_uv2"][
+                self.mws : self.mwf + 1
+            ] = dI / dX
+
+        # AT_LINE 72 OMI/rev_and_fm_map.pro
+        # compute normrad wavelength shift jacobians
+        temp_jac = self.omi_radiance["normwav_jac"][uip_omi["freqIndex"]]
+        if my_filter == "UV1":
+            self.jacobian_dictionary["jacobian_nradwav_ils_uv1"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+        if my_filter == "UV2":
+            self.jacobian_dictionary["jacobian_nradwav_ils_uv2"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+
+        # AT_LINE 77 OMI/rev_and_fm_map.pro
+        # compute OD wavelength shift jacobians
+        temp_jac = self.omi_radiance["odwav_jac"][uip_omi["freqIndex"]]
+        if my_filter == "UV1":
+            self.jacobian_dictionary["jacobian_odwav_ils_uv1"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+        if my_filter == "UV2":
+            self.jacobian_dictionary["jacobian_odwav_ils_uv2"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+
+        # AT_LINE 82 OMI/rev_and_fm_map.pro
+        # compute OD wavelength shift slope jacobians
+        temp_jac = self.omi_radiance["odwav_slope_jac"][uip_omi["freqIndex"]]
+        if my_filter == "UV1":
+            self.jacobian_dictionary["jacobian_odwav_slope_ils_uv1"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+        if my_filter == "UV2":
+            self.jacobian_dictionary["jacobian_odwav_slope_ils_uv2"][
+                self.mws : self.mwf + 1
+            ] = temp_jac[self.mws : self.mwf + 1]
+
+        # AT_LINE 87 OMI/rev_and_fm_map.pro
+        # reverse layer index of jacobians for atmospheric species
+        # map them to the forward model levels
+        if self.i_uip["num_atm_k"] > 0:
+            for ii_sp in range(0, self.i_uip["num_atm_k"]):
+                # AT_LINE 93 OMI/rev_and_fm_map.pro
+                k_clear = copy.deepcopy(
+                    self.atm_clear_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
+                )
+                k_cloud = copy.deepcopy(
+                    self.atm_cloud_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
+                )
+
+                temp_array_k_jac = (
+                    k_clear - k_clear
+                )  # This clear out a matrix of shape k_clear.shape
+                for ilay in range(0, self.nlayers):
+                    # layers above cloud top
+                    if ilay <= self.nlayers_cloud - 1:
+                        temp_array_k_jac[:, ilay] = (
+                            cloud_cf * k_cloud[:, ilay]
+                            + (1.0 - cloud_cf) * k_clear[:, ilay]
+                        )
+
+                    # layers below cloud top
+                    if ilay > self.nlayers_cloud - 1:
+                        temp_array_k_jac[:, ilay] = (1.0 - cloud_cf) * k_clear[:, ilay]
+                # end for ilay in range(0,self.nlayers):
+
+                # AT_LINE 104 OMI/rev_and_fm_map.pro
+                # Flip the order of jacobians so that the first row is at surface
+                temp_jac = (
+                    temp_array_k_jac - temp_array_k_jac
+                )  # This clear out a matrix of shape temp_array_k_jac.shape to zeros.
+                for ilay in range(0, self.nlayers):
+                    temp_jac[:, ilay] = temp_array_k_jac[:, self.nlayers - ilay - 1]
+                # end for ilay in range(0,self.nlayers):
+
+                self.jacobians_atm_ils["k_species"][ii_sp]["species"] = (
+                    self.atm_clear_jacobians_ils[ii_sp]["species"]
+                )
+
+                ## Only compare the first layer
+                # AT_LINE 114 OMI/rev_and_fm_map.pro
+                species_as_np_array = np.asarray(self.i_uip["species"])
+                species_k = self.jacobians_atm_ils["k_species"][ii_sp]["species"]
+                uu = np.where(species_as_np_array == species_k)[0]
+
+                if len(uu) > 0:
+                    # see: https://www.sciencedirect.com/science/article/pii/S0022407314001277
+                    # 2.4 Transformation rules for level-atmosphere Jacobians (18)
+                    for jj_layer in range(0, self.nlayers):
+                        jac_ii_sp = self.jacobians_atm_ils["k_species"][ii_sp]["k"]
+                        jac_ii_sp[jj_layer, self.mws : self.mwf + 1] = (
+                            jac_ii_sp[jj_layer, self.mws : self.mwf + 1]
+                            + temp_jac[:, jj_layer]
+                            * self.rayInfo["map_vmr_l"][uu[0], jj_layer]
+                        )
+
+                        jac_ii_sp[jj_layer + 1, self.mws : self.mwf + 1] = (
+                            jac_ii_sp[jj_layer + 1, self.mws : self.mwf + 1]
+                            + temp_jac[:, jj_layer]
+                            * self.rayInfo["map_vmr_u"][uu[0], jj_layer]
+                        )
+                    # end for jj_layer in range(0,self.nlayers):
+                # end if len(uu) > 0:
+            # end for ii_sp in range(0,self.i_uip['num_atm_k']):
+        # end if (self.i_uip['num_atm_k'] > 0):
+
+        # AT_LINE 129 OMI/rev_and_fm_map.pro
+        if wave_arr[0] > 335.0:
+            # The array self.jacobians_atm_ils can be None so we look to see if self.i_uip['num_atm_k'] is more than 0 before accessing it.
+            if self.i_uip["num_atm_k"] > 0:
+                self.jacobians_atm_ils["k_species"][:]["k"][
+                    :, self.mws : self.mwf + 1
+                ] = np.float64(0.0)
 
 
 class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
