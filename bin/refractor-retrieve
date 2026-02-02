@@ -76,7 +76,7 @@ warnings.showwarning = showwarning
 logger.info("refractor-retrieve is running ...")
 
 if args.refractor_config:
-    logger.info("Loading refractor configuration file: %s", args.refractor_config)
+    logger.info(f"Loading refractor configuration file: {args.refractor_config}")
     spec = importlib.util.spec_from_file_location("refractor_config",
                                                   args.refractor_config)
     module = importlib.util.module_from_spec(spec)
@@ -155,7 +155,7 @@ if(args.mpi):
     
     # For MPI, we use a few fixed directories. By convention, we
     # don't use these for the non-MPI case.
-    bpath = os.path.abspath(os.path.dirname(os.path.dirname(target_dir_full_list[0])))
+    bpath = os.path.abspath(os.path.dirname(target_dir_full_list[0]))
     success_dir = f"{bpath}/success"
     error_dir = f"{bpath}/error"
     log_dir = f"{bpath}/log"
