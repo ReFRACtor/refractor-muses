@@ -259,9 +259,7 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
     def fm_call2(self, i_uip, is_tropomi: bool):
         # Temp, we'll pull some of this over and get other parts into mpy
         from refractor.muses_py import (
-            pack_omi_jacobian,
             get_omi_radiance,
-            pack_tropomi_jacobian,
             get_tropomi_radiance,
             raylayer_nadir,
             atmosphere_level,
@@ -502,38 +500,9 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
 
         # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
-        # Pack Radiance and Jacobians Note that the returned value of
-        # o_jacobian_pack from pack_omi_jacobian() can be None if the
-        # value of num_par is 0, so becareful accessing
-        # o_jacobian_pack.
-        if self.is_tropomi:
-            (o_radiance_pack, o_jacobian_pack) = pack_tropomi_jacobian(
-                self.i_uip,
-                self.radiance_ils,
-                self.tropomi_radiance,
-                self.jacobians_atm_ils,
-                self.jacobian_dictionary,
-                self.ii_mw,
-            )
-        else:
-            (o_radiance_pack, o_jacobian_pack) = pack_omi_jacobian(
-                self.i_uip,
-                self.radiance_ils,
-                self.omi_radiance,
-                self.jacobians_atm_ils,
-                self.jacobian_dictionary["jacobian_cloud_ils"],
-                self.jacobian_dictionary["jacobian_ring_sf_ils_uv1"],
-                self.jacobian_dictionary["jacobian_ring_sf_ils_uv2"],
-                self.jacobian_dictionary["jacobian_nradwav_ils_uv1"],
-                self.jacobian_dictionary["jacobian_nradwav_ils_uv2"],
-                self.jacobian_dictionary["jacobian_odwav_ils_uv1"],
-                self.jacobian_dictionary["jacobian_odwav_ils_uv2"],
-                self.jacobian_dictionary["jacobian_odwav_slope_ils_uv1"],
-                self.jacobian_dictionary["jacobian_odwav_slope_ils_uv2"],
-                self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"],
-                self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"],
-                self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"],
-            )
+        # Pack Radiance and Jacobians.
+        
+        (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
 
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(o_radiance_pack)):
@@ -1550,6 +1519,230 @@ class MusesForwardModelVlidortBase(rf.ForwardModel):
                 self.jacobians_atm_ils["k_species"][:]["k"][
                     :, self.mws : self.mwf + 1
                 ] = np.float64(0.0)
+
+    def pack_jacobian(self):
+        o_radiance_pack = self.radiance_ils[:]
+
+        my_filter = self.i_uip['microwindows'][self.ii_mw]['filter']
+        
+        # Initialization of parameters
+        num_rad = len(self.radiance_ils)
+        num_elem = len(o_radiance_pack)
+        num_par = 0
+        num_atm = len(self.i_uip['atmosphere'][0, :])
+
+        # Count number of parameters 
+        if self.i_uip['num_atm_k'] > 0:
+            num_par = self.i_uip['num_atm_k'] * num_atm
+
+        # Add number of jacobians
+        num_par = num_par + len(self.i_uip['jacobians'])
+            
+
+        #  Pack Jacobians
+        if num_par > 0: # now unpack jacobians
+            o_jacobian_pack = np.zeros(shape=(num_par, num_elem), dtype=np.float64) # This is our output jacobian
+            ii_par = 0
+
+            found_jacobian_flag = False   # Use this flag to make sure each species jacobian has been looked for in the for loop.
+
+            for ii in range(0, len(self.i_uip['jacobians'])):
+                # Pack CloudFraction jac
+                jacob_name = self.i_uip['jacobians'][ii]
+                if jacob_name == 'TROPOMICLOUDFRACTION':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary['jacobian_cloud_ils'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack Surface albedo jac
+                if jacob_name == f'TROPOMISURFACEALBEDO{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMISURFACEALBEDO{my_filter}TIGHT':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack Suface albedo slope jac
+                if jacob_name == f'TROPOMISURFACEALBEDOSLOPE{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_slope_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMISURFACEALBEDOSLOPE{my_filter}TIGHT':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_slope_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack Suface albedo second order slope jac
+                if jacob_name == f'TROPOMISURFACEALBEDOSLOPEORDER2{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_slope_order2_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMISURFACEALBEDOSLOPEORDER2{my_filter}TIGHT':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'surface_albedo_slope_order2_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack solar shift jac
+                if jacob_name == f'TROPOMISOLARSHIFT{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'solarshift_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack rad/sol ratio shift jac
+                if jacob_name == f'TROPOMIRADIANCESHIFT{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'radianceshift_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack rad/sol ratio squeeze jac
+                if jacob_name == f'TROPOMIRADSQUEEZE{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'radsqueeze_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack ring scaling factor jac
+                if jacob_name == f'TROPOMIRINGSF{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'ring_sf_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMIRESSCALEO0{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'resscale_O0_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMIRESSCALEO1{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'resscale_O1_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == f'TROPOMIRESSCALEO2{my_filter}':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[f'resscale_O2_{my_filter}'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == 'TROPOMITEMPSHIFTBAND3':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary['temp_shift_BAND3'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == 'TROPOMITEMPSHIFTBAND3TIGHT':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary['temp_shift_BAND3'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if jacob_name == 'TROPOMICLOUDSURFACEALBEDO':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary['cloud_Surface_Albedo'][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+                
+                if jacob_name == 'OMICLOUDFRACTION':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_cloud_ils"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMISURFACEALBEDOUV1 jac
+                if jacob_name == 'OMISURFACEALBEDOUV1':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMISURFACEALBEDOUV2 jac
+                if jacob_name == 'OMISURFACEALBEDOUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMISURFACEALBEDOSLOPEUV2 jac
+                if jacob_name == 'OMISURFACEALBEDOSLOPEUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMINRADWAVUV1 jac
+                if jacob_name == 'OMINRADWAVUV1':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_nradwav_ils_uv1"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMINRADWAVUV2 jac
+                if jacob_name == 'OMINRADWAVUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_nradwav_ils_uv2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIODWAVUV1 jac
+                if jacob_name == 'OMIODWAVUV1':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_odwav_ils_uv1"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIODWAVUV2 jac
+                if jacob_name == 'OMIODWAVUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_odwav_ils_uv2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIODWAVSLOPEUV1 jac
+                if jacob_name == 'OMIODWAVSLOEPUV1':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_odwav_slope_ils_uv1"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIODWAVSLOPEUV2 jac
+                if jacob_name == 'OMIODWAVSLOPEUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_odwav_slope_ils_uv2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIRINGSFUV1 jac
+                if jacob_name == 'OMIRINGSFUV1':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_ring_sf_ils_uv1"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                # Pack OMIRINGSFUV2 jac
+                if jacob_name == 'OMIRINGSFUV2':
+                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary["jacobian_ring_sf_ils_uv2"][:]
+                    ii_par = ii_par + 1
+                    found_jacobian_flag = True
+
+                if not found_jacobian_flag:
+                    logger.info("NON_OMI_SPECIES", jacob_name)
+
+                # Pack Atmopheric Species Jac
+                ii_dets = 0
+                ii_dete = num_rad - 1
+                uu = -1
+
+                if self.i_uip['num_atm_k'] > 0:
+                    uu = []
+                    for ii in range(0, len(self.jacobians_atm_ils['k_species'])):
+                        if self.jacobians_atm_ils['k_species'][ii]['species'] == jacob_name:
+                            uu.append(ii)
+
+                    if len(uu) > 0:
+                        ii_ps = ii_par
+                        ii_pe = ii_par + num_atm - 1
+
+                        o_jacobian_pack[ii_ps:ii_pe + 1, ii_dets:ii_dete + 1] = self.jacobians_atm_ils['k_species'][uu[0]]['k']
+
+                        ii_dets = ii_dets + num_rad
+                        ii_dete = ii_dete + num_rad
+                        ii_par = ii_par + num_atm
+                    # end if len(uu) > 0):
+                # end if (self.i_uip['num_atm_k'] > 0):
+            # end for ii in range(0,len(self.i_uip['jacobians'])):
+        # end if (num_par > 0):
+
+        # AT_LINE 186 OMI/pack_omi_jacobian
+        return (o_radiance_pack, o_jacobian_pack)
+                
 
 
 class MusesTropomiForwardModelVlidort(MusesForwardModelVlidortBase):
