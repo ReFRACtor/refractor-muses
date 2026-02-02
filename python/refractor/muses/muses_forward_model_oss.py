@@ -261,7 +261,7 @@ class OssHandle:
         # Clean up any old initialization. Note this is safe to call even
         # if no initialization has occurred yet.
         self.liboss.cppdestrwrapper()
-        
+
         # nfreq and freq_oss get updated by this call, everything else is
         # just a input.
         self.liboss.cppinitwrapper(
@@ -279,7 +279,8 @@ class OssHandle:
             freq_oss.ctypes.data_as(POINTER(c_float)),
             ctypes.byref(c_int(mx_nfreq)),
         )
-        self.freq_oss = freq_oss[:n_freq.value]
+        self.freq_oss = freq_oss[: n_freq.value]
+
 
 oss_handle = OssHandle()
 

@@ -927,7 +927,9 @@ ForwardModelHandleSet.add_default_handle(
 )
 if False:
     ForwardModelHandleSet.add_default_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel),
+        MusesForwardModelHandle(
+            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel
+        ),
         priority_order=-1,
     )
     ForwardModelHandleSet.add_default_handle(
