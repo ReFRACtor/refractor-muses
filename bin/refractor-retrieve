@@ -93,12 +93,21 @@ def retrieve_wrap(rs, target_dir, in_process=False):
     '''Wrapper so we can run a sounding in a separate process, so any memory leaks
     don't grow.'''
     try:
+
         # Move or add logging to local file
         if(args.mpi):
             # If we aren't using MPI, then presumably we are running a terminal
             # where we want to see the output. So only remove stdout in mpi.
             logger.remove()
         loghid = logger.add(f"{target_dir}/refractor-retrieve.log")
+
+        # Capture the names of input files read while the software is running into the target
+        # directory along side the log file
+        if args.debug:
+            rs.input_file_helper.add_observer(
+                refractor.muses.InputFileRecord(f"{target_dir}/input_file_list.log")
+            )
+
         with logger.catch(reraise=True):
             # Forward C++ logging in framework to the python logger
             rf.PythonFpLogger.turn_on_logger(logger)
