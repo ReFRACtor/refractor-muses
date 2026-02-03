@@ -301,7 +301,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             get_tropomi_radiance,
             raylayer_nadir,
             atmosphere_level,
-            pack_tropomi_jacobian,
         )
 
         from refractor.muses import AttrDictAdapter
@@ -540,18 +539,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Pack Radiance and Jacobians.
 
-        if self.is_tropomi:
-            (o_radiance_pack, o_jacobian_pack) = pack_tropomi_jacobian(
-                self.i_uip,
-                self.radiance_ils,
-                self.tropomi_radiance,
-                self.jacobians_atm_ils,
-                self.jacobian_dictionary,
-                self.ii_mw,
-            )
-        else:
-            (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
-
+        (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
+            
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(o_radiance_pack)):
             raise RuntimeError("o_radiance_pack NOT FINITE!")
@@ -1572,7 +1561,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         o_radiance_pack = self.radiance_ils[:]
 
         my_filter = self.i_uip["microwindows"][self.ii_mw]["filter"]
-
         # Initialization of parameters
         num_rad = len(self.radiance_ils)
         num_elem = len(o_radiance_pack)
@@ -1585,7 +1573,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Add number of jacobians
         num_par = num_par + len(self.i_uip["jacobians"])
-
         #  Pack Jacobians
         if num_par <= 0:
             o_jacobian_pack = None
@@ -1610,6 +1597,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
                         f"surface_albedo_{my_filter}"
                     ][:]
+                    ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISURFACEALBEDO{my_filter}TIGHT":
                     o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
                         f"surface_albedo_{my_filter}"
@@ -1747,7 +1735,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                         "jacobian_ring_sf_ils_uv2"
                     ][:]
                     ii_par = ii_par + 1
-                elif not found_jacobian_flag:
+                elif jacob_name == "O3":
+                    # Taken care of below
+                    pass
+                else:
                     logger.info("NON_OMI_SPECIES", jacob_name)
 
                 # Pack Atmopheric Species Jac
