@@ -25,5 +25,4 @@ __all__ = [
     "TropomiSwirFmObjectCreator",
     "TropomiSwirForwardModelHandle",
 ]
-
 # </AUTOGEN_INIT>

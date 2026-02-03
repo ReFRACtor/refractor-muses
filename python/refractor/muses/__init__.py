@@ -105,9 +105,7 @@ from .muses_forward_model_oss import (
     oss_handle,
 )
 from .muses_forward_model_vlidort import (
-    MusesForwardModelVlidortBase,
-    MusesOmiForwardModelVlidort,
-    MusesTropomiForwardModelVlidort,
+    MusesForwardModelVlidort,
 )
 from .muses_levmar_solver import (
     MusesLevmarSolver,
@@ -322,6 +320,12 @@ from .state_element_single import (
 from .state_info import (
     StateInfo,
 )
+from .t1 import (
+    rtf_tropomi,
+)
+from .t2 import (
+    rtf_omi,
+)
 from .tes_file import (
     TesFile,
 )
@@ -380,12 +384,11 @@ __all__ = [
     "MusesAirsObservation",
     "MusesAltitudePge",
     "MusesCrisObservation",
-    "MusesForwardModelVlidortBase",
+    "MusesForwardModelVlidort",
     "MusesLevmarSolver",
     "MusesObservation",
     "MusesObservationHandle",
     "MusesObservationHandlePickleSave",
-    "MusesOmiForwardModelVlidort",
     "MusesOmiObservation",
     "MusesOpticalDepth",
     "MusesPyQaDataHandle",
@@ -405,7 +408,6 @@ __all__ = [
     "MusesStrategyModifyHandle",
     "MusesStrategyStepList",
     "MusesTesObservation",
-    "MusesTropomiForwardModelVlidort",
     "MusesTropomiObservation",
     "NoHandleFound",
     "ObservationCombine",
@@ -509,7 +511,8 @@ __all__ = [
     "mpy_radiance_from_observation_list",
     "order_species",
     "oss_handle",
+    "rtf_omi",
+    "rtf_tropomi",
     "species_type",
 ]
-
 # </AUTOGEN_INIT>

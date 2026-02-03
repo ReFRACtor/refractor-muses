@@ -117,5 +117,4 @@ __all__ = [
     "ring_cli_from_path",
     "vlidort_cli_from_path",
 ]
-
 # </AUTOGEN_INIT>

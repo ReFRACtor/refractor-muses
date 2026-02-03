@@ -27,5 +27,4 @@ __all__ = [
     "StateElementOmiCloudFraction",
     "StateElementOmiSurfaceAlbedo",
 ]
-
 # </AUTOGEN_INIT>

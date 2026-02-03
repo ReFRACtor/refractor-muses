@@ -3,6 +3,7 @@ from refractor.muses import (
     MusesTropomiForwardModelVlidort,
     MusesOmiForwardModelVlidort,
 )
+from refractor.omi import OmiFmObjectCreator
 from refractor.muses_py_fm import (
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
@@ -55,8 +56,14 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
         None,
     )
     obs_omi.spectral_window.include_bad_sample = True
-
-    fm = MusesOmiForwardModelVlidort(rs.current_state, obs_omi, rs.retrieval_config)
+    ocreator = OmiFmObjectCreator(
+        rs.current_state, rs.measurement_id, rs.retrieval_config, obs_omi
+    )
+    # Set up jacobians
+    ocreator.fm_sv.update_state(ocreator.fm_sv.state, ocreator.fm_sv.state_covariance)
+    fm = MusesOmiForwardModelVlidort(
+        ocreator, rs.current_state, obs_omi, rs.retrieval_config
+    )
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

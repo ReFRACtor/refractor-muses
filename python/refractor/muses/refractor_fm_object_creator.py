@@ -2,6 +2,7 @@ from __future__ import annotations
 from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
+from .muses_forward_model_vlidort import MusesForwardModelVlidort
 from .identifier import StateElementIdentifier
 from .input_file_helper import InputFilePath
 import refractor.framework as rf  # type: ignore
@@ -67,6 +68,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             "O3",
         ],
         primary_absorber: str = "O3",
+        use_vlidort: bool = False,
+        vlidort_nstokes: int = 2,
+        vlidort_nstreams: int = 4,
+        use_vlidort_temp_dir: bool = True,
     ):
         """Constructor. The StateVector to add things to can be passed
         in, or if this isn't then we create a new StateVector.
@@ -83,6 +88,15 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
              difference. Normally you want to the default False value,
              but for testing purposes you might want to turn this on.
 
+        use_vlidort - Use VLIDORT rather than lidort for the forward
+             model.  This matches the existing py-retrieve. Note that
+             the version of VLIDORT is older than the LIDORT version
+             we use. Also, the code is hardcoded to using O3 only as
+             an absorber. We could modify this, but it would require
+             changing the package muses-vlidort. Also we use a
+             different version of the Raman Scattering calculation
+             (ring). This uses the stand alone executable (from the
+             the package muses-rrs).
         """
         self.use_pca = use_pca
         self.use_lrad = use_lrad
@@ -103,14 +117,22 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
         self.ifile_hlp = retrieval_config.input_file_helper
-
+        self.use_vlidort = use_vlidort
+        self.vlidort_nstokes = vlidort_nstokes
+        self.vlidort_nstreams = vlidort_nstreams
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
+        
         # Depending on when the StateVector is created, the
         # observation may or may not have been added. Note it is safe
         # to add this multiple times, so we don't need to worry if it
         # is already there. I don't think this will ever cause a
         # problem, but we have a option to skip this if needed.
         if (
-            not skip_observation_add
+            # For now, don't add observation if we are using VLIDORT. It
+            # gets accounted for in the forward model, although we will move
+            # that out in a bit
+            not self.use_vlidort
+            and not skip_observation_add
             and len(self.observation.state_element_name_list()) > 0
         ):
             coeff, mp = self.current_state.object_state(
@@ -864,7 +886,30 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @cached_property
-    def forward_model(self) -> rf.ForwardModelWithCloudHandling:
+    def forward_model(self) -> rf.ForwardModel:
+        if self.use_vlidort:
+            return self.forward_model_vlidort
+        return self.forward_model_ch
+
+    @cached_property
+    def forward_model_vlidort(self) -> MusesForwardModelVlidort:
+        if self.absorption_gases != ["O3"]:
+            raise RuntimeError(
+                "MusesForwardModelVlidort is hardcoded to support O3 only. We could modify this, but it would mean modifying the package muses-vlidort."
+            )
+        return MusesForwardModelVlidort(
+            self,
+            self.current_state,
+            self.instrument_name,
+            self.observation,
+            self.retrieval_config,
+            vlidort_nstokes=self.vlidort_nstokes,
+            vlidort_nstreams=self.vlidort_nstreams,
+            use_vlidort_temp_dir=self.use_vlidort_temp_dir,
+        )
+
+    @cached_property
+    def forward_model_ch(self) -> rf.ForwardModelWithCloudHandling:
         logger.debug(f"Creating forward model using {self.__class__.__name__}")
         res = rf.ForwardModelWithCloudHandling(
             self.underlying_forward_model, self.cloud_fraction
