@@ -301,6 +301,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             get_tropomi_radiance,
             raylayer_nadir,
             atmosphere_level,
+            pack_tropomi_jacobian,
         )
 
         from refractor.muses import AttrDictAdapter
@@ -539,7 +540,17 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Pack Radiance and Jacobians.
 
-        (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
+        if self.is_tropomi:
+            (o_radiance_pack, o_jacobian_pack) = pack_tropomi_jacobian(
+                self.i_uip,
+                self.radiance_ils,
+                self.tropomi_radiance,
+                self.jacobians_atm_ils,
+                self.jacobian_dictionary,
+                self.ii_mw,
+            )
+        else:
+            (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
 
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(o_radiance_pack)):
