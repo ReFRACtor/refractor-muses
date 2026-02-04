@@ -297,8 +297,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
     def fm_call2(self):
         # Temp, we'll pull some of this over and get other parts into mpy
         from refractor.muses_py import (
-            get_omi_radiance,
-            get_tropomi_radiance,
             raylayer_nadir,
             atmosphere_level,
         )
@@ -406,20 +404,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 "jacobian_ring_sf_ils_uv2": np.zeros(
                     shape=(nfreq_tot), dtype=np.float64
                 ),
-                "jacobian_nradwav_ils_uv1": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_nradwav_ils_uv2": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_odwav_ils_uv1": np.zeros(shape=(nfreq_tot), dtype=np.float64),
-                "jacobian_odwav_ils_uv2": np.zeros(shape=(nfreq_tot), dtype=np.float64),
-                "jacobian_odwav_slope_ils_uv1": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_odwav_slope_ils_uv2": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
                 "jacobian_OMISURFACEALBEDOUV1": np.zeros(
                     shape=(nfreq_tot), dtype=np.float64
                 ),
@@ -490,18 +474,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Update Measured Radiances By Applying Wavelength Shift Parameters
 
-        # Notes:
-        # This here just gets the jacobian part, used in rev_and_fm_map below. We
-        # can perhaps get this information more directly from somewhere
-        if self.is_tropomi:
-            self.tropomi_radiance = get_tropomi_radiance(
-                self.i_uip["tropomiPars"], tropomi0=self.obs.radiance_for_uip
-            )
-        else:
-            self.omi_radiance = get_omi_radiance(
-                self.i_uip["omiPars"], omi0=self.obs.radiance_for_uip
-            )
-
         # loop over all microwindows
         for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
             # AT_LINE 201 OMI/omi_fm.pro
@@ -540,7 +512,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Pack Radiance and Jacobians.
 
         (o_radiance_pack, o_jacobian_pack) = self.pack_jacobian()
-            
+
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(o_radiance_pack)):
             raise RuntimeError("o_radiance_pack NOT FINITE!")
@@ -748,13 +720,19 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
             if ils_omi_xsection == "POSTCONV":
                 radiance_matrix = apply_omi_srf(
-                    self.i_uip, self.ii_mw, radiance_matrix, self.omi_radiance
+                    self.i_uip, self.ii_mw, radiance_matrix, self.obs.radiance_for_uip
                 )
                 jacobian_o3_matrix = apply_omi_srf(
-                    self.i_uip, self.ii_mw, jacobian_o3_matrix, self.omi_radiance
+                    self.i_uip,
+                    self.ii_mw,
+                    jacobian_o3_matrix,
+                    self.obs.radiance_for_uip,
                 )
                 jacobian_sf_matrix = apply_omi_srf(
-                    self.i_uip, self.ii_mw, jacobian_sf_matrix, self.omi_radiance
+                    self.i_uip,
+                    self.ii_mw,
+                    jacobian_sf_matrix,
+                    self.obs.radiance_for_uip,
                 )
 
                 # TODO: VK: Verify. Not sure about this. IDL convolves the optical depth
@@ -1206,29 +1184,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 self.mws : self.mwf + 1
             ] = dI / dX
 
-            # Calculate solar shift jacobians
-            # EM NOTE - not sure if this is necessary for all bands, so putting into 1, 2 and 3 for the time being
-            temp_jac = self.tropomi_radiance["normwav_jac"][uip_tropomi["freqIndex"]]
-            self.jacobian_dictionary[f"solarshift_{my_filter}"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-
-            # compute radiance/irradiance wavelength shift jacobians
-            # EM - NOTE This is possibly useful for other bands as well, will change if necessary
-            temp_jac = self.tropomi_radiance["odwav_jac"][uip_tropomi["freqIndex"]]
-            self.jacobian_dictionary[f"radianceshift_{my_filter}"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-
-            # compute radiance/irradiance wavelength squeeze jacobians
-            # EM NOTE - Although this is present, the standard omi implementation doesn't use these.
-            # They may also be useful for other bands, but will cross that bridge later.
-            temp_jac = self.tropomi_radiance["odwav_slope_jac"][
-                uip_tropomi["freqIndex"]
-            ]
-            self.jacobian_dictionary[f"radsqueeze_{my_filter}"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
         # end: if my_filter in ['BAND1', 'BAND2', 'BAND3']:
 
         # EM NOTE - Other bands will have other parameters to fit, e.g. BANDS 7-8 will need aerosol scattering, these
@@ -1444,42 +1399,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 self.mws : self.mwf + 1
             ] = dI / dX
 
-        # AT_LINE 72 OMI/rev_and_fm_map.pro
-        # compute normrad wavelength shift jacobians
-        temp_jac = self.omi_radiance["normwav_jac"][uip_omi["freqIndex"]]
-        if my_filter == "UV1":
-            self.jacobian_dictionary["jacobian_nradwav_ils_uv1"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-        if my_filter == "UV2":
-            self.jacobian_dictionary["jacobian_nradwav_ils_uv2"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-
-        # AT_LINE 77 OMI/rev_and_fm_map.pro
-        # compute OD wavelength shift jacobians
-        temp_jac = self.omi_radiance["odwav_jac"][uip_omi["freqIndex"]]
-        if my_filter == "UV1":
-            self.jacobian_dictionary["jacobian_odwav_ils_uv1"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-        if my_filter == "UV2":
-            self.jacobian_dictionary["jacobian_odwav_ils_uv2"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-
-        # AT_LINE 82 OMI/rev_and_fm_map.pro
-        # compute OD wavelength shift slope jacobians
-        temp_jac = self.omi_radiance["odwav_slope_jac"][uip_omi["freqIndex"]]
-        if my_filter == "UV1":
-            self.jacobian_dictionary["jacobian_odwav_slope_ils_uv1"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-        if my_filter == "UV2":
-            self.jacobian_dictionary["jacobian_odwav_slope_ils_uv2"][
-                self.mws : self.mwf + 1
-            ] = temp_jac[self.mws : self.mwf + 1]
-
         # AT_LINE 87 OMI/rev_and_fm_map.pro
         # reverse layer index of jacobians for atmospheric species
         # map them to the forward model levels
@@ -1581,9 +1500,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 shape=(num_par, num_elem), dtype=np.float64
             )  # This is our output jacobian
             ii_par = 0
-
-            found_jacobian_flag = False  # Use this flag to make sure each species jacobian has been looked for in the for loop.
-
             for ii in range(0, len(self.i_uip["jacobians"])):
                 # Pack CloudFraction jac
                 jacob_name = self.i_uip["jacobians"][ii]
@@ -1626,19 +1542,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISOLARSHIFT{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"solarshift_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMIRADIANCESHIFT{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"radianceshift_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMIRADSQUEEZE{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"radsqueeze_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMIRINGSF{my_filter}":
                     o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
@@ -1696,34 +1603,16 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMINRADWAVUV1":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_nradwav_ils_uv1"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMINRADWAVUV2":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_nradwav_ils_uv2"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMIODWAVUV1":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_odwav_ils_uv1"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMIODWAVUV2":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_odwav_ils_uv2"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMIODWAVSLOEPUV1":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_odwav_slope_ils_uv1"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMIODWAVSLOPEUV2":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_odwav_slope_ils_uv2"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMIRINGSFUV1":
                     o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[

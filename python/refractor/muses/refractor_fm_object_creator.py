@@ -121,18 +121,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_nstreams = vlidort_nstreams
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
-        
+
         # Depending on when the StateVector is created, the
         # observation may or may not have been added. Note it is safe
         # to add this multiple times, so we don't need to worry if it
         # is already there. I don't think this will ever cause a
         # problem, but we have a option to skip this if needed.
         if (
-            # For now, don't add observation if we are using VLIDORT. It
-            # gets accounted for in the forward model, although we will move
-            # that out in a bit
-            not self.use_vlidort
-            and not skip_observation_add
+            not skip_observation_add
             and len(self.observation.state_element_name_list()) > 0
         ):
             coeff, mp = self.current_state.object_state(
