@@ -878,7 +878,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     @cached_property
-    def cloud_fraction(self) -> float:
+    def cloud_fraction(self) -> rf.CloudFraction:
         raise NotImplementedError
 
     @cached_property

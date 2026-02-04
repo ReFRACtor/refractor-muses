@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
+from .misc import AttrDictAdapter
 from functools import cached_property
 from loguru import logger
 import tempfile
@@ -79,6 +80,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO We'll pull out the objects we need here, but for now just
         # grab the whole RefractorFmObjectCreator
         self.ocreator = ocreator
+        self.ground = self.ocreator.ground
+        self.absorber = self.ocreator.absorber
+        self.cloud_fraction = self.ocreator.cloud_fraction
         # TODO I think this can probably go away after we clean
         # everything up
         self.is_tropomi = False
@@ -247,21 +251,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             [self.bad_sample_mask(i) != True for i in range(self.obs.num_channels)]
         )
         sd = self.spectral_domain(0)
-        # jacobian is 1) on the forward model grid and
-        # 2) transposed from the ReFRACtor convention of the
-        # column being the state vector variables. So
-        # translate the oss jac to what we want from ReFRACtor
-        # The logic in pack_omi_jacobian and pack_tropomi_jacobian
-        # over counts the size of atmosphere jacobians by 1 for each
-        # species. This is harmless,
-        # it gives an extra row of zeros that then gets trimmed before leaving
-        # fm_wrapper. But because we are calling the lower level function
-        # ourselves we need to trim this.
-        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
-        if jac is not None and jac.shape[0] > 0 and sub_basis_matrix.shape[1] > 0:
-            jac = np.matmul(
-                sub_basis_matrix, jac[: sub_basis_matrix.shape[1], :]
-            ).transpose()
+        if jac is not None and jac.shape[0] > 0:
             a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
         else:
             a = rf.ArrayAd_double_1(rad[gmask])
@@ -301,7 +291,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             atmosphere_level,
         )
 
-        from refractor.muses import AttrDictAdapter
+        # TODO Get logic in for skipping bad pixels. Right now we generate these,
+        # and then throw away in radiance()
 
         self.i_uip = self.rf_uip.uip_all(self.instrument_name)
         if self.is_tropomi:
@@ -472,9 +463,38 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     self.atm_cloud_jacobians_ils[cnt]["species"] = jacob_str[ii]
                     cnt = cnt + 1
 
-        # Update Measured Radiances By Applying Wavelength Shift Parameters
+        # This is used in a few places, so grab this once here for use later
+        # This is describes in "On the generation of atmospheric property
+        # Jacobians form the (V)LIDORT linearized radiative transfer models"
+        # Rob Spurr, Matt Christi, Journal of Quantitative Spectroscopy and
+        # Radiative Transfer, July 2024 pages 109-115
+        # https://doi.org/10.1016/j.jqsrt.2014.03.011
+        self.layer_to_levels = np.zeros((self.nlayers, self.nlayers + 1))
+        # TODO we may want to put this into a function, and/or get this from
+        # somewhere other than ray_info
 
+        # See if we can get this to work
+        #map_vmr_l, map_vmr_u = self.ocreator.ray_info.map_vmr()
+        map_vmr_l = self.rayInfo["map_vmr_l"]
+        map_vmr_u = self.rayInfo["map_vmr_u"]
+        # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
+        # only have a single O3 species, so we just grab the first one
+        self.layer_to_levels[:, :-1] = np.diag(
+               map_vmr_l[0, :]
+        )
+        self.layer_to_levels[:, 1:] += np.diag(
+                map_vmr_u[0, :]
+        )
+        vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
+                self.ocreator.pressure, rf.Pressure.DECREASING_PRESSURE
+        )
+        dvmr_dstate = vgrid.jacobian
+        dlogvmr_dvmr = np.diag(1 / vgrid.value)
+        self.dlogvmr_dstate = dlogvmr_dvmr @ dvmr_dstate
+        
         # loop over all microwindows
+        jac_t = []
+        rad_t = []
         for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
             # AT_LINE 201 OMI/omi_fm.pro
             self.mw_account["mw_cnt"] = self.ii_mw
@@ -492,10 +512,14 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 v_ils_total = np.concatenate((v_ils_total, v_ils_mw), axis=0)
 
             logger.info("Calling rtf for clear sky")
-            self.rtf(do_cloud=0)
+            radclear, jacclear = self.rtf(do_cloud=0)
 
             logger.info("Calling rtf for cloudy sky")
-            self.rtf(do_cloud=1)
+            radcloud, jaccloud = self.rtf(do_cloud=1)
+
+            cfrac = self.cloud_fraction.cloud_fraction.value
+            rad_t.append(radclear * (1-cfrac) + radcloud * cfrac)
+            jac_t.append(jacclear * (1-cfrac) + jaccloud*cfrac)
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
@@ -507,6 +531,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             else:
                 self.omi_rev_and_fm_map()
 
+        rad_t = np.concatenate(rad_t)
+        jac_t = np.concatenate(jac_t)
+        print(jac_t[:,64:128])
         # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
         # Pack Radiance and Jacobians.
@@ -520,6 +547,21 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         if o_jacobian_pack is not None and not np.all(np.isfinite(o_jacobian_pack)):
             raise RuntimeError("o_jacobian_pack NOT FINITE!")
 
+        # jacobian is 1) on the forward model grid and
+        # 2) transposed from the ReFRACtor convention of the
+        # column being the state vector variables.
+        # The logic in pack_omi_jacobian and pack_tropomi_jacobian
+        # over counts the size of atmosphere jacobians by 1 for each
+        # species. This is harmless,
+        # it gives an extra row of zeros that then gets trimmed before leaving
+        # fm_wrapper. But because we are calling the lower level function
+        # ourselves we need to trim this.
+        
+        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
+        if o_jacobian_pack is not None and o_jacobian_pack.shape[0] > 0 and sub_basis_matrix.shape[1] > 0:
+            o_jacobian_pack = (sub_basis_matrix @ o_jacobian_pack[: sub_basis_matrix.shape[1], :]).transpose()
+            
+        print(o_jacobian_pack[:,64:128])
         return (
             o_jacobian_pack,
             o_radiance_pack,
@@ -1061,7 +1103,20 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ] = jacobian_sf_matrix[1, temp_freq_ind]
 
         # end if do_cloud:
-
+        if do_cloud:
+            rad = self.radiance_cloud_ils[temp_start_ind : temp_endd_ind + 1]
+            jac = self.atm_cloud_jacobians_ils[0]["k"][temp_start_ind : temp_endd_ind + 1, :]
+            # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
+            jac = np.pad(jac, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
+        else:
+            rad = self.radiance_clear_ils[temp_start_ind : temp_endd_ind + 1]
+            jac = self.atm_clear_jacobians_ils[0]["k"][temp_start_ind : temp_endd_ind + 1, :]
+        # jac is in increasing pressure order, flip to get
+        # decreasing pressure. Also convert to drad_dstate. Note the
+        # jacobian_o3_matrix is apparently relative to dlogvmr (on layers)
+        jac = jac[:,::-1] @ self.layer_to_levels @ self.dlogvmr_dstate
+        return rad, jac
+        
     def tropomi_rev_and_fm_map(
         self,
     ):
@@ -1230,7 +1285,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
                 ## Only compare the first layer
                 species_as_np_array = np.asarray(self.i_uip["species"])
-
                 # Loop through all layers to do comparison before the multiplication.
                 for jj_layer in range(0, self.nlayers):
                     uu = np.where(species_as_np_array == species_k)[0]
@@ -1446,7 +1500,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 species_as_np_array = np.asarray(self.i_uip["species"])
                 species_k = self.jacobians_atm_ils["k_species"][ii_sp]["species"]
                 uu = np.where(species_as_np_array == species_k)[0]
-
+                
                 if len(uu) > 0:
                     # see: https://www.sciencedirect.com/science/article/pii/S0022407314001277
                     # 2.4 Transformation rules for level-atmosphere Jacobians (18)

@@ -319,7 +319,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     @cached_property
-    def cloud_fraction(self) -> float:
+    def cloud_fraction(self) -> rf.CloudFraction:
         selem = [
             StateElementIdentifier("TROPOMICLOUDFRACTION"),
         ]
