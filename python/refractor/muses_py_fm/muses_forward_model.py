@@ -943,5 +943,6 @@ __all__ = [
     "MusesTesForwardModel",
     "MusesTropomiForwardModel",
     "MusesOmiForwardModel",
+    "MusesForwardModelHandle",
     "ResultIrk",
 ]
