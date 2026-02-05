@@ -336,25 +336,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.ring_clear_ils_temperature = np.zeros(shape=(nfreq_tot), dtype=np.float64)
         self.ring_cloud_ils_temperature = np.zeros(shape=(nfreq_tot), dtype=np.float64)
 
-        # Create atmospheric jacobians
-        self.jacobians_atm_ils = None
-        if self.i_uip["num_atm_k"] > 0:
-            k_temp = []
-
-            for kk in range(self.i_uip["num_atm_k"]):
-                k_temp.append(
-                    {
-                        "species": "thisisadummystring",
-                        "k": np.zeros(
-                            shape=(atmparams["nlayers"] + 1, nfreq_tot),
-                            dtype=np.float64,
-                        ),
-                    }
-                )
-
-            self.jacobians_atm_ils = {"k_species": k_temp}
-        # end if (self.i_uip['num_atm_k'] > 0):
-
         # Create arrays for the following jacobians:
         # [Cloud Fraction,Ring Scaling Factor,Earth/Solar Wavelength Shift Parameter,od Wavelength Shift Parameter,od Wavelength Shift Parameter]
 
@@ -412,25 +393,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         jacob_str = np.asarray(jacob_str)
 
         self.nlayers = atmparams["nlayers"]
-        self.atm_clear_jacobians_ils = None
-
-        if self.i_uip["num_atm_k"] > 0:
-            cnt = 0
-            k_structure = {
-                "species": "thisisadummystring",
-                "k": np.zeros(shape=(nfreq_tot, self.nlayers), dtype=np.float64),
-            }
-
-            self.atm_clear_jacobians_ils = []
-            for ii in range(0, self.i_uip["num_atm_k"]):
-                self.atm_clear_jacobians_ils.append(
-                    copy.deepcopy(k_structure)
-                )  # Make a deepcopy so each element will have its own memory.
-
-            for ii in range(0, len(jacob_str)):
-                if jacob_str[ii] in ("O3", "SO2", "NO2"):
-                    self.atm_clear_jacobians_ils[cnt]["species"] = jacob_str[ii]
-                    cnt = cnt + 1
         if self.is_tropomi:
             self.nlayers_cloud = np.count_nonzero(
                 self.rayInfo["pbar"] <= self.i_uip["tropomiPars"]["cloud_pressure"]
@@ -445,23 +407,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             self.nlayers_cloud = np.count_nonzero(
                 self.rayInfo["pbar"] <= cloud_pressure
             )
-        self.atm_cloud_jacobians_ils = None
-
-        if self.i_uip["num_atm_k"] > 0:
-            cnt = 0
-            k_structure = {
-                "species": "thisisadummystring",
-                "k": np.zeros(shape=(nfreq_tot, self.nlayers_cloud), dtype=np.float64),
-            }
-
-            self.atm_cloud_jacobians_ils = []  # replicate(temporary(k_structure),uip.num_atm_k)
-            for ii in range(0, self.i_uip["num_atm_k"]):
-                self.atm_cloud_jacobians_ils.append(copy.deepcopy(k_structure))
-
-            for ii in range(0, len(jacob_str)):
-                if jacob_str[ii] in ("O3", "SO2", "NO2"):
-                    self.atm_cloud_jacobians_ils[cnt]["species"] = jacob_str[ii]
-                    cnt = cnt + 1
 
         # This is used in a few places, so grab this once here for use later
         # This is describes in "On the generation of atmospheric property
@@ -488,9 +433,12 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
                 self.ocreator.pressure, rf.Pressure.DECREASING_PRESSURE
         )
-        dvmr_dstate = vgrid.jacobian
-        dlogvmr_dvmr = np.diag(1 / vgrid.value)
-        self.dlogvmr_dstate = dlogvmr_dvmr @ dvmr_dstate
+        if not vgrid.is_constant:
+            dvmr_dstate = vgrid.jacobian
+            dlogvmr_dvmr = np.diag(1 / vgrid.value)
+            self.dlogvmr_dstate = dlogvmr_dvmr @ dvmr_dstate
+        else:
+            self.dlogvmr_dstate = None
         
         # loop over all microwindows
         jac_t = []
@@ -519,7 +467,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
             cfrac = self.cloud_fraction.cloud_fraction.value
             rad_t.append(radclear * (1-cfrac) + radcloud * cfrac)
-            jac_t.append(jacclear * (1-cfrac) + jaccloud*cfrac)
+            if jacclear is not None and jaccloud is not None:
+                jac_t.append(jacclear * (1-cfrac) + jaccloud*cfrac)
 
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
@@ -530,11 +479,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 self.tropomi_rev_and_fm_map()
             else:
                 self.omi_rev_and_fm_map()
+        # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
         rad_t = np.concatenate(rad_t)
-        jac_t = np.concatenate(jac_t)
-        print(jac_t[:,64:128])
-        # end for ii_mw in range(0, self.mw_account['mw_cnt']):
+        if len(jac_t) > 0:
+            jac_t = np.concatenate(jac_t)
+        else:
+            jac_t = None
 
         # Pack Radiance and Jacobians.
 
@@ -547,6 +498,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         if o_jacobian_pack is not None and not np.all(np.isfinite(o_jacobian_pack)):
             raise RuntimeError("o_jacobian_pack NOT FINITE!")
 
+        if jac_t is not None and not np.all(np.isfinite(jac_t)):
+            raise RuntimeError("jac_t NOT FINITE!")
+        
         # jacobian is 1) on the forward model grid and
         # 2) transposed from the ReFRACtor convention of the
         # column being the state vector variables.
@@ -560,8 +514,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
         if o_jacobian_pack is not None and o_jacobian_pack.shape[0] > 0 and sub_basis_matrix.shape[1] > 0:
             o_jacobian_pack = (sub_basis_matrix @ o_jacobian_pack[: sub_basis_matrix.shape[1], :]).transpose()
+        if o_jacobian_pack is not None and jac_t is not None:
+            o_jacobian_pack += jac_t
             
-        print(o_jacobian_pack[:,64:128])
         return (
             o_jacobian_pack,
             o_radiance_pack,
@@ -871,154 +826,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     1, temp_freq_ind
                 ][:]
 
-            if self.i_uip["num_atm_k"] > 0:
-                for ii in range(0, len(self.atm_clear_jacobians_ils)):
-                    # ValueError: could not broadcast input array from shape (107,64) into shape (113,64)
-                    # To solve the issue above, we must shrink the left hand side from 113 to 107 to match to the shape of self.atm_clear_jacobians_ils[ii]['k']
-                    if (
-                        np.transpose(jacobian_o3_matrix[1:, temp_freq_ind]).shape[0]
-                        < self.atm_clear_jacobians_ils[ii]["k"][
-                            temp_start_ind : temp_endd_ind + 1, :
-                        ].shape[0]
-                    ):
-                        shrink_left_hand_size = (
-                            temp_start_ind
-                            + np.transpose(jacobian_o3_matrix[1:, temp_freq_ind]).shape[
-                                0
-                            ]
-                        )
-                        self.atm_clear_jacobians_ils[ii]["k"][
-                            temp_start_ind:shrink_left_hand_size, :
-                        ] = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])
-                    else:
-                        self.atm_clear_jacobians_ils[ii]["k"][
-                            temp_start_ind : temp_endd_ind + 1, :
-                        ] = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])[:, :]
-
-            if self.is_tropomi:
-                if (
-                    jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                    < self.jacobian_dictionary[f"surface_albedo_{my_filter}"][
-                        temp_start_ind : temp_endd_ind + 1
-                    ].shape[0]
-                ):
-                    shrink_left_hand_size = (
-                        temp_start_ind + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                    )
-                    self.jacobian_dictionary[f"surface_albedo_{my_filter}"][
-                        temp_start_ind:shrink_left_hand_size
-                    ] = jacobian_sf_matrix[1, temp_freq_ind]
-                else:
-                    self.jacobian_dictionary[f"surface_albedo_{my_filter}"][
-                        temp_start_ind : temp_endd_ind + 1
-                    ] = jacobian_sf_matrix[1, temp_freq_ind]
-
-                if my_filter != "BAND1":
-                    wave_arr = self.i_uip["fullbandfrequency"][
-                        self.i_uip["microwindows"][self.ii_mw]["startmw"][
-                            self.ii_mw
-                        ] : self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
-                        + 1
-                    ]
-
-                    STARTMW_FM = self.i_uip["microwindows"][self.ii_mw]["startmw_fm"][
-                        self.ii_mw
-                    ]
-                    ENDDMW_FM = self.i_uip["microwindows"][self.ii_mw]["enddmw_fm"][
-                        self.ii_mw
-                    ]
-
-                    start_wav = self.i_uip["fullbandfrequency"][STARTMW_FM]
-                    endd_wav = self.i_uip["fullbandfrequency"][ENDDMW_FM]
-
-                    ref_wav = (
-                        (np.float64(endd_wav) - np.float64(start_wav)) / np.float64(2.0)
-                    ) + np.float64(start_wav)
-
-                    delta_wav = wave_arr[:] - ref_wav
-
-                    if (
-                        jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        < self.jacobian_dictionary[f"surface_albedo_slope_{my_filter}"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ].shape[0]
-                    ):
-                        shrink_left_hand_size = (
-                            temp_start_ind
-                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        )
-                        self.jacobian_dictionary[f"surface_albedo_slope_{my_filter}"][
-                            temp_start_ind:shrink_left_hand_size
-                        ] = jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:]
-                        self.jacobian_dictionary[
-                            f"surface_albedo_slope_order2_{my_filter}"
-                        ][temp_start_ind:shrink_left_hand_size] = (
-                            jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:] ** 2
-                        )
-                    else:
-                        self.jacobian_dictionary[f"surface_albedo_slope_{my_filter}"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ] = jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:]
-                        self.jacobian_dictionary[
-                            f"surface_albedo_slope_order2_{my_filter}"
-                        ][temp_start_ind : temp_endd_ind + 1] = (
-                            jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:] ** 2
-                        )
-            else:
-                if my_filter == "UV1":
-                    self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV1"][
-                        temp_start_ind : temp_endd_ind + 1
-                    ] = jacobian_sf_matrix[1, temp_freq_ind]
-
-                if my_filter == "UV2":
-                    # ValueError: could not broadcast input array from shape (107) into shape (113)
-                    # To solve the issue above, we must shrink the left hand side from 113 to 107 to match to the shape of jacobian_sf_matrix[1,temp_freq_ind]
-                    if (
-                        jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        < self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ].shape[0]
-                    ):
-                        shrink_left_hand_size = (
-                            temp_start_ind
-                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        )
-                        self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"][
-                            temp_start_ind:shrink_left_hand_size
-                        ] = jacobian_sf_matrix[1, temp_freq_ind]
-                    else:
-                        self.jacobian_dictionary["jacobian_OMISURFACEALBEDOUV2"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ] = jacobian_sf_matrix[1, temp_freq_ind]
-
-                    ref_wav = np.float64(320.0)
-                    wave_arr = self.i_uip["fullbandfrequency"][
-                        self.i_uip["microwindows"][self.ii_mw]["startmw"][
-                            self.ii_mw
-                        ] : self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
-                        + 1
-                    ]
-                    delta_wav = wave_arr[:] - ref_wav
-
-                    if (
-                        jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        < self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ].shape[0]
-                    ):
-                        shrink_left_hand_size = (
-                            temp_start_ind
-                            + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                        )
-                        self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"][
-                            temp_start_ind:shrink_left_hand_size
-                        ] = jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:]
-                    else:
-                        self.jacobian_dictionary["jacobian_OMISURFACEALBEDOSLOPEUV2"][
-                            temp_start_ind : temp_endd_ind + 1
-                        ] = jacobian_sf_matrix[1, temp_freq_ind] * delta_wav[:]
-            # end if my_filter == 'UV2':
-        # end if do_cloud == 0:
 
         # cloud sky condition
         if do_cloud == 1:
@@ -1056,66 +863,47 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     1, temp_freq_ind
                 ]
 
-            if self.i_uip["num_atm_k"] > 0:
-                if len(self.atm_cloud_jacobians_ils) > 0:
-                    for ii in range(0, len(self.atm_cloud_jacobians_ils)):
-                        right_hand_side_second_size = np.transpose(
-                            jacobian_o3_matrix[1:, temp_freq_ind]
-                        ).shape[1]
-                        # ValueError: could not broadcast input array from shape (107,60) into shape (113,60)
-                        # To solve the issue above, we must shrink the left hand side from 113 to 107 to match to the shape of np.transpose(jacobian_o3_matrix[1:,temp_freq_ind])
-                        if np.transpose(jacobian_o3_matrix[1:, temp_freq_ind]).shape[
-                            0
-                        ] < (temp_endd_ind + 1 - temp_start_ind):
-                            shrink_left_hand_size = (
-                                temp_start_ind
-                                + np.transpose(
-                                    jacobian_o3_matrix[1:, temp_freq_ind]
-                                ).shape[0]
-                            )
-                            self.atm_cloud_jacobians_ils[ii]["k"][
-                                temp_start_ind:shrink_left_hand_size,
-                                0:right_hand_side_second_size,
-                            ] = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])
-                        else:
-                            self.atm_cloud_jacobians_ils[ii]["k"][
-                                temp_start_ind : temp_endd_ind + 1,
-                                0:right_hand_side_second_size,
-                            ] = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])[
-                                :, :
-                            ]
-            if self.is_tropomi:
-                if (
-                    jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                    < self.jacobian_dictionary["cloud_Surface_Albedo"][
-                        temp_start_ind : temp_endd_ind + 1
-                    ].shape[0]
-                ):
-                    shrink_left_hand_size = (
-                        temp_start_ind + jacobian_sf_matrix[1, temp_freq_ind].shape[0]
-                    )
-                    self.jacobian_dictionary["cloud_Surface_Albedo"][
-                        temp_start_ind:shrink_left_hand_size
-                    ] = jacobian_sf_matrix[1, temp_freq_ind]
-                else:
-                    self.jacobian_dictionary["cloud_Surface_Albedo"][
-                        temp_start_ind : temp_endd_ind + 1
-                    ] = jacobian_sf_matrix[1, temp_freq_ind]
 
         # end if do_cloud:
-        if do_cloud:
-            rad = self.radiance_cloud_ils[temp_start_ind : temp_endd_ind + 1]
-            jac = self.atm_cloud_jacobians_ils[0]["k"][temp_start_ind : temp_endd_ind + 1, :]
-            # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
-            jac = np.pad(jac, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
+        self.ground.do_cloud = True if do_cloud == 1 else False
+        
+        rad = radiance_matrix[1, temp_freq_ind]
+        # Translate jacobian_sf_matrix to a jacobian relative to the state vector
+        
+        # TODO We should just use the spectral domain for this forward model,
+        # but for now grab what vlidort has
+        
+        # Low level surface_parameter works with wave number only, so convert
+        wn = rf.ArrayWithUnit_double_1(radiance_matrix[0, temp_freq_ind], "nm").convert_wave("cm^-1").value
+        t = jacobian_sf_matrix[1:,temp_freq_ind].transpose()
+        if self.ground.surface_parameter(wn[0], self.ii_mw).rows != 1:
+            raise RuntimeError("MusesForwardModelVlidort is hard coded to using an albedo only")
+        if not self.ground.surface_parameter(wn[0], self.ii_mw).is_constant:
+            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.ii_mw).jacobian for i, wnv in enumerate(wn)])
         else:
-            rad = self.radiance_clear_ils[temp_start_ind : temp_endd_ind + 1]
-            jac = self.atm_clear_jacobians_ils[0]["k"][temp_start_ind : temp_endd_ind + 1, :]
+            jac_sf = None
+        jac_tot = jac_sf
+
+        # Translate jacobian_o3_matrix to a jacobian relative to the state vector
+        jac_o3 = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])
+        if do_cloud:
+            # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
+            jac_o3 = np.pad(jac_o3, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
         # jac is in increasing pressure order, flip to get
         # decreasing pressure. Also convert to drad_dstate. Note the
         # jacobian_o3_matrix is apparently relative to dlogvmr (on layers)
-        jac = jac[:,::-1] @ self.layer_to_levels @ self.dlogvmr_dstate
-        return rad, jac
+        if self.dlogvmr_dstate is not None:
+            jac_o3 = jac_o3[:,::-1] @ self.layer_to_levels @ self.dlogvmr_dstate
+        else:
+            jac_o3 = None
+
+        # Combine to an overall jacobian
+        if jac_o3 is not None:
+            if jac_tot is None:
+                jac_tot = jac_o3
+            else:
+                jac_tot += jac_o3
+        return rad, jac_tot
         
     def tropomi_rev_and_fm_map(
         self,
@@ -1241,91 +1029,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # end: if my_filter in ['BAND1', 'BAND2', 'BAND3']:
 
-        # EM NOTE - Other bands will have other parameters to fit, e.g. BANDS 7-8 will need aerosol scattering, these
-        # must be accounted for here in the future.
-
-        # reverse layer index of jacobians for atmospheric species
-        # map them to the forward model levels
-        if self.i_uip["num_atm_k"] > 0:
-            for ii_sp in range(0, self.i_uip["num_atm_k"]):
-                k_clear = copy.deepcopy(
-                    self.atm_clear_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
-                )  # Make a copy so as not to disturb original matrix.
-                k_cloud = copy.deepcopy(
-                    self.atm_cloud_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
-                )  # Make a copy so as not to disturb original matrix.
-
-                temp_array_k_jac = (
-                    k_clear - k_clear
-                )  # This clear out a matrix of shape k_clear.shape
-                for ilay in range(0, self.nlayers):
-                    # layers above cloud top
-                    if ilay <= self.nlayers_cloud - 1:
-                        temp_array_k_jac[:, ilay] = (
-                            k_clear[:, ilay] * (1.0 - cloud_cf)
-                            + k_cloud[:, ilay] * cloud_cf
-                        )
-
-                    # layers below cloud top
-                    if ilay > self.nlayers_cloud - 1:
-                        temp_array_k_jac[:, ilay] = k_clear[:, ilay] * (1.0 - cloud_cf)
-                # end for ilay in range(0,self.nlayers):
-
-                # in order to flip the order of jacobians so that the first row is at surface
-                temp_jac = (
-                    temp_array_k_jac - temp_array_k_jac
-                )  # This clear out a matrix of shape temp_array_k_jac.shape to zeros.
-                for ilay in range(0, self.nlayers):
-                    temp_jac[:, ilay] = temp_array_k_jac[:, self.nlayers - ilay - 1]
-                # end for ilay in range(0,self.nlayers):
-
-                species_k = self.atm_clear_jacobians_ils[ii_sp]["species"]
-                self.jacobians_atm_ils["k_species"][ii_sp]["species"] = species_k
-                temp_array = temp_jac  # Because temp_array will be used on the right hand side, we can do the assignment and not a deepcopy.
-
-                ## Only compare the first layer
-                species_as_np_array = np.asarray(self.i_uip["species"])
-                # Loop through all layers to do comparison before the multiplication.
-                for jj_layer in range(0, self.nlayers):
-                    uu = np.where(species_as_np_array == species_k)[0]
-                # end for jj_layer in range(0,self.nlayers):
-
-                for jj_layer in range(0, self.nlayers):
-                    uu = np.where(species_as_np_array == species_k)[0]
-                    if len(uu) > 0:
-                        self.jacobians_atm_ils["k_species"][ii_sp]["k"][
-                            jj_layer, self.mws : self.mwf + 1
-                        ] = (
-                            self.jacobians_atm_ils["k_species"][ii_sp]["k"][
-                                jj_layer, self.mws : self.mwf + 1
-                            ]
-                            + temp_array[:, jj_layer]
-                            * self.rayInfo["map_vmr_l"][uu[0], jj_layer]
-                        )
-
-                        self.jacobians_atm_ils["k_species"][ii_sp]["k"][
-                            jj_layer + 1, self.mws : self.mwf + 1
-                        ] = (
-                            self.jacobians_atm_ils["k_species"][ii_sp]["k"][
-                                jj_layer + 1, self.mws : self.mwf + 1
-                            ]
-                            + temp_array[:, jj_layer]
-                            * self.rayInfo["map_vmr_u"][uu[0], jj_layer]
-                        )
-                    # end if len(uu) > 0:
-                # end for jj_layer in range(0,self.nlayers):
-            # end for ii_sp in range(0,self.i_uip['num_atm_k']):
-        # end if (self.i_uip['num_atm_k'] > 0):
-
-        # AT_LINE 129 OMI/rev_and_fm_map.pro
-        # EM NOTE - What is this??
-        if wave_arr[0] > 335.0:
-            # The array self.jacobians_atm_ils can be None so we look to see if self.i_uip['num_atm_k'] is more than 0 before accessing it.
-            if self.i_uip["num_atm_k"] > 0:
-                self.jacobians_atm_ils["k_species"][:]["k"][
-                    :, self.mws : self.mwf + 1
-                ] = np.float64(0.0)
-
     def omi_rev_and_fm_map(self):
         # Description: simulate omi radiances and jacobians
 
@@ -1340,12 +1043,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         ring_sf_uv1 = np.float64(uip_omi_pars["ring_sf_uv1"])
         ring_sf_uv2 = np.float64(uip_omi_pars["ring_sf_uv2"])
         cloud_cf = np.float64(uip_omi_pars["cloud_fraction"])
-
-        # AT_LINE 27 OMI/rev_and_fm_map.pro
-        startmw = uip_omi["microwindows"][self.ii_mw]["startmw"][self.ii_mw]
-        enddmw = uip_omi["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
-
-        wave_arr = uip_omi["fullbandfrequency"][startmw : enddmw + 1]
 
         my_filter = uip_omi["microwindows"][self.ii_mw]["filter"]
 
@@ -1453,89 +1150,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 self.mws : self.mwf + 1
             ] = dI / dX
 
-        # AT_LINE 87 OMI/rev_and_fm_map.pro
-        # reverse layer index of jacobians for atmospheric species
-        # map them to the forward model levels
-        if self.i_uip["num_atm_k"] > 0:
-            for ii_sp in range(0, self.i_uip["num_atm_k"]):
-                # AT_LINE 93 OMI/rev_and_fm_map.pro
-                k_clear = copy.deepcopy(
-                    self.atm_clear_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
-                )
-                k_cloud = copy.deepcopy(
-                    self.atm_cloud_jacobians_ils[ii_sp]["k"][self.mws : self.mwf + 1, :]
-                )
-
-                temp_array_k_jac = (
-                    k_clear - k_clear
-                )  # This clear out a matrix of shape k_clear.shape
-                for ilay in range(0, self.nlayers):
-                    # layers above cloud top
-                    if ilay <= self.nlayers_cloud - 1:
-                        temp_array_k_jac[:, ilay] = (
-                            cloud_cf * k_cloud[:, ilay]
-                            + (1.0 - cloud_cf) * k_clear[:, ilay]
-                        )
-
-                    # layers below cloud top
-                    if ilay > self.nlayers_cloud - 1:
-                        temp_array_k_jac[:, ilay] = (1.0 - cloud_cf) * k_clear[:, ilay]
-                # end for ilay in range(0,self.nlayers):
-
-                # AT_LINE 104 OMI/rev_and_fm_map.pro
-                # Flip the order of jacobians so that the first row is at surface
-                temp_jac = (
-                    temp_array_k_jac - temp_array_k_jac
-                )  # This clear out a matrix of shape temp_array_k_jac.shape to zeros.
-                for ilay in range(0, self.nlayers):
-                    temp_jac[:, ilay] = temp_array_k_jac[:, self.nlayers - ilay - 1]
-                # end for ilay in range(0,self.nlayers):
-
-                self.jacobians_atm_ils["k_species"][ii_sp]["species"] = (
-                    self.atm_clear_jacobians_ils[ii_sp]["species"]
-                )
-
-                ## Only compare the first layer
-                # AT_LINE 114 OMI/rev_and_fm_map.pro
-                species_as_np_array = np.asarray(self.i_uip["species"])
-                species_k = self.jacobians_atm_ils["k_species"][ii_sp]["species"]
-                uu = np.where(species_as_np_array == species_k)[0]
-                
-                if len(uu) > 0:
-                    # see: https://www.sciencedirect.com/science/article/pii/S0022407314001277
-                    # 2.4 Transformation rules for level-atmosphere Jacobians (18)
-                    for jj_layer in range(0, self.nlayers):
-                        jac_ii_sp = self.jacobians_atm_ils["k_species"][ii_sp]["k"]
-                        jac_ii_sp[jj_layer, self.mws : self.mwf + 1] = (
-                            jac_ii_sp[jj_layer, self.mws : self.mwf + 1]
-                            + temp_jac[:, jj_layer]
-                            * self.rayInfo["map_vmr_l"][uu[0], jj_layer]
-                        )
-
-                        jac_ii_sp[jj_layer + 1, self.mws : self.mwf + 1] = (
-                            jac_ii_sp[jj_layer + 1, self.mws : self.mwf + 1]
-                            + temp_jac[:, jj_layer]
-                            * self.rayInfo["map_vmr_u"][uu[0], jj_layer]
-                        )
-                    # end for jj_layer in range(0,self.nlayers):
-                # end if len(uu) > 0:
-            # end for ii_sp in range(0,self.i_uip['num_atm_k']):
-        # end if (self.i_uip['num_atm_k'] > 0):
-
-        # AT_LINE 129 OMI/rev_and_fm_map.pro
-        if wave_arr[0] > 335.0:
-            # The array self.jacobians_atm_ils can be None so we look to see if self.i_uip['num_atm_k'] is more than 0 before accessing it.
-            if self.i_uip["num_atm_k"] > 0:
-                self.jacobians_atm_ils["k_species"][:]["k"][
-                    :, self.mws : self.mwf + 1
-                ] = np.float64(0.0)
-
     def pack_jacobian(self):
         o_radiance_pack = self.radiance_ils[:]
 
         my_filter = self.i_uip["microwindows"][self.ii_mw]["filter"]
         # Initialization of parameters
-        num_rad = len(self.radiance_ils)
         num_elem = len(o_radiance_pack)
         num_par = 0
         num_atm = len(self.i_uip["atmosphere"][0, :])
@@ -1564,36 +1183,18 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ii_par = ii_par + 1
                 # Pack Surface albedo jac
                 elif jacob_name == f"TROPOMISURFACEALBEDO{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISURFACEALBEDO{my_filter}TIGHT":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 # Pack Suface albedo slope jac
                 elif jacob_name == f"TROPOMISURFACEALBEDOSLOPE{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_slope_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISURFACEALBEDOSLOPE{my_filter}TIGHT":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_slope_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 # Pack Suface albedo second order slope jac
                 elif jacob_name == f"TROPOMISURFACEALBEDOSLOPEORDER2{my_filter}":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_slope_order2_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISURFACEALBEDOSLOPEORDER2{my_filter}TIGHT":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        f"surface_albedo_slope_order2_{my_filter}"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == f"TROPOMISOLARSHIFT{my_filter}":
                     ii_par = ii_par + 1
@@ -1632,9 +1233,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "TROPOMICLOUDSURFACEALBEDO":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "cloud_Surface_Albedo"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMICLOUDFRACTION":
                     o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
@@ -1642,19 +1240,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMISURFACEALBEDOUV1":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_OMISURFACEALBEDOUV1"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMISURFACEALBEDOUV2":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_OMISURFACEALBEDOUV2"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMISURFACEALBEDOSLOPEUV2":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_OMISURFACEALBEDOSLOPEUV2"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMINRADWAVUV1":
                     ii_par = ii_par + 1
@@ -1679,38 +1268,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                     ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "O3":
-                    # Taken care of below
-                    pass
+                    ii_par = ii_par + num_atm
                 else:
                     logger.info("NON_OMI_SPECIES", jacob_name)
 
-                # Pack Atmopheric Species Jac
-                ii_dets = 0
-                ii_dete = num_rad - 1
-                uu = -1
-
-                if self.i_uip["num_atm_k"] > 0:
-                    uu = []
-                    for ii in range(0, len(self.jacobians_atm_ils["k_species"])):
-                        if (
-                            self.jacobians_atm_ils["k_species"][ii]["species"]
-                            == jacob_name
-                        ):
-                            uu.append(ii)
-
-                    if len(uu) > 0:
-                        ii_ps = ii_par
-                        ii_pe = ii_par + num_atm - 1
-
-                        o_jacobian_pack[ii_ps : ii_pe + 1, ii_dets : ii_dete + 1] = (
-                            self.jacobians_atm_ils["k_species"][uu[0]]["k"]
-                        )
-
-                        ii_dets = ii_dets + num_rad
-                        ii_dete = ii_dete + num_rad
-                        ii_par = ii_par + num_atm
-                    # end if len(uu) > 0):
-                # end if (self.i_uip['num_atm_k'] > 0):
             # end for ii in range(0,len(self.i_uip['jacobians'])):
         # end if (num_par > 0):
 

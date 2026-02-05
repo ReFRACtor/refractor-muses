@@ -51,7 +51,9 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
     # also, py-retrieve used finite differences while we have analytic jacobians.
     # Results in small differences.
     jaccmp[:,-3:-1] = 0
-
+    # MusesTropomiForwardModel incorrectly does not scale the surface parameters by
+    # the clear fraction. Fix so we can compare
+    jaccmp[:,-6:-3] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
     npt.assert_allclose(rad, radcmp)
@@ -94,6 +96,9 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
     # also, py-retrieve used finite differences while we have analytic jacobians.
     # Results in small differences.
     jaccmp[:,-4:] = 0
+    # MusesOmiForwardModel incorrectly does not scale the surface parameters by
+    # the clear fraction. Fix so we can compare
+    jaccmp[:,-7:-4] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
     npt.assert_allclose(rad, radcmp)
