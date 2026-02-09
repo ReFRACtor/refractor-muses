@@ -274,13 +274,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             "O2PT.txt",
         ):
             self.rconf.input_file_helper.notify_file_input(tpath / fname)
-        # This should be able to get removed, and fm_call2 just put in here
-        with muses_py_call(
-            self.rf_uip.run_dir,
-            vlidort_nstokes=self.vlidort_nstokes,
-            vlidort_nstreams=self.vlidort_nstreams,
-        ):
-            rad, jac = self.fm_call2()
+        rad, jac = self.fm_call2()
         return rad, jac
 
     def fm_call2(self):
