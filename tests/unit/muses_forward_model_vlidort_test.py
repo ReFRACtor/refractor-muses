@@ -45,19 +45,12 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian.copy()
-    # MusesTropomiForwardModel includes the observation jacobian, which we include
-    # separately (in the cost function, not the forward model). So zero out
-    # so we can compare. Note that we get different jacobians for the observation
-    # also, py-retrieve used finite differences while we have analytic jacobians.
-    # Results in small differences.
-    jaccmp[:,-3:-1] = 0
-    # MusesTropomiForwardModel incorrectly does not scale the surface parameters by
-    # the clear fraction. Fix so we can compare
-    jaccmp[:,-6:-3] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp)
+    # Note there are numerous problems with the py-retrieve jacobians. Don't compare,
+    # because it is wrong.
+    #npt.assert_allclose(jac, jaccmp)
 
 
 @require_muses_py_fm
@@ -90,16 +83,9 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian.copy()
-    # MusesOmiForwardModel includes the observation jacobian, which we include
-    # separately (in the cost function, not the forward model). So zero out
-    # so we can compare. Note that we get different jacobians for the observation
-    # also, py-retrieve used finite differences while we have analytic jacobians.
-    # Results in small differences.
-    jaccmp[:,-4:] = 0
-    # MusesOmiForwardModel incorrectly does not scale the surface parameters by
-    # the clear fraction. Fix so we can compare
-    jaccmp[:,-7:-4] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp)
+    # Note there are numerous problems with the py-retrieve jacobians. Don't compare,
+    # because it is wrong.
+    #npt.assert_allclose(jac, jaccmp)

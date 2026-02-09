@@ -242,7 +242,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
-        jac, rad = self.fm_call()
+        rad, jac = self.fm_call()
         # Haven't filled everything in yet, but mark as cache full.
         # otherwise bad_sample_mask and spectral_domain will enter an
         # infinite loop
@@ -281,8 +281,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
         ):
-            jac, rad = self.fm_call2()
-        return jac, rad
+            rad, jac = self.fm_call2()
+        return rad, jac
 
     def fm_call2(self):
         # Temp, we'll pull some of this over and get other parts into mpy
@@ -441,8 +441,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             self.dlogvmr_dstate = None
         
         # loop over all microwindows
-        jac_t = []
-        rad_t = []
+        rad_v = []
         for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
             # AT_LINE 201 OMI/omi_fm.pro
             self.mw_account["mw_cnt"] = self.ii_mw
@@ -460,16 +459,20 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 v_ils_total = np.concatenate((v_ils_total, v_ils_mw), axis=0)
 
             logger.info("Calling rtf for clear sky")
-            radclear, jacclear = self.rtf(do_cloud=0)
+            radclear = self.rtf(do_cloud=0)
 
             logger.info("Calling rtf for cloudy sky")
-            radcloud, jaccloud = self.rtf(do_cloud=1)
+            radcloud = self.rtf(do_cloud=1)
 
-            cfrac = self.cloud_fraction.cloud_fraction.value
-            rad_t.append(radclear * (1-cfrac) + radcloud * cfrac)
-            if jacclear is not None and jaccloud is not None:
-                jac_t.append(jacclear * (1-cfrac) + jaccloud*cfrac)
-
+            cfrac = self.cloud_fraction.cloud_fraction
+            # Can't directly multiple a ArrayAd_double_1 (this is a tradeoff at the C++
+            # level between flexibility and simpler arrangement). But we can just calculate
+            # this element by element
+            rad = rf.ArrayAd_double_1(radclear.rows, max(radclear.number_variable, radcloud.number_variable, cfrac.number_variable))
+            for i in range(radclear.rows):
+                rad[i] = radclear[i] * (1-cfrac) + radcloud[i] * cfrac
+            rad_v.append(rad)
+            
             #  Revert the Layer in Jacobians;  FM mapping (Layer to Level); and
             #  Combine Cloud/Clear Sky Radiances/Jacobians
             #  Compute jacobians of cloud fraction, ring scaling factor, and
@@ -481,7 +484,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 self.omi_rev_and_fm_map()
         # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
-        rad_t = np.concatenate(rad_t)
+        rad_t = np.concatenate([t.value for t in rad_v])
+        jac_t = [t.jacobian for t in rad_v if not t.is_constant]
         if len(jac_t) > 0:
             jac_t = np.concatenate(jac_t)
         else:
@@ -516,11 +520,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             o_jacobian_pack = (sub_basis_matrix @ o_jacobian_pack[: sub_basis_matrix.shape[1], :]).transpose()
         if o_jacobian_pack is not None and jac_t is not None:
             o_jacobian_pack += jac_t
-            
-        return (
-            o_jacobian_pack,
-            o_radiance_pack,
-        )
+        return (rad_t, jac_t)
 
     def rtf(
         self,
@@ -867,7 +867,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # end if do_cloud:
         self.ground.do_cloud = True if do_cloud == 1 else False
         
-        rad = radiance_matrix[1, temp_freq_ind]
         # Translate jacobian_sf_matrix to a jacobian relative to the state vector
         
         # TODO We should just use the spectral domain for this forward model,
@@ -903,7 +902,17 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 jac_tot = jac_o3
             else:
                 jac_tot += jac_o3
-        return rad, jac_tot
+        rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind], jac_tot)
+        # We may replace the RamanScattering with our MusesRaman, but for now use the
+        # ring cli interface. However, we grab the coefficient from the MusesRaman
+        if do_cloud == 1:
+            ring = self.ring_cloud_ils[temp_start_ind : temp_endd_ind + 1]
+        else:
+            ring = self.ring_clear_ils[temp_start_ind : temp_endd_ind + 1]
+        sf = self.ocreator.raman_effect(self.ii_mw).coefficient[0]
+        for i in range(rad.rows):
+            rad[i] *= (1 + ring[i] * sf )
+        return rad
         
     def tropomi_rev_and_fm_map(
         self,
@@ -1177,9 +1186,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 # Pack CloudFraction jac
                 jacob_name = self.i_uip["jacobians"][ii]
                 if jacob_name == "TROPOMICLOUDFRACTION":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_cloud_ils"
-                    ][:]
                     ii_par = ii_par + 1
                 # Pack Surface albedo jac
                 elif jacob_name == f"TROPOMISURFACEALBEDO{my_filter}":
@@ -1235,9 +1241,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 elif jacob_name == "TROPOMICLOUDSURFACEALBEDO":
                     ii_par = ii_par + 1
                 elif jacob_name == "OMICLOUDFRACTION":
-                    o_jacobian_pack[ii_par, :] = self.jacobian_dictionary[
-                        "jacobian_cloud_ils"
-                    ][:]
                     ii_par = ii_par + 1
                 elif jacob_name == "OMISURFACEALBEDOUV1":
                     ii_par = ii_par + 1
