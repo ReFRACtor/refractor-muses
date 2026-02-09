@@ -2,7 +2,6 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
-from .misc import AttrDictAdapter
 from functools import cached_property
 from loguru import logger
 import tempfile
@@ -285,106 +284,21 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         return rad, jac
 
     def fm_call2(self):
-        # Temp, we'll pull some of this over and get other parts into mpy
-        from refractor.muses_py import (
-            raylayer_nadir,
-            atmosphere_level,
-        )
-
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
 
         self.i_uip = self.rf_uip.uip_all(self.instrument_name)
-
-        # Get atmospheric parameters
-        self.i_uip["obs_table"]["pointing_angle"] = 0.0
-        atmparams = atmosphere_level(self.i_uip)
-
-        # Computer layer and level quanity
-        self.rayInfo = raylayer_nadir(
-            AttrDictAdapter(self.i_uip), AttrDictAdapter(atmparams)
-        )
+        self.ray_info = self.rf_uip.ray_info(self.instrument_name)
 
         self.mw_account = self.summarize_mw(self.i_uip)
-        nfreq_tot = self.mw_account["nfreq_tot"]
 
-        self.i_uip["num_atm_k"] = sum(
-            jac in self.i_uip["species"] or jac == "TATM"
-            for jac in self.i_uip["jacobians"]
-        )
-
-
-        # Create arrays for the following jacobians:
-        # [Cloud Fraction,Ring Scaling Factor,Earth/Solar Wavelength Shift Parameter,od Wavelength Shift Parameter,od Wavelength Shift Parameter]
-
-        # EM NOTE - Here we are creating empty jacobian arrays for
-        # use, the original OMI code hardcoded a series of parameters,
-        # but for tropomi we have knowledge of the parameter list, and
-        # which band we are using, so we can dynamically create a
-        # range of jacobian arrays based on what band we are
-        # interested in.
-
-        # First declare dictionary, and common elements
-        if self.is_tropomi:
-            self.jacobian_dictionary = {
-                "jacobian_cloud_ils": np.zeros(shape=(nfreq_tot), dtype=np.float64),
-                "cloud_Surface_Albedo": np.zeros(shape=(nfreq_tot), dtype=np.float64),
-            }
-
-            # Then populate dictionary with elements assigned to specific band
-            for ii in range(0, len(self.i_uip["microwindows_all"])):
-                for jj in self.i_uip["tropomiPars"]:
-                    if (
-                        self.i_uip["microwindows_all"][ii]["filter"] in jj
-                        and "vza" not in jj
-                        and "sza" not in jj
-                        and "raz" not in jj
-                    ):  # Ignoring the angles since these won't be jacobians
-                        self.jacobian_dictionary[jj] = np.zeros(
-                            shape=(nfreq_tot), dtype=np.float64
-                        )
-                    else:
-                        continue
-        else:
-            self.jacobian_dictionary = {
-                "jacobian_cloud_ils": np.zeros(shape=(nfreq_tot), dtype=np.float64),
-                "jacobian_ring_sf_ils_uv1": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_ring_sf_ils_uv2": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_OMISURFACEALBEDOUV1": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_OMISURFACEALBEDOUV2": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-                "jacobian_OMISURFACEALBEDOSLOPEUV2": np.zeros(
-                    shape=(nfreq_tot), dtype=np.float64
-                ),
-            }
-
-        jacob_str = []
-        for ii in range(0, len(self.i_uip["jacobians"])):
-            jacob_str.append(self.i_uip["jacobians"][ii].upper())
-        jacob_str = np.asarray(jacob_str)
-
-        self.nlayers = atmparams["nlayers"]
-        if self.is_tropomi:
-            self.nlayers_cloud = np.count_nonzero(
-                self.rayInfo["pbar"] <= self.i_uip["tropomiPars"]["cloud_pressure"]
-            )
-        else:
-            cloud_pressure = self.i_uip["omiPars"]["cloud_pressure"]
-            if cloud_pressure < 0:
-                raise RuntimeError(
-                    "self.i_uip['omiPars']['cloud_pressure'] < 0. Check the OMI Cloud L2 product used as input for OMI cloud variables."
-                )
-
-            self.nlayers_cloud = np.count_nonzero(
-                self.rayInfo["pbar"] <= cloud_pressure
-            )
+        self.nlayers = self.ocreator.pressure.pressure_clear.number_layer
+        try:
+            t = self.ocreator.pressure.do_cloud
+            self.ocreator.pressure.do_cloud = True
+            self.nlayers_cloud = self.ocreator.pressure.number_layer
+        finally:
+            self.ocreator.pressure.do_cloud = t
 
         # This is used in a few places, so grab this once here for use later
         # This is describes in "On the generation of atmospheric property
@@ -397,9 +311,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # somewhere other than ray_info
 
         # See if we can get this to work
-        #map_vmr_l, map_vmr_u = self.ocreator.ray_info.map_vmr()
-        map_vmr_l = self.rayInfo["map_vmr_l"]
-        map_vmr_u = self.rayInfo["map_vmr_u"]
+        map_vmr_l, map_vmr_u = self.ocreator.ray_info.map_vmr()
+        #map_vmr_l = self.ray_info["map_vmr_l"]
+        #map_vmr_u = self.ray_info["map_vmr_u"]
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
@@ -421,21 +335,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # loop over all microwindows
         rad_v = []
         for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
-            # AT_LINE 201 OMI/omi_fm.pro
-            self.mw_account["mw_cnt"] = self.ii_mw
-
-            self.mws = self.mw_account["mw_range"][0, self.ii_mw]
-            self.mwf = self.mw_account["mw_range"][1, self.ii_mw]
-
-            # * measurement wavelength grid after ILS convolved
-            v_ils_mw = self.mw_account["freq"][self.mws : self.mwf + 1]
-
-            if self.ii_mw == 0:
-                v_ils_total = v_ils_mw  # get ils convolved frequency grid
-
-            if self.ii_mw > 0:
-                v_ils_total = np.concatenate((v_ils_total, v_ils_mw), axis=0)
-
             logger.info("Calling rtf for clear sky")
             radclear = self.rtf(do_cloud=0)
 
@@ -450,8 +349,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             for i in range(radclear.rows):
                 rad[i] = radclear[i] * (1-cfrac) + radcloud[i] * cfrac
             rad_v.append(rad)
-            
-        # end for ii_mw in range(0, self.mw_account['mw_cnt']):
 
         rad_t = np.concatenate([t.value for t in rad_v])
         jac_t = [t.jacobian for t in rad_v if not t.is_constant]
@@ -473,9 +370,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         do_cloud,
     ):
         from refractor.muses_py import (
-            cli_options,
             print_ring_input,
-            vlidort_run,
             print_omi_surface_albedo,
             print_omi_o3od,
             print_omi_atm,
@@ -490,7 +385,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         )
 
         # Default run directory if not specified.
-        default_run_directory = "./"
         vlidort_input_dir = self.i_uip["vlidort_input"]
         vlidort_input_iter_dir = vlidort_input_dir + "/IterLast/MWLast/cloudy/"
         Path(vlidort_input_iter_dir).mkdir(parents=True, exist_ok=True)
@@ -504,31 +398,39 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers
             )
             print_tropomi_vga(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.rayInfo, fm_nlayers
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
             )
             print_tropomi_surface_albedo(
                 vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
             )
             print_tropomi_atm(
-                vlidort_input_iter_dir, self.i_uip, self.rayInfo, fm_nlayers
+                vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers
             )
         else:
             print_omi_config(vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers)
-            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.rayInfo)
-            print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.rayInfo, fm_nlayers)
-            print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.rayInfo)
+            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info)
+            print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers)
+            print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.ray_info)
             print_omi_surface_albedo(
                 vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
             )
 
         # Run VLIDORT CLI
-        vlidort_run(
-            default_run_directory,
-            vlidort_input_iter_dir,
-            vlidort_output_iter_dir,
-            self.vlidort_nstokes,
-            self.vlidort_nstreams,
+        vlidort_command = [
+            "vlidort_cli",
+            '--input', vlidort_input_iter_dir,
+            '--output', vlidort_output_iter_dir,
+            '--nstokes', f'{self.vlidort_nstokes}',
+            '--nstreams', f'{self.vlidort_nstreams}'
+        ]
+        logger.debug(f'\nRunning:\n{" ".join(vlidort_command)} ')
+        subprocess.run(
+            vlidort_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
         )
+        
         # IWF = G * dI / dG, where I is a component of the stokes vector (I, Q, U, V) and G is the gas optical depth (O3 in our case)
         # IWF also known as the normalized weighting function
         # The denormalized IWF: IWF_denorm = IWF / G
@@ -554,7 +456,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 vlidort_output_iter_dir,
                 self.ii_mw,
                 self.i_uip,
-                self.rayInfo,
+                self.ray_info,
                 fm_nlayers,
                 do_cloud,
                 i_obs=self.obs.radiance_for_uip,
@@ -565,7 +467,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 vlidort_output_iter_dir,
                 self.ii_mw,
                 self.i_uip,
-                self.rayInfo,
+                self.ray_info,
                 fm_nlayers,
                 do_cloud,
                 i_obs=self.obs.radiance_for_uip,
@@ -573,17 +475,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         raman_inputs_dir = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
 
-        ring_cli = cli_options.get("ring_cli", "")
-
-        # RING CLI
-        executable_filename = "ring_cli"
-        ring_cli_exe = Path(ring_cli).expanduser().resolve() / executable_filename
-
-        if not ring_cli_exe.exists():
-            raise RuntimeError(f"Cannot find executable {ring_cli_exe}")
-
         ring_command = [
-            ring_cli_exe.as_posix(),
+            "ring_cli",
             "--raman-input",
             raman_inputs_dir.as_posix(),
             "--input",
@@ -596,7 +489,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         subprocess.run(
             ring_command,
-            cwd=default_run_directory,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
