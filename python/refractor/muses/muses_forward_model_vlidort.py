@@ -206,38 +206,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # object is deleted then we just don't notify it.
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
 
-    def summarize_mw(self, i_uip: dict[str, Any]) -> dict[str, Any]:
-        num_mw = len(i_uip["microwindows"])
-        mws = 0
-        nfreq_tot = 0
-        mw_range = np.ndarray(
-            shape=(3, num_mw), dtype=np.int32
-        )  # PYTHON_NOTE: mw_range must be integer so we can use it later as indices.
-
-        for ii_mw in range(0, num_mw):
-            nfreq_mw = (
-                i_uip["microwindows"][ii_mw]["enddmw"][ii_mw]
-                - i_uip["microwindows"][ii_mw]["startmw"][ii_mw]
-                + 1
-            )
-            nfreq_tot = nfreq_tot + nfreq_mw
-            mwf = mws + nfreq_mw - 1
-
-            mw_range[0, ii_mw] = mws
-            mw_range[1, ii_mw] = mwf
-            mw_range[2, ii_mw] = nfreq_mw
-
-            mws = mws + nfreq_mw
-
-        o_mw_account = {
-            "mw_cnt": num_mw,
-            "mw_species": np.asarray([0 for ii in range(0, len(i_uip["species"]))]),
-            "freq": i_uip["frequencyList"],
-            "mw_range": mw_range,
-            "nfreq_tot": nfreq_tot,
-        }
-        return o_mw_account
-
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
@@ -274,17 +242,12 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             "O2PT.txt",
         ):
             self.rconf.input_file_helper.notify_file_input(tpath / fname)
-        rad, jac = self.fm_call2()
-        return rad, jac
-
-    def fm_call2(self):
+            
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
-
+        
         self.i_uip = self.rf_uip.uip_all(self.instrument_name)
         self.ray_info = self.rf_uip.ray_info(self.instrument_name)
-
-        self.mw_account = self.summarize_mw(self.i_uip)
 
         self.nlayers = self.ocreator.pressure.pressure_clear.number_layer
         try:
@@ -328,7 +291,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         
         # loop over all microwindows
         rad_v = []
-        for self.ii_mw in range(0, self.mw_account["mw_cnt"]):
+        for self.ii_mw in range(self.ocreator.num_channels):
             logger.info("Calling rtf for clear sky")
             radclear = self.rtf(do_cloud=0)
 
@@ -507,33 +470,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         if self.ocreator.ils_method(self.ii_mw) != "APPLY":
             raise RuntimeError("We don't currently support using and ILS, we need a test case to work through the logic here")
 
-        nfreq = (
-            self.i_uip["microwindows"][self.ii_mw]["enddmw"][self.ii_mw]
-            - self.i_uip["microwindows"][self.ii_mw]["startmw"][self.ii_mw]
-            + 1
-        )  # from [ 20 194] get 20, from [126 306] get 126 for index 0.
-
         temp_freq_fm = radiance_matrix[0, :]
         temp_freq_ind = np.where(
             (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
             & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
         )[0]
-
-        if len(temp_freq_ind) != nfreq:
-            logger.error(
-                "Number of Data points does not match to the expected values: len(temp_freq_ind), nfreq",
-                len(temp_freq_ind),
-                nfreq,
-            )
-            logger.error(
-                "self.i_uip['microwindows'][self.ii_mw]['startmw' ]",
-                self.i_uip["microwindows"][self.ii_mw]["startmw"],
-            )
-            logger.error(
-                "self.i_uip['microwindows'][self.ii_mw]['enddmw' ]",
-                self.i_uip["microwindows"][self.ii_mw]["enddmw"],
-            )
-            assert False
 
         # end if do_cloud:
         self.ground.do_cloud = True if do_cloud == 1 else False
