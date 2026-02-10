@@ -85,6 +85,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.ground = self.ocreator.ground
         self.absorber = self.ocreator.absorber
         self.cloud_fraction = self.ocreator.cloud_fraction
+        self.pressure = self.ocreator.pressure
+        self.temperature = self.ocreator.temperature
+        self.altitude = self.ocreator.altitude
+        self.nchan = self.ocreator.num_channels
+        self._do_cloud = False
         # TODO I think this can probably go away after we clean
         # everything up
         self.is_tropomi = False
@@ -111,6 +116,16 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.have_create_uip = False
         self.uip_params: None | np.ndarray = None
+
+    @property
+    def do_cloud(self) -> bool:
+        return self._do_cloud
+
+    @do_cloud.setter
+    def do_cloud(self, v:bool) -> None:
+        self._do_cloud = v
+        self.ground.do_cloud = v
+        self.pressure.do_cloud = v
 
     def update_uip(self, parameters: np.ndarray) -> None:
         if not self.have_create_uip:
@@ -161,7 +176,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         pass
 
     def _v_num_channels(self) -> int:
-        return self.ocreator.num_channels
+        return self.nchan
 
     def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
         return self.obs.spectral_domain(sensor_index)
@@ -217,13 +232,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.i_uip = self.rf_uip.uip_all(self.instrument_name)
         self.ray_info = self.rf_uip.ray_info(self.instrument_name)
 
-        self.nlayers = self.ocreator.pressure.pressure_clear.number_layer
-        try:
-            t = self.ocreator.pressure.do_cloud
-            self.ocreator.pressure.do_cloud = True
-            self.nlayers_cloud = self.ocreator.pressure.number_layer
-        finally:
-            self.ocreator.pressure.do_cloud = t
+        self.do_cloud = False
+        self.nlayers = self.pressure.number_layer
+        self.do_cloud = True
+        self.nlayers_cloud = self.pressure.number_layer
+        self.do_cloud = False
 
         # This is used in a few places, so grab this once here for use later
         # This is describes in "On the generation of atmospheric property
@@ -246,7 +259,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 map_vmr_u[0, :]
         )
         vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
-                self.ocreator.pressure, rf.Pressure.DECREASING_PRESSURE
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
         if not vgrid.is_constant:
             dvmr_dstate = vgrid.jacobian
@@ -302,6 +315,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print_tropomi_config,
         )
 
+        self.do_cloud = True if do_cloud == 1 else False
         # Default run directory if not specified.
         vlidort_input_dir = Path(self.i_uip["vlidort_input"])
         vlidort_input_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
@@ -314,34 +328,59 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         od_data = np.loadtxt(
                     vlidort_input_dir / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
                 )
-        nfreq = od_data.shape[0]
+        freq = od_data[:,1]
+        wn = rf.ArrayWithUnit_double_1(od_data[:, 1], "nm").convert_wave("cm^-1").value
+        nfreq = len(freq)
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         # Write the control file for vlidort
         with open(vlidort_input_iter_dir / "config_rtm.asc", "w") as fh:
             print(f"'Atm_layer.asc'", file=fh)
-            print(f"'Atm_level.asc'", file=fh)
+            print(f"'atm_lev.asc'", file=fh)
             print(f"'../../../O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
-            print(f"'Surfalb_MW{self.ii_mw+1:03d}.asc'",file=fh)
-            print(f"'Vga_MW{self.ii_mw+1:03d}.asc'",file=fh)
+            print(f"'surf_alb.asc'",file=fh)
+            print(f"'vga.asc'",file=fh)
             print(f"{nfreq:>5d}", file=fh)
             print(f"{fm_nlayers:>5d}", file=fh)
+
+        # Write the Vga file
+        elv = self.obs.surface_height[self.sensor_index]
+        lat = self.obs.latitude[self.sensor_index]
+        sza = self.obs.solar_zenith[self.sensor_index]
+        # Clamp zen to be in range
+        if sza <= 0.0:
+            sza = 0.0001
+        if sza >= 90.0:
+            sza = 89.98
+        vza = self.obs.observation_zenith[self.sensor_index]
+        raz = self.obs.relative_azimuth[self.sensor_index]
+        with open(vlidort_input_iter_dir / "vga.asc", "w") as fh:
+            print("ELEV,       DLAT,       SZA,        VZA,        RAZ", file=fh)
+            print(f"{elv:12.4f} {lat:12.4f} {sza:12.4f} {vza:12.4f} {raz:12.4f}", file=fh)
+            
+        # Write surface albedo
+        with open(vlidort_input_iter_dir / "surf_alb.asc", "w") as fh:
+            print(nfreq,file=fh)
+            for wnv,freqv in zip(wn,freq):
+                alb = self.ground.surface_parameter(wnv, self.sensor_index).value[0]
+                print(f"{freqv:16.7f} {alb:16.7f}", file=fh)
+
+        # Write atmosphere levels
+        pgrid = self.pressure.pressure_grid(rf.Pressure.INCREASING_PRESSURE)
+        plev = pgrid.convert("hPa").value.value
+        tlev = self.temperature.temperature_grid(self.pressure, rf.Pressure.INCREASING_PRESSURE).value.value
+        hlev = [self.altitude[0].altitude(p).convert("m").value.value for p in pgrid]
+        with open(vlidort_input_iter_dir / "atm_lev.asc", "w") as fh:
+            print(len(plev), file=fh)
+            print("Table Columns: Pres(mb), T(K), Altitude(m) (TOA to Surf each level)", file=fh)
+            for p,t,h in zip(plev, tlev, hlev):
+                print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
+                      
         if self.is_tropomi:
-            print_tropomi_vga(
-                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
-            )
-            print_tropomi_surface_albedo(
-                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, do_cloud
-            )
             print_tropomi_atm(
                 f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers
             )
         else:
-            print_omi_vga(f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, self.ray_info)
             print_omi_atm(f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers)
-            #print_omi_o3od(f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info)
-            print_omi_surface_albedo(
-                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, do_cloud
-            )
         # Run VLIDORT CLI
         vlidort_command = [
             "vlidort_cli",
@@ -437,8 +476,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
         )[0]
 
-        # end if do_cloud:
-        self.ground.do_cloud = True if do_cloud == 1 else False
         
         # Translate jacobian_sf_matrix to a jacobian relative to the state vector
         
@@ -446,12 +483,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # but for now grab what vlidort has
         
         # Low level surface_parameter works with wave number only, so convert
-        wn = rf.ArrayWithUnit_double_1(radiance_matrix[temp_freq_ind, 0], "nm").convert_wave("cm^-1").value
         t = jacobian_sf_matrix[temp_freq_ind, 1:]
         if self.ground.surface_parameter(wn[0], self.sensor_index).rows != 1:
             raise RuntimeError("MusesForwardModelVlidort is hard coded to using an albedo only")
         if not self.ground.surface_parameter(wn[0], self.sensor_index).is_constant:
-            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian for i, wnv in enumerate(wn)])
+            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian for i, wnv in enumerate(wn[temp_freq_ind])])
         else:
             jac_sf = None
         jac_tot = jac_sf
