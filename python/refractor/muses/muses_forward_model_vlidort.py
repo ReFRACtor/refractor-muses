@@ -175,15 +175,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         pass
 
     def _v_num_channels(self) -> int:
-        return 1
+        return self.ocreator.num_channels
 
     def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
-        if sensor_index > 0:
-            raise RuntimeError("sensor_index out of range")
-        sd = np.concatenate(
-            [self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)]
-        )
-        return rf.SpectralDomain(sd, rf.Unit("nm"))
+        return self.obs.spectral_domain(sensor_index)
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach to CostFunction, so uip gets updated when the parameter change
@@ -207,17 +202,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
-        if sensor_index != 0:
-            raise ValueError("sensor_index must be 0")
-        rad, jac = self.fm_call()
+        rad, jac = self.fm_call(sensor_index)
         # Haven't filled everything in yet, but mark as cache full.
         # otherwise bad_sample_mask and spectral_domain will enter an
         # infinite loop
         self.cache_valid_flag = True
-        gmask = np.concatenate(
-            [self.bad_sample_mask(i) != True for i in range(self.obs.num_channels)]
-        )
-        sd = self.spectral_domain(0)
+        gmask = self.bad_sample_mask(sensor_index) != True
+        sd = self.spectral_domain(sensor_index)
         if jac is not None and jac.shape[0] > 0:
             a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
         else:
@@ -225,7 +216,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 
-    def fm_call(self):
+    def fm_call(self, sensor_index: int):
         from refractor.muses_py_fm import muses_py_call
 
         # TODO Should be able to move this down. This is read by the ring_cli
@@ -242,7 +233,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             "O2PT.txt",
         ):
             self.rconf.input_file_helper.notify_file_input(tpath / fname)
-            
+
+        self.sensor_index = sensor_index
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
         
@@ -289,38 +281,25 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         else:
             self.dlogvmr_dstate = None
         
-        # loop over all microwindows
-        rad_v = []
-        for self.ii_mw in range(self.ocreator.num_channels):
-            logger.info("Calling rtf for clear sky")
-            radclear = self.rtf(do_cloud=0)
+        logger.info("Calling rtf for clear sky")
+        radclear = self.rtf(do_cloud=0)
 
-            logger.info("Calling rtf for cloudy sky")
-            radcloud = self.rtf(do_cloud=1)
+        logger.info("Calling rtf for cloudy sky")
+        radcloud = self.rtf(do_cloud=1)
 
-            cfrac = self.cloud_fraction.cloud_fraction
-            # Can't directly multiple a ArrayAd_double_1 (this is a tradeoff at the C++
-            # level between flexibility and simpler arrangement). But we can just calculate
-            # this element by element
-            rad = rf.ArrayAd_double_1(radclear.rows, max(radclear.number_variable, radcloud.number_variable, cfrac.number_variable))
-            for i in range(radclear.rows):
-                rad[i] = radclear[i] * (1-cfrac) + radcloud[i] * cfrac
-            rad_v.append(rad)
-
-        rad_t = np.concatenate([t.value for t in rad_v])
-        jac_t = [t.jacobian for t in rad_v if not t.is_constant]
-        if len(jac_t) > 0:
-            jac_t = np.concatenate(jac_t)
-        else:
-            jac_t = None
-
+        cfrac = self.cloud_fraction.cloud_fraction
+        # Can't directly multiple a ArrayAd_double_1 (this is a tradeoff at the C++
+        # level between flexibility and simpler arrangement). But we can just calculate
+        # this element by element
+        rad = rf.ArrayAd_double_1(radclear.rows, max(radclear.number_variable, radcloud.number_variable, cfrac.number_variable))
+        for i in range(radclear.rows):
+            rad[i] = radclear[i] * (1-cfrac) + radcloud[i] * cfrac
         # Sanity Check on NAN for radiance and jacobian.
-        if not np.all(np.isfinite(rad_t)):
+        if not np.all(np.isfinite(rad.value)):
             raise RuntimeError("rad_t not finite")
-        if jac_t is not None and not np.all(np.isfinite(jac_t)):
+        if rad.jacobian is not None and not np.all(np.isfinite(rad.jacobian)):
             raise RuntimeError("jac_t not finite")
-        
-        return (rad_t, jac_t)
+        return (rad.value, rad.jacobian)
 
     def rtf(
         self,
@@ -352,24 +331,24 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         if self.is_tropomi:
             print_tropomi_config(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers
+                vlidort_input_iter_dir, self.sensor_index, self.i_uip, fm_nlayers
             )
             print_tropomi_vga(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
+                vlidort_input_iter_dir, self.sensor_index, self.i_uip, self.ray_info, fm_nlayers
             )
             print_tropomi_surface_albedo(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
+                vlidort_input_iter_dir, self.sensor_index, self.i_uip, do_cloud
             )
             print_tropomi_atm(
                 vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers
             )
         else:
-            print_omi_config(vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers)
-            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info)
+            print_omi_config(vlidort_input_iter_dir, self.sensor_index, self.i_uip, fm_nlayers)
+            print_omi_vga(vlidort_input_iter_dir, self.sensor_index, self.i_uip, self.ray_info)
             print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers)
             print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.ray_info)
             print_omi_surface_albedo(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
+                vlidort_input_iter_dir, self.sensor_index, self.i_uip, do_cloud
             )
 
         # Run VLIDORT CLI
@@ -411,7 +390,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             tropomi_print_ring_input(
                 vlidort_input_iter_dir,
                 vlidort_output_iter_dir,
-                self.ii_mw,
+                self.sensor_index,
                 self.i_uip,
                 self.ray_info,
                 fm_nlayers,
@@ -422,7 +401,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print_ring_input(
                 vlidort_input_iter_dir,
                 vlidort_output_iter_dir,
-                self.ii_mw,
+                self.sensor_index,
                 self.i_uip,
                 self.ray_info,
                 fm_nlayers,
@@ -467,13 +446,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Note I don't think the ILS actually works for py-retrieve. We've
         # remove the code here, since we would need to test this. And in
         # any case, I think we would want to just use
-        if self.ocreator.ils_method(self.ii_mw) != "APPLY":
+        if self.ocreator.ils_method(self.sensor_index) != "APPLY":
             raise RuntimeError("We don't currently support using and ILS, we need a test case to work through the logic here")
 
         temp_freq_fm = radiance_matrix[0, :]
         temp_freq_ind = np.where(
-            (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
-            & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
+            (temp_freq_fm >= self.i_uip["microwindows"][self.sensor_index]["start"])
+            & (temp_freq_fm <= self.i_uip["microwindows"][self.sensor_index]["endd"])
         )[0]
 
         # end if do_cloud:
@@ -487,10 +466,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Low level surface_parameter works with wave number only, so convert
         wn = rf.ArrayWithUnit_double_1(radiance_matrix[0, temp_freq_ind], "nm").convert_wave("cm^-1").value
         t = jacobian_sf_matrix[1:,temp_freq_ind].transpose()
-        if self.ground.surface_parameter(wn[0], self.ii_mw).rows != 1:
+        if self.ground.surface_parameter(wn[0], self.sensor_index).rows != 1:
             raise RuntimeError("MusesForwardModelVlidort is hard coded to using an albedo only")
-        if not self.ground.surface_parameter(wn[0], self.ii_mw).is_constant:
-            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.ii_mw).jacobian for i, wnv in enumerate(wn)])
+        if not self.ground.surface_parameter(wn[0], self.sensor_index).is_constant:
+            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian for i, wnv in enumerate(wn)])
         else:
             jac_sf = None
         jac_tot = jac_sf
@@ -517,7 +496,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind], jac_tot)
         # We may replace the RamanScattering with our MusesRaman, but for now use the
         # ring cli interface. However, we grab the coefficient from the MusesRaman
-        sf = self.ocreator.raman_effect(self.ii_mw).coefficient[0]
+        sf = self.ocreator.raman_effect(self.sensor_index).coefficient[0]
         ring = ring_matrix[1, temp_freq_ind]
         for i in range(rad.rows):
             rad[i] *= (1 + ring[i] * sf )
