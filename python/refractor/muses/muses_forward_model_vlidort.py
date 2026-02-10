@@ -6,8 +6,11 @@ from functools import cached_property
 from loguru import logger
 import tempfile
 import numpy as np
+import pandas as pd
+import io
 import copy
 import subprocess
+import re
 from pathlib import Path
 from typing import Any
 import typing
@@ -292,7 +295,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print_omi_atm,
             print_omi_vga,
             print_omi_config,
-            read_rtm_output,
             tropomi_print_ring_input,
             print_tropomi_atm,
             print_tropomi_surface_albedo,
@@ -301,45 +303,55 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         )
 
         # Default run directory if not specified.
-        vlidort_input_dir = self.i_uip["vlidort_input"]
-        vlidort_input_iter_dir = vlidort_input_dir + "/IterLast/MWLast/cloudy/"
-        Path(vlidort_input_iter_dir).mkdir(parents=True, exist_ok=True)
-        vlidort_output_dir = self.i_uip["vlidort_output"]
-        vlidort_output_iter_dir = vlidort_output_dir + "/IterLast/MWLast/cloudy/"
-        Path(vlidort_output_iter_dir).mkdir(parents=True, exist_ok=True)
+        vlidort_input_dir = Path(self.i_uip["vlidort_input"])
+        vlidort_input_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
+        vlidort_input_iter_dir.mkdir(parents=True, exist_ok=True)
+        vlidort_output_dir = Path(self.i_uip["vlidort_output"])
+        vlidort_output_iter_dir = vlidort_output_dir / "IterLast" / "MWLast" / "cloudy"
+        vlidort_output_iter_dir.mkdir(parents=True, exist_ok=True)
 
+        # Temp, we will get nfreq more directly when we set up writing O3Xsec_MW
+        od_data = np.loadtxt(
+                    vlidort_input_dir / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
+                )
+        nfreq = od_data.shape[0]
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
+        # Write the control file for vlidort
+        with open(vlidort_input_iter_dir / "config_rtm.asc", "w") as fh:
+            print(f"'Atm_layer.asc'", file=fh)
+            print(f"'Atm_level.asc'", file=fh)
+            print(f"'../../../O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
+            print(f"'Surfalb_MW{self.ii_mw+1:03d}.asc'",file=fh)
+            print(f"'Vga_MW{self.ii_mw+1:03d}.asc'",file=fh)
+            print(f"{nfreq:>5d}", file=fh)
+            print(f"{fm_nlayers:>5d}", file=fh)
         if self.is_tropomi:
-            print_tropomi_config(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers
-            )
             print_tropomi_vga(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
+                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
             )
             print_tropomi_surface_albedo(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
+                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, do_cloud
             )
             print_tropomi_atm(
-                vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers
+                f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers
             )
         else:
-            print_omi_config(vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers)
-            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info)
-            print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers)
-            print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.ray_info)
+            print_omi_vga(f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, self.ray_info)
+            print_omi_atm(f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers)
+            #print_omi_o3od(f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info)
             print_omi_surface_albedo(
-                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
+                f"{vlidort_input_iter_dir}/", self.ii_mw, self.i_uip, do_cloud
             )
-
         # Run VLIDORT CLI
         vlidort_command = [
             "vlidort_cli",
-            '--input', vlidort_input_iter_dir,
-            '--output', vlidort_output_iter_dir,
+            '--input', f"{vlidort_input_iter_dir}/",
+            '--output', f"{vlidort_output_iter_dir}/",
             '--nstokes', f'{self.vlidort_nstokes}',
             '--nstreams', f'{self.vlidort_nstreams}'
         ]
         logger.debug(f'\nRunning:\n{" ".join(vlidort_command)} ')
+        #breakpoint()
         subprocess.run(
             vlidort_command,
             stdout=subprocess.PIPE,
@@ -352,24 +364,24 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # The denormalized IWF: IWF_denorm = IWF / G
 
         # read result files from the RT model
-        radiance_matrix = read_rtm_output(vlidort_output_iter_dir, "Radiance.asc")
+        radiance_matrix = np.loadtxt(vlidort_output_iter_dir / "Radiance.asc", skiprows=1)
 
         # Use the normalized weighting function as provided by VLIDORT
         # MUSES needs the normalized weighting function for species
         # retrieved in log(VMR)
-        jacobian_o3_matrix = read_rtm_output(vlidort_output_iter_dir, "IWF.asc")
+        jacobian_o3_matrix = np.loadtxt(vlidort_output_iter_dir / "IWF.asc",skiprows=1)
 
         # To experiment with the denormalized weighting function,
         # i.e. if you retrieve O3 in VMR, uncomment the line below
         # jacobian_o3_matrix =
-        # read_rtm_output(vlidort_output_iter_dir, 'IWF_denorm.asc')
+        # read_rtm_output(f"{vlidort_output_iter_dir}/", 'IWF_denorm.asc')
 
-        jacobian_sf_matrix = read_rtm_output(vlidort_output_iter_dir, "surf_WF.asc")
-
+        jacobian_sf_matrix = np.loadtxt(vlidort_output_iter_dir / "surf_WF.asc",skiprows=1)
+        
         if self.is_tropomi:
             tropomi_print_ring_input(
-                vlidort_input_iter_dir,
-                vlidort_output_iter_dir,
+                f"{vlidort_input_iter_dir}/",
+                f"{vlidort_output_iter_dir}/",
                 self.ii_mw,
                 self.i_uip,
                 self.ray_info,
@@ -379,8 +391,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             )
         else:
             print_ring_input(
-                vlidort_input_iter_dir,
-                vlidort_output_iter_dir,
+                f"{vlidort_input_iter_dir}/",
+                f"{vlidort_output_iter_dir}/",
                 self.ii_mw,
                 self.i_uip,
                 self.ray_info,
@@ -396,9 +408,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             "--raman-input",
             raman_inputs_dir.as_posix(),
             "--input",
-            vlidort_input_iter_dir,
+            f"{vlidort_input_iter_dir}/",
             "--output",
-            vlidort_output_iter_dir,
+            f"{vlidort_output_iter_dir}/",
         ]
 
         logger.debug(f"\nRunning:\n{' '.join(ring_command)} ")
@@ -409,27 +421,17 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             stderr=subprocess.STDOUT,
             check=True,
         )
-
-        if radiance_matrix is None:
-            raise RuntimeError("Could not read radiance: Radiance.asc")
-
-        if jacobian_o3_matrix is None:
-            raise RuntimeError("Could not read jacobian_o3: IWF.asc")
-
-        if jacobian_sf_matrix is None:
-            raise RuntimeError("Could not read jacobian_sf: surf_WF.asc")
-
-        ring_matrix = read_rtm_output(vlidort_output_iter_dir, "Ring.asc")
-        if ring_matrix is None:
-            raise RuntimeError("Could not read ring: Ring.asc")
+        # Replace fortran D with e, pandas can't parse the D format
+        fin = re.sub('D','e', open(vlidort_output_iter_dir / "Ring.asc").read())
+        ring_matrix = np.loadtxt(io.StringIO(fin),skiprows=1)
 
         # Note I don't think the ILS actually works for py-retrieve. We've
-        # remove the code here, since we would need to test this. And in
-        # any case, I think we would want to just use
+        # removed the code here, since we would need to test this. And in
+        # any case, I think we would want to just use refractor objects for this
         if self.ocreator.ils_method(self.sensor_index) != "APPLY":
             raise RuntimeError("We don't currently support using and ILS, we need a test case to work through the logic here")
 
-        temp_freq_fm = radiance_matrix[0, :]
+        temp_freq_fm = radiance_matrix[:, 0]
         temp_freq_ind = np.where(
             (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
             & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
@@ -444,8 +446,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # but for now grab what vlidort has
         
         # Low level surface_parameter works with wave number only, so convert
-        wn = rf.ArrayWithUnit_double_1(radiance_matrix[0, temp_freq_ind], "nm").convert_wave("cm^-1").value
-        t = jacobian_sf_matrix[1:,temp_freq_ind].transpose()
+        wn = rf.ArrayWithUnit_double_1(radiance_matrix[temp_freq_ind, 0], "nm").convert_wave("cm^-1").value
+        t = jacobian_sf_matrix[temp_freq_ind, 1:]
         if self.ground.surface_parameter(wn[0], self.sensor_index).rows != 1:
             raise RuntimeError("MusesForwardModelVlidort is hard coded to using an albedo only")
         if not self.ground.surface_parameter(wn[0], self.sensor_index).is_constant:
@@ -455,7 +457,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         jac_tot = jac_sf
 
         # Translate jacobian_o3_matrix to a jacobian relative to the state vector
-        jac_o3 = np.transpose(jacobian_o3_matrix[1:, temp_freq_ind])
+        jac_o3 = jacobian_o3_matrix[temp_freq_ind, 1:]
         if do_cloud:
             # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
             jac_o3 = np.pad(jac_o3, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
@@ -474,13 +476,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             else:
                 jac_tot += jac_o3
         if jac_tot is not None:
-            rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind], jac_tot)
+            rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1], jac_tot)
         else:
-            rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind])
+            rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1])
         # We may replace the RamanScattering with our MusesRaman, but for now use the
         # ring cli interface. However, we grab the coefficient from the MusesRaman
         sf = self.ocreator.raman_effect(self.sensor_index).coefficient[0]
-        ring = ring_matrix[1, temp_freq_ind]
+        ring = ring_matrix[temp_freq_ind, 1]
         for i in range(rad.rows):
             rad[i] *= (1 + ring[i] * sf )
         return rad
