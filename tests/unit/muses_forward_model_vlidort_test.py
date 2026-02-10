@@ -12,8 +12,10 @@ import numpy.testing as npt
 
 
 @require_muses_py_fm
-def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
-    rs, rstep, _ = joint_tropomi_step_12_no_run_dir
+def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12):
+    # Note, we need the run dir for these tests because match_py_retrieve puts files in
+    # run directory
+    rs, rstep, _ = joint_tropomi_step_12
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -54,8 +56,10 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
 
 
 @require_muses_py_fm
-def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
-    rs, rstep, _ = joint_omi_step_8_no_run_dir
+def test_muses_omi_forward_model_vlidort(joint_omi_step_8):
+    # Note, we need the run dir for these tests because match_py_retrieve puts files in
+    # run directory
+    rs, rstep, _ = joint_omi_step_8
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,

@@ -106,7 +106,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.rconf = rconf
         self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
-        self.have_fake_jac_in_oss = False
         self.have_create_uip = False
         self.uip_params: None | np.ndarray = None
 
@@ -137,22 +136,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             if self.vlidort_tempdir is not None
             else None,
         )
-        # There is special handling for an empty set of retrieval element (which we
-        # run into in the BT step). It turns out the OSS code doesn't handle an empty
-        # set of jacobians, it requires at least one. py-retrieve just adds a H2O
-        # jacobian so there is something to calculate. However, we shouldn't actually
-        # return that. So look for this condition and mark it, we'll then handle this
-        # in the radiance call.
-
-        uip_all = res.uip_all(str(self.instrument_name))
-        if (
-            uip_all["rts"] == ["OSS"]
-            and "H2O" in [str(i) for i in uip_all["jacobians"]]
-            and "H2O" not in uip_all["jacobians_all"]
-        ):
-            self.have_fake_jac_in_oss = True
-        else:
-            self.have_fake_jac_in_oss = False
         self.have_create_uip = True
         # Set any delayed parameters update
         if self.uip_params is not None and res.basis_matrix is not None:
@@ -202,24 +185,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
-        rad, jac = self.fm_call(sensor_index)
-        # Haven't filled everything in yet, but mark as cache full.
-        # otherwise bad_sample_mask and spectral_domain will enter an
-        # infinite loop
-        self.cache_valid_flag = True
-        gmask = self.bad_sample_mask(sensor_index) != True
-        sd = self.spectral_domain(sensor_index)
-        if jac is not None and jac.shape[0] > 0:
-            a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
-        else:
-            a = rf.ArrayAd_double_1(rad[gmask])
-        sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
-        return rf.Spectrum(sd, sr)
-
-    def fm_call(self, sensor_index: int):
-        from refractor.muses_py_fm import muses_py_call
-
-        # TODO Should be able to move this down. This is read by the ring_cli
         tpath = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
         for fname in (
             "N2En.txt",
@@ -235,6 +200,14 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             self.rconf.input_file_helper.notify_file_input(tpath / fname)
 
         self.sensor_index = sensor_index
+        # Special handling for empty spectrum. We may get this handled in rtf, but for
+        # now handle this.
+        # ii_mw only counts nonempty spectral domain, so it value isn't always sensor_index
+        self.ii_mw = 0
+        for i in range(self.sensor_index):
+            if self.spectral_domain(i).data.shape[0] > 0:
+                self.ii_mw += 1
+        
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
         
@@ -261,8 +234,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # See if we can get this to work
         map_vmr_l, map_vmr_u = self.ocreator.ray_info.map_vmr()
-        #map_vmr_l = self.ray_info["map_vmr_l"]
-        #map_vmr_u = self.ray_info["map_vmr_u"]
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
@@ -297,9 +268,18 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(rad.value)):
             raise RuntimeError("rad_t not finite")
-        if rad.jacobian is not None and not np.all(np.isfinite(rad.jacobian)):
+        if not rad.is_constant is not None and not np.all(np.isfinite(rad.jacobian)):
             raise RuntimeError("jac_t not finite")
-        return (rad.value, rad.jacobian)
+
+        # TODO Get gmask applied when we run VLIDORT.
+        gmask = self.bad_sample_mask(sensor_index) != True
+        if not rad.is_constant:
+            a = rf.ArrayAd_double_1(rad.value[gmask], rad.jacobian[gmask, :])
+        else:
+            a = rf.ArrayAd_double_1(rad.value[gmask])
+        sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+        sd = self.spectral_domain(sensor_index)
+        return rf.Spectrum(sd, sr)
 
     def rtf(
         self,
@@ -331,24 +311,24 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         if self.is_tropomi:
             print_tropomi_config(
-                vlidort_input_iter_dir, self.sensor_index, self.i_uip, fm_nlayers
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers
             )
             print_tropomi_vga(
-                vlidort_input_iter_dir, self.sensor_index, self.i_uip, self.ray_info, fm_nlayers
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info, fm_nlayers
             )
             print_tropomi_surface_albedo(
-                vlidort_input_iter_dir, self.sensor_index, self.i_uip, do_cloud
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
             )
             print_tropomi_atm(
                 vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers
             )
         else:
-            print_omi_config(vlidort_input_iter_dir, self.sensor_index, self.i_uip, fm_nlayers)
-            print_omi_vga(vlidort_input_iter_dir, self.sensor_index, self.i_uip, self.ray_info)
+            print_omi_config(vlidort_input_iter_dir, self.ii_mw, self.i_uip, fm_nlayers)
+            print_omi_vga(vlidort_input_iter_dir, self.ii_mw, self.i_uip, self.ray_info)
             print_omi_atm(vlidort_input_iter_dir, self.i_uip, self.ray_info, fm_nlayers)
             print_omi_o3od(vlidort_input_iter_dir, self.i_uip, self.ray_info)
             print_omi_surface_albedo(
-                vlidort_input_iter_dir, self.sensor_index, self.i_uip, do_cloud
+                vlidort_input_iter_dir, self.ii_mw, self.i_uip, do_cloud
             )
 
         # Run VLIDORT CLI
@@ -390,7 +370,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             tropomi_print_ring_input(
                 vlidort_input_iter_dir,
                 vlidort_output_iter_dir,
-                self.sensor_index,
+                self.ii_mw,
                 self.i_uip,
                 self.ray_info,
                 fm_nlayers,
@@ -401,7 +381,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print_ring_input(
                 vlidort_input_iter_dir,
                 vlidort_output_iter_dir,
-                self.sensor_index,
+                self.ii_mw,
                 self.i_uip,
                 self.ray_info,
                 fm_nlayers,
@@ -451,8 +431,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         temp_freq_fm = radiance_matrix[0, :]
         temp_freq_ind = np.where(
-            (temp_freq_fm >= self.i_uip["microwindows"][self.sensor_index]["start"])
-            & (temp_freq_fm <= self.i_uip["microwindows"][self.sensor_index]["endd"])
+            (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
+            & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
         )[0]
 
         # end if do_cloud:
@@ -493,7 +473,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 jac_tot = jac_o3
             else:
                 jac_tot += jac_o3
-        rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind], jac_tot)
+        if jac_tot is not None:
+            rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind], jac_tot)
+        else:
+            rad = rf.ArrayAd_double_1(radiance_matrix[1, temp_freq_ind])
         # We may replace the RamanScattering with our MusesRaman, but for now use the
         # ring cli interface. However, we grab the coefficient from the MusesRaman
         sf = self.ocreator.raman_effect(self.sensor_index).coefficient[0]
