@@ -182,6 +182,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
+        self.ray_info.notify_cost_function(cfunc)
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         self.sensor_index = sensor_index
@@ -215,10 +216,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO we may want to put this into a function, and/or get this from
         # somewhere other than ray_info
 
+        # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
+        # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
+        # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
         map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"], self.ray_info2["map_vmr_u"]
         map_vmr_l2, map_vmr_u2 = self.ray_info.map_vmr()
-        #if not np.allclose(map_vmr_l, map_vmr_l2) or not np.allclose(map_vmr_u, map_vmr_u2):
-        #    breakpoint()
+        if not np.allclose(map_vmr_l, map_vmr_l2[::-1]) or not np.allclose(map_vmr_u, map_vmr_u2[::-1]):
+            breakpoint()
 
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
@@ -228,6 +232,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.layer_to_levels[:, 1:] += np.diag(
                 map_vmr_u[0, :]
         )
+        # Need to match DECREASING_PRESSURE used by map_vmr_u etc. We can
+        # perhaps reverse this, but will need to be careful
         vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
                 self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
@@ -340,8 +346,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         pbar2 = self.ray_info.pbar()
         tbar2 = self.ray_info.tbar()
         o32 = self.ray_info.gas_density_layer("O3")
-        #if not np.allclose(pbar, pbar2) or not np.allclose(tbar, tbar2) or not np.allclose(o3, o32):
-        #    breakpoint()
+        if not np.allclose(pbar, pbar2) or not np.allclose(tbar, tbar2) or not np.allclose(o3, o32):
+            breakpoint()
         with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
@@ -416,8 +422,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         if do_cloud:
             # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
             jac_o3 = np.pad(jac_o3, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
-        # jac is in increasing pressure order, flip to get
-        # decreasing pressure. Also convert to drad_dstate. Note the
+        # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
+        # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
+        # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
+        # So we need to reverse jac_o3
+        # convert jac to drad_dstate. Note the
         # jacobian_o3_matrix is apparently relative to dlogvmr (on layers)
         if self.dlogvmr_dstate is not None:
             jac_o3 = jac_o3[:,::-1] @ self.layer_to_levels @ self.dlogvmr_dstate
