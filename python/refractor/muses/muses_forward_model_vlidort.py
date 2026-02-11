@@ -236,7 +236,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # somewhere other than ray_info
 
         # See if we can get this to work
-        map_vmr_l, map_vmr_u = self.ocreator.ray_info.map_vmr()
+        map_vmr_l, map_vmr_u = self.ray_info["map_vmr_l"][::-1], self.ray_info["map_vmr_u"]
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
