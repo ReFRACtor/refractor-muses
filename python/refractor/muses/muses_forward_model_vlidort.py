@@ -215,7 +215,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO we may want to put this into a function, and/or get this from
         # somewhere other than ray_info
 
-        map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"][::-1], self.ray_info2["map_vmr_u"]
+        map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"], self.ray_info2["map_vmr_u"]
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
