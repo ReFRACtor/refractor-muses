@@ -155,6 +155,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # primary absorber needed by PCA
         self.absorption_gases = copy.copy(absorption_gases)
         self.primary_absorber = primary_absorber
+        # Temp, see if we can clean this up
+        self.vlidort_tempdir=None
 
     def solar_model(self, sensor_index: int) -> rf.SolarModel:
         with self.observation.modify_spectral_window(do_raman_ext=True):
@@ -171,6 +173,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             [self.observation],
             self.current_state,  # type: ignore[arg-type]
             self.retrieval_config,  # type: ignore[arg-type]
+            vlidort_dir=self.vlidort_tempdir
         )
         return MusesRayInfo(
             rf_uip,

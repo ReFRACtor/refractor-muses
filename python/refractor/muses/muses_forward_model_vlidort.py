@@ -78,7 +78,12 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.vlidort_nstokes = vlidort_nstokes
         # TODO We'll pull out the objects we need here, but for now just
         # grab the whole RefractorFmObjectCreator
+        self._vlidort_tempdir: tempfile.TemporaryDirectory | None = None
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.ocreator = ocreator
+        # Temp, awkward interface
+        self.ocreator.vlidort_tempdir=self.vlidort_tempdir
+        self.ray_info = self.ocreator.ray_info
         self.ground = self.ocreator.ground
         self.absorber = self.ocreator.absorber
         self.cloud_fraction = self.ocreator.cloud_fraction
@@ -87,11 +92,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.altitude = self.ocreator.altitude
         self.nchan = self.ocreator.num_channels
         self._do_cloud = False
-        # TODO I think this can probably go away after we clean
-        # everything up
-        self.is_tropomi = False
-        if self.instrument_name == InstrumentIdentifier("TROPOMI"):
-            self.is_tropomi = True
 
         # We save the current_state value, since it might have changed
         # when we create the UIP. The semantics here is that we create
@@ -109,8 +109,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.obs = obs
         self.kwargs = kwargs
         self.rconf = rconf
-        self._vlidort_tempdir: tempfile.TemporaryDirectory | None = None
-        self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.have_create_uip = False
         self.uip_params: None | np.ndarray = None
 
@@ -183,24 +181,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         return self.obs.spectral_domain(sensor_index)
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
-        # Attach to CostFunction, so uip gets updated when the parameter change
-        #
-        # Note, we can't just attach to the fm_sv when we create the MusesForwardModel.
-        # The UIP takes in parameters on the RetrievalGridArray, *not*
-        # FullGridMappedArray like the Refractor
-        #
-        # A note on the lifetime here. For the CostFunction, if we
-        # have a UIP than the UIP state observer is *required*. If we pickle
-        # and reload the cost function, it should have the UIP and observer.
-        # So we use "add_observer_and_keep_reference".
-        #
-        # This is in contrast to the StateElement observers. The
-        # StateElements are outside of the CostFunction. You can
-        # have a CostFunction without any StateElements, if we pickle and reload
-        # we don't want to pull all the StateElements along. So for this
-        # we use "add_observer" which uses weak pointers - we notify if the
-        # object is still there but don't carry around it lifetime and if the
-        # object is deleted then we just don't notify it.
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
@@ -217,7 +197,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # and then throw away in radiance()
         
         self.i_uip = self.rf_uip.uip_all(self.instrument_name)
-        self.ray_info = self.rf_uip.ray_info(self.instrument_name)
+        self.ray_info2 = self.rf_uip.ray_info(self.instrument_name)
 
         self.do_cloud = False
         self.nlayers = self.pressure.number_layer
@@ -235,8 +215,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO we may want to put this into a function, and/or get this from
         # somewhere other than ray_info
 
-        # See if we can get this to work
-        map_vmr_l, map_vmr_u = self.ray_info["map_vmr_l"][::-1], self.ray_info["map_vmr_u"]
+        map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"][::-1], self.ray_info2["map_vmr_u"]
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
@@ -351,9 +330,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
         # Write atmosphere layers
         # TODO, pull this out of rayinfo
-        pbar = self.ray_info["pbar"][::-1]
-        tbar = self.ray_info["tbar"][::-1]
-        o3 = self.ray_info["column_species"][np.array(self.ray_info["level_params"]["species"]) == "O3",:][0,::-1]
+        pbar = self.ray_info2["pbar"][::-1]
+        tbar = self.ray_info2["tbar"][::-1]
+        o3 = self.ray_info2["column_species"][np.array(self.ray_info2["level_params"]["species"]) == "O3",:][0,::-1]
         with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
