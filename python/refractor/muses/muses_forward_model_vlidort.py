@@ -216,6 +216,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # somewhere other than ray_info
 
         map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"], self.ray_info2["map_vmr_u"]
+        map_vmr_l2, map_vmr_u2 = self.ray_info.map_vmr()
+        #if not np.allclose(map_vmr_l, map_vmr_l2) or not np.allclose(map_vmr_u, map_vmr_u2):
+        #    breakpoint()
+
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
         self.layer_to_levels[:, :-1] = np.diag(
@@ -330,9 +334,14 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
         # Write atmosphere layers
         # TODO, pull this out of rayinfo
-        pbar = self.ray_info2["pbar"][::-1]
-        tbar = self.ray_info2["tbar"][::-1]
-        o3 = self.ray_info2["column_species"][np.array(self.ray_info2["level_params"]["species"]) == "O3",:][0,::-1]
+        pbar = self.ray_info2["pbar"][::-1][:self.pressure.number_layer]
+        tbar = self.ray_info2["tbar"][::-1][:self.pressure.number_layer]
+        o3 = self.ray_info2["column_species"][np.array(self.ray_info2["level_params"]["species"]) == "O3",:][0,::-1][:self.pressure.number_layer]
+        pbar2 = self.ray_info.pbar()
+        tbar2 = self.ray_info.tbar()
+        o32 = self.ray_info.gas_density_layer("O3")
+        #if not np.allclose(pbar, pbar2) or not np.allclose(tbar, tbar2) or not np.allclose(o3, o32):
+        #    breakpoint()
         with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
