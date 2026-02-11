@@ -89,7 +89,10 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8):
     jaccmp = scmp.spectral_range.data_ad.jacobian.copy()
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
-    npt.assert_allclose(rad, radcmp)
+    # Slightly larger difference. We use the same code for the raman scattering, but
+    # the data passed doesn't get truncated like it does with the old ring external
+    # program. So we end up with slightly different value
+    npt.assert_allclose(rad, radcmp, rtol=2e-6)
     # Note there are numerous problems with the py-retrieve jacobians. Don't compare,
     # because it is wrong.
     #npt.assert_allclose(jac, jaccmp)

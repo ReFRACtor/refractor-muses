@@ -166,10 +166,8 @@ if(args.mpi):
     bpath = os.path.abspath(os.path.dirname(os.path.dirname(target_dir_full_list[0])))
     success_dir = f"{bpath}/success"
     error_dir = f"{bpath}/error"
-    log_dir = f"{bpath}/log"
     subprocess.run(["mkdir", "-p", success_dir])
     subprocess.run(["mkdir", "-p", error_dir])
-    subprocess.run(["mkdir", "-p", log_dir])
 else:
     # We just process everything if we aren't using MPI.
     target_dir_list = target_dir_full_list

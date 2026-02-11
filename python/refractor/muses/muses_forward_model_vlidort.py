@@ -6,11 +6,8 @@ from functools import cached_property
 from loguru import logger
 import tempfile
 import numpy as np
-import pandas as pd
-import io
 import copy
 import subprocess
-import re
 from pathlib import Path
 from typing import Any
 import typing
@@ -112,7 +109,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.obs = obs
         self.kwargs = kwargs
         self.rconf = rconf
-        self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
+        self._vlidort_tempdir: tempfile.TemporaryDirectory | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.have_create_uip = False
         self.uip_params: None | np.ndarray = None
@@ -136,23 +133,27 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             if self.rf_uip.basis_matrix is not None:
                 self.rf_uip.update_uip(parameters)
 
+    @property
+    def vlidort_tempdir(self) -> None | str:
+        if self._vlidort_tempdir is not None:
+            return self._vlidort_tempdir.name
+        if self.use_vlidort_temp_dir:
+            self._vlidort_tempdir = tempfile.TemporaryDirectory()
+            return self._vlidort_tempdir.name
+        return None
+
     @cached_property
     def rf_uip(self) -> RefractorUip:
         """Create on on first use."""
         from refractor.muses_py_fm import RefractorUip
 
-        self.vlidort_tempdir = None
-        if self.use_vlidort_temp_dir:
-            self.vlidort_tempdir = tempfile.TemporaryDirectory()
         res = RefractorUip.create_uip_from_refractor_objects(
             [
                 self.obs,
             ],
             self.current_state,
             self.rconf,
-            vlidort_dir=self.vlidort_tempdir.name
-            if self.vlidort_tempdir is not None
-            else None,
+            vlidort_dir=self.vlidort_tempdir
         )
         self.have_create_uip = True
         # Set any delayed parameters update
@@ -203,20 +204,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
-        tpath = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
-        for fname in (
-            "N2En.txt",
-            "N2pos.txt",
-            "N2PT.txt",
-            "O2EnfZ.txt",
-            "O2En.txt",
-            "O2JfZ.txt",
-            "O2J.txt",
-            "O2pos.txt",
-            "O2PT.txt",
-        ):
-            self.rconf.input_file_helper.notify_file_input(tpath / fname)
-
         self.sensor_index = sensor_index
         # Special handling for empty spectrum. We may get this handled in rtf, but for
         # now handle this.
@@ -301,32 +288,20 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self,
         do_cloud,
     ):
-        from refractor.muses_py import (
-            print_ring_input,
-            print_omi_surface_albedo,
-            print_omi_o3od,
-            print_omi_atm,
-            print_omi_vga,
-            print_omi_config,
-            tropomi_print_ring_input,
-            print_tropomi_atm,
-            print_tropomi_surface_albedo,
-            print_tropomi_vga,
-            print_tropomi_config,
-        )
-
         self.do_cloud = True if do_cloud == 1 else False
         # Default run directory if not specified.
-        vlidort_input_dir = Path(self.i_uip["vlidort_input"])
+        if self.vlidort_tempdir is not None:
+            vlidort_input_dir = Path(self.vlidort_tempdir)
+        else:
+            vlidort_input_dir = self.rconf["run_dir"]
         vlidort_input_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
         vlidort_input_iter_dir.mkdir(parents=True, exist_ok=True)
-        vlidort_output_dir = Path(self.i_uip["vlidort_output"])
-        vlidort_output_iter_dir = vlidort_output_dir / "IterLast" / "MWLast" / "cloudy"
+        vlidort_output_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
         vlidort_output_iter_dir.mkdir(parents=True, exist_ok=True)
 
         # Temp, we will get nfreq more directly when we set up writing O3Xsec_MW
         od_data = np.loadtxt(
-                    vlidort_input_dir / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
+                    vlidort_input_dir / "input" / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
                 )
         freq = od_data[:,1]
         wn = rf.ArrayWithUnit_double_1(od_data[:, 1], "nm").convert_wave("cm^-1").value
@@ -334,11 +309,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         # Write the control file for vlidort
         with open(vlidort_input_iter_dir / "config_rtm.asc", "w") as fh:
-            print(f"'Atm_layer.asc'", file=fh)
-            print(f"'atm_lev.asc'", file=fh)
-            print(f"'../../../O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
-            print(f"'surf_alb.asc'",file=fh)
-            print(f"'vga.asc'",file=fh)
+            print("'atm_lay.asc'", file=fh)
+            print("'atm_lev.asc'", file=fh)
+            print(f"'../../../input/O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
+            print("'surf_alb.asc'",file=fh)
+            print("'vga.asc'",file=fh)
             print(f"{nfreq:>5d}", file=fh)
             print(f"{fm_nlayers:>5d}", file=fh)
 
@@ -374,13 +349,17 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print("Table Columns: Pres(mb), T(K), Altitude(m) (TOA to Surf each level)", file=fh)
             for p,t,h in zip(plev, tlev, hlev):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
-                      
-        if self.is_tropomi:
-            print_tropomi_atm(
-                f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers
-            )
-        else:
-            print_omi_atm(f"{vlidort_input_iter_dir}/", self.i_uip, self.ray_info, fm_nlayers)
+        # Write atmosphere layers
+        # TODO, pull this out of rayinfo
+        pbar = self.ray_info["pbar"][::-1]
+        tbar = self.ray_info["tbar"][::-1]
+        o3 = self.ray_info["column_species"][np.array(self.ray_info["level_params"]["species"]) == "O3",:][0,::-1]
+        with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
+            print(self.pressure.number_layer, file=fh)
+            print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
+            for i in range(self.pressure.number_layer):
+                print(f"{pbar[i]:16.6f} {tbar[i]:16.7f} {o3[i]:16.7e}", file=fh)
+                
         # Run VLIDORT CLI
         vlidort_command = [
             "vlidort_cli",
@@ -390,7 +369,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             '--nstreams', f'{self.vlidort_nstreams}'
         ]
         logger.debug(f'\nRunning:\n{" ".join(vlidort_command)} ')
-        #breakpoint()
         subprocess.run(
             vlidort_command,
             stdout=subprocess.PIPE,
@@ -417,53 +395,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         jacobian_sf_matrix = np.loadtxt(vlidort_output_iter_dir / "surf_WF.asc",skiprows=1)
         
-        if self.is_tropomi:
-            tropomi_print_ring_input(
-                f"{vlidort_input_iter_dir}/",
-                f"{vlidort_output_iter_dir}/",
-                self.ii_mw,
-                self.i_uip,
-                self.ray_info,
-                fm_nlayers,
-                do_cloud,
-                i_obs=self.obs.radiance_for_uip,
-            )
-        else:
-            print_ring_input(
-                f"{vlidort_input_iter_dir}/",
-                f"{vlidort_output_iter_dir}/",
-                self.ii_mw,
-                self.i_uip,
-                self.ray_info,
-                fm_nlayers,
-                do_cloud,
-                i_obs=self.obs.radiance_for_uip,
-            )
-
-        raman_inputs_dir = self.rconf.input_file_helper.osp_dir / "OMI" / "RamanInputs"
-
-        ring_command = [
-            "ring_cli",
-            "--raman-input",
-            raman_inputs_dir.as_posix(),
-            "--input",
-            f"{vlidort_input_iter_dir}/",
-            "--output",
-            f"{vlidort_output_iter_dir}/",
-        ]
-
-        logger.debug(f"\nRunning:\n{' '.join(ring_command)} ")
-
-        subprocess.run(
-            ring_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=True,
-        )
-        # Replace fortran D with e, pandas can't parse the D format
-        fin = re.sub('D','e', open(vlidort_output_iter_dir / "Ring.asc").read())
-        ring_matrix = np.loadtxt(io.StringIO(fin),skiprows=1)
-
         # Note I don't think the ILS actually works for py-retrieve. We've
         # removed the code here, since we would need to test this. And in
         # any case, I think we would want to just use refractor objects for this
@@ -471,11 +402,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             raise RuntimeError("We don't currently support using and ILS, we need a test case to work through the logic here")
 
         temp_freq_fm = radiance_matrix[:, 0]
+        mwin = self.ocreator.spec_win.muses_microwindows()
         temp_freq_ind = np.where(
-            (temp_freq_fm >= self.i_uip["microwindows"][self.ii_mw]["start"])
-            & (temp_freq_fm <= self.i_uip["microwindows"][self.ii_mw]["endd"])
+            (temp_freq_fm >= mwin[self.ii_mw]["start"])
+            & (temp_freq_fm <= mwin[self.ii_mw]["endd"])
         )[0]
-
         
         # Translate jacobian_sf_matrix to a jacobian relative to the state vector
         
@@ -515,13 +446,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1], jac_tot)
         else:
             rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1])
-        # We may replace the RamanScattering with our MusesRaman, but for now use the
-        # ring cli interface. However, we grab the coefficient from the MusesRaman
-        sf = self.ocreator.raman_effect(self.sensor_index).coefficient[0]
-        ring = ring_matrix[temp_freq_ind, 1]
-        for i in range(rad.rows):
-            rad[i] *= (1 + ring[i] * sf )
-        return rad
+        sd = rf.SpectralDomain(freq[temp_freq_ind],rf.Unit("nm"))
+        spec = rf.Spectrum(sd, rf.SpectralRange(rad, rf.Unit("sr^-1")))
+        self.ocreator.raman_effect(self.sensor_index).apply_effect(spec, None)
+        return spec.spectral_range.data_ad
         
 
 class MusesForwardModelVlidortHandle(ForwardModelHandle):
