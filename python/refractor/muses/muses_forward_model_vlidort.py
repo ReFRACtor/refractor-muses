@@ -30,16 +30,6 @@ if typing.TYPE_CHECKING:
 # term.
 
 
-class FmUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
-    def __init__(self, fm: MusesForwardModelVlidort) -> None:
-        super().__init__()
-        self.fm = fm
-
-    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.fm.update_uip(mstand.parameters)
-
-
 class MusesForwardModelVlidort(rf.ForwardModel):
     """Forward model that uses VLIDORT. This matches the existing
     py-retrieve. Note that the version of VLIDORT is older than the
@@ -93,24 +83,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.nchan = self.ocreator.num_channels
         self._do_cloud = False
 
-        # We save the current_state value, since it might have changed
-        # when we create the UIP. The semantics here is that we create
-        # the UIP when we create the forward model, however we actually
-        # delay that until we create it on first use. However we want to
-        # create the UIP that we *would have* if we had created it now.
-        #
-        # Note for an actual retrieval, there is no reason to delay creating
-        # the UIP now. Instead, we have unit tests that regularly set things
-        # up but don't actually run the forward model. We don't want to pay
-        # the time penalty of creating the UIP and/or require muses-py be
-        # available. So to support that, we have a delayed create on first
-        # use of the UIP.
-        self.current_state = copy.deepcopy(current_state)
         self.obs = obs
         self.kwargs = kwargs
         self.rconf = rconf
-        self.have_create_uip = False
-        self.uip_params: None | np.ndarray = None
 
     @property
     def do_cloud(self) -> bool:
@@ -122,15 +97,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.ground.do_cloud = v
         self.pressure.do_cloud = v
 
-    def update_uip(self, parameters: np.ndarray) -> None:
-        if not self.have_create_uip:
-            # Delay setting the UIP value until we actually create it. We don't
-            # want to create this now just to set the value
-            self.uip_params = parameters.copy()
-        else:
-            if self.rf_uip.basis_matrix is not None:
-                self.rf_uip.update_uip(parameters)
-
     @property
     def vlidort_tempdir(self) -> None | str:
         if self._vlidort_tempdir is not None:
@@ -139,25 +105,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             self._vlidort_tempdir = tempfile.TemporaryDirectory()
             return self._vlidort_tempdir.name
         return None
-
-    @cached_property
-    def rf_uip(self) -> RefractorUip:
-        """Create on on first use."""
-        from refractor.muses_py_fm import RefractorUip
-
-        res = RefractorUip.create_uip_from_refractor_objects(
-            [
-                self.obs,
-            ],
-            self.current_state,
-            self.rconf,
-            vlidort_dir=self.vlidort_tempdir
-        )
-        self.have_create_uip = True
-        # Set any delayed parameters update
-        if self.uip_params is not None and res.basis_matrix is not None:
-            res.update_uip(self.uip_params)
-        return res
 
     def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         bmask = self.obs.bad_sample_mask(sensor_index)
@@ -181,7 +128,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         return self.obs.spectral_domain(sensor_index)
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
-        cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
         self.ray_info.notify_cost_function(cfunc)
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
@@ -197,9 +143,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
         
-        self.i_uip = self.rf_uip.uip_all(self.instrument_name)
-        self.ray_info2 = self.rf_uip.ray_info(self.instrument_name)
-
         self.do_cloud = False
         self.nlayers = self.pressure.number_layer
         self.do_cloud = True
@@ -219,10 +162,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
         # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
         # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
-        map_vmr_l, map_vmr_u = self.ray_info2["map_vmr_l"], self.ray_info2["map_vmr_u"]
-        map_vmr_l2, map_vmr_u2 = self.ray_info.map_vmr()
-        if not np.allclose(map_vmr_l, map_vmr_l2[::-1]) or not np.allclose(map_vmr_u, map_vmr_u2[::-1]):
-            breakpoint()
+        map_vmr_l, map_vmr_u = self.ray_info.map_vmr()
+        map_vmr_l = map_vmr_l[::-1]
+        map_vmr_u = map_vmr_u[::-1]
 
         # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
         # only have a single O3 species, so we just grab the first one
@@ -340,14 +282,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
         # Write atmosphere layers
         # TODO, pull this out of rayinfo
-        pbar = self.ray_info2["pbar"][::-1][:self.pressure.number_layer]
-        tbar = self.ray_info2["tbar"][::-1][:self.pressure.number_layer]
-        o3 = self.ray_info2["column_species"][np.array(self.ray_info2["level_params"]["species"]) == "O3",:][0,::-1][:self.pressure.number_layer]
-        pbar2 = self.ray_info.pbar()
-        tbar2 = self.ray_info.tbar()
-        o32 = self.ray_info.gas_density_layer("O3")
-        if not np.allclose(pbar, pbar2) or not np.allclose(tbar, tbar2) or not np.allclose(o3, o32):
-            breakpoint()
+        pbar = self.ray_info.pbar()
+        tbar = self.ray_info.tbar()
+        o3 = self.ray_info.gas_density_layer("O3")
         with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
