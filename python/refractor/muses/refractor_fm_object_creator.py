@@ -166,7 +166,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def ray_info(self) -> MusesRayInfo:
         """Return MusesRayInfo."""
-        from refractor.old_py_retrieve_wrapper import MusesRayInfo
+        from refractor.old_py_retrieve_wrapper import MusesRayInfo, FmMusesRayInfoUpdateUip
         from refractor.muses_py_fm import RefractorUip
 
         rf_uip = RefractorUip.create_uip_from_refractor_objects(
@@ -175,11 +175,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.retrieval_config,  # type: ignore[arg-type]
             vlidort_dir=self.vlidort_tempdir
         )
-        return MusesRayInfo(
+        rinfo = MusesRayInfo(
             rf_uip,
             str(self.instrument_name),
             self.pressure,
         )
+        self.fm_sv.add_observer_and_keep_reference(FmMusesRayInfoUpdateUip(rinfo))
+        return rinfo
 
     @property
     def spec_win(self) -> MusesSpectralWindow:

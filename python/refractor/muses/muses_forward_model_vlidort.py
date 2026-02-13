@@ -127,9 +127,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
     def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
         return self.obs.spectral_domain(sensor_index)
 
-    def notify_cost_function(self, cfunc: CostFunction) -> None:
-        self.ray_info.notify_cost_function(cfunc)
-
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         self.sensor_index = sensor_index
         # Special handling for empty spectrum. We may get this handled in rtf, but for

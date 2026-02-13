@@ -41,6 +41,7 @@ from .muses_py_forward_model import (  # type: ignore
 )
 from .muses_ray_info import (
     MusesRayInfo,
+    FmMusesRayInfoUpdateUip,
 )
 from .muses_residual_fm_jacobian import (  # type: ignore
     MusesResidualFmJacobian,

@@ -7,6 +7,21 @@ import typing
 if typing.TYPE_CHECKING:
     import refractor.muses_py_fm
 
+class FmMusesRayInfoUpdateUip(rf.ObserverStateVector):
+    def __init__(self, rinfo: MusesRayInfo) -> None:
+        super().__init__()
+        self.rinfo = rinfo
+
+    def notify_update(self, fm_sv:rf.StateVector) -> None:
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        mp = rf.StateMappingBasisMatrix(self.rinfo.rf_uip.basis_matrix.transpose())
+        # Take data from fm_sv to the RetrievalGridArray that update_uip
+        # work with. Note that update_uip just turns around and creates
+        # fm_vec from rvec - but we don't want to change the interface
+        # to this.
+        rvec = mp.retrieval_state(fm_sv.state_with_derivative).value
+        self.rinfo.update_uip(rvec)
+
 class RayInfoUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
     def __init__(self, rinfo: MusesRayInfo) -> None:
         super().__init__()
@@ -14,6 +29,8 @@ class RayInfoUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
 
     def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        # Directly work with cost function parameters. Very slightly
+        # different than FmMusesRayInfoUpdateUip
         self.rinfo.update_uip(mstand.parameters)
 
 class MusesRayInfo:
@@ -86,6 +103,13 @@ class MusesRayInfo:
         return self.pressure.number_level
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
+        # See also FmMusesRayInfoUpdateUip, it is a little more direct
+        # to attach to the fm_sv instead of the CostFunction. But we
+        # have both available here - the cost function is how the
+        # py-retrieve solver updates the uip. Very slight differences
+        # between the two - just the round of going from fm_sv - > ret_state
+        # -> fm_vec that FmMusesRayInfoUpdateUip does (as opposed to
+        # ret_state -> fm_vec that RayInfoUpdateUip does)
         cfunc.max_a_posteriori.add_observer_and_keep_reference(RayInfoUpdateUip(self))
 
     def update_uip(self, parameters: np.ndarray) -> None:
@@ -130,4 +154,4 @@ class MusesRayInfo:
         return t["column_species"][ind, ::-1].squeeze()[: self._nlay()]
 
 
-__all__ = ["MusesRayInfo"]
+__all__ = ["MusesRayInfo", "FmMusesRayInfoUpdateUip"]
