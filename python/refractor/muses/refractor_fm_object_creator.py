@@ -10,6 +10,8 @@ from loguru import logger
 import numpy as np
 import abc
 import copy
+import tempfile
+from pathlib import Path
 from typing import Any
 import typing
 
@@ -105,10 +107,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.lrad_second_order = lrad_second_order
         self.match_py_retrieve = match_py_retrieve
         self.observation = observation
-        # TODO This is needed by MusesOpticalDepthFile, it is
-        # otherwise unused. This is uses in make_uip_tropomi to write
-        # out the file, which we then read
-        self.step_directory = current_state.step_directory
         if fm_sv:
             self.fm_sv = fm_sv
         else:
@@ -155,8 +153,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # primary absorber needed by PCA
         self.absorption_gases = copy.copy(absorption_gases)
         self.primary_absorber = primary_absorber
-        # Temp, see if we can clean this up
-        self.vlidort_tempdir=None
 
     def solar_model(self, sensor_index: int) -> rf.SolarModel:
         with self.observation.modify_spectral_window(do_raman_ext=True):
@@ -164,19 +160,40 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.SolarReferenceSpectrum(sol_rad, None)
 
     @cached_property
-    def ray_info(self) -> MusesRayInfo:
-        """Return MusesRayInfo."""
-        from refractor.old_py_retrieve_wrapper import MusesRayInfo, FmMusesRayInfoUpdateUip
+    def _rf_uip(self) -> RefractorUip:
+        '''We have this as private, because things in general shouldn't be using
+        RefractorUip (we have purposely removed this most everywhere because of the
+        tight coupling it gives). However, if you have some special case testing or
+        something like that, there isn't anything wrong in using this. Just think
+        if you *really* want to use this instead of more standard refractor.muses
+        objects'''
         from refractor.muses_py_fm import RefractorUip
-
-        rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        return RefractorUip.create_uip_from_refractor_objects(
             [self.observation],
             self.current_state,  # type: ignore[arg-type]
             self.retrieval_config,  # type: ignore[arg-type]
-            vlidort_dir=self.vlidort_tempdir
+            vlidort_dir=self.vlidort_dir
         )
+
+    @cached_property
+    def vlidort_dir(self) -> Path:
+        '''When we generate a RefractorUip, or call VLIDORT there are a number
+        of files used to communicate between things. We put these into a
+        temporary directory normally'''
+        if(self.use_vlidort_temp_dir):
+            self._vlidort_tempdir = tempfile.TemporaryDirectory()
+            return Path(self._vlidort_tempdir.name)
+        # Use run dir if we aren't using a temporary directory. Can be useful
+        # for debugging, where we want to see the files passed to and from VLIDORT
+        return self.retrieval_config["run_dir"]
+        
+    @cached_property
+    def ray_info(self) -> MusesRayInfo:
+        """Return MusesRayInfo."""
+        from refractor.old_py_retrieve_wrapper import MusesRayInfo, FmMusesRayInfoUpdateUip
+
         rinfo = MusesRayInfo(
-            rf_uip,
+            self._rf_uip,
             str(self.instrument_name),
             self.pressure,
         )
@@ -439,16 +456,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if self.match_py_retrieve:
             from refractor.old_py_retrieve_wrapper import MusesRayInfo
-            from refractor.muses_py_fm import RefractorUip
-
-            rf_uip = RefractorUip.create_uip_from_refractor_objects(
-                [self.observation],
-                self.current_state,  # type: ignore[arg-type]
-                self.retrieval_config,  # type: ignore[arg-type]
-            )
-
+            # Note we can't just use self.ray_info, because this depends on
+            # self.pressure. So we really do need a separate object here that
+            # just uses pressure_fm.
             rinfo = MusesRayInfo(
-                rf_uip,
+                self._rf_uip,
                 str(self.instrument_name),
                 self.pressure_fm,
             )
@@ -531,7 +543,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.altitude,
             self.absorber_vmr,
             self.num_channels,
-            self.step_directory / "vlidort/input",
+            Path(self.vlidort_dir) / "input",
         )
 
     @cached_property
@@ -906,7 +918,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.retrieval_config,
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
-            use_vlidort_temp_dir=self.use_vlidort_temp_dir,
         )
 
     @cached_property

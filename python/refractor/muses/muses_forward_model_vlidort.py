@@ -49,30 +49,15 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         rconf: RetrievalConfiguration,
         vlidort_nstokes: int = 2,
         vlidort_nstreams: int = 4,
-        use_vlidort_temp_dir: bool = True,
         **kwargs: Any,
     ) -> None:
-        """vlidort_tempdir can be passed in. This should be the same as what
-        was used in RefractorUip when we pass in the vlidort_dir. We don't
-        actually do anything with vlidort_tempdir, just maintain the lifetime so
-        that as long as this MusesForwardModel exists we still have the tempdir.
-        When the forward model gets deleted, the temporary directory gets removed.
-
-        Note the directory is under 1MB usually, so you don't need to be too concerned
-        about where this goes. You can just use the normal mkdtemp() logic used
-        by tempfile.TemporaryDirectory.
-        """
         super().__init__()
         self.instrument_name = instrument_name
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
         # TODO We'll pull out the objects we need here, but for now just
-        # grab the whole RefractorFmObjectCreator
-        self._vlidort_tempdir: tempfile.TemporaryDirectory | None = None
-        self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.ocreator = ocreator
-        # Temp, awkward interface
-        self.ocreator.vlidort_tempdir=self.vlidort_tempdir
+        self.vlidort_dir = self.ocreator.vlidort_dir
         self.ray_info = self.ocreator.ray_info
         self.ground = self.ocreator.ground
         self.absorber = self.ocreator.absorber
@@ -96,15 +81,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self._do_cloud = v
         self.ground.do_cloud = v
         self.pressure.do_cloud = v
-
-    @property
-    def vlidort_tempdir(self) -> None | str:
-        if self._vlidort_tempdir is not None:
-            return self._vlidort_tempdir.name
-        if self.use_vlidort_temp_dir:
-            self._vlidort_tempdir = tempfile.TemporaryDirectory()
-            return self._vlidort_tempdir.name
-        return None
 
     def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         bmask = self.obs.bad_sample_mask(sensor_index)
@@ -217,33 +193,29 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         do_cloud,
     ):
         self.do_cloud = True if do_cloud == 1 else False
-        # Default run directory if not specified.
-        if self.vlidort_tempdir is not None:
-            vlidort_input_dir = Path(self.vlidort_tempdir)
-        else:
-            vlidort_input_dir = self.rconf["run_dir"]
-        vlidort_input_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
-        vlidort_input_iter_dir.mkdir(parents=True, exist_ok=True)
-        vlidort_output_iter_dir = vlidort_input_dir / "IterLast" / "MWLast" / "cloudy"
-        vlidort_output_iter_dir.mkdir(parents=True, exist_ok=True)
+        vlidort_input_dir = self.vlidort_dir / "input"
+        vlidort_input_dir.mkdir(parents=True, exist_ok=True)
+        vlidort_output_dir = self.vlidort_dir / "output"
+        vlidort_output_dir.mkdir(parents=True, exist_ok=True)
 
         # Temp, we will get nfreq more directly when we set up writing O3Xsec_MW
         od_data = np.loadtxt(
-                    vlidort_input_dir / "input" / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
+                    vlidort_input_dir / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
                 )
         freq = od_data[:,1]
         wn = rf.ArrayWithUnit_double_1(od_data[:, 1], "nm").convert_wave("cm^-1").value
         nfreq = len(freq)
         fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         # Write the control file for vlidort
-        with open(vlidort_input_iter_dir / "config_rtm.asc", "w") as fh:
+        with open(vlidort_input_dir / "config_rtm.asc", "w") as fh:
             print("'atm_lay.asc'", file=fh)
             print("'atm_lev.asc'", file=fh)
-            print(f"'../../../input/O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
+            #print(f"'../../../input/O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
+            print(f"'my_taug.asc'", file=fh)
             print("'surf_alb.asc'",file=fh)
             print("'vga.asc'",file=fh)
             print(f"{nfreq:>5d}", file=fh)
-            print(f"{fm_nlayers:>5d}", file=fh)
+            print(f"{self.pressure.number_layer:>5d}", file=fh)
 
         # Write the Vga file
         elv = self.obs.surface_height[self.sensor_index]
@@ -256,12 +228,12 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             sza = 89.98
         vza = self.obs.observation_zenith[self.sensor_index]
         raz = self.obs.relative_azimuth[self.sensor_index]
-        with open(vlidort_input_iter_dir / "vga.asc", "w") as fh:
+        with open(vlidort_input_dir / "vga.asc", "w") as fh:
             print("ELEV,       DLAT,       SZA,        VZA,        RAZ", file=fh)
             print(f"{elv:12.4f} {lat:12.4f} {sza:12.4f} {vza:12.4f} {raz:12.4f}", file=fh)
             
         # Write surface albedo
-        with open(vlidort_input_iter_dir / "surf_alb.asc", "w") as fh:
+        with open(vlidort_input_dir / "surf_alb.asc", "w") as fh:
             print(nfreq,file=fh)
             for wnv,freqv in zip(wn,freq):
                 alb = self.ground.surface_parameter(wnv, self.sensor_index).value[0]
@@ -272,7 +244,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         plev = pgrid.convert("hPa").value.value
         tlev = self.temperature.temperature_grid(self.pressure, rf.Pressure.INCREASING_PRESSURE).value.value
         hlev = [self.altitude[0].altitude(p).convert("m").value.value for p in pgrid]
-        with open(vlidort_input_iter_dir / "atm_lev.asc", "w") as fh:
+        with open(vlidort_input_dir / "atm_lev.asc", "w") as fh:
             print(len(plev), file=fh)
             print("Table Columns: Pres(mb), T(K), Altitude(m) (TOA to Surf each level)", file=fh)
             for p,t,h in zip(plev, tlev, hlev):
@@ -282,19 +254,25 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         pbar = self.ray_info.pbar()
         tbar = self.ray_info.tbar()
         o3 = self.ray_info.gas_density_layer("O3")
-        with open(vlidort_input_iter_dir / "atm_lay.asc", "w") as fh:
+        with open(vlidort_input_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
             for i in range(self.pressure.number_layer):
                 print(f"{pbar[i]:16.6f} {tbar[i]:16.7f} {o3[i]:16.7e}", file=fh)
-                
+        with open(vlidort_input_dir / "my_taug.asc", "w") as fh:
+            print(f"{len(freq)} {self.nlayers}", file=fh)
+            for i,(freqv,wnv) in enumerate(zip(freq,wn)):
+                taug = " ".join(f"{od:16.15e}" for od in self.ocreator.absorber.optical_depth_each_layer(wnv,0).value[:,0])
+                print(f"{i} {freqv:16.8f} {taug}", file=fh)
+        
         # Run VLIDORT CLI
         vlidort_command = [
             "vlidort_cli",
-            '--input', f"{vlidort_input_iter_dir}/",
-            '--output', f"{vlidort_output_iter_dir}/",
+            '--input', f"{vlidort_input_dir}/",
+            '--output', f"{vlidort_output_dir}/",
             '--nstokes', f'{self.vlidort_nstokes}',
-            '--nstreams', f'{self.vlidort_nstreams}'
+            '--nstreams', f'{self.vlidort_nstreams}',
+            '--od',
         ]
         logger.debug(f'\nRunning:\n{" ".join(vlidort_command)} ')
         subprocess.run(
@@ -303,25 +281,24 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             stderr=subprocess.STDOUT,
             check=True,
         )
-        
         # IWF = G * dI / dG, where I is a component of the stokes vector (I, Q, U, V) and G is the gas optical depth (O3 in our case)
         # IWF also known as the normalized weighting function
         # The denormalized IWF: IWF_denorm = IWF / G
 
         # read result files from the RT model
-        radiance_matrix = np.loadtxt(vlidort_output_iter_dir / "Radiance.asc", skiprows=1)
+        radiance_matrix = np.loadtxt(vlidort_output_dir / "Radiance.asc", skiprows=1)
 
         # Use the normalized weighting function as provided by VLIDORT
         # MUSES needs the normalized weighting function for species
         # retrieved in log(VMR)
-        jacobian_o3_matrix = np.loadtxt(vlidort_output_iter_dir / "IWF.asc",skiprows=1)
+        jacobian_o3_matrix = np.loadtxt(vlidort_output_dir / "IWF.asc",skiprows=1)
 
         # To experiment with the denormalized weighting function,
         # i.e. if you retrieve O3 in VMR, uncomment the line below
         # jacobian_o3_matrix =
-        # read_rtm_output(f"{vlidort_output_iter_dir}/", 'IWF_denorm.asc')
+        # read_rtm_output(f"{vlidort_output_dir}/", 'IWF_denorm.asc')
 
-        jacobian_sf_matrix = np.loadtxt(vlidort_output_iter_dir / "surf_WF.asc",skiprows=1)
+        jacobian_sf_matrix = np.loadtxt(vlidort_output_dir / "surf_WF.asc",skiprows=1)
         
         # Note I don't think the ILS actually works for py-retrieve. We've
         # removed the code here, since we would need to test this. And in
