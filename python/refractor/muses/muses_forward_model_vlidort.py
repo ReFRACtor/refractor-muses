@@ -135,18 +135,8 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
         # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
         # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
-        map_vmr_l, map_vmr_u = self.ray_info.map_vmr()
-        map_vmr_l = map_vmr_l[::-1]
-        map_vmr_u = map_vmr_u[::-1]
-
-        # map_vmr_l and map_vmr_u is nspecies x nlayers in size. We
-        # only have a single O3 species, so we just grab the first one
-        self.layer_to_levels[:, :-1] = np.diag(
-               map_vmr_l[0, :]
-        )
-        self.layer_to_levels[:, 1:] += np.diag(
-                map_vmr_u[0, :]
-        )
+        self.layer_to_levels = self.ray_info.layer_to_levels(rf.Pressure.DECREASING_PRESSURE)
+        
         # Need to match DECREASING_PRESSURE used by map_vmr_u etc. We can
         # perhaps reverse this, but will need to be careful
         vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
@@ -250,10 +240,21 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             for p,t,h in zip(plev, tlev, hlev):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
         # Write atmosphere layers
-        # TODO, pull this out of rayinfo
-        pbar = self.ray_info.pbar()
-        tbar = self.ray_info.tbar()
-        o3 = self.ray_info.gas_density_layer("O3")
+        # 
+        # This isn't actually used when we pass in the taug, but it still needs
+        # to be there to be read. Could probably change vlidort_cli to skip reading this,
+        # but not worth the effort right now. This is in rtm/read_atm.f if we want to do
+        # something here in the future.
+        #
+        # Put in dummy values, just to make it clear we aren't filling this in
+        if False:
+            pbar = self.ray_info.pbar()
+            tbar = self.ray_info.tbar()
+            o3 = self.ray_info.gas_density_layer("O3")
+        else:
+            pbar = [-999.0,] * self.pressure.number_layer
+            tbar = [-999.0,] * self.pressure.number_layer
+            o3 = [-999.0,] * self.pressure.number_layer
         with open(vlidort_input_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)

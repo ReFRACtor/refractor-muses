@@ -134,6 +134,22 @@ class MusesRayInfo:
         hlev = t[:] - t[0]
         return hlev[::-1][: self._nlev()]
 
+    def layer_to_levels(self, gtype: rf.Pressure.PressureGridType) -> np.ndarray:
+        """Return the layer to levels matrix, in the given pressure direction"""
+        t = self._ray_info()
+        res = np.zeros((t["map_vmr_l"].shape[1], t["map_vmr_l"].shape[1]+1))
+        res[:, :-1] = np.diag(
+               t["map_vmr_l"][0, :]
+        )
+        res[:, 1:] += np.diag(
+               t["map_vmr_u"][0, :]
+        )
+        if gtype in (rf.Pressure.DECREASING_PRESSURE, rf.Pressure.NATIVE_ORDER):
+            return res
+        if gtype == rf.Pressure.INCREASING_PRESSURE:
+            return res[::-1,::-1]
+        raise RuntimeError(f"Don't recognize gtype = {gtype}")
+
     def map_vmr(self) -> tuple[np.ndarray, np.ndarray]:
         """Return map_vmr_l and map_vmr_u. This gets used in MusesOpticalDepthFile."""
         t = self._ray_info()
