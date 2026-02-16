@@ -123,24 +123,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.do_cloud = False
 
         # This is used in a few places, so grab this once here for use later
-        # This is describes in "On the generation of atmospheric property
-        # Jacobians form the (V)LIDORT linearized radiative transfer models"
-        # Rob Spurr, Matt Christi, Journal of Quantitative Spectroscopy and
-        # Radiative Transfer, July 2024 pages 109-115
-        # https://doi.org/10.1016/j.jqsrt.2014.03.011
-        self.layer_to_levels = np.zeros((self.nlayers, self.nlayers + 1))
-        # TODO we may want to put this into a function, and/or get this from
-        # somewhere other than ray_info
-
-        # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
-        # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
-        # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
-        self.layer_to_levels = self.ray_info.layer_to_levels(rf.Pressure.DECREASING_PRESSURE)
+        self.layer_to_levels = self.ray_info.layer_to_levels(rf.Pressure.INCREASING_PRESSURE)
         
-        # Need to match DECREASING_PRESSURE used by map_vmr_u etc. We can
-        # perhaps reverse this, but will need to be careful
         vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
-                self.pressure, rf.Pressure.DECREASING_PRESSURE
+                self.pressure, rf.Pressure.INCREASING_PRESSURE
         )
         if not vgrid.is_constant:
             dvmr_dstate = vgrid.jacobian
@@ -334,16 +320,13 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         if do_cloud:
             # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
             jac_o3 = np.pad(jac_o3, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
-        # Note logic in rev_and_fm_map.py goes from surface up, which is the reverse
-        # our normal INCREASING_PRESSURE. We can probably reverse this, but for now
-        # leave like rev_and_fm_map.py does because it can be very easy to get this wrong.
-        # So we need to reverse jac_o3
         # convert jac to drad_dstate. Note the
         # jacobian_o3_matrix is apparently relative to dlogvmr (on layers)
         if self.dlogvmr_dstate is not None:
-            jac_o3 = jac_o3[:,::-1] @ self.layer_to_levels @ self.dlogvmr_dstate
+            jac_o3 = jac_o3 @ self.layer_to_levels @ self.dlogvmr_dstate
         else:
             jac_o3 = None
+
 
         # Combine to an overall jacobian
         if jac_o3 is not None:

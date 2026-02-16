@@ -136,6 +136,11 @@ class MusesRayInfo:
 
     def layer_to_levels(self, gtype: rf.Pressure.PressureGridType) -> np.ndarray:
         """Return the layer to levels matrix, in the given pressure direction"""
+        # This is describes in "On the generation of atmospheric property
+        # Jacobians form the (V)LIDORT linearized radiative transfer models"
+        # Rob Spurr, Matt Christi, Journal of Quantitative Spectroscopy and
+        # Radiative Transfer, July 2014 pages 109-115
+        # https://doi.org/10.1016/j.jqsrt.2014.03.011
         t = self._ray_info()
         res = np.zeros((t["map_vmr_l"].shape[1], t["map_vmr_l"].shape[1]+1))
         res[:, :-1] = np.diag(
