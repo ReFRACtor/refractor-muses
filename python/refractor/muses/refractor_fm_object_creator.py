@@ -74,6 +74,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         vlidort_nstokes: int = 2,
         vlidort_nstreams: int = 4,
         use_vlidort_temp_dir: bool = True,
+        skip_adding_uip_to_fm_sv=False,
     ):
         """Constructor. The StateVector to add things to can be passed
         in, or if this isn't then we create a new StateVector.
@@ -116,6 +117,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.retrieval_config = retrieval_config
         self.ifile_hlp = retrieval_config.input_file_helper
         self.use_vlidort = use_vlidort
+        self.skip_adding_uip_to_fm_sv = skip_adding_uip_to_fm_sv
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_nstreams = vlidort_nstreams
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
@@ -185,7 +187,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             return Path(self._vlidort_tempdir.name)
         # Use run dir if we aren't using a temporary directory. Can be useful
         # for debugging, where we want to see the files passed to and from VLIDORT
-        return self.retrieval_config["run_dir"]
+        return self.current_state.step_directory / "vlidort"
         
     @cached_property
     def ray_info(self) -> MusesRayInfo:
@@ -197,7 +199,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             str(self.instrument_name),
             self.pressure,
         )
-        self.fm_sv.add_observer_and_keep_reference(FmMusesRayInfoUpdateUip(rinfo))
+        # Skipping needed by some old unit tests, not something you would normally do
+        if not self.skip_adding_uip_to_fm_sv:
+            self.fm_sv.add_observer_and_keep_reference(FmMusesRayInfoUpdateUip(rinfo))
         return rinfo
 
     @property

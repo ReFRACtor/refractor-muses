@@ -354,14 +354,12 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
     def __init__(
         self,
         instrument_name: InstrumentIdentifier,
-        use_vlidort_temp_dir: bool = False,
         **creator_kwargs: Any,
     ) -> None:
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.measurement_id: None | MeasurementId = None
         self.retrieval_config: None | RetrievalConfiguration = None
-        self.use_vlidort_temp_dir = use_vlidort_temp_dir
 
     def notify_update_target(
         self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
@@ -404,6 +402,7 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
             fm_sv=fm_sv,
             use_vlidort=True,
             match_py_retrieve=True,
+            use_vlidort_temp_dir=kwargs.get("use_vlidort_temp_dir", False),
             **self.creator_kwargs,
         )
         fm = obj_creator.forward_model

@@ -25,12 +25,12 @@ from pathlib import Path
 
 @pytest.fixture(scope="function")
 def joint_tropomi_output(
-    joint_tropomi_step_12_output, joint_tropomi_test_refractor_expected_dir
+    joint_tropomi_step_12_output, joint_tropomi_test_refractor_lidort_expected_dir
 ):
     """Common part of out output tests."""
     rs, rstep, kwargs = joint_tropomi_step_12_output
     yield rs, rstep, kwargs
-    # compare_dir = joint_tropomi_test_refractor_expected_dir
+    # compare_dir = joint_tropomi_test_refractor_lidort_expected_dir
     # diff_is_error = True
     # Skip, not fully working. We need to update the captured data, but wait until
     # we finish making changes to the StateInfo stuff
