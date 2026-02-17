@@ -58,7 +58,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # TODO We'll pull out the objects we need here, but for now just
         self.ocreator = ocreator
         self.vlidort_dir = self.ocreator.vlidort_dir
-        self.ray_info = self.ocreator.ray_info
         self.ground = self.ocreator.ground
         self.absorber = self.ocreator.absorber
         self.cloud_fraction = self.ocreator.cloud_fraction
@@ -105,6 +104,12 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         self.sensor_index = sensor_index
+        if self.spectral_domain(sensor_index).data.shape[0] == 0:
+            # Special handling, should be able to go away once we are using StandardForwardModel
+            sr = rf.SpectralRange(np.array([]), rf.Unit("sr^-1"))
+            sd = self.spectral_domain(sensor_index)
+            return rf.Spectrum(sd, sr)
+            
         # Special handling for empty spectrum. We may get this handled in rtf, but for
         # now handle this.
         # ii_mw only counts nonempty spectral domain, so it value isn't always sensor_index
@@ -121,19 +126,6 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         self.do_cloud = True
         self.nlayers_cloud = self.pressure.number_layer
         self.do_cloud = False
-
-        # This is used in a few places, so grab this once here for use later
-        self.layer_to_levels = self.ray_info.layer_to_levels(rf.Pressure.INCREASING_PRESSURE)
-        
-        vgrid = self.absorber.absorber_vmr("O3").vmr_grid(
-                self.pressure, rf.Pressure.INCREASING_PRESSURE
-        )
-        if not vgrid.is_constant:
-            dvmr_dstate = vgrid.jacobian
-            dlogvmr_dvmr = np.diag(1 / vgrid.value)
-            self.dlogvmr_dstate = dlogvmr_dvmr @ dvmr_dstate
-        else:
-            self.dlogvmr_dstate = None
         
         logger.info("Calling rtf for clear sky")
         radclear = self.rtf(do_cloud=0)
@@ -246,11 +238,21 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
             for i in range(self.pressure.number_layer):
                 print(f"{pbar[i]:16.6f} {tbar[i]:16.7f} {o3[i]:16.7e}", file=fh)
+        taug_val_v = []
+        dod_dstate_v = []
+        for wnv in wn:
+            t = self.ocreator.absorber.optical_depth_each_layer(wnv,self.sensor_index)
+            taug_val_v.append(t.value[:,0])
+            if not t.is_constant:
+                dod_dstate_v.append(t.jacobian[:,0,:])
+        # For reference, this in nwn x nlay x nstate. For each wnv, it is
+        # the value dodlay_dstate for each layer
+        dod_dstate = np.array(dod_dstate_v) if len(dod_dstate_v) > 0 else None
         with open(vlidort_input_dir / "my_taug.asc", "w") as fh:
             print(f"{len(freq)} {self.nlayers}", file=fh)
             for i,(freqv,wnv) in enumerate(zip(freq,wn)):
-                taug = " ".join(f"{od:16.15e}" for od in self.ocreator.absorber.optical_depth_each_layer(wnv,0).value[:,0])
-                print(f"{i} {freqv:16.8f} {taug}", file=fh)
+                taugln = " ".join(f"{od:16.15e}" for od in taug_val_v[i])
+                print(f"{i} {freqv:16.8f} {taugln}", file=fh)
         
         # Run VLIDORT CLI
         vlidort_command = [
@@ -275,15 +277,9 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # read result files from the RT model
         radiance_matrix = np.loadtxt(vlidort_output_dir / "Radiance.asc", skiprows=1)
 
-        # Use the normalized weighting function as provided by VLIDORT
-        # MUSES needs the normalized weighting function for species
-        # retrieved in log(VMR)
-        jacobian_o3_matrix = np.loadtxt(vlidort_output_dir / "IWF.asc",skiprows=1)
-
-        # To experiment with the denormalized weighting function,
-        # i.e. if you retrieve O3 in VMR, uncomment the line below
-        # jacobian_o3_matrix =
-        # read_rtm_output(f"{vlidort_output_dir}/", 'IWF_denorm.asc')
+        # Use the denormalized weighting function as provided by VLIDORT
+        # this gives dvmr
+        jacobian_o3_matrix = np.loadtxt(vlidort_output_dir / "IWF_denorm.asc",skiprows=1)
 
         jacobian_sf_matrix = np.loadtxt(vlidort_output_dir / "surf_WF.asc",skiprows=1)
         
@@ -315,19 +311,18 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             jac_sf = None
         jac_tot = jac_sf
 
-        # Translate jacobian_o3_matrix to a jacobian relative to the state vector
-        jac_o3 = jacobian_o3_matrix[temp_freq_ind, 1:]
-        if do_cloud:
-            # Pad jacobian to be nlayers, just adding 0 for layers below the cloud
-            jac_o3 = np.pad(jac_o3, pad_width=((0,0),(0,self.nlayers-self.nlayers_cloud)))
-        # convert jac to drad_dstate. Note the
-        # jacobian_o3_matrix is apparently relative to dlogvmr (on layers)
-        if self.dlogvmr_dstate is not None:
-            jac_o3 = jac_o3 @ self.layer_to_levels @ self.dlogvmr_dstate
+        # Translate jacobian_o3_matrix to a jacobian relative to the state vector.
+        # jac_o3_matrix is drad_dodlay, it is nwn x nlay
+        # For reference dod_dstate is in nwn x nlay x nstate. For each wnv, it is
+        # the value dodlay_dstate for each layer
+        #
+        # We calculate drad_dstate, including just the absorber part of the jacobian
+        if dod_dstate is not None:
+            jac_o3 = jacobian_o3_matrix[temp_freq_ind, 1:]
+            dod_dstate = dod_dstate[temp_freq_ind,:,:]
+            jac_o3 = np.vstack([jac_o3[i,:] @ dod_dstate[i,:,:] for i in range(jac_o3.shape[0])])
         else:
             jac_o3 = None
-
-
         # Combine to an overall jacobian
         if jac_o3 is not None:
             if jac_tot is None:
@@ -401,7 +396,10 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
             obs,
             fm_sv=fm_sv,
             use_vlidort=True,
-            match_py_retrieve=True,
+            # Can turn on to more closely match the old py-retrieve code. But
+            # difference are small, this is really only needed for testing
+            # against py-retrieve
+            #match_py_retrieve=True,
             use_vlidort_temp_dir=kwargs.get("use_vlidort_temp_dir", False),
             **self.creator_kwargs,
         )
