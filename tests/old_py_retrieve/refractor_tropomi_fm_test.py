@@ -179,8 +179,14 @@ def test_refractor_fm_refractor(
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorTropOmiFm(
-        obs, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False,
-        use_vlidort_temp_dir=False, skip_adding_uip_to_fm_sv=True,
+        obs,
+        mid,
+        rconf,
+        use_pca=False,
+        use_lrad=False,
+        lrad_second_order=False,
+        use_vlidort_temp_dir=False,
+        skip_adding_uip_to_fm_sv=True,
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -252,8 +258,14 @@ def test_refractor_joint_fm_refractor(
         joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
     r = RefractorTropOmiFm(
-        obs_tropomi, mid, rconf, use_pca=False, use_lrad=False, lrad_second_order=False,
-        use_vlidort_temp_dir=False,  skip_adding_uip_to_fm_sv=True,
+        obs_tropomi,
+        mid,
+        rconf,
+        use_pca=False,
+        use_lrad=False,
+        lrad_second_order=False,
+        use_vlidort_temp_dir=False,
+        skip_adding_uip_to_fm_sv=True,
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -357,7 +369,7 @@ def test_refractor_detailed_fm_refractor(
         use_lrad=False,
         lrad_second_order=False,
         use_vlidort_temp_dir=False,
-        skip_adding_uip_to_fm_sv=True,        
+        skip_adding_uip_to_fm_sv=True,
     )
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -547,8 +559,13 @@ def test_jac_fd(
     pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # can check ReFRACtor or py-retrieve
     if do_refractor:
-        r = RefractorTropOmiFm(use_pca=False, use_lrad=False, lrad_second_order=False,
-                               use_vlidort_temp_dir=False,  skip_adding_uip_to_fm_sv=True)
+        r = RefractorTropOmiFm(
+            use_pca=False,
+            use_lrad=False,
+            lrad_second_order=False,
+            use_vlidort_temp_dir=False,
+            skip_adding_uip_to_fm_sv=True,
+        )
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,
@@ -679,8 +696,13 @@ def test_jac_joint_fd(
     )
     # can check ReFRACtor or py-retrieve
     if do_refractor:
-        r = RefractorTropOmiFm(use_pca=False, use_lrad=False, lrad_second_order=False,
-                               use_vlidort_temp_dir=False,  skip_adding_uip_to_fm_sv=True,)
+        r = RefractorTropOmiFm(
+            use_pca=False,
+            use_lrad=False,
+            lrad_second_order=False,
+            use_vlidort_temp_dir=False,
+            skip_adding_uip_to_fm_sv=True,
+        )
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
             r.run_pickle_file(
                 pfile,

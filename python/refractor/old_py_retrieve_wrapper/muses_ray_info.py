@@ -6,14 +6,18 @@ import typing
 
 if typing.TYPE_CHECKING:
     import refractor.muses_py_fm
+    from refractor.muses import CostFunction
+
 
 class FmMusesRayInfoUpdateUip(rf.ObserverStateVector):
     def __init__(self, rinfo: MusesRayInfo) -> None:
         super().__init__()
         self.rinfo = rinfo
 
-    def notify_update(self, fm_sv:rf.StateVector) -> None:
+    def notify_update(self, fm_sv: rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        if self.rinfo.rf_uip.basis_matrix is None:
+            return
         mp = rf.StateMappingBasisMatrix(self.rinfo.rf_uip.basis_matrix.transpose())
         # Take data from fm_sv to the RetrievalGridArray that update_uip
         # work with. Note that update_uip just turns around and creates
@@ -21,6 +25,7 @@ class FmMusesRayInfoUpdateUip(rf.ObserverStateVector):
         # to this.
         rvec = mp.retrieval_state(fm_sv.state_with_derivative).value
         self.rinfo.update_uip(rvec)
+
 
 class RayInfoUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
     def __init__(self, rinfo: MusesRayInfo) -> None:
@@ -32,6 +37,7 @@ class RayInfoUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
         # Directly work with cost function parameters. Very slightly
         # different than FmMusesRayInfoUpdateUip
         self.rinfo.update_uip(mstand.parameters)
+
 
 class MusesRayInfo:
     """There are a number of places where RefractorFmObjectCreator and
@@ -115,7 +121,7 @@ class MusesRayInfo:
     def update_uip(self, parameters: np.ndarray) -> None:
         if self.rf_uip.basis_matrix is not None:
             self.rf_uip.update_uip(parameters)
-        
+
     def tbar(self) -> np.ndarray:
         """Return tbar. This gets used in MusesRaman, I don't think this is used
         anywhere else."""
@@ -125,7 +131,7 @@ class MusesRayInfo:
         """Return tbar. This gets used in MusesRaman, I don't think this is used
         anywhere else."""
         return self._ray_info()["pbar"][::-1][: self._nlay()]
-    
+
     def altitude_grid(self) -> np.ndarray:
         """Return altitude grid of each level. This gets used in MusesAltitude, I don't think
         it is used anywhere else"""
@@ -142,17 +148,13 @@ class MusesRayInfo:
         # Radiative Transfer, July 2014 pages 109-115
         # https://doi.org/10.1016/j.jqsrt.2014.03.011
         t = self._ray_info()
-        res = np.zeros((t["map_vmr_l"].shape[1], t["map_vmr_l"].shape[1]+1))
-        res[:, :-1] = np.diag(
-               t["map_vmr_l"][0, :]
-        )
-        res[:, 1:] += np.diag(
-               t["map_vmr_u"][0, :]
-        )
+        res = np.zeros((t["map_vmr_l"].shape[1], t["map_vmr_l"].shape[1] + 1))
+        res[:, :-1] = np.diag(t["map_vmr_l"][0, :])
+        res[:, 1:] += np.diag(t["map_vmr_u"][0, :])
         if gtype in (rf.Pressure.DECREASING_PRESSURE, rf.Pressure.NATIVE_ORDER):
             return res
         if gtype == rf.Pressure.INCREASING_PRESSURE:
-            return res[::-1,::-1]
+            return res[::-1, ::-1]
         raise RuntimeError(f"Don't recognize gtype = {gtype}")
 
     def map_vmr(self) -> tuple[np.ndarray, np.ndarray]:

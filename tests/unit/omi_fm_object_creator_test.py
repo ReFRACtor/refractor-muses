@@ -2,12 +2,13 @@ import numpy.testing as npt
 import refractor.framework as rf
 from refractor.omi import OmiFmObjectCreator
 from refractor.muses import InstrumentIdentifier
+from fixtures.require_check import require_muses_py
 
+
+@require_muses_py
 def test_ray_info(omi_fm_object_creator_step_0, isolated_dir):
-    from refractor.old_py_retrieve_wrapper import MusesRayInfo, FmMusesRayInfoUpdateUip
-    rinfo = omi_fm_object_creator_step_0.ray_info
-    uip = FmMusesRayInfoUpdateUip
-    
+    print(omi_fm_object_creator_step_0.ray_info)
+
 
 def test_solar_model(omi_fm_object_creator_step_0):
     print(omi_fm_object_creator_step_0.omi_solar_model[0])

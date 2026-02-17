@@ -2,9 +2,13 @@ from __future__ import annotations
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 import os
 import ctypes
-from ctypes import c_int, POINTER, c_float, c_char_p
+from ctypes import c_int, POINTER, c_float, c_char_p, c_int_p
 from pathlib import Path
 import numpy as np
+import typing
+
+if typing.TYPE_CHECKING:
+    from .input_file_helper import InputFileHelper, InputFilePath
 
 # This is a work in progress. We would like to move over and simplify the vlidort
 # forward model, and hopefully remove using the UIP etc. But for right now, we

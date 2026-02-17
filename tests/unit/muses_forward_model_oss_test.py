@@ -13,6 +13,7 @@ from fixtures.require_check import require_muses_py_fm
 import pickle
 import pytest
 
+
 # We don't have everything in place yet, so skip for now. This interfers with
 # MusesCrisForwardModel, we'll straighten that out in a bit.
 @pytest.mark.skip

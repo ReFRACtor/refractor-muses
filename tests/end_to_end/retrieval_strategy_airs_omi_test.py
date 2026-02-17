@@ -85,8 +85,14 @@ def test_retrieval_strategy_airs_omi(
             compare_dir = joint_omi_test_refractor_lidort_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")
         elif run_pyretrieve:
-            from refractor.muses_py_fm import MusesForwardModelHandle, MusesOmiForwardModel
-            ihandle = MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel)
+            from refractor.muses_py_fm import (
+                MusesForwardModelHandle,
+                MusesOmiForwardModel,
+            )
+
+            ihandle = MusesForwardModelHandle(
+                InstrumentIdentifier("OMI"), MusesOmiForwardModel
+            )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_omi_test_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")

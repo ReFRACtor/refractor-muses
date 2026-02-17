@@ -216,6 +216,7 @@ def joint_tropomi_test_expected_retrieval_output_dir(test_base_path):
 def joint_tropomi_test_refractor_lidort_expected_dir(test_base_path):
     return test_base_path / "cris_tropomi/expected/sounding_1_refractor_lidort"
 
+
 @pytest.fixture(scope="session")
 def joint_tropomi_test_refractor_vlidort_expected_dir(test_base_path):
     return test_base_path / "cris_tropomi/expected/sounding_1_refractor_vlidort"
@@ -244,6 +245,7 @@ def joint_omi_eof_test_in_dir(test_base_path):
 @pytest.fixture(scope="session")
 def joint_omi_test_refractor_lidort_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1_refractor_lidort"
+
 
 @pytest.fixture(scope="session")
 def joint_omi_test_refractor_vlidort_expected_dir(test_base_path):

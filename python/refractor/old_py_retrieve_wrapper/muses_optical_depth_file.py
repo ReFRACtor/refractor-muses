@@ -69,7 +69,9 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # Where MUSES stores the computations it makes for VLIDORT we are leveraging
         self.input_dir = Path(input_dir).absolute()
 
-        self.layer_to_levels = self.ray_info.layer_to_levels(rf.Pressure.INCREASING_PRESSURE)
+        self.layer_to_levels = self.ray_info.layer_to_levels(
+            rf.Pressure.INCREASING_PRESSURE
+        )
 
         # Initialize caches
         self.xsect_data: np.ndarray | None = None
@@ -239,8 +241,6 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         self.cache_xsect_data()
         self.cache_gas_number_density_layer()
 
-        nlay = self._pressure.number_layer
-
         # Convert value to units of spectral points used in file
         spec_point = rf.DoubleWithUnit(wn, "cm^-1").convert_wave("nm").value
 
@@ -271,7 +271,15 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
                 * self._temperature.coefficient.jacobian
             )
 
-        dod_dlogvmr = np.vstack([v * self.layer_to_levels[:wn_od_data.shape[0],:wn_od_data.shape[0]+1][i,:] for i,v in enumerate(wn_od_data)])[:,np.newaxis,:]
+        dod_dlogvmr = np.vstack(
+            [
+                v
+                * self.layer_to_levels[
+                    : wn_od_data.shape[0], : wn_od_data.shape[0] + 1
+                ][i, :]
+                for i, v in enumerate(wn_od_data)
+            ]
+        )[:, np.newaxis, :]
         if wn_od_data_jac is not None:
             # Note I don't think this is working currently, so skip
             # dod_dlogvmr[:,0,:] += wn_od_data_jac

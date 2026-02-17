@@ -48,8 +48,8 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
             self.pressure,
             self.temperature,
             self.altitude,
-            self.vlidort_dir,
             self.obs,
+            self.vlidort_dir,
             self.vlidort_nstokes,
             self.vlidort_nstreams,
         )

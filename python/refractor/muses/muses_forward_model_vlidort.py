@@ -2,13 +2,9 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
-from functools import cached_property
 from loguru import logger
-import tempfile
 import numpy as np
-import copy
 import subprocess
-from pathlib import Path
 from typing import Any
 import typing
 
@@ -17,9 +13,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MusesObservation
-    from .cost_function import CostFunction
     from .refractor_fm_object_creator import RefractorFmObjectCreator
-    from refractor.muses_py_fm import RefractorUip
 
 # This is a work in progress. We would like to move over and simplify the vlidort
 # forward model, and hopefully remove using the UIP etc. But for right now, we
@@ -76,7 +70,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         return self._do_cloud
 
     @do_cloud.setter
-    def do_cloud(self, v:bool) -> None:
+    def do_cloud(self, v: bool) -> None:
         self._do_cloud = v
         self.ground.do_cloud = v
         self.pressure.do_cloud = v
@@ -109,7 +103,7 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             sr = rf.SpectralRange(np.array([]), rf.Unit("sr^-1"))
             sd = self.spectral_domain(sensor_index)
             return rf.Spectrum(sd, sr)
-            
+
         # Special handling for empty spectrum. We may get this handled in rtf, but for
         # now handle this.
         # ii_mw only counts nonempty spectral domain, so it value isn't always sensor_index
@@ -117,16 +111,16 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         for i in range(self.sensor_index):
             if self.spectral_domain(i).data.shape[0] > 0:
                 self.ii_mw += 1
-        
+
         # TODO Get logic in for skipping bad pixels. Right now we generate these,
         # and then throw away in radiance()
-        
+
         self.do_cloud = False
         self.nlayers = self.pressure.number_layer
         self.do_cloud = True
         self.nlayers_cloud = self.pressure.number_layer
         self.do_cloud = False
-        
+
         logger.info("Calling rtf for clear sky")
         radclear = self.rtf(do_cloud=0)
 
@@ -137,9 +131,16 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # Can't directly multiple a ArrayAd_double_1 (this is a tradeoff at the C++
         # level between flexibility and simpler arrangement). But we can just calculate
         # this element by element
-        rad = rf.ArrayAd_double_1(radclear.rows, max(radclear.number_variable, radcloud.number_variable, cfrac.number_variable))
+        rad = rf.ArrayAd_double_1(
+            radclear.rows,
+            max(
+                radclear.number_variable,
+                radcloud.number_variable,
+                cfrac.number_variable,
+            ),
+        )
         for i in range(radclear.rows):
-            rad[i] = radclear[i] * (1-cfrac) + radcloud[i] * cfrac
+            rad[i] = radclear[i] * (1 - cfrac) + radcloud[i] * cfrac
         # Sanity Check on NAN for radiance and jacobian.
         if not np.all(np.isfinite(rad.value)):
             raise RuntimeError("rad_t not finite")
@@ -168,20 +169,19 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Temp, we will get nfreq more directly when we set up writing O3Xsec_MW
         od_data = np.loadtxt(
-                    vlidort_input_dir / f"O3Xsec_MW{self.ii_mw+1:03}.asc", skiprows=1
-                )
-        freq = od_data[:,1]
+            vlidort_input_dir / f"O3Xsec_MW{self.ii_mw + 1:03}.asc", skiprows=1
+        )
+        freq = od_data[:, 1]
         wn = rf.ArrayWithUnit_double_1(od_data[:, 1], "nm").convert_wave("cm^-1").value
         nfreq = len(freq)
-        fm_nlayers = self.nlayers_cloud if do_cloud else self.nlayers
         # Write the control file for vlidort
         with open(vlidort_input_dir / "config_rtm.asc", "w") as fh:
             print("'atm_lay.asc'", file=fh)
             print("'atm_lev.asc'", file=fh)
-            #print(f"'../../../input/O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
-            print(f"'my_taug.asc'", file=fh)
-            print("'surf_alb.asc'",file=fh)
-            print("'vga.asc'",file=fh)
+            # print(f"'../../../input/O3Xsec_MW{self.ii_mw+1:03d}.asc'", file=fh)
+            print("'my_taug.asc'", file=fh)
+            print("'surf_alb.asc'", file=fh)
+            print("'vga.asc'", file=fh)
             print(f"{nfreq:>5d}", file=fh)
             print(f"{self.pressure.number_layer:>5d}", file=fh)
 
@@ -198,27 +198,34 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         raz = self.obs.relative_azimuth[self.sensor_index]
         with open(vlidort_input_dir / "vga.asc", "w") as fh:
             print("ELEV,       DLAT,       SZA,        VZA,        RAZ", file=fh)
-            print(f"{elv:12.4f} {lat:12.4f} {sza:12.4f} {vza:12.4f} {raz:12.4f}", file=fh)
-            
+            print(
+                f"{elv:12.4f} {lat:12.4f} {sza:12.4f} {vza:12.4f} {raz:12.4f}", file=fh
+            )
+
         # Write surface albedo
         with open(vlidort_input_dir / "surf_alb.asc", "w") as fh:
-            print(nfreq,file=fh)
-            for wnv,freqv in zip(wn,freq):
+            print(nfreq, file=fh)
+            for wnv, freqv in zip(wn, freq):
                 alb = self.ground.surface_parameter(wnv, self.sensor_index).value[0]
                 print(f"{freqv:16.7f} {alb:16.7f}", file=fh)
 
         # Write atmosphere levels
         pgrid = self.pressure.pressure_grid(rf.Pressure.INCREASING_PRESSURE)
         plev = pgrid.convert("hPa").value.value
-        tlev = self.temperature.temperature_grid(self.pressure, rf.Pressure.INCREASING_PRESSURE).value.value
+        tlev = self.temperature.temperature_grid(
+            self.pressure, rf.Pressure.INCREASING_PRESSURE
+        ).value.value
         hlev = [self.altitude[0].altitude(p).convert("m").value.value for p in pgrid]
         with open(vlidort_input_dir / "atm_lev.asc", "w") as fh:
             print(len(plev), file=fh)
-            print("Table Columns: Pres(mb), T(K), Altitude(m) (TOA to Surf each level)", file=fh)
-            for p,t,h in zip(plev, tlev, hlev):
+            print(
+                "Table Columns: Pres(mb), T(K), Altitude(m) (TOA to Surf each level)",
+                file=fh,
+            )
+            for p, t, h in zip(plev, tlev, hlev):
                 print(f"{p:16.8f} {t:16.5f} {h:16.5f}", file=fh)
         # Write atmosphere layers
-        # 
+        #
         # This isn't actually used when we pass in the taug, but it still needs
         # to be there to be read. Could probably change vlidort_cli to skip reading this,
         # but not worth the effort right now. This is in rtm/read_atm.f if we want to do
@@ -230,9 +237,15 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             tbar = self.ray_info.tbar()
             o3 = self.ray_info.gas_density_layer("O3")
         else:
-            pbar = [-999.0,] * self.pressure.number_layer
-            tbar = [-999.0,] * self.pressure.number_layer
-            o3 = [-999.0,] * self.pressure.number_layer
+            pbar = [
+                -999.0,
+            ] * self.pressure.number_layer
+            tbar = [
+                -999.0,
+            ] * self.pressure.number_layer
+            o3 = [
+                -999.0,
+            ] * self.pressure.number_layer
         with open(vlidort_input_dir / "atm_lay.asc", "w") as fh:
             print(self.pressure.number_layer, file=fh)
             print("Table Columns: Pres(mb), T(K), Column Density (molec/cm2)", file=fh)
@@ -241,29 +254,33 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         taug_val_v = []
         dod_dstate_v = []
         for wnv in wn:
-            t = self.ocreator.absorber.optical_depth_each_layer(wnv,self.sensor_index)
-            taug_val_v.append(t.value[:,0])
+            t = self.ocreator.absorber.optical_depth_each_layer(wnv, self.sensor_index)
+            taug_val_v.append(t.value[:, 0])
             if not t.is_constant:
-                dod_dstate_v.append(t.jacobian[:,0,:])
+                dod_dstate_v.append(t.jacobian[:, 0, :])
         # For reference, this in nwn x nlay x nstate. For each wnv, it is
         # the value dodlay_dstate for each layer
         dod_dstate = np.array(dod_dstate_v) if len(dod_dstate_v) > 0 else None
         with open(vlidort_input_dir / "my_taug.asc", "w") as fh:
             print(f"{len(freq)} {self.nlayers}", file=fh)
-            for i,(freqv,wnv) in enumerate(zip(freq,wn)):
+            for i, (freqv, wnv) in enumerate(zip(freq, wn)):
                 taugln = " ".join(f"{od:16.15e}" for od in taug_val_v[i])
                 print(f"{i} {freqv:16.8f} {taugln}", file=fh)
-        
+
         # Run VLIDORT CLI
         vlidort_command = [
             "vlidort_cli",
-            '--input', f"{vlidort_input_dir}/",
-            '--output', f"{vlidort_output_dir}/",
-            '--nstokes', f'{self.vlidort_nstokes}',
-            '--nstreams', f'{self.vlidort_nstreams}',
-            '--od',
+            "--input",
+            f"{vlidort_input_dir}/",
+            "--output",
+            f"{vlidort_output_dir}/",
+            "--nstokes",
+            f"{self.vlidort_nstokes}",
+            "--nstreams",
+            f"{self.vlidort_nstreams}",
+            "--od",
         ]
-        logger.debug(f'\nRunning:\n{" ".join(vlidort_command)} ')
+        logger.debug(f"\nRunning:\n{' '.join(vlidort_command)} ")
         subprocess.run(
             vlidort_command,
             stdout=subprocess.PIPE,
@@ -279,15 +296,19 @@ class MusesForwardModelVlidort(rf.ForwardModel):
 
         # Use the denormalized weighting function as provided by VLIDORT
         # this gives dvmr
-        jacobian_o3_matrix = np.loadtxt(vlidort_output_dir / "IWF_denorm.asc",skiprows=1)
+        jacobian_o3_matrix = np.loadtxt(
+            vlidort_output_dir / "IWF_denorm.asc", skiprows=1
+        )
 
-        jacobian_sf_matrix = np.loadtxt(vlidort_output_dir / "surf_WF.asc",skiprows=1)
-        
+        jacobian_sf_matrix = np.loadtxt(vlidort_output_dir / "surf_WF.asc", skiprows=1)
+
         # Note I don't think the ILS actually works for py-retrieve. We've
         # removed the code here, since we would need to test this. And in
         # any case, I think we would want to just use refractor objects for this
         if self.ocreator.ils_method(self.sensor_index) != "APPLY":
-            raise RuntimeError("We don't currently support using and ILS, we need a test case to work through the logic here")
+            raise RuntimeError(
+                "We don't currently support using and ILS, we need a test case to work through the logic here"
+            )
 
         temp_freq_fm = radiance_matrix[:, 0]
         mwin = self.ocreator.spec_win.muses_microwindows()
@@ -295,18 +316,26 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             (temp_freq_fm >= mwin[self.ii_mw]["start"])
             & (temp_freq_fm <= mwin[self.ii_mw]["endd"])
         )[0]
-        
+
         # Translate jacobian_sf_matrix to a jacobian relative to the state vector
-        
+
         # TODO We should just use the spectral domain for this forward model,
         # but for now grab what vlidort has
-        
+
         # Low level surface_parameter works with wave number only, so convert
         t = jacobian_sf_matrix[temp_freq_ind, 1:]
         if self.ground.surface_parameter(wn[0], self.sensor_index).rows != 1:
-            raise RuntimeError("MusesForwardModelVlidort is hard coded to using an albedo only")
+            raise RuntimeError(
+                "MusesForwardModelVlidort is hard coded to using an albedo only"
+            )
         if not self.ground.surface_parameter(wn[0], self.sensor_index).is_constant:
-            jac_sf = np.concatenate([t[i,:][np.newaxis,:] @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian for i, wnv in enumerate(wn[temp_freq_ind])])
+            jac_sf = np.concatenate(
+                [
+                    t[i, :][np.newaxis, :]
+                    @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian
+                    for i, wnv in enumerate(wn[temp_freq_ind])
+                ]
+            )
         else:
             jac_sf = None
         jac_tot = jac_sf
@@ -319,8 +348,10 @@ class MusesForwardModelVlidort(rf.ForwardModel):
         # We calculate drad_dstate, including just the absorber part of the jacobian
         if dod_dstate is not None:
             jac_o3 = jacobian_o3_matrix[temp_freq_ind, 1:]
-            dod_dstate = dod_dstate[temp_freq_ind,:,:]
-            jac_o3 = np.vstack([jac_o3[i,:] @ dod_dstate[i,:,:] for i in range(jac_o3.shape[0])])
+            dod_dstate = dod_dstate[temp_freq_ind, :, :]
+            jac_o3 = np.vstack(
+                [jac_o3[i, :] @ dod_dstate[i, :, :] for i in range(jac_o3.shape[0])]
+            )
         else:
             jac_o3 = None
         # Combine to an overall jacobian
@@ -333,11 +364,11 @@ class MusesForwardModelVlidort(rf.ForwardModel):
             rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1], jac_tot)
         else:
             rad = rf.ArrayAd_double_1(radiance_matrix[temp_freq_ind, 1])
-        sd = rf.SpectralDomain(freq[temp_freq_ind],rf.Unit("nm"))
+        sd = rf.SpectralDomain(freq[temp_freq_ind], rf.Unit("nm"))
         spec = rf.Spectrum(sd, rf.SpectralRange(rad, rf.Unit("sr^-1")))
         self.ocreator.raman_effect(self.sensor_index).apply_effect(spec, None)
         return spec.spectral_range.data_ad
-        
+
 
 class MusesForwardModelVlidortHandle(ForwardModelHandle):
     """Handle for creating a MusesForwardModelVlidort. Note we don't
@@ -386,9 +417,7 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
-        logger.debug(
-            f"Creating forward model MusesForwardModelVlidort for {self.instrument_name}"
-        )
+        logger.debug(f"Creating VLIDORT forward model for {self.instrument_name}")
         obj_creator = cls(
             current_state,
             self.measurement_id,
@@ -399,12 +428,10 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
             # Can turn on to more closely match the old py-retrieve code. But
             # difference are small, this is really only needed for testing
             # against py-retrieve
-            #match_py_retrieve=True,
-            use_vlidort_temp_dir=kwargs.get("use_vlidort_temp_dir", False),
+            # match_py_retrieve=True,
             **self.creator_kwargs,
         )
-        fm = obj_creator.forward_model
-        return fm
+        return obj_creator.forward_model
 
 
 ForwardModelHandleSet.add_default_handle(

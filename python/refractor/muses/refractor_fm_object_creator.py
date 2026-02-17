@@ -2,7 +2,7 @@ from __future__ import annotations
 from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
-from .muses_forward_model_vlidort import MusesForwardModelVlidort
+from .muses_radiative_transfer_vlidort import MusesRadiativeTransferVlidort
 from .identifier import StateElementIdentifier
 from .input_file_helper import InputFilePath
 import refractor.framework as rf  # type: ignore
@@ -17,6 +17,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import MusesRayInfo
+    from refractor.muses_py_fm import RefractorUip
     from .muses_spectral_window import MusesSpectralWindow
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
@@ -74,7 +75,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         vlidort_nstokes: int = 2,
         vlidort_nstreams: int = 4,
         use_vlidort_temp_dir: bool = True,
-        skip_adding_uip_to_fm_sv=False,
+        skip_adding_uip_to_fm_sv: bool = False,
     ):
         """Constructor. The StateVector to add things to can be passed
         in, or if this isn't then we create a new StateVector.
@@ -163,36 +164,40 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def _rf_uip(self) -> RefractorUip:
-        '''We have this as private, because things in general shouldn't be using
+        """We have this as private, because things in general shouldn't be using
         RefractorUip (we have purposely removed this most everywhere because of the
         tight coupling it gives). However, if you have some special case testing or
         something like that, there isn't anything wrong in using this. Just think
         if you *really* want to use this instead of more standard refractor.muses
-        objects'''
+        objects"""
         from refractor.muses_py_fm import RefractorUip
+
         return RefractorUip.create_uip_from_refractor_objects(
             [self.observation],
             self.current_state,  # type: ignore[arg-type]
             self.retrieval_config,  # type: ignore[arg-type]
-            vlidort_dir=self.vlidort_dir
+            vlidort_dir=self.vlidort_dir,
         )
 
     @cached_property
     def vlidort_dir(self) -> Path:
-        '''When we generate a RefractorUip, or call VLIDORT there are a number
+        """When we generate a RefractorUip, or call VLIDORT there are a number
         of files used to communicate between things. We put these into a
-        temporary directory normally'''
-        if(self.use_vlidort_temp_dir):
+        temporary directory normally"""
+        if self.use_vlidort_temp_dir:
             self._vlidort_tempdir = tempfile.TemporaryDirectory()
             return Path(self._vlidort_tempdir.name)
         # Use run dir if we aren't using a temporary directory. Can be useful
         # for debugging, where we want to see the files passed to and from VLIDORT
         return self.current_state.step_directory / "vlidort"
-        
+
     @cached_property
     def ray_info(self) -> MusesRayInfo:
         """Return MusesRayInfo."""
-        from refractor.old_py_retrieve_wrapper import MusesRayInfo, FmMusesRayInfoUpdateUip
+        from refractor.old_py_retrieve_wrapper import (
+            MusesRayInfo,
+            FmMusesRayInfoUpdateUip,
+        )
 
         rinfo = MusesRayInfo(
             self._rf_uip,
@@ -460,6 +465,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if self.match_py_retrieve:
             from refractor.old_py_retrieve_wrapper import MusesRayInfo
+
             # Note we can't just use self.ray_info, because this depends on
             # self.pressure. So we really do need a separate object here that
             # just uses pressure_fm.
@@ -729,12 +735,28 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         """RT to use. This just gives us a simple place to switch
         between Lidort and PCA."""
+        if self.use_vlidort:
+            return self.radiative_transfer_vlidort
         # Not sure that PCA is working, right now we'll only run this if
         # use_pca is set to true
-        if self.use_pca:
+        elif self.use_pca:
             return self.radiative_transfer_pca
         else:
             return self.radiative_transfer_lidort
+
+    @cached_property
+    def radiative_transfer_vlidort(self) -> rf.RadiativeTransfer:
+        return MusesRadiativeTransferVlidort(
+            self.ground,
+            self.absorber,
+            self.pressure,
+            self.temperature,
+            self.altitude,
+            self.observation,
+            self.vlidort_dir,
+            self.vlidort_nstokes,
+            self.vlidort_nstreams,
+        )
 
     @cached_property
     def radiative_transfer_pca(self) -> rf.RadiativeTransfer:
@@ -904,25 +926,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
-        if self.use_vlidort:
-            return self.forward_model_vlidort
+        # Right now, always use ForwardModelWithCloudHandling.
         return self.forward_model_ch
-
-    @cached_property
-    def forward_model_vlidort(self) -> MusesForwardModelVlidort:
-        if self.absorption_gases != ["O3"]:
-            raise RuntimeError(
-                "MusesForwardModelVlidort is hardcoded to support O3 only. We could modify this, but it would mean modifying the package muses-vlidort."
-            )
-        return MusesForwardModelVlidort(
-            self,
-            self.current_state,
-            self.instrument_name,
-            self.observation,
-            self.retrieval_config,
-            vlidort_nstokes=self.vlidort_nstokes,
-            vlidort_nstreams=self.vlidort_nstreams,
-        )
 
     @cached_property
     def forward_model_ch(self) -> rf.ForwardModelWithCloudHandling:

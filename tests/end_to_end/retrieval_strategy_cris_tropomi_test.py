@@ -89,15 +89,21 @@ def test_retrieval_strategy_cris_tropomi(
             compare_dir = joint_tropomi_test_refractor_lidort_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")
         elif run_pyretrieve:
-            from refractor.muses_py_fm import MusesForwardModelHandle, MusesTropomiForwardModel
-            ihandle = MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel)
+            from refractor.muses_py_fm import (
+                MusesForwardModelHandle,
+                MusesTropomiForwardModel,
+            )
+
+            ihandle = MusesForwardModelHandle(
+                InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel
+            )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_tropomi_test_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")
         else:
             # Default handles for for refractor vlidort
             compare_dir = joint_tropomi_test_refractor_vlidort_expected_dir
-            
+
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

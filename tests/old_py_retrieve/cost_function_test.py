@@ -4,7 +4,14 @@ from refractor.muses import (
     RetrievalConfiguration,
     InstrumentIdentifier,
 )
-from refractor.muses_py_fm import RefractorUip, oss_handle, muses_py_call, MusesForwardModelHandle, MusesTropomiForwardModel, MusesOmiForwardModel
+from refractor.muses_py_fm import (
+    RefractorUip,
+    oss_handle,
+    muses_py_call,
+    MusesForwardModelHandle,
+    MusesTropomiForwardModel,
+    MusesOmiForwardModel,
+)
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
     joint_tropomi_residual_fm_jac,
@@ -62,14 +69,13 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
     rs, rstep, _ = joint_tropomi_step_12_osp_sym_link
     rs.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel,
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
         ),
         priority_order=100,
     )
     rs.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("OMI"), MusesOmiForwardModel
-        ),
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
     rs.cost_function_creator.notify_update_target(
@@ -150,14 +156,13 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
     rs, rstep, _ = joint_omi_step_8_osp_sym_link
     rs.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel,
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
         ),
         priority_order=100,
     )
     rs.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("OMI"), MusesOmiForwardModel
-        ),
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
     rs.cost_function_creator.notify_update_target(
@@ -260,14 +265,13 @@ def test_residual_fm_jac_tropomi(
     creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel,
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
         ),
         priority_order=100,
     )
     creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("OMI"), MusesOmiForwardModel
-        ),
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
@@ -365,14 +369,13 @@ def test_residual_fm_jac_omi(
     creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel,
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
         ),
         priority_order=100,
     )
     creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("OMI"), MusesOmiForwardModel
-        ),
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
@@ -451,7 +454,9 @@ def test_residual_fm_jac_omi2(
     )
     rf_uip.run_dir = rrefractor.run_dir
     ihandle = OmiForwardModelHandle(
-        use_pca=False, use_lrad=False, lrad_second_order=False,
+        use_pca=False,
+        use_lrad=False,
+        lrad_second_order=False,
         use_vlidort_temp_dir=False,
     )
     creator = CostFunctionCreator()
@@ -501,7 +506,9 @@ def test_residual_fm_jac_tropomi2(
     )
     rf_uip.run_dir = rrefractor.run_dir
     ihandle = TropomiForwardModelHandle(
-        use_pca=False, use_lrad=False, lrad_second_order=False,
+        use_pca=False,
+        use_lrad=False,
+        lrad_second_order=False,
         use_vlidort_temp_dir=False,
     )
     creator = CostFunctionCreator()
