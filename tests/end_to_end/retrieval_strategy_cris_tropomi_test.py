@@ -101,7 +101,7 @@ def test_retrieval_strategy_cris_tropomi(
             compare_dir = joint_tropomi_test_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")
         else:
-            # Default handles for for refractor vlidort
+            # Default handles for refractor vlidort
             compare_dir = joint_tropomi_test_refractor_vlidort_expected_dir
 
         rs.retrieval_ms()

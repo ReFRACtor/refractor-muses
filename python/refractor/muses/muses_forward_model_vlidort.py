@@ -435,10 +435,6 @@ class MusesForwardModelVlidortHandle(ForwardModelHandle):
 
 
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelVlidortHandle(InstrumentIdentifier("TROPOMI")),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
     MusesForwardModelVlidortHandle(InstrumentIdentifier("OMI")),
     priority_order=-1,
 )

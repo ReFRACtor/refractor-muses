@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from refractor.muses import (
     RefractorFmObjectCreator,
     ForwardModelHandle,
+    ForwardModelHandleSet,
     MusesRaman,
     CurrentState,
     SurfaceAlbedo,
@@ -943,7 +944,8 @@ class TropomiForwardModelHandle(ForwardModelHandle):
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
-        logger.debug("Creating forward model using using TropomiFmObjectCreator")
+        model_type = "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
+        logger.debug(f"Creating {model_type} forward model using using TropomiFmObjectCreator")
         obj_creator = TropomiFmObjectCreator(
             current_state,
             self.measurement_id,
@@ -973,5 +975,12 @@ def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.nd
             isrf = f[FilterBand_group]["isrf"][...]
         return wav, deltawav, isrf
 
+# Default forward model is the VLIDORT one, so we are as close to
+# py-retrieve results as possible. Should look into changing to LIDORT,
+# which is faster
+ForwardModelHandleSet.add_default_handle(
+    TropomiForwardModelHandle(use_vlidort=True),
+    priority_order=-1,
+)
 
 __all__ = ["TropomiFmObjectCreator", "TropomiForwardModelHandle"]

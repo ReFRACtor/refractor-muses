@@ -54,13 +54,13 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
             self.vlidort_nstreams,
         )
 
-    def reflectance_ptr(
-        self, sd: rf.SpectralDomain, spensor_index: int, skip_jacobian: bool
+    def reflectance(
+        self, sd: rf.SpectralDomain, sensor_index: int, skip_jacobian: bool
     ) -> rf.Spectrum:
         # Note, there is no way to actually skip the jacobians, so we ignore
         # that
-        freq = sd.convert_wave("nm").value
-        wn = sd.convert_wave("cm^-1").value
+        freq = sd.convert_wave("nm")
+        wn = sd.convert_wave("cm^-1")
 
         vlidort_input_dir = self.vlidort_dir / "input"
         vlidort_input_dir.mkdir(parents=True, exist_ok=True)
@@ -77,16 +77,16 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
             print(f"{self.pressure.number_layer:>5d}", file=fh)
 
         # Write the Vga file
-        elv = self.obs.surface_height[self.sensor_index]
-        lat = self.obs.latitude[self.sensor_index]
-        sza = self.obs.solar_zenith[self.sensor_index]
+        elv = self.obs.surface_height[sensor_index]
+        lat = self.obs.latitude[sensor_index]
+        sza = self.obs.solar_zenith[sensor_index]
         # Clamp zen to be in range
         if sza <= 0.0:
             sza = 0.0001
         if sza >= 90.0:
             sza = 89.98
-        vza = self.obs.observation_zenith[self.sensor_index]
-        raz = self.obs.relative_azimuth[self.sensor_index]
+        vza = self.obs.observation_zenith[sensor_index]
+        raz = self.obs.relative_azimuth[sensor_index]
         with open(vlidort_input_dir / "vga.asc", "w") as fh:
             print("ELEV,       DLAT,       SZA,        VZA,        RAZ", file=fh)
             print(
@@ -97,7 +97,7 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
         with open(vlidort_input_dir / "surf_alb.asc", "w") as fh:
             print(len(freq), file=fh)
             for wnv, freqv in zip(wn, freq):
-                alb = self.ground.surface_parameter(wnv, self.sensor_index).value[0]
+                alb = self.ground.surface_parameter(wnv, sensor_index).value[0]
                 print(f"{freqv:16.7f} {alb:16.7f}", file=fh)
 
         # Write atmosphere levels
@@ -140,7 +140,7 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
         taug_val_v = []
         dod_dstate_v = []
         for wnv in wn:
-            t = self.ocreator.absorber.optical_depth_each_layer(wnv, self.sensor_index)
+            t = self.absorber.optical_depth_each_layer(wnv, sensor_index)
             taug_val_v.append(t.value[:, 0])
             if not t.is_constant:
                 dod_dstate_v.append(t.jacobian[:, 0, :])
@@ -195,11 +195,11 @@ class MusesRadiativeTransferVlidort(rf.RadiativeTransferImpBase):
         jacobian_sf_matrix = jacobian_sf_matrix[
             :, 1:
         ]  # First column is frequency, chop off
-        if not self.ground.surface_parameter(wn[0], self.sensor_index).is_constant:
+        if not self.ground.surface_parameter(wn[0], sensor_index).is_constant:
             jac_sf = np.concatenate(
                 [
                     jacobian_sf_matrix[i, :][np.newaxis, :]
-                    @ self.ground.surface_parameter(wnv, self.sensor_index).jacobian
+                    @ self.ground.surface_parameter(wnv, sensor_index).jacobian
                     for i, wnv in enumerate(wn)
                 ]
             )

@@ -320,12 +320,6 @@ from .state_element_single import (
 from .state_info import (
     StateInfo,
 )
-from .t1 import (
-    rtf_tropomi,
-)
-from .t2 import (
-    rtf_omi,
-)
 from .tes_file import (
     TesFile,
 )

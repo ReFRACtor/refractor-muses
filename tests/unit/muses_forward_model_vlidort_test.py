@@ -37,7 +37,7 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
 
     s = fm.radiance_all()
     rad = s.spectral_range.data
-    jac = s.spectral_range.data_ad.jacobian
+    jac = s.spectral_range.data_ad.jacobian.copy()
 
     fmcmp = MusesTropomiForwardModel(
         rs.current_state,
@@ -52,10 +52,10 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
     # so we can compare. Note that we get different jacobians for the observation
     # also, py-retrieve used finite differences while we have analytic jacobians.
     # Results in small differences.
-    jaccmp[:, -3:] = 0
+    jaccmp[:, -2:] = 0
     # MusesTropomiForwardModel incorrectly does not scale the surface parameters by
     # the clear fraction. Fix so we can compare
-    jaccmp[:, -6:-3] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
+    jaccmp[:, -5:-2] *= 1 - ocreator.cloud_fraction.cloud_fraction.value
     assert rad.shape == radcmp.shape
     assert jac.shape == jaccmp.shape
     npt.assert_allclose(rad, radcmp)

@@ -2,10 +2,11 @@ from __future__ import annotations
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 import os
 import ctypes
-from ctypes import c_int, POINTER, c_float, c_char_p, c_int_p
+from ctypes import c_int, POINTER, c_float, c_char_p
 from pathlib import Path
 import numpy as np
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFileHelper, InputFilePath
@@ -99,7 +100,7 @@ class OssHandle:
             self.liboss.cppdestrwrapper.argtypes = []
             self.liboss.cppdestrwrapper.restype = None
 
-    def check_have_library(self):
+    def check_have_library(self) -> None:
         """Check if the library is available, and if not throw an exception"""
         if self.liboss is None:
             if self.library_error_message is not None:
@@ -109,14 +110,14 @@ class OssHandle:
 
     def to_c_str(
         self, s: str | os.PathLike[str] | InputFilePath
-    ) -> tuple[c_char_p, c_int_p]:
+    ) -> tuple[c_char_p, Any]:
         """Convert a string like s to the types needed to pass to liboss"""
         sb = str(s).encode("utf-8")
         return c_char_p(sb), ctypes.byref(c_int(len(sb)))
 
     def to_c_str_arr(
         self, slist: list[StateElementIdentifier], slen: int = 6
-    ) -> tuple[c_int_p, c_int_p, c_char_p]:
+    ) -> tuple[Any, Any, c_char_p]:
         """Convert a list of StateElementIdentifier to the types
         needed to pass to liboss.
 
@@ -150,6 +151,7 @@ class OssHandle:
         # cris actually has two instrument types, and it might make more sense to have it
         # handled like that rather than a separate l1b_type carried around.
         self.check_have_library()
+        assert self.liboss is not None
         self.retrieval_state_element_id = retrieval_state_element_id
         self.species_list = species_list
         self.instrument = instrument
@@ -225,11 +227,11 @@ class OssHandle:
                 self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
             self.sel_file = (
                 self.dir_lut
-                + "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
             )
             self.od_file = (
                 self.dir_lut
-                + "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.lut"
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.lut"
             )
             self.sol_file = self.dir_lut / "newkur.dat"
             self.fix_file = self.dir_lut / "default.dat"
