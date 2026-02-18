@@ -14,95 +14,93 @@ import pickle
 import pytest
 
 
-# We don't have everything in place yet, so skip for now. This interfers with
-# MusesCrisForwardModel, we'll straighten that out in a bit.
-@pytest.mark.skip
 def test_cris_oss_init(ifile_hlp):
-    oss_handle.oss_init(
-        ifile_hlp,
-        [
-            StateElementIdentifier(i)
-            for i in ["H2O", "O3", "TSUR", "EMIS", "CLOUDEXT", "PCLOUD"]
-        ],
-        [
-            StateElementIdentifier(i)
-            for i in [
-                "PRESSURE",
-                "TATM",
-                "H2O",
-                "CO2",
-                "O3",
-                "N2O",
-                "CO",
-                "CH4",
-                "SO2",
-                "NH3",
-                "HNO3",
-                "OCS",
-                "N2",
-                "HCN",
-                "SF6",
-                "HCOOH",
-                "CCL4",
-                "CFC11",
-                "CFC12",
-                "CFC22",
-                "HDO",
-                "CH3OH",
-                "C2H4",
-                "PAN",
-            ]
-        ],
-        64,
-        121,
-        InstrumentIdentifier("CRIS"),
-        "suomi_nasa_fsr",
-    )
+    # Do multiple times, to make sure we have the handling for this in place
+    for i in range(10):
+        oss_handle.oss_init(
+            ifile_hlp,
+            [
+                StateElementIdentifier(i)
+                for i in ["H2O", "O3", "TSUR", "EMIS", "CLOUDEXT", "PCLOUD"]
+            ],
+            [
+                StateElementIdentifier(i)
+                for i in [
+                    "PRESSURE",
+                    "TATM",
+                    "H2O",
+                    "CO2",
+                    "O3",
+                    "N2O",
+                    "CO",
+                    "CH4",
+                    "SO2",
+                    "NH3",
+                    "HNO3",
+                    "OCS",
+                    "N2",
+                    "HCN",
+                    "SF6",
+                    "HCOOH",
+                    "CCL4",
+                    "CFC11",
+                    "CFC12",
+                    "CFC22",
+                    "HDO",
+                    "CH3OH",
+                    "C2H4",
+                    "PAN",
+                ]
+            ],
+            64,
+            121,
+            InstrumentIdentifier("CRIS"),
+            "suomi_nasa_fsr",
+        )
 
 
-# We don't have everything in place yet, so skip for now. This interfers with
-# MusesAirsForwardModel, we'll straighten that out in a bit.
-@pytest.mark.skip
 def test_airs_oss_init(ifile_hlp):
-    oss_handle.oss_init(
-        ifile_hlp,
-        [
-            StateElementIdentifier(i)
-            for i in ["H2O", "O3", "TSUR", "CLOUDEXT", "PCLOUD"]
-        ],
-        [
-            StateElementIdentifier(i)
-            for i in [
-                "PRESSURE",
-                "TATM",
-                "H2O",
-                "CO2",
-                "O3",
-                "N2O",
-                "CO",
-                "CH4",
-                "SO2",
-                "NH3",
-                "HNO3",
-                "OCS",
-                "N2",
-                "HCN",
-                "SF6",
-                "HCOOH",
-                "CCL4",
-                "CFC11",
-                "CFC12",
-                "CFC22",
-                "HDO",
-                "CH3OH",
-                "C2H4",
-                "PAN",
-            ]
-        ],
-        64,
-        121,
-        InstrumentIdentifier("AIRS"),
-    )
+    # Do multiple times, to make sure we have the handling for this in place
+    for i in range(10):
+        oss_handle.oss_init(
+            ifile_hlp,
+            [
+                StateElementIdentifier(i)
+                for i in ["H2O", "O3", "TSUR", "CLOUDEXT", "PCLOUD"]
+            ],
+            [
+                StateElementIdentifier(i)
+                for i in [
+                    "PRESSURE",
+                    "TATM",
+                    "H2O",
+                    "CO2",
+                    "O3",
+                    "N2O",
+                    "CO",
+                    "CH4",
+                    "SO2",
+                    "NH3",
+                    "HNO3",
+                    "OCS",
+                    "N2",
+                    "HCN",
+                    "SF6",
+                    "HCOOH",
+                    "CCL4",
+                    "CFC11",
+                    "CFC12",
+                    "CFC22",
+                    "HDO",
+                    "CH3OH",
+                    "C2H4",
+                    "PAN",
+                ]
+            ],
+            64,
+            121,
+            InstrumentIdentifier("AIRS"),
+        )
 
 
 @require_muses_py_fm

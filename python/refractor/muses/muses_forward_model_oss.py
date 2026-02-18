@@ -5,20 +5,30 @@ import ctypes
 from ctypes import c_int, POINTER, c_float, c_char_p
 from pathlib import Path
 import numpy as np
+from contextlib import contextmanager
+import sys
 import typing
-from typing import Any
+from typing import Any, Iterator
 
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFileHelper, InputFilePath
 
-# This is a work in progress. We would like to move over and simplify the vlidort
-# forward model, and hopefully remove using the UIP etc. But for right now, we
-# leverage off of muses-py
-#
-# Note that this has direct copied of stuff from muses_py_fm/muses_forward_model.py,
-# since we want to independent update stuff. This is obviously not desirable long
-# term.
-
+@contextmanager
+def suppress_stdout() -> Iterator[None]:
+    """A context manager to temporarily redirect stdout to /dev/null. We do that because
+    the OSS init is noisy, complaining about things we can' change."""
+    oldstdchannel = None
+    dest_file = None
+    try:
+        oldstdchannel = os.dup(sys.stdout.fileno())
+        dest_file = open(os.devnull, "w")
+        os.dup2(dest_file.fileno(), sys.stdout.fileno())
+        yield
+    finally:
+        if oldstdchannel is not None:
+            os.dup2(oldstdchannel, sys.stdout.fileno())
+        if dest_file is not None:
+            dest_file.close()
 
 class OssHandle:
     """This handles the OSS interface. Because it is a global, we need a central
@@ -99,6 +109,17 @@ class OssHandle:
             self.liboss.cppinitwrapper.restype = None
             self.liboss.cppdestrwrapper.argtypes = []
             self.liboss.cppdestrwrapper.restype = None
+        self.have_oss = False
+        # Values we used initializing, we check if this has changed to see if we
+        # need to update the initialization
+        self._init_sel_file = ""
+        self._init_od_file = ""
+        self._init_sol_file = ""
+        self._init_fix_file = ""
+        self._init_chsel_file = ""
+        self._init_nlevels = -1
+        self._init_nfreq = -1
+        self._init_atm_spec : list[StateElementIdentifier] = []
 
     def check_have_library(self) -> None:
         """Check if the library is available, and if not throw an exception"""
@@ -150,6 +171,8 @@ class OssHandle:
         # TODO Can we move the cris_l1b_type into the InstrumentIdentifier. It seems like
         # cris actually has two instrument types, and it might make more sense to have it
         # handled like that rather than a separate l1b_type carried around.
+        self.nlevels = nlevels
+        self.nfreq = nfreq
         self.check_have_library()
         assert self.liboss is not None
         self.retrieval_state_element_id = retrieval_state_element_id
@@ -159,12 +182,12 @@ class OssHandle:
 
         # Strip out items that aren't atmospheric, and also TATM (which gets
         # marked as atmospheric but isn't a gas species)
-        atm_spec = [
+        self.atm_spec = [
             s
             for s in self.species_list
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
-        jac_spec = [
+        self.jac_spec = [
             s
             for s in self.retrieval_state_element_id
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
@@ -178,15 +201,15 @@ class OssHandle:
             (StateElementIdentifier("CFC22"), StateElementIdentifier("CHCLF2")),
         ]
         for nm, rname in spec_rename:
-            if nm in atm_spec:
-                atm_spec[atm_spec.index(nm)] = rname
-            if nm in jac_spec:
-                jac_spec[jac_spec.index(nm)] = rname
+            if nm in self.atm_spec:
+                self.atm_spec[self.atm_spec.index(nm)] = rname
+            if nm in self.jac_spec:
+                self.jac_spec[self.jac_spec.index(nm)] = rname
 
         # Special case, turns out OSS doesn't work with no jacobians. So if our list
         # is empty, just add H2O so that there is something there
-        if len(jac_spec) == 0:
-            jac_spec = [StateElementIdentifier("H2O")]
+        if len(self.jac_spec) == 0:
+            self.jac_spec = [StateElementIdentifier("H2O")]
 
         # We handle the channel selection outside of the OSS code. This selects
         # the subsets of the full range of frequencies that we actually run the
@@ -253,6 +276,15 @@ class OssHandle:
         else:
             raise RuntimeError("Instrument does not match possible list")
 
+        # Notify that we read these files, since this is done in fortran we can't
+        # notify when we actually open the file like we do most places
+        ifile_hlp.notify_file_input(self.sel_file)
+        ifile_hlp.notify_file_input(self.od_file)
+        ifile_hlp.notify_file_input(self.sol_file)
+        ifile_hlp.notify_file_input(self.fix_file)
+        # chsel_file isn't used
+        # self.ifile_hlp.notify_file_input(self.chsel_file)
+
         # Hardcoded value from py-retrieve. Not sure exactly what this corresponds to
         min_ext_cld = c_float(0.0000001)
 
@@ -264,29 +296,69 @@ class OssHandle:
         # Will get filled in
         n_freq = c_int(0)
 
-        # Clean up any old initialization. Note this is safe to call even
-        # if no initialization has occurred yet.
-        self.liboss.cppdestrwrapper()
+        # Special handling for the first time through, working around
+        # what is a bug or "feature" of the OSS code (see MUSESCI-1240
+        # in jira). We need to run through the initialization again
+        # the first time
+        do_init = True
+        # Skip initialization if the only thing that changes in the jac_spec list,
+        # (we can separately update that part). The initialization is expensive relative
+        # to other OSS functions, so we skip if we can.
+        if (self.have_oss and self._init_sel_file == self.sel_file and
+            self._init_od_file == self.od_file and
+            self._init_sol_file == self.sol_file and
+            self._init_fix_file == self.fix_file and
+            self._init_chsel_file == self.chsel_file and
+            self._init_nlevels == self.nlevels and
+            self._init_nfreq == self. nfreq and
+            self._init_atm_spec == self.atm_spec):
+            do_init = False
+            
+        while do_init:
+            # Clean up any old initialization. Note this is safe to call even
+            # if no initialization has occurred yet.
+            self.liboss.cppdestrwrapper()
 
-        # nfreq and freq_oss get updated by this call, everything else is
-        # just a input.
-        self.liboss.cppinitwrapper(
-            *self.to_c_str_arr(atm_spec),
-            *self.to_c_str_arr(jac_spec),
-            *self.to_c_str(self.sel_file),
-            *self.to_c_str(self.od_file),
-            *self.to_c_str(self.sol_file),
-            *self.to_c_str(self.fix_file),
-            *self.to_c_str(self.chsel_file),
-            ctypes.byref(c_int(nlevels)),
-            ctypes.byref(c_int(nfreq)),
-            ctypes.byref(min_ext_cld),
-            ctypes.byref(n_freq),
-            freq_oss.ctypes.data_as(POINTER(c_float)),
-            ctypes.byref(c_int(mx_nfreq)),
-        )
-        self.freq_oss = freq_oss[: n_freq.value]
-
+            # n_freq and freq_oss get updated by this call, everything else is
+            # just a input.
+            # Suppress error messages we can't do anything about. *Note* if you
+            # are debugging a problem here make sure to turn the suppression off,
+            # otherwise you won't be able to see the problem.
+            with suppress_stdout():
+                self.liboss.cppinitwrapper(
+                    *self.to_c_str_arr(self.atm_spec),
+                    *self.to_c_str_arr(self.jac_spec),
+                    *self.to_c_str(self.sel_file),
+                    *self.to_c_str(self.od_file),
+                    *self.to_c_str(self.sol_file),
+                    *self.to_c_str(self.fix_file),
+                    *self.to_c_str(self.chsel_file),
+                    ctypes.byref(c_int(self.nlevels)),
+                    ctypes.byref(c_int(self.nfreq)),
+                    ctypes.byref(min_ext_cld),
+                    ctypes.byref(n_freq),
+                    freq_oss.ctypes.data_as(POINTER(c_float)),
+                    ctypes.byref(c_int(mx_nfreq)),
+                )
+            self.freq_oss = freq_oss[: n_freq.value]
+            # Save data used so we can skip initialization in the future if
+            # things don't change.
+            self._init_sel_file = self.sel_file
+            self._init_od_file = self.od_file
+            self._init_sol_file = self.sol_file
+            self._init_fix_file = self.fix_file
+            self._init_chsel_file = self.chsel_file
+            self._init_nlevels = self.nlevels
+            self._init_nfreq = self.nfreq
+            self._init_atm_spec = self.atm_spec
+            if self.first_oss_initialize:
+                # First time through, repeat the initialization
+                self.first_oss_initialize = False
+                do_init = True
+            else:
+                self.have_oss = True
+                do_init = False
+        pass
 
 oss_handle = OssHandle()
 
