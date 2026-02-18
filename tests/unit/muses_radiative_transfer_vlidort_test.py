@@ -11,10 +11,12 @@ from fixtures.require_check import require_muses_py_fm
 import numpy.testing as npt
 
 
+# These tests use the full forward model, which tests MusesRadiativeTransferVlidort underneath.
+# Easier to compare the full results to the old refractor.muses_py_fm objects.
+
+
 @require_muses_py_fm
 def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
-    # Note, we need the run dir for these tests because match_py_retrieve puts files in
-    # run directory
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
@@ -68,8 +70,6 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
 
 @require_muses_py_fm
 def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
-    # Note, we need the run dir for these tests because match_py_retrieve puts files in
-    # run directory
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),

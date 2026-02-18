@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from refractor.muses import (
     RefractorFmObjectCreator,
     ForwardModelHandle,
+    ForwardModelHandleSet,
     MusesRaman,
     SurfaceAlbedo,
     InstrumentIdentifier,
@@ -979,5 +980,13 @@ def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray
     with h5py.File(str(i_filename)) as f:
         return f[i_variable_name][:]
 
+
+# Default forward model is the VLIDORT one, so we are as close to
+# py-retrieve results as possible. Should look into changing to LIDORT,
+# which is faster
+ForwardModelHandleSet.add_default_handle(
+    OmiForwardModelHandle(use_vlidort=True),
+    priority_order=-1,
+)
 
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]

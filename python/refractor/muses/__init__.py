@@ -104,9 +104,6 @@ from .muses_cris_observation import (
 from .muses_forward_model_oss import (
     oss_handle,
 )
-from .muses_forward_model_vlidort import (
-    MusesForwardModelVlidort,
-)
 from .muses_levmar_solver import (
     MusesLevmarSolver,
     SolverLogFileWriter,
@@ -125,6 +122,9 @@ from .muses_observation import (
 )
 from .muses_optical_depth import (
     MusesOpticalDepth,
+)
+from .muses_radiative_transfer_vlidort import (
+    MusesRadiativeTransferVlidort,
 )
 from .muses_raman import (
     MusesRaman,
@@ -378,7 +378,6 @@ __all__ = [
     "MusesAirsObservation",
     "MusesAltitudePge",
     "MusesCrisObservation",
-    "MusesForwardModelVlidort",
     "MusesLevmarSolver",
     "MusesObservation",
     "MusesObservationHandle",
@@ -387,6 +386,7 @@ __all__ = [
     "MusesOpticalDepth",
     "MusesPyQaDataHandle",
     "MusesPySpectralWindowHandle",
+    "MusesRadiativeTransferVlidort",
     "MusesRaman",
     "MusesReflectanceObservation",
     "MusesRunDir",
@@ -505,8 +505,6 @@ __all__ = [
     "mpy_radiance_from_observation_list",
     "order_species",
     "oss_handle",
-    "rtf_omi",
-    "rtf_tropomi",
     "species_type",
 ]
 # </AUTOGEN_INIT>
