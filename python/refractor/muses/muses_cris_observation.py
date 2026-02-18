@@ -170,7 +170,7 @@ class MusesCrisObservation(MusesObservationImp):
 
     @property
     def instrument_name(self) -> InstrumentIdentifier:
-        return InstrumentIdentifier("CRIS")
+        return InstrumentIdentifier("CRIS", self.l1b_type)
 
     @property
     def spacecraft_altitude(self) -> rf.DoubleWithUnit:
