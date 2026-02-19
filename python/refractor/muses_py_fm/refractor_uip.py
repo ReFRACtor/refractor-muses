@@ -1675,19 +1675,19 @@ class RefractorUip:
         logger.debug(
             f"Creating rf_uip for {[str(obs.instrument_name) for obs in obs_list]}"
         )
-        if str(obs_list[0].instrument_name) == "TROPOMI":
+        if obs_list[0].instrument_name == InstrumentIdentifier("TROPOMI"):
             rconf.input_file_helper.notify_file_input(
                 rconf.input_file_helper.osp_dir / "TROPOMI" / "rayTable-NADIR.asc"
             )
-        if str(obs_list[0].instrument_name) == "OMI":
+        if obs_list[0].instrument_name == InstrumentIdentifier("OMI"):
             rconf.input_file_helper.notify_file_input(
                 rconf.input_file_helper.osp_dir / "OMI" / "rayTable-NADIR.asc"
             )
-        if str(obs_list[0].instrument_name) == "AIRS":
+        if obs_list[0].instrument_name == InstrumentIdentifier("AIRS"):
             rconf.input_file_helper.notify_file_input(
                 rconf["defaultStrategyTableDirectory"] / "rayTable-NADIR.asc"
             )
-        if str(obs_list[0].instrument_name) == "CRIS":
+        if obs_list[0].instrument_name == InstrumentIdentifier("CRIS"):
             rconf.input_file_helper.notify_file_input(
                 rconf["defaultStrategyTableDirectory"] / "rayTable-NADIR.asc"
             )
@@ -1735,9 +1735,9 @@ class RefractorUip:
             "OCO2": None,
         }
         for obs in obs_list:
-            iname = obs.instrument_name
-            if str(iname) in o_xxx:
-                o_xxx[str(iname)] = obs
+            iname = obs.instrument_name.s
+            if iname in o_xxx:
+                o_xxx[iname] = obs
         rf_uip = RefractorUip.create_uip(
             fake_state_info,  # type: ignore[arg-type]
             fake_table,

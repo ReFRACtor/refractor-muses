@@ -480,7 +480,7 @@ class MusesObservationImp(MusesObservation):
             "filterSizes": [sz for _, sz in self.filter_data_full],
             # Only have one instrument
             "instrumentNames": [
-                str(self.instrument_name),
+                self.instrument_name.s,
             ],
             "instrumentSizes": [
                 sd.size,

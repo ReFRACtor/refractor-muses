@@ -35,7 +35,6 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
     def __init__(
         self,
         current_state: CurrentState,
-        measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         absorption_gases: list[str] = ["H2O", "CO", "CH4", "HDO"],
@@ -47,7 +46,6 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
     ) -> None:
         super().__init__(
             current_state,
-            measurement_id,
             retrieval_config,
             observation,
             absorption_gases=absorption_gases,
@@ -138,14 +136,12 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
 class TropomiSwirForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id: None | MeasurementId = None
 
     def notify_update_target(
         self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
 
     def forward_model(
@@ -158,12 +154,11 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
-        if self.measurement_id is None:
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating forward model using using TropmiSwirFmObjectCreator")
         obj_creator = TropomiSwirFmObjectCreator(
             current_state,
-            self.measurement_id,
             self.retrieval_config,
             obs,
             fm_sv=fm_sv,

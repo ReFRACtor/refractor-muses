@@ -46,7 +46,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(
         self,
         current_state: CurrentState,
-        measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         use_raman: bool = True,
@@ -56,7 +55,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     ) -> None:
         super().__init__(
             current_state,
-            measurement_id,
             retrieval_config,
             InstrumentIdentifier("TROPOMI"),
             observation,
@@ -921,7 +919,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id: None | MeasurementId = None
         self.retrieval_config: None | RetrievalConfiguration = None
 
     def notify_update_target(
@@ -929,7 +926,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
 
     def forward_model(
@@ -942,7 +938,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
-        if self.measurement_id is None or self.retrieval_config is None:
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
         model_type = (
             "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
@@ -952,7 +948,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         )
         obj_creator = TropomiFmObjectCreator(
             current_state,
-            self.measurement_id,
             self.retrieval_config,
             obs,
             fm_sv=fm_sv,

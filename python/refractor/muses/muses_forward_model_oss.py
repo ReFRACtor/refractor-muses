@@ -119,14 +119,17 @@ class OssHandle:
         self.have_oss = False
         # Values we used initializing, we check if this has changed to see if we
         # need to update the initialization
-        self._init_sel_file = ""
-        self._init_od_file = ""
-        self._init_sol_file = ""
-        self._init_fix_file = ""
-        self._init_chsel_file = ""
-        self._init_nlevels = -1
-        self._init_nfreq = -1
-        self._init_atm_spec : list[StateElementIdentifier] = []
+        self.sel_file: str | os.PathLike[str] | InputFilePath = ""
+        self.od_file: str | os.PathLike[str] | InputFilePath  = ""
+        self.sol_file: str | os.PathLike[str] | InputFilePath  = ""
+        self.fix_file: str | os.PathLike[str] | InputFilePath  = ""
+        self.nlevels = -1
+        self.nfreq = -1
+        self.atm_spec : list[StateElementIdentifier] = []
+        # We handle the channel selection outside of the OSS code. This selects
+        # the subsets of the full range of frequencies that we actually run the
+        # forward model on
+        self.chsel_file = "NULL"
 
     def check_have_library(self) -> None:
         """Check if the library is available, and if not throw an exception"""
@@ -173,21 +176,37 @@ class OssHandle:
         nfreq: int, # This seems to be the size of the emissivity. Perhaps verify,
                     # And if so change it name. This has nothing to do with the
                     # size of freq_oss that gets filled in
-        instrument: InstrumentIdentifier,
-        cris_l1b_type: str = "",
-        dir_lut: InputFilePath | None = None,
+        sel_file : str | os.PathLike[str] | InputFilePath,
+        od_file : str | os.PathLike[str] | InputFilePath,
+        sol_file : str | os.PathLike[str] | InputFilePath,
+        fix_file : str | os.PathLike[str] | InputFilePath,
     ) -> None:
-        # TODO Can we move the cris_l1b_type into the InstrumentIdentifier. It seems like
-        # cris actually has two instrument types, and it might make more sense to have it
-        # handled like that rather than a separate l1b_type carried around.
-        self.nlevels = nlevels
-        self.nfreq = nfreq
         self.check_have_library()
         assert self.liboss is not None
+        # Skip initialization if the only thing that changes in the jac_spec list,
+        # (we can separately update that part). The initialization is expensive relative
+        # to other OSS functions, so we skip if we can.
+        if (self.have_oss and
+            self.sel_file == sel_file and
+            self.od_file == od_file and
+            self.sol_file == sol_file and
+            self.fix_file == fix_file and
+            self.nlevels == nlevels and
+            self.nfreq == nfreq and
+            self.species_list == species_list):
+            return
+        
+        self.sel_file = sel_file
+        self.od_file = od_file
+        self.sol_file = sol_file
+        self.fix_file = fix_file
+        self.nlevels = nlevels
+        self.nfreq = nfreq
+        self.species_list = species_list
+        self.nlevels = nlevels
+        self.nfreq = nfreq
         self.retrieval_state_element_id = retrieval_state_element_id
         self.species_list = species_list
-        self.instrument = instrument
-        self.dir_lut = dir_lut
 
         # Strip out items that aren't atmospheric, and also TATM (which gets
         # marked as atmospheric but isn't a gas species)
@@ -220,70 +239,37 @@ class OssHandle:
         if len(self.jac_spec) == 0:
             self.jac_spec = [StateElementIdentifier("H2O")]
 
-        # We handle the channel selection outside of the OSS code. This selects
-        # the subsets of the full range of frequencies that we actually run the
-        # forward model on
-        self.chsel_file = "NULL"
-
         # Should perhaps move this logic out of here and into the forward models.
         # We could just pass in sel_file, od_file, sol_file and fix_file
-        if instrument == InstrumentIdentifier("TES"):
-            if self.dir_lut is None:
-                self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "TES " / "2018-03-14"
-            self.sel_file = (
-                self.dir_lut
-                / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
-            )
-            self.od_file = (
-                self.dir_lut
-                / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
-            )
-            self.sol_file = self.dir_lut / "newkur.dat"
-            self.fix_file = self.dir_lut / "default.dat"
-        elif instrument == InstrumentIdentifier("AIRS"):
-            if self.dir_lut is None:
-                self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "AIRS" / "2017-07"
-            self.sel_file = (
-                self.dir_lut
-                / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
-            )
-            self.od_file = (
-                self.dir_lut
-                / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
-            )
-            self.sol_file = self.dir_lut / "newkur.dat"
-            self.fix_file = self.dir_lut / "default.dat"
-        elif instrument == InstrumentIdentifier("CRIS") and "nsr" in cris_l1b_type:
-            # updated 1/2023
-            if self.dir_lut is None:
-                self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
-            self.sel_file = (
-                self.dir_lut
-                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
-            )
-            self.od_file = (
-                self.dir_lut
-                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.lut"
-            )
-            self.sol_file = self.dir_lut / "newkur.dat"
-            self.fix_file = self.dir_lut / "default.dat"
-        elif instrument == InstrumentIdentifier("CRIS"):
-            if self.dir_lut is None:
-                self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2017-08"
-            self.sel_file = (
-                self.dir_lut
-                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.sel"
-            )
-
-            self.od_file = (
-                self.dir_lut
-                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.lut"
-            )
-
-            self.sol_file = self.dir_lut / "newkur.dat"
-            self.fix_file = self.dir_lut / "default.dat"
-        else:
-            raise RuntimeError("Instrument does not match possible list")
+        if False:
+            if instrument == InstrumentIdentifier("TES"):
+                if self.dir_lut is None:
+                    self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "TES " / "2018-03-14"
+                self.sel_file = (
+                    self.dir_lut
+                    / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
+                )
+                self.od_file = (
+                    self.dir_lut
+                    / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
+                )
+                self.sol_file = self.dir_lut / "newkur.dat"
+                self.fix_file = self.dir_lut / "default.dat"
+            elif instrument == InstrumentIdentifier("AIRS"):
+                if self.dir_lut is None:
+                    self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "AIRS" / "2017-07"
+                self.sel_file = (
+                    self.dir_lut
+                    / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
+                )
+                self.od_file = (
+                    self.dir_lut
+                    / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
+                )
+                self.sol_file = self.dir_lut / "newkur.dat"
+                self.fix_file = self.dir_lut / "default.dat"
+            else:
+                raise RuntimeError("Instrument does not match possible list")
 
         # Notify that we read these files, since this is done in fortran we can't
         # notify when we actually open the file like we do most places
@@ -292,7 +278,7 @@ class OssHandle:
         ifile_hlp.notify_file_input(self.sol_file)
         ifile_hlp.notify_file_input(self.fix_file)
         # chsel_file isn't used
-        # self.ifile_hlp.notify_file_input(self.chsel_file)
+        # ifile_hlp.notify_file_input(self.chsel_file)
 
         # Hardcoded value from py-retrieve. Not sure exactly what this corresponds to
         min_ext_cld = c_float(0.0000001)
@@ -310,19 +296,7 @@ class OssHandle:
         # in jira). We need to run through the initialization again
         # the first time
         do_init = True
-        # Skip initialization if the only thing that changes in the jac_spec list,
-        # (we can separately update that part). The initialization is expensive relative
-        # to other OSS functions, so we skip if we can.
-        if (self.have_oss and self._init_sel_file == self.sel_file and
-            self._init_od_file == self.od_file and
-            self._init_sol_file == self.sol_file and
-            self._init_fix_file == self.fix_file and
-            self._init_chsel_file == self.chsel_file and
-            self._init_nlevels == self.nlevels and
-            self._init_nfreq == self. nfreq and
-            self._init_atm_spec == self.atm_spec):
-            do_init = False
-            
+        
         while do_init:
             # Clean up any old initialization. Note this is safe to call even
             # if no initialization has occurred yet.
@@ -350,16 +324,6 @@ class OssHandle:
                     ctypes.byref(c_int(mx_nfreq)),
                 )
             self.freq_oss = freq_oss[: n_freq.value]
-            # Save data used so we can skip initialization in the future if
-            # things don't change.
-            self._init_sel_file = self.sel_file
-            self._init_od_file = self.od_file
-            self._init_sol_file = self.sol_file
-            self._init_fix_file = self.fix_file
-            self._init_chsel_file = self.chsel_file
-            self._init_nlevels = self.nlevels
-            self._init_nfreq = self.nfreq
-            self._init_atm_spec = self.atm_spec
             if self.first_oss_initialize:
                 # First time through, repeat the initialization
                 self.first_oss_initialize = False
@@ -367,7 +331,6 @@ class OssHandle:
             else:
                 self.have_oss = True
                 do_init = False
-        pass
 
 oss_handle = OssHandle()
 
@@ -394,9 +357,16 @@ class MusesForwardModelOssBase(rf.ForwardModel):
     We can revisit this if we determine that there is a strong reason to use the
     traditional structure instead.
     '''
-    def __init__(self, obs: MusesObservation, **kwargs: Any) -> None:
+    def __init__(self,
+                 obs: MusesObservation,
+                 retrieval_config: RetrievalConfiguration,
+                 dir_lut: Path | InputFilePath | None = None,
+                 **kwargs: Any) -> None:
         super().__init__()
         self.obs = obs
+        self.retrieval_config = retrieval_config
+        self.ifile_hlp = retrieval_config.input_file_helper
+        self.dir_lut = dir_lut
 
     def setup_grid(self) -> None:
         # Nothing that we need to do for this
@@ -790,7 +760,76 @@ class MusesForwardModelOssIrk(MusesForwardModelOssBase):
 
 class MusesCrisForwardModelOss(MusesForwardModelOssIrk):
     def _init_oss(self) -> None():
-        raise NotImplementedError()
+        # Different files depends on l1b_type
+        if self.obs.instrument_name  == InstrumentIdentifier("CRIS", "suomi_nasa_nsr"):
+            if self.dir_lut is None:
+                self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
+            sel_file = (
+                    self.dir_lut
+                    / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
+            )
+            od_file = (
+                self.dir_lut
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.lut"
+            )
+            sol_file = self.dir_lut / "newkur.dat"
+            fix_file = self.dir_lut / "default.dat"
+        else:
+            if self.dir_lut is None:
+                self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2017-08"
+            sel_file = (
+                self.dir_lut
+                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.sel"
+            )
+
+            od_file = (
+                self.dir_lut
+                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.lut"
+            )
+
+            sol_file = self.dir_lut / "newkur.dat"
+            fix_file = self.dir_lut / "default.dat"
+        # The retrieval and species list seem to be hardcoded. I think this
+        # corresponds to what is available in the various input files
+        retrieval_state_element_id = [
+            StateElementIdentifier(i)
+            for i in ["H2O", "O3", "TSUR", "EMIS", "CLOUDEXT", "PCLOUD"]
+        ]
+        species_list = [
+                StateElementIdentifier(i)
+                for i in [
+                    "PRESSURE",
+                    "TATM",
+                    "H2O",
+                    "CO2",
+                    "O3",
+                    "N2O",
+                    "CO",
+                    "CH4",
+                    "SO2",
+                    "NH3",
+                    "HNO3",
+                    "OCS",
+                    "N2",
+                    "HCN",
+                    "SF6",
+                    "HCOOH",
+                    "CCL4",
+                    "CFC11",
+                    "CFC12",
+                    "CFC22",
+                    "HDO",
+                    "CH3OH",
+                    "C2H4",
+                    "PAN",
+                ]
+            ]
+        # We need to come up with a way to get these values
+        nlevels = 64
+        nfreq = 121
+        oss_handle.oss_init(self.ifile_hlp, retrieval_state_element_id,
+                            species_list, nlevels, nfreq, sel_file,
+                            od_file, sol_file, fix_file)
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""

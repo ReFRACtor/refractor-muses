@@ -264,7 +264,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "THROW_AWAY_WINDOW_INDEX": -1,
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
-                        "instrument": str(self.instrument_name),
+                        "instrument": self.instrument_name.s,
                         "RT": self.rt[i, j]
                         if self.rt is not None and self.rt[i, j] is not None
                         else "None",
@@ -300,7 +300,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                     # In a truly kludgy way, mw_augment_default in py-retrieve
                     # overrides these values, for AIRS only. Duplicate this
                     # functionality.
-                    if str(self.instrument_name) == "AIRS":
+                    if self.instrument_name == InstrumentIdentifier("AIRS"):
                         v2["maxopd"] = 0
                         v2["spacing"] = 0
                         freqs = np.array(
@@ -346,7 +346,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 FilterIdentifier(i)
                 for i in dict.fromkeys(
                     fspec.checked_table[
-                        fspec.checked_table["Instrument"] == str(iname)
+                        fspec.checked_table["Instrument"] == iname.s
                     ]["Filter"].to_list()
                 )
             ]
@@ -421,7 +421,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """
         fspec = ifile_hlp.open_tes(spec_fname)
         rowlist = fspec.checked_table[
-            fspec.checked_table["Instrument"] == str(instrument_name)
+            fspec.checked_table["Instrument"] == instrument_name.s
         ]
 
         flist = list(dict.fromkeys(rowlist["Filter"].to_list()))
@@ -665,7 +665,7 @@ class TesSpectralWindow(MusesSpectralWindow):
             "filterNames": [str(fid) for fid, _ in self._obs.filter_data_full],
             "filterSizes": [sz for _, sz in self._obs.filter_data_full],
             "instrumentNames": [
-                str(self._obs.instrument_name),
+                self._obs.instrument_name.s,
             ],
             "instrumentSizes": [
                 sd.size,

@@ -55,7 +55,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def __init__(
         self,
         current_state: CurrentState,
-        measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
@@ -114,7 +113,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         else:
             self.fm_sv = current_state.setup_fm_state_vector()
         self.current_state = current_state
-        self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
         self.ifile_hlp = retrieval_config.input_file_helper
         self.use_vlidort = use_vlidort

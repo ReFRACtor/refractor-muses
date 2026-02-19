@@ -133,7 +133,7 @@ def test_muses_spectral_window_microwindows(ifile_hlp):
     fmeta = FileFilterMetadata(default_fname, ifile_hlp)
     swin = MusesSpectralWindow.create_from_file(
         spec_fname,
-        "TROPOMI",
+        InstrumentIdentifier("TROPOMI"),
         ifile_hlp,
         filter_metadata=fmeta,
         different_filter_different_sensor_index=True,

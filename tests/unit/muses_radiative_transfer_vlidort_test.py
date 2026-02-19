@@ -27,7 +27,6 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
     obs_tropomi.spectral_window.include_bad_sample = True
     ocreator = TropomiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs_tropomi,
         use_vlidort=True,
@@ -80,7 +79,6 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
     obs_omi.spectral_window.include_bad_sample = True
     ocreator = OmiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs_omi,
         use_vlidort=True,

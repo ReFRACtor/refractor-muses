@@ -112,7 +112,7 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
         None,
     )
     obs_cris.spectral_window.include_bad_sample = True
-    fm = MusesCrisForwardModelOss(obs_cris)
+    fm = MusesCrisForwardModelOss(obs_cris, rs.retrieval_config)
     s = fm.radiance(0)
     #rad = s.spectral_range.data
     #jac = s.spectral_range.data_ad.jacobian
