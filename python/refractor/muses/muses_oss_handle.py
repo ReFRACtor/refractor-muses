@@ -160,6 +160,13 @@ class MusesOssHandle:
             c_char_p(b"".join(t)),
         )
 
+    def oss_cleanup(self):
+        '''We don't normally need to call this, but when coordinating with the old
+        py-retrieve code we need to since we are sharing a global resource. Clean
+        up any allocation, and mark us as not having OSS.'''
+        self.liboss.cppdestrwrapper()
+        self.have_oss = False
+        
     def oss_init(
         self,
         ifile_hlp: InputFileHelper,

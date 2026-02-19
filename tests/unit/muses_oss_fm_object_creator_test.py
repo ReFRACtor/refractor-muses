@@ -71,7 +71,6 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     s = fm.radiance(0)
     #rad = s.spectral_range.data
     #jac = s.spectral_range.data_ad.jacobian
-    
     fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data

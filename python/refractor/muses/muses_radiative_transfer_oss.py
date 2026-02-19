@@ -65,6 +65,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                                   self.od_file,
                                   self.sol_file,
                                   self.fix_file)
+        a = rf.ArrayAd_double_1(np.zeros(sd.data.shape))
+        sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+        return rf.Spectrum(sd, sr)
         
     def stokes(self, sd: rf.SpectralDomain, sensor_index: int) -> np.ndarray:
         raise NotImplementedError(
