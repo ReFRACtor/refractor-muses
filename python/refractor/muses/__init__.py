@@ -51,6 +51,10 @@ from .muses_observation import (MeasurementId, MeasurementIdDict,
                                 SimulatedObservation,
                                 SimulatedObservationHandle,)
 from .muses_optical_depth import (MusesOpticalDepth,)
+from .muses_oss_fm_object_creator import (CrisFmObjectCreator,
+                                          MusesOssFmObjectCreator,)
+from .muses_oss_handle import (muses_oss_handle,)
+from .muses_radiative_transfer_oss import (MusesRadiativeTransferOss,)
 from .muses_radiative_transfer_vlidort import (MusesRadiativeTransferVlidort,)
 from .muses_raman import (MusesRaman, SurfaceAlbedo,)
 from .muses_reflectance_observation import (MusesOmiObservation,
@@ -145,7 +149,7 @@ __all__ = ['AdapterRetrievalConfiguration', 'AttrDictAdapter',
            'CdfWriteLiteTes', 'CdfWriteTes', 'CloudResultSummary',
            'ColumnResultSummary', 'CostFunction', 'CostFunctionCreator',
            'CostFunctionStateElementNotify', 'CreatorHandle',
-           'CreatorHandleSet', 'CrossStateElement',
+           'CreatorHandleSet', 'CrisFmObjectCreator', 'CrossStateElement',
            'CrossStateElementDefaultHandle', 'CrossStateElementHandle',
            'CrossStateElementHandleSet', 'CrossStateElementImplementation',
            'CurrentState', 'CurrentStateDict', 'CurrentStateRecordAndPlay',
@@ -165,11 +169,13 @@ __all__ = ['AdapterRetrievalConfiguration', 'AttrDictAdapter',
            'MusesCrisObservation', 'MusesForwardModelOssBase',
            'MusesForwardModelOssIrk', 'MusesLevmarSolver', 'MusesObservation',
            'MusesObservationHandle', 'MusesObservationHandlePickleSave',
-           'MusesOmiObservation', 'MusesOpticalDepth', 'MusesPyQaDataHandle',
-           'MusesPySpectralWindowHandle', 'MusesRadiativeTransferVlidort',
-           'MusesRaman', 'MusesReflectanceObservation', 'MusesRunDir',
-           'MusesSpectralWindow', 'MusesSpectrumSampling', 'MusesStrategy',
-           'MusesStrategyExecutor', 'MusesStrategyExecutorMusesStrategy',
+           'MusesOmiObservation', 'MusesOpticalDepth',
+           'MusesOssFmObjectCreator', 'MusesPyQaDataHandle',
+           'MusesPySpectralWindowHandle', 'MusesRadiativeTransferOss',
+           'MusesRadiativeTransferVlidort', 'MusesRaman',
+           'MusesReflectanceObservation', 'MusesRunDir', 'MusesSpectralWindow',
+           'MusesSpectrumSampling', 'MusesStrategy', 'MusesStrategyExecutor',
+           'MusesStrategyExecutorMusesStrategy',
            'MusesStrategyExecutorRetrievalStrategyStep', 'MusesStrategyHandle',
            'MusesStrategyHandleSet', 'MusesStrategyImp',
            'MusesStrategyModifyHandle', 'MusesStrategyStepList',
@@ -218,5 +224,5 @@ __all__ = ['AdapterRetrievalConfiguration', 'AttrDictAdapter',
            'compare_species', 'docopt_simple', 'extra_l2_output',
            'get_emis_dispatcher', 'greatcircle', 'is_atmospheric_species',
            'modify_strategy_table', 'mpy_radiance_from_observation_list',
-           'order_species', 'oss_handle', 'species_type']
+           'muses_oss_handle', 'order_species', 'oss_handle', 'species_type']
 # </AUTOGEN_INIT>

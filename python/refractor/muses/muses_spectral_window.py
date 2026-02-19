@@ -346,7 +346,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 FilterIdentifier(i)
                 for i in dict.fromkeys(
                     fspec.checked_table[
-                        fspec.checked_table["Instrument"] == iname.s
+                        fspec.checked_table["Instrument"] == iname.base_name
                     ]["Filter"].to_list()
                 )
             ]
@@ -375,7 +375,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
             # special handling here.
             # Temp, until we get this to work for AIRS and CRIS
             different_filter_different_sensor_index = True
-            if str(iname) in ("AIRS", "CRIS", "TES"):
+            if iname in (InstrumentIdentifier("AIRS"), InstrumentIdentifier("CRIS"),
+                         InstrumentIdentifier("TES")):
                 different_filter_different_sensor_index = False
             res[iname] = cls.create_from_file(
                 spec_fname,

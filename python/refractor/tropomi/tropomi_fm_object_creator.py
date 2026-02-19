@@ -56,7 +56,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         super().__init__(
             current_state,
             retrieval_config,
-            InstrumentIdentifier("TROPOMI"),
             observation,
             use_raman=use_raman,
             **kwargs,
@@ -172,7 +171,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         return self.retrieval_config["ils_tropomi_xsection"]
 
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
-        band_name = str(self.filter_list[sensor_index])
+        band_name = str(self.observation.channel_list[sensor_index])
         if band_name == "BAND7":
             # JLL: testing different values of HWHM with the IlsGrating component,
             # this value (= a 0.2 nm difference at 2330 nm) gave output spectra that
@@ -202,7 +201,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # frequency (see rev_and_fm_map
         res = []
         for i in range(self.num_channels):
-            filter_name = self.filter_list[i]
+            filter_name = self.observation.channel_list[i]
 
             selem = [
                 StateElementIdentifier(f"TROPOMIRESSCALEO0{filter_name}"),
@@ -255,7 +254,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         band_reference = np.zeros(self.num_channels)
         selem = []
         for i in range(self.num_channels):
-            filt_name = self.filter_list[i]
+            filt_name = self.observation.channel_list[i]
             if re.match(r"BAND\d$", str(filt_name)) is not None:
                 band_reference[i] = self.reference_wavelength(i)
                 selem.extend(
@@ -276,7 +275,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             albedo,
             rf.ArrayWithUnit(band_reference, "nm"),
             rf.Unit("nm"),
-            [str(i) for i in self.filter_list],
+            [str(i) for i in self.observation.channel_list],
             mp,
         )
         self.current_state.add_fm_state_vector_if_needed(
@@ -349,17 +348,17 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
         selem = [
-            StateElementIdentifier(f"TROPOMIRINGSF{self.filter_list[i]}"),
+            StateElementIdentifier(f"TROPOMIRINGSF{self.observation.channel_list[i]}"),
         ]
-        if str(self.filter_list[i]) in ("BAND1", "BAND2", "BAND3"):
+        if str(self.observation.channel_list[i]) in ("BAND1", "BAND2", "BAND3"):
             coeff, mp = self.current_state.object_state(selem)
             scale_factor = float(coeff[0])
-        elif str(self.filter_list[i]) in ("BAND7", "BAND8"):
+        elif str(self.observation.channel_list[i]) in ("BAND7", "BAND8"):
             # JLL: The SWIR bands should not need to account for Raman scattering -
             # Vijay has never seen Raman scattering accounted for in the CO band.
             scale_factor = None
         else:
-            raise RuntimeError("Unrecognized filter_list")
+            raise RuntimeError("Unrecognized channel_list")
         if scale_factor is None:
             return None
         else:
@@ -375,9 +374,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 wlen,
                 float(scale_factor),
                 i,
-                rf.DoubleWithUnit(self.sza[i], "deg"),
-                rf.DoubleWithUnit(self.oza[i], "deg"),
-                rf.DoubleWithUnit(self.raz[i], "deg"),
+                rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+                rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+                rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
                 self.atmosphere,
                 self.solar_model(i),
                 rf.StateMappingLinear(),
@@ -417,17 +416,17 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @lru_cache(maxsize=None)
     def raman_effect_refractor(self, i: int) -> rf.RamanSiorisEffect:
         selem = [
-            StateElementIdentifier(f"TROPOMIRINGSF{self.filter_list[i]}"),
+            StateElementIdentifier(f"TROPOMIRINGSF{self.observation.channel_list[i]}"),
         ]
-        if str(self.filter_list[i]) in ("BAND1", "BAND2", "BAND3"):
+        if str(self.observation.channel_list[i]) in ("BAND1", "BAND2", "BAND3"):
             coeff, mp = self.current_state.object_state(selem)
             scale_factor = float(coeff[0])
-        elif str(self.filter_list[i]) in ("BAND7", "BAND8"):
+        elif str(self.observation.channel_list[i]) in ("BAND7", "BAND8"):
             # JLL: The SWIR bands should not need to account for Raman scattering -
             # Vijay has never seen Raman scattering accounted for in the CO band.
             scale_factor = None
         else:
-            raise RuntimeError("Unrecognized filter_list")
+            raise RuntimeError("Unrecognized channel_list")
         if scale_factor is None:
             return None
         else:
@@ -440,9 +439,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 wlen,
                 scale_factor,
                 i,
-                rf.DoubleWithUnit(self.sza[i], "deg"),
-                rf.DoubleWithUnit(self.oza[i], "deg"),
-                rf.DoubleWithUnit(self.raz[i], "deg"),
+                rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+                rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+                rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
                 self.atmosphere,
                 self.solar_model(i),
                 rf.StateMappingLinear(),

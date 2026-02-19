@@ -1735,7 +1735,7 @@ class RefractorUip:
             "OCO2": None,
         }
         for obs in obs_list:
-            iname = obs.instrument_name.s
+            iname = obs.instrument_name.base_name
             if iname in o_xxx:
                 o_xxx[iname] = obs
         rf_uip = RefractorUip.create_uip(

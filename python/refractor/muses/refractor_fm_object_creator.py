@@ -56,7 +56,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self,
         current_state: CurrentState,
         retrieval_config: RetrievalConfiguration,
-        instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         # Values, so we can flip between using pca and not
@@ -104,7 +103,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.use_pca = use_pca
         self.use_lrad = use_lrad
         self.use_raman = use_raman
-        self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.match_py_retrieve = match_py_retrieve
         self.observation = observation
@@ -141,14 +139,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     self.observation,
                 ],
             )
-
-        self.filter_list = self.observation.filter_list
+            
         self.num_channels = self.observation.num_channels
-
-        self.sza = self.observation.solar_zenith
-        self.oza = self.observation.observation_zenith
-        self.raz = self.observation.relative_azimuth
-
+            
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
@@ -199,7 +192,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
         rinfo = MusesRayInfo(
             self._rf_uip,
-            str(self.instrument_name),
+            self.observation.instrument_name.base_name,
             self.pressure,
         )
         # Skipping needed by some old unit tests, not something you would normally do
@@ -293,7 +286,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         for i in range(self.num_channels):
             sg = rf.SampleGridSpectralDomain(
                 self.observation.spectral_domain_full(i),
-                str(self.observation.filter_list[i]),
+                str(self.observation.channel_list[i]),
             )
             if self.ils_method(i) == "FASTCONV":
                 iparms = self.ils_params(i)
@@ -308,8 +301,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     iparms["where_extract"],
                     sg,
                     high_res_ext,
-                    str(self.filter_list[i]),
-                    str(self.filter_list[i]),
+                    str(self.observation.channel_list[i]),
+                    str(self.observation.channel_list[i]),
                 )
             elif self.ils_method(i) == "POSTCONV":
                 iparms = self.ils_params(i)
@@ -321,8 +314,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     sample_grid_spectral_domain=self.observation.spectral_domain_full(
                         i
                     ),
-                    band_name=str(self.filter_list[i]),
-                    obs_band_name=str(self.observation.filter_list[i]),
+                    band_name=str(self.observation.channel_list[i]),
+                    obs_band_name=str(self.observation.channel_list[i]),
                 )
             else:
                 ils_obj = rf.IdentityIls(sg)
@@ -469,7 +462,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             # just uses pressure_fm.
             rinfo = MusesRayInfo(
                 self._rf_uip,
-                str(self.instrument_name),
+                self.observation.instrument_name.base_name,
                 self.pressure_fm,
             )
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
@@ -784,9 +777,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 stokes,
                 self.atmosphere,
                 self.spec_win.spectral_bound,
-                self.sza,
-                self.oza,
-                self.raz,
+                self.observation.solar_zenith,
+                self.observation.observation_zenith,
+                self.observation.relative_azimuth,
                 pure_nadir,
                 num_stokes,
                 self.lrad_second_order,
@@ -800,9 +793,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             num_bins,
             num_eofs,
             stokes,
-            self.sza,
-            self.oza,
-            self.raz,
+            self.observation.solar_zenith,
+            self.observation.observation_zenith,
+            self.observation.relative_azimuth,
             num_streams,
             num_mom,
             use_solar_sources,
@@ -849,9 +842,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         rt = rf.LidortRt(
             self.atmosphere,
             stokes,
-            self.sza,
-            self.oza,
-            self.raz,
+            self.observation.solar_zenith,
+            self.observation.observation_zenith,
+            self.observation.relative_azimuth,
             pure_nadir,
             num_streams,
             num_mom,
@@ -883,9 +876,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             rt = rf.LRadRt(
                 rt,
                 self.spec_win.spectral_bound,
-                self.sza,
-                self.oza,
-                self.raz,
+                self.observation.solar_zenith,
+                self.observation.observation_zenith,
+                self.observation.relative_azimuth,
                 pure_nadir,
                 use_first_order_results,
                 self.lrad_second_order,

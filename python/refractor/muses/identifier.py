@@ -99,6 +99,10 @@ class InstrumentIdentifier(IdentifierStr):
         # Only hash on instrument name, not l1b_type.
         return hash(self.s)
 
+    @property
+    def base_name(self) -> str:
+        return self.s
+    
     def __str__(self) -> str:
         if self.l1b_type is not None:
             # I *think* this is what we want, see if this causes any problems

@@ -63,7 +63,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         super().__init__(
             current_state,
             retrieval_config,
-            InstrumentIdentifier("OMI"),
             observation,
             **kwargs,
         )
@@ -152,8 +151,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         for i in range(self.num_channels):
             v: list[rf.InstrumentCorrection] = []
             if self.use_eof:
-                if self.observation.filter_list[i] in self.eof:
-                    for e in self.eof[self.observation.filter_list[i]]:
+                if self.observation.channel_list[i] in self.eof:
+                    for e in self.eof[self.observation.channel_list[i]]:
                         v.append(e)
             res.append(v)
         return res
@@ -162,7 +161,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     def eof(self) -> dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]]:
         res: dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]] = {}
         for i in range(self.num_channels):
-            filter_name = self.observation.filter_list[i]
+            filter_name = self.observation.channel_list[i]
             if str(filter_name) not in ("UV1", "UV2"):
                 continue
             selem = [
@@ -258,8 +257,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         res = []
         for i in range(self.num_channels):
             ind = self.observation.across_track[i]
-            wav_vals = f[f"WAV_{self.filter_list[i]}"][:, ind]
-            irad_vals = f[f"SOL_{self.filter_list[i]}"][:, ind]
+            wav_vals = f[f"WAV_{self.observation.channel_list[i]}"][:, ind]
+            irad_vals = f[f"SOL_{self.observation.channel_list[i]}"][:, ind]
             one_au = 149597870691
             irad_vals *= (one_au / self.observation.earth_sun_distance) ** 2
             # File does not have units contained within it
@@ -272,7 +271,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
-        filter_name = self.observation.filter_list[sensor_index]
+        filter_name = self.observation.channel_list[sensor_index]
         raise NotImplementedError(f"HWHM for band {filter_name} not defined")
 
     @cached_property
@@ -282,7 +281,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         band_reference = np.zeros(self.num_channels)
         selem_all = []
         for i in range(self.num_channels):
-            if self.filter_list[i] == FilterIdentifier("UV1"):
+            if self.observation.channel_list[i] == FilterIdentifier("UV1"):
                 band_reference[i] = (315 + 262) / 2.0
                 selem = [
                     StateElementIdentifier("OMISURFACEALBEDOUV1"),
@@ -291,7 +290,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 albedo[i, 0:1] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
-            elif self.filter_list[i] == FilterIdentifier("UV2"):
+            elif self.observation.channel_list[i] == FilterIdentifier("UV2"):
                 # Note this value is hardcoded in print_omi_surface_albedo
                 band_reference[i] = 320.0
                 selem = [
@@ -308,7 +307,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             albedo,
             rf.ArrayWithUnit(band_reference, "nm"),
             rf.Unit("nm"),
-            [str(i) for i in self.filter_list],
+            [str(i) for i in self.observation.channel_list],
             rf.StateMappingAtIndexes(np.ravel(which_retrieved)),
         )
         self.current_state.add_fm_state_vector_if_needed(
@@ -387,9 +386,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             wlen,
             float(scale_factor),
             i,
-            rf.DoubleWithUnit(self.sza[i], "deg"),
-            rf.DoubleWithUnit(self.oza[i], "deg"),
-            rf.DoubleWithUnit(self.raz[i], "deg"),
+            rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
             self.atmosphere,
             self.solar_model(i),
             rf.StateMappingLinear(),
@@ -407,9 +406,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             wlen,
             scale_factor,
             i,
-            rf.DoubleWithUnit(self.sza[i], "deg"),
-            rf.DoubleWithUnit(self.oza[i], "deg"),
-            rf.DoubleWithUnit(self.raz[i], "deg"),
+            rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
             self.atmosphere,
             self.solar_model(i),
             rf.StateMappingLinear(),

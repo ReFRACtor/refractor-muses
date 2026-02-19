@@ -183,6 +183,9 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     instrument_name - the name of the instrument the MusesObservation
         is for
 
+    channel_list - metadata about the band/channels covered by the
+        MusesObservation.
+
     filter_data - metadata about the filters covered the
         MusesObservation
 
@@ -234,6 +237,14 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         """Name of instrument observation is for."""
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def channel_list(self) -> list[FilterIdentifier]:
+        """This returns a list of channel/band names. This is used as
+        metadata to describe a band, and for some instruments used to
+        determine what exactly is read from a file (e.g., BAND3 for
+        TROPOMI)"""
+        raise NotImplementedError()
+    
     @abc.abstractproperty
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         """This returns a list of filter names and sizes. This is used
@@ -499,7 +510,7 @@ class MusesObservationImp(MusesObservation):
     def across_track(self) -> list[int]:
         res = []
         for i in range(self.num_channels):
-            fname = self.filter_list[i]
+            fname = self.channel_list[i]
             res.append(
                 np.asarray(self.observation_table["XTRACK"])[
                     np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
@@ -519,7 +530,7 @@ class MusesObservationImp(MusesObservation):
         """
         # Note this is defined in MusesObservationReflectance. If we need to generalize
         # this, we can try to come up with a more general way to handle this
-        fname = self.filter_list[sensor_index]
+        fname = self.channel_list[sensor_index]
         return np.mean(
             np.asarray(self.observation_table[nm])[
                 np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
@@ -622,6 +633,15 @@ class MusesObservationImp(MusesObservation):
 
     def _v_num_channels(self) -> int:
         return self._num_channels
+
+    @property
+    def channel_list(self) -> list[FilterIdentifier]:
+        # Historically, the OSS instruments didn't have a overall "Band name" for
+        # the instrument - there was just one channel. Rather than coming up with
+        # a clever name, we just fill this in as "Dummy". This is only used as
+        # metadata, so this is fine. OMI and TROPOMI did have band names ("UV1", "BAND3"),
+        # those class overrides this
+        return [FilterIdentifier(f"Dummy Band {i+1}") for i in range(self.num_channels)]
 
     def notify_update(self, sv: rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -750,8 +770,8 @@ class SimulatedObservation(MusesObservationImp):
         self.spectral_window.add_bad_sample_mask(self)
 
     @property
-    def filter_list(self) -> list[FilterIdentifier]:
-        return self._obs.filter_list
+    def channel_list(self) -> list[FilterIdentifier]:
+        return self._obs.channel_list
 
     @property
     def instrument_name(self) -> InstrumentIdentifier:

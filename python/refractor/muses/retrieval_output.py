@@ -1017,7 +1017,7 @@ class CdfWriteTes:
         data, pressuresMax = CdfWriteLiteTes().make_one_lite(
             species_name,
             current_state,
-            [i.s for i in instrument],
+            [i.base_name for i in instrument],
             lite_directory,
             data1,
             data2,
