@@ -9,6 +9,7 @@ from refractor.muses_py_fm import (
 )
 from fixtures.require_check import require_muses_py_fm
 import pytest
+import numpy.testing as npt
 
 @pytest.mark.skip
 def test_airs_oss_init(ifile_hlp):
@@ -68,12 +69,15 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
     fm = ocreator.forward_model
     s = fm.radiance(0)
-    #rad = s.spectral_range.data
-    #jac = s.spectral_range.data_ad.jacobian
+    rad = s.spectral_range.data
+    jac = s.spectral_range.data_ad.jacobian
+    
     fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian
+    npt.assert_allclose(rad, radcmp)
+    npt.assert_allclose(jac, jaccmp)
 
 
 @require_muses_py_fm

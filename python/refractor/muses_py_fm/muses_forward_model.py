@@ -121,7 +121,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         # return that. So look for this condition and mark it, we'll then handle this
         # in the radiance call.
 
-        uip_all = res.uip_all(str(self.instrument_name))
+        uip_all = res.uip_all(self.instrument_name)
         if (
             uip_all["rts"] == ["OSS"]
             and "H2O" in [str(i) for i in uip_all["jacobians"]]

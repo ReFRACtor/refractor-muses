@@ -58,7 +58,9 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
-        return MusesRadiativeTransferOss(self.ifile_hlp,
+        return MusesRadiativeTransferOss(self._rf_uip,
+                                         self.observation.instrument_name,
+                                         self.ifile_hlp,
                                          self.retrieval_state_element_id,
                                          self.species_list, self.nlevels, self.nfreq,
                                          self.sel_file,

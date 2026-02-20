@@ -115,6 +115,21 @@ class MusesOssHandle:
                 c_int_p, c_int_p, c_char_p,  # name jac
             ]
             self.liboss.cppupdatejacobwrapper.restypes = None
+            self.liboss.cpploadchanselect.argtypes=[
+                c_int_p, c_int_p,            # Channel index
+                c_int_p                      # index select, output
+            ]
+            self.liboss.cpploadchanselect.restypes= None
+            self.liboss.cppsetchanselect.argtypes=[
+                c_int_p                      # index select
+            ]
+            self.liboss.cppsetchanselect.restypes=None
+            self.liboss.cppreloadchanselect.argtypes=[
+                c_int_p, c_int_p,            # Channel index
+                c_int_p                      # index select
+            ]
+            self.liboss.cppreloadchanselect.restypes= None
+            
         self.have_oss = False
         # Values we used initializing, we check if this has changed to see if we
         # need to update the initialization
@@ -130,7 +145,8 @@ class MusesOssHandle:
         # the subsets of the full range of frequencies that we actually run the
         # forward model on
         self.chsel_file = "NULL"
-
+        self.channel_indx = np.array([-1,], dtype=c_int)
+        
     def check_have_library(self) -> None:
         """Check if the library is available, and if not throw an exception"""
         if self.liboss is None:
@@ -145,6 +161,13 @@ class MusesOssHandle:
         """Convert a string like s to the types needed to pass to liboss"""
         sb = str(s).encode("utf-8")
         return c_char_p(sb), ctypes.byref(c_int(len(sb)))
+
+    def to_int_arr(
+        self, d : np.ndarray
+    ) -> tuple[Any, Any]:
+        """Arguments needed to pass a c_int array.
+        """
+        return ctypes.byref(c_int(d.shape[0])), d.ctypes.data_as(POINTER(c_int))
 
     def to_c_str_arr(
         self, slist: list[StateElementIdentifier], slen: int = 6
@@ -346,6 +369,13 @@ class MusesOssHandle:
                     ctypes.byref(c_int(mx_nfreq)),
                 )
             self.freq_oss = freq_oss[: n_freq.value]
+            self.channel_indx = np.array([1,], dtype=c_int)
+            self.channel_id_set = c_int(-1)
+            self.liboss.cpploadchanselect(*self.to_int_arr(self.channel_indx),
+                                          ctypes.byref(self.channel_id_set))
+            self.liboss.cppsetchanselect(ctypes.byref(self.channel_id_set))
+            # Initialize channel select interface. We update this later, but we
+            # need to do an initial just to get stuff bootstrapped
             # Check that self.freq_oss is sorted in ascending
             # order. We assume that when looking up data. We could
             # change our code to not assume this, but it seems like a
@@ -363,6 +393,29 @@ class MusesOssHandle:
             else:
                 self.have_oss = True
                 do_init = False
+
+    def oss_channel_select(self, sd_desired: rf.SpectralDomain) -> None:
+        '''Set the channels selected in OSS (the terminology of the OSS code - pick the
+        indices of freq_oss to calculate).'''
+        freq_desired = sd_desired.convert_wave("nm")
+        # Make sure the freq_desired actually matches the freq_oss values. We allow
+        # a small amount of slop for round off, but need to be pretty close
+        tolerance = 0.001
+        # searchsorted returns index of first value <= freq_desired. Due to round off,
+        # freq_desired might have point slightly larger. So subtract our tolerance
+        channel_indx = np.searchsorted(muses_oss_handle.freq_oss, freq_desired - tolerance)
+        if not np.all(np.abs(muses_oss_handle.freq_oss[channel_indx] - freq_desired) <= tolerance):
+            raise RuntimeError("Desired frequency doesn't match the available frequencies in muses_oss_handle.freq_oss")
+        # Fortran is 1 based, so add that to our zero based indices
+        channel_indx += 1
+        channel_indx = channel_indx.astype(c_int)
+        # if channel_indx matches our last update, we can skip this step
+        if list(self.channel_indx) == list(channel_indx):
+            return
+        self.channel_indx = channel_indx
+        self.liboss.cppreloadchanselect(*self.to_int_arr(self.channel_indx),
+                                        ctypes.byref(self.channel_id_set))
+        
 
 muses_oss_handle = MusesOssHandle()
 
