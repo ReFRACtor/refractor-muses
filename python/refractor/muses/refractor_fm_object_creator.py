@@ -19,9 +19,8 @@ if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import MusesRayInfo
     from refractor.muses_py_fm import RefractorUip
     from .muses_spectral_window import MusesSpectralWindow
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .current_state import CurrentState
-    from .identifier import InstrumentIdentifier
     from .retrieval_configuration import RetrievalConfiguration
 
 

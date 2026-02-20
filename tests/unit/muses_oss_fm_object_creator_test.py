@@ -1,6 +1,5 @@
 from refractor.muses import (
     InstrumentIdentifier,
-    oss_handle,
     StateElementIdentifier,
     CrisFmObjectCreator,
 )

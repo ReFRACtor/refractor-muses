@@ -109,6 +109,12 @@ class MusesOssHandle:
             self.liboss.cppinitwrapper.restype = None
             self.liboss.cppdestrwrapper.argtypes = []
             self.liboss.cppdestrwrapper.restype = None
+            # fmt: off
+            self.liboss.cppupdatejacobwrapper.argtypes = [
+                c_int_p, c_int_p, c_char_p,  # name gas
+                c_int_p, c_int_p, c_char_p,  # name jac
+            ]
+            self.liboss.cppupdatejacobwrapper.restypes = None
         self.have_oss = False
         # Values we used initializing, we check if this has changed to see if we
         # need to update the initialization
@@ -119,6 +125,7 @@ class MusesOssHandle:
         self.nlevels = -1
         self.nfreq = -1
         self.atm_spec : list[StateElementIdentifier] = []
+        self.jac_spec : list[StateElementIdentifier] = []
         # We handle the channel selection outside of the OSS code. This selects
         # the subsets of the full range of frequencies that we actually run the
         # forward model on
@@ -194,8 +201,10 @@ class MusesOssHandle:
             self.nlevels == nlevels and
             self.nfreq == nfreq and
             self.species_list == species_list):
-            return
-        
+            do_jac_only = True
+        else:
+            do_jac_only = False
+        self.current_jac_spec = self.jac_spec
         self.sel_file = sel_file
         self.od_file = od_file
         self.sol_file = sol_file
@@ -238,6 +247,18 @@ class MusesOssHandle:
         # is empty, just add H2O so that there is something there
         if len(self.jac_spec) == 0:
             self.jac_spec = [StateElementIdentifier("H2O")]
+
+        if do_jac_only:
+            # Nothing to do if Jacobian matches
+            if self.jac_spec == self.current_jac_spec:
+                return
+            # Otherwise, update just the jacobian part
+            self.liboss.cppupdatejacobwrapper(
+                *self.to_c_str_arr(self.atm_spec),
+                *self.to_c_str_arr(self.jac_spec),
+            )
+            return
+            
 
         # Should perhaps move this logic out of here and into the forward models.
         # We could just pass in sel_file, od_file, sol_file and fix_file
@@ -325,6 +346,16 @@ class MusesOssHandle:
                     ctypes.byref(c_int(mx_nfreq)),
                 )
             self.freq_oss = freq_oss[: n_freq.value]
+            # Check that self.freq_oss is sorted in ascending
+            # order. We assume that when looking up data. We could
+            # change our code to not assume this, but it seems like a
+            # good idea to take advantage of this. Note numpy doesn't
+            # have a "is_sorted" test, but this takes the difference between
+            # adjacent elements and makes sure this is >= 0. I think this
+            # is probably strictly ascending (>0), but we don't actually require that.
+            # All we need is for searchsorted to work.
+            if not np.all(np.diff(self.freq_oss) >= 0):
+                raise RuntimeError("freq_oss is not sorted in ascending order")
             if self.first_oss_initialize:
                 # First time through, repeat the initialization
                 self.first_oss_initialize = False
