@@ -24,10 +24,10 @@ from pathlib import Path
 # very coupled. It would be good to rewrite this at some point, but for
 # now we really can only fully test everything in full runs.
 #
-# These tests run through full retrievals, except we use our saved results
-# to skip actually do the retrieval step. These run much faster, although
-# these still take a minute or so to run so we have these marked as long
-# tests.
+# These tests run through full retrievals, except we use our saved
+# results to skip actually doing the retrieval step. These run much
+# faster, although these still take a minute or so to run so we have
+# these marked as long tests.
 #
 # Note that this checks pretty much all the observers attached to a
 # RetrievalStrategy, these are full retrievals except we "cheat" and

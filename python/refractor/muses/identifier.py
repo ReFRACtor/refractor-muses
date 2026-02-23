@@ -69,7 +69,7 @@ class InstrumentIdentifier(IdentifierStr):
     '''Identify an instrument, e.g., "AIRS"'''
 
     def __init__(self, s: str, l1b_type: None | str = None) -> None:
-        '''Instrument type.
+        """Instrument type.
 
         The l1b_type is a subtype of the instrument. Right now, this
         only applies to CrIS, see l1b_type_from_filename in MusesCrisObservation.
@@ -83,15 +83,19 @@ class InstrumentIdentifier(IdentifierStr):
 
         Also, the hash is only dependent on the instrument name, not the l1b_type.
         I *think* that is what we want, we can revisit this if needed.
-        '''
+        """
         self.s = s
         self.l1b_type = l1b_type
 
     def __eq__(self, other: object) -> bool:
         if not hasattr(other, "s"):
             raise RuntimeError("other should be a IdentifierStr")
-        if (self.l1b_type is not None and other.l1b_type is not None and
-            self.l1b_type != other.l1b_type):
+        if (
+            self.l1b_type is not None
+            and hasattr(other, "l1b_type")
+            and other.l1b_type is not None
+            and self.l1b_type != other.l1b_type
+        ):
             return False
         return self.s == other.s
 
@@ -102,7 +106,7 @@ class InstrumentIdentifier(IdentifierStr):
     @property
     def base_name(self) -> str:
         return self.s
-    
+
     def __str__(self) -> str:
         if self.l1b_type is not None:
             # I *think* this is what we want, see if this causes any problems

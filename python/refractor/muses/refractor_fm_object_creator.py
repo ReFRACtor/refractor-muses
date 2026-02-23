@@ -12,6 +12,7 @@ import abc
 import copy
 import tempfile
 from pathlib import Path
+import types
 from typing import Any
 import typing
 
@@ -138,9 +139,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     self.observation,
                 ],
             )
-            
+
         self.num_channels = self.observation.num_channels
-            
+
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
@@ -152,6 +153,34 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             sol_rad = self.observation.solar_spectrum(sensor_index)
         return rf.SolarReferenceSpectrum(sol_rad, None)
 
+    def _add_rf_uip_update_to_fm(self, fm: rf.ForwardModel) -> None:
+        """The logic is a little tricky to add _rf_uip to get updated, if you aren't
+        going through ray_info which already handles this. Tuck this away in this
+        function in case it is needed in the future.
+
+        Note normally you don't call this, just like normally you don't use _rf_uip.
+        But this can be useful in testing when we are comparing against old py-retrieve
+        code"""
+        from .cost_function import CostFunction
+
+        class FmUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
+            def __init__(self, ocreator: RefractorFmObjectCreator) -> None:
+                super().__init__()
+                self.ocreator = ocreator
+
+            def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
+                self.ocreator._rf_uip.update_uip(mstand.parameters)  # noqa:SLF001
+
+        def t(slf: rf.ForwardModel, cfunc: CostFunction) -> None:
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
+
+        # This function gets called when the CostFunction is created. It then turns around
+        # and adds an observer to the cost function, that in turn around and update the
+        # uip. We need this indirection because the RefractorUip get updated with the
+        # RetrievalGridArray parameters to the cost function, not the FullGridMappedArray
+        # used by the rf.StateVector
+        fm.notify_cost_function = types.MethodType(t, fm)
+
     @cached_property
     def _rf_uip(self) -> RefractorUip:
         """We have this as private, because things in general shouldn't be using
@@ -159,7 +188,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         tight coupling it gives). However, if you have some special case testing or
         something like that, there isn't anything wrong in using this. Just think
         if you *really* want to use this instead of more standard refractor.muses
-        objects"""
+        objects
+
+        Note that this is *not* attached to the StateVector. ray_info is, but this
+        lower level function isn't. Depending on what you are using this for, you
+        may need to attach this yourself to the StateVector. You can use
+        _add_rf_uip_update_to_fm for this if desired.
+        """
         from refractor.muses_py_fm import RefractorUip
 
         return RefractorUip.create_uip_from_refractor_objects(

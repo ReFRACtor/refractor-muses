@@ -98,8 +98,9 @@ class MusesRayInfo:
         This is just to figure out the interfaces when we replace this
         object - we could make this function public if needed.
         """
+        from refractor.muses import InstrumentIdentifier
         return self.rf_uip.ray_info(
-            self.instrument_name, set_pointing_angle_zero=self.set_pointing_angle_zero
+            InstrumentIdentifier(self.instrument_name), set_pointing_angle_zero=self.set_pointing_angle_zero
         )
 
     def _nlay(self) -> int:

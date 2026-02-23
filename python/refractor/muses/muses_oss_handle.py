@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 import os
 import ctypes
@@ -12,6 +13,7 @@ from typing import Any, Iterator
 
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFileHelper, InputFilePath
+
 
 @contextmanager
 def suppress_stdout() -> Iterator[None]:
@@ -29,6 +31,7 @@ def suppress_stdout() -> Iterator[None]:
             os.dup2(oldstdchannel, sys.stdout.fileno())
         if dest_file is not None:
             dest_file.close()
+
 
 class MusesOssHandle:
     """This handles the OSS interface. Because it is a global, we need a central
@@ -114,39 +117,45 @@ class MusesOssHandle:
                 c_int_p, c_int_p, c_char_p,  # name gas
                 c_int_p, c_int_p, c_char_p,  # name jac
             ]
-            self.liboss.cppupdatejacobwrapper.restypes = None
+            self.liboss.cppupdatejacobwrapper.restype = None
             self.liboss.cpploadchanselect.argtypes=[
                 c_int_p, c_int_p,            # Channel index
                 c_int_p                      # index select, output
             ]
-            self.liboss.cpploadchanselect.restypes= None
+            self.liboss.cpploadchanselect.restype= None
             self.liboss.cppsetchanselect.argtypes=[
                 c_int_p                      # index select
             ]
-            self.liboss.cppsetchanselect.restypes=None
+            self.liboss.cppsetchanselect.restype=None
             self.liboss.cppreloadchanselect.argtypes=[
                 c_int_p, c_int_p,            # Channel index
                 c_int_p                      # index select
             ]
-            self.liboss.cppreloadchanselect.restypes= None
-            
+            self.liboss.cppreloadchanselect.restype= None
+
         self.have_oss = False
         # Values we used initializing, we check if this has changed to see if we
         # need to update the initialization
         self.sel_file: str | os.PathLike[str] | InputFilePath = ""
-        self.od_file: str | os.PathLike[str] | InputFilePath  = ""
-        self.sol_file: str | os.PathLike[str] | InputFilePath  = ""
-        self.fix_file: str | os.PathLike[str] | InputFilePath  = ""
+        self.od_file: str | os.PathLike[str] | InputFilePath = ""
+        self.sol_file: str | os.PathLike[str] | InputFilePath = ""
+        self.fix_file: str | os.PathLike[str] | InputFilePath = ""
+        self.species_list: list[StateElementIdentifier] = []
         self.nlevels = -1
         self.nfreq = -1
-        self.atm_spec : list[StateElementIdentifier] = []
-        self.jac_spec : list[StateElementIdentifier] = []
+        self.atm_spec: list[StateElementIdentifier] = []
+        self.jac_spec: list[StateElementIdentifier] = []
         # We handle the channel selection outside of the OSS code. This selects
         # the subsets of the full range of frequencies that we actually run the
         # forward model on
         self.chsel_file = "NULL"
-        self.channel_indx = np.array([-1,], dtype=c_int)
-        
+        self.channel_indx = np.array(
+            [
+                -1,
+            ],
+            dtype=c_int,
+        )
+
     def check_have_library(self) -> None:
         """Check if the library is available, and if not throw an exception"""
         if self.liboss is None:
@@ -162,11 +171,8 @@ class MusesOssHandle:
         sb = str(s).encode("utf-8")
         return c_char_p(sb), ctypes.byref(c_int(len(sb)))
 
-    def to_int_arr(
-        self, d : np.ndarray
-    ) -> tuple[Any, Any]:
-        """Arguments needed to pass a c_int array.
-        """
+    def to_int_arr(self, d: np.ndarray) -> tuple[Any, Any]:
+        """Arguments needed to pass a c_int array."""
         return ctypes.byref(c_int(d.shape[0])), d.ctypes.data_as(POINTER(c_int))
 
     def to_c_str_arr(
@@ -190,40 +196,43 @@ class MusesOssHandle:
             c_char_p(b"".join(t)),
         )
 
-    def oss_cleanup(self):
-        '''We don't normally need to call this, but when coordinating with the old
+    def oss_cleanup(self) -> None:
+        """We don't normally need to call this, but when coordinating with the old
         py-retrieve code we need to since we are sharing a global resource. Clean
-        up any allocation, and mark us as not having OSS.'''
-        self.liboss.cppdestrwrapper()
+        up any allocation, and mark us as not having OSS."""
+        if self.liboss is not None:
+            self.liboss.cppdestrwrapper()
         self.have_oss = False
-        
+
     def oss_init(
         self,
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
         species_list: list[StateElementIdentifier],
         nlevels: int,
-        nfreq: int, # This seems to be the size of the emissivity. Perhaps verify,
-                    # And if so change it name. This has nothing to do with the
-                    # size of freq_oss that gets filled in
-        sel_file : str | os.PathLike[str] | InputFilePath,
-        od_file : str | os.PathLike[str] | InputFilePath,
-        sol_file : str | os.PathLike[str] | InputFilePath,
-        fix_file : str | os.PathLike[str] | InputFilePath,
+        nfreq: int,  # This seems to be the size of the emissivity. Perhaps verify,
+        # And if so change it name. This has nothing to do with the
+        # size of freq_oss that gets filled in
+        sel_file: str | os.PathLike[str] | InputFilePath,
+        od_file: str | os.PathLike[str] | InputFilePath,
+        sol_file: str | os.PathLike[str] | InputFilePath,
+        fix_file: str | os.PathLike[str] | InputFilePath,
     ) -> None:
         self.check_have_library()
         assert self.liboss is not None
         # Skip initialization if the only thing that changes in the jac_spec list,
         # (we can separately update that part). The initialization is expensive relative
         # to other OSS functions, so we skip if we can.
-        if (self.have_oss and
-            self.sel_file == sel_file and
-            self.od_file == od_file and
-            self.sol_file == sol_file and
-            self.fix_file == fix_file and
-            self.nlevels == nlevels and
-            self.nfreq == nfreq and
-            self.species_list == species_list):
+        if (
+            self.have_oss
+            and self.sel_file == sel_file
+            and self.od_file == od_file
+            and self.sol_file == sol_file
+            and self.fix_file == fix_file
+            and self.nlevels == nlevels
+            and self.nfreq == nfreq
+            and self.species_list == species_list
+        ):
             do_jac_only = True
         else:
             do_jac_only = False
@@ -281,7 +290,6 @@ class MusesOssHandle:
                 *self.to_c_str_arr(self.jac_spec),
             )
             return
-            
 
         # Should perhaps move this logic out of here and into the forward models.
         # We could just pass in sel_file, od_file, sol_file and fix_file
@@ -341,7 +349,7 @@ class MusesOssHandle:
         # in jira). We need to run through the initialization again
         # the first time
         do_init = True
-        
+
         while do_init:
             # Clean up any old initialization. Note this is safe to call even
             # if no initialization has occurred yet.
@@ -377,10 +385,16 @@ class MusesOssHandle:
             self.freq_oss_sorted = self.freq_oss[self.freq_oss_argsort]
             # Initialize channel select interface. We update this later, but we
             # need to do an initial just to get stuff bootstrapped
-            self.channel_indx = np.array([1,], dtype=c_int)
+            self.channel_indx = np.array(
+                [
+                    1,
+                ],
+                dtype=c_int,
+            )
             self.channel_id_set = c_int(-1)
-            self.liboss.cpploadchanselect(*self.to_int_arr(self.channel_indx),
-                                          ctypes.byref(self.channel_id_set))
+            self.liboss.cpploadchanselect(
+                *self.to_int_arr(self.channel_indx), ctypes.byref(self.channel_id_set)
+            )
             self.liboss.cppsetchanselect(ctypes.byref(self.channel_id_set))
             if self.first_oss_initialize:
                 # First time through, repeat the initialization
@@ -391,19 +405,27 @@ class MusesOssHandle:
                 do_init = False
 
     def oss_channel_select(self, sd_desired: rf.SpectralDomain) -> None:
-        '''Set the channels selected in OSS (the terminology of the OSS code - pick the
-        indices of freq_oss to calculate).'''
+        """Set the channels selected in OSS (the terminology of the OSS code - pick the
+        indices of freq_oss to calculate)."""
+        self.check_have_library()
+        assert self.liboss is not None
         freq_desired = sd_desired.convert_wave("nm")
         # Make sure the freq_desired actually matches the freq_oss values. We allow
         # a small amount of slop for round off, but need to be pretty close
         tolerance = 0.001
         # searchsorted returns index of first value <= freq_desired. Due to round off,
         # freq_desired might have point slightly larger. So subtract our tolerance
-        channel_indx = np.searchsorted(muses_oss_handle.freq_oss_sorted, freq_desired - tolerance)
+        channel_indx = np.searchsorted(
+            muses_oss_handle.freq_oss_sorted, freq_desired - tolerance
+        )
         # Map back to the unsorted data
         channel_indx = self.freq_oss_argsort[channel_indx]
-        if not np.all(np.abs(muses_oss_handle.freq_oss[channel_indx] - freq_desired) <= tolerance):
-            raise RuntimeError("Desired frequency doesn't match the available frequencies in muses_oss_handle.freq_oss")
+        if not np.all(
+            np.abs(muses_oss_handle.freq_oss[channel_indx] - freq_desired) <= tolerance
+        ):
+            raise RuntimeError(
+                "Desired frequency doesn't match the available frequencies in muses_oss_handle.freq_oss"
+            )
         # Fortran is 1 based, so add that to our zero based indices
         channel_indx += 1
         channel_indx = channel_indx.astype(c_int)
@@ -411,9 +433,10 @@ class MusesOssHandle:
         if list(self.channel_indx) == list(channel_indx):
             return
         self.channel_indx = channel_indx
-        self.liboss.cppreloadchanselect(*self.to_int_arr(self.channel_indx),
-                                        ctypes.byref(self.channel_id_set))
-        
+        self.liboss.cppreloadchanselect(
+            *self.to_int_arr(self.channel_indx), ctypes.byref(self.channel_id_set)
+        )
+
 
 muses_oss_handle = MusesOssHandle()
 

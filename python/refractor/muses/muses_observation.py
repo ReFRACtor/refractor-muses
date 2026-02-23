@@ -244,7 +244,7 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         determine what exactly is read from a file (e.g., BAND3 for
         TROPOMI)"""
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         """This returns a list of filter names and sizes. This is used
@@ -641,7 +641,9 @@ class MusesObservationImp(MusesObservation):
         # a clever name, we just fill this in as "Dummy". This is only used as
         # metadata, so this is fine. OMI and TROPOMI did have band names ("UV1", "BAND3"),
         # those class overrides this
-        return [FilterIdentifier(f"Dummy Band {i+1}") for i in range(self.num_channels)]
+        return [
+            FilterIdentifier(f"Dummy Band {i + 1}") for i in range(self.num_channels)
+        ]
 
     def notify_update(self, sv: rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")

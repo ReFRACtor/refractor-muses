@@ -1,6 +1,5 @@
 from refractor.muses import (
     InstrumentIdentifier,
-    StateElementIdentifier,
     CrisFmObjectCreator,
     AirsFmObjectCreator,
 )
@@ -9,8 +8,8 @@ from refractor.muses_py_fm import (
     MusesAirsForwardModel,
 )
 from fixtures.require_check import require_muses_py_fm
-import pytest
 import numpy.testing as npt
+
 
 @require_muses_py_fm
 def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
@@ -27,7 +26,7 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
-    
+
     fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data
@@ -51,7 +50,7 @@ def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
-    
+
     fmcmp = MusesAirsForwardModel(rs.current_state, obs_airs, rs.retrieval_config)
     scmp = fmcmp.radiance(0)
     radcmp = scmp.spectral_range.data

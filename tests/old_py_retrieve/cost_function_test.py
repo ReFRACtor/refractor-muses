@@ -11,6 +11,8 @@ from refractor.muses_py_fm import (
     MusesForwardModelHandle,
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
+    MusesCrisForwardModel,
+    MusesAirsForwardModel,
 )
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
@@ -78,6 +80,15 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
+    rs.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    rs.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=100,
+    )
+    
     rs.cost_function_creator.notify_update_target(
         rs.measurement_id, rs.retrieval_config
     )
@@ -163,6 +174,14 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
     )
     rs.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=100,
+    )
+    rs.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    rs.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
     rs.cost_function_creator.notify_update_target(
@@ -274,6 +293,14 @@ def test_residual_fm_jac_tropomi(
         MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
         priority_order=100,
     )
+    creator.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    creator.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=100,
+    )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
@@ -376,6 +403,14 @@ def test_residual_fm_jac_omi(
     )
     creator.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=100,
+    )
+    creator.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    creator.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
@@ -513,6 +548,9 @@ def test_residual_fm_jac_tropomi2(
     )
     creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    creator.forward_model_handle_set.add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100)
     obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
         joint_tropomi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp

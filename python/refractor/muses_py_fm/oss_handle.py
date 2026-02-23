@@ -188,6 +188,7 @@ class OssHandle:
         cris_l1b_type: str,
     ) -> None:
         from refractor.muses import AttrDictAdapter, muses_oss_handle
+
         # Coordinate with MusesOssHandle. Normally we don't have both in the
         # same environment, but this occurs during unit tests when we compare
         # refractor with py-retrieve data. Since OSS is

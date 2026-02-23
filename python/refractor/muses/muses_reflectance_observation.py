@@ -183,7 +183,11 @@ class MusesReflectanceObservation(MusesObservationImp):
             coeff = np.zeros((len(self.channel_list) * 3))
             mp = rf.StateMappingLinear()
         super().__init__(
-            muses_py_dict, sdesc, num_channels=len(self.channel_list), coeff=coeff, mp=mp
+            muses_py_dict,
+            sdesc,
+            num_channels=len(self.channel_list),
+            coeff=coeff,
+            mp=mp,
         )
 
         # Grab values from existing_obs if available
@@ -278,7 +282,7 @@ class MusesReflectanceObservation(MusesObservationImp):
     @property
     def channel_list(self) -> list[FilterIdentifier]:
         return self._channel_list
-    
+
     def desc(self) -> str:
         return "MusesReflectanceObservation"
 

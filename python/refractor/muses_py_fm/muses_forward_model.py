@@ -898,7 +898,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # The UIP takes in parameters on the RetrievalGridArray, *not*
         # FullGridMappedArray like the ReFRACtor. This is handled in notify_cost_function
         # (see MusesForwardModelBase), which gets called when the CostFunction is created.
-
         if instrument_name != self.instrument_name:
             return None
         if self.rconf is None:

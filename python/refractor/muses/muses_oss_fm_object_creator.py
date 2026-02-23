@@ -4,7 +4,6 @@ import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
-from .compare_forward_model import CompareForwardModel
 import os
 from pathlib import Path
 from loguru import logger
@@ -18,6 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
 
+
 # Leverage off RefractorFmObjectCreator. We probably want to
 # rework this, either make MusesOssFmObjectCreator stand alone
 # or extract out a common base class. Right now RefractorFmObjectCreator
@@ -30,18 +30,17 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         dir_lut: Path | InputFilePath | None = None,
-        ):
+    ):
         super().__init__(current_state, retrieval_config, observation, fm_sv)
-        self.dir_lut=dir_lut
+        self.dir_lut = dir_lut
         # Filled in by derived classes
         self.species_list: list[StateElementIdentifier] = []
         self.nlevels = -1
         self.nfreq = -1
-        self.sel_file : str | os.PathLike[str] | InputFilePath = ""
-        self.od_file : str | os.PathLike[str] | InputFilePath = ""
-        self.sol_file : str | os.PathLike[str] | InputFilePath = ""
-        self.fix_file : str | os.PathLike[str] | InputFilePath = ""
-        
+        self.sel_file: str | os.PathLike[str] | InputFilePath = ""
+        self.od_file: str | os.PathLike[str] | InputFilePath = ""
+        self.sol_file: str | os.PathLike[str] | InputFilePath = ""
+        self.fix_file: str | os.PathLike[str] | InputFilePath = ""
 
     def ils_method(self, sensor_index: int) -> str:
         """Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV."""
@@ -55,34 +54,38 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         # like radiance scaling might be a useful option.
         res = []
         for i in range(self.num_channels):
-            per_channel_eff = []
+            per_channel_eff : rf.SpectrumEffect = []
             res.append(per_channel_eff)
         return res
 
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
-        return MusesRadiativeTransferOss(self._rf_uip,
-                                         self.observation.instrument_name,
-                                         self.ifile_hlp,
-                                         self.current_state.systematic_state_element_id if self.current_state.use_systematic else self.current_state.retrieval_state_element_id,
-                                         self.species_list, self.nlevels, self.nfreq,
-                                         self.sel_file,
-                                         self.od_file, self.sol_file, self.fix_file)
-    
-    
+        return MusesRadiativeTransferOss(
+            self._rf_uip,
+            self.observation.instrument_name,
+            self.ifile_hlp,
+            self.current_state.systematic_state_element_id
+            if self.current_state.use_systematic
+            else self.current_state.retrieval_state_element_id,
+            self.species_list,
+            self.nlevels,
+            self.nfreq,
+            self.sel_file,
+            self.od_file,
+            self.sol_file,
+            self.fix_file,
+        )
+
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
-        from refractor.muses_py_fm import MusesOssForwardModelBase
-        fm1 = rf.StandardForwardModel(
+        res = rf.StandardForwardModel(
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
             self.spectrum_sampling,
             self.spectrum_effect,
         )
-        fm2 = MusesOssForwardModelBase(self.current_state, self.observation.instrument_name,
-                                       self.observation, self.retrieval_config)
-        res = CompareForwardModel(fm2, fm1)
+        self._add_rf_uip_update_to_fm(res)
         res.setup_grid()
         return res
 
@@ -90,7 +93,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def cloud_fraction(self) -> rf.CloudFraction:
         raise NotImplementedError
-    
+
     @cached_property
     def ground_clear(self) -> rf.Ground:
         raise NotImplementedError
@@ -108,8 +111,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         band.
         """
         raise NotImplementedError
-    
-        
+
 
 class CrisFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
@@ -119,15 +121,21 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         dir_lut: Path | InputFilePath | None = None,
-        ):
-        super().__init__(current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut)
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
         # Different files depends on l1b_type
-        if self.observation.instrument_name  == InstrumentIdentifier("CRIS", "suomi_nasa_nsr"):
+        if self.observation.instrument_name == InstrumentIdentifier(
+            "CRIS", "suomi_nasa_nsr"
+        ):
             if self.dir_lut is None:
-                self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
+                self.dir_lut = (
+                    self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
+                )
             self.sel_file = (
-                    self.dir_lut
-                    / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
+                self.dir_lut
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
             )
             self.od_file = (
                 self.dir_lut
@@ -185,6 +193,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
+
 class AirsFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
         self,
@@ -193,21 +202,21 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         dir_lut: Path | InputFilePath | None = None,
-        ):
-        super().__init__(current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut)
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
         if self.dir_lut is None:
             self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "AIRS" / "2017-07"
         self.sel_file = (
-            self.dir_lut
-            / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
+            self.dir_lut / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
         )
         self.od_file = (
-            self.dir_lut
-            / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
+            self.dir_lut / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
         )
         self.sol_file = self.dir_lut / "newkur.dat"
         self.fix_file = self.dir_lut / "default.dat"
-        
+
         # The species list seem to be hardcoded. I think this
         # corresponds to what is available in the various input files
         self.species_list = [
@@ -243,6 +252,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
+
 class TesFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
         self,
@@ -251,10 +261,12 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         dir_lut: Path | InputFilePath | None = None,
-        ):
-        super().__init__(current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut)
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
         if self.dir_lut is None:
-            self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "TES " / "2018-03-14"
+            self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "TES" / "2018-03-14"
         self.sel_file = (
             self.dir_lut
             / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
@@ -300,6 +312,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
+
 class CrisForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
@@ -324,9 +337,7 @@ class CrisForwardModelHandle(ForwardModelHandle):
             return None
         if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
-        logger.debug(
-            "Creating OSS forward model using using CrisFmObjectCreator"
-        )
+        logger.debug("Creating OSS forward model using using CrisFmObjectCreator")
         obj_creator = CrisFmObjectCreator(
             current_state,
             self.retrieval_config,
@@ -337,6 +348,7 @@ class CrisForwardModelHandle(ForwardModelHandle):
         fm = obj_creator.forward_model
         logger.info(f"Cris Forward model\n{fm}")
         return fm
+
 
 class AirsForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
@@ -362,9 +374,7 @@ class AirsForwardModelHandle(ForwardModelHandle):
             return None
         if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
-        logger.debug(
-            "Creating OSS forward model using using AirsFmObjectCreator"
-        )
+        logger.debug("Creating OSS forward model using using AirsFmObjectCreator")
         obj_creator = AirsFmObjectCreator(
             current_state,
             self.retrieval_config,
@@ -375,6 +385,7 @@ class AirsForwardModelHandle(ForwardModelHandle):
         fm = obj_creator.forward_model
         logger.info(f"Airs Forward model\n{fm}")
         return fm
+
 
 class TesForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
@@ -400,9 +411,7 @@ class TesForwardModelHandle(ForwardModelHandle):
             return None
         if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
-        logger.debug(
-            "Creating OSS forward model using using TesFmObjectCreator"
-        )
+        logger.debug("Creating OSS forward model using using TesFmObjectCreator")
         obj_creator = TesFmObjectCreator(
             current_state,
             self.retrieval_config,
@@ -413,7 +422,8 @@ class TesForwardModelHandle(ForwardModelHandle):
         fm = obj_creator.forward_model
         logger.info(f"Tes Forward model\n{fm}")
         return fm
-    
+
+
 ForwardModelHandleSet.add_default_handle(
     CrisForwardModelHandle(),
     priority_order=-1,
@@ -426,8 +436,13 @@ ForwardModelHandleSet.add_default_handle(
     TesForwardModelHandle(),
     priority_order=-1,
 )
-    
-__all__ = ["MusesOssFmObjectCreator", "CrisFmObjectCreator", "AirsFmObjectCreator",
-           "TesFmObjectCreator", "CrisForwardModelHandle", "AirsForwardModelHandle",
-           "TesForwardModelHandle"]
-           
+
+__all__ = [
+    "MusesOssFmObjectCreator",
+    "CrisFmObjectCreator",
+    "AirsFmObjectCreator",
+    "TesFmObjectCreator",
+    "CrisForwardModelHandle",
+    "AirsForwardModelHandle",
+    "TesForwardModelHandle",
+]

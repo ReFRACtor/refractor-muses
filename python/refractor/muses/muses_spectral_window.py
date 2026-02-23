@@ -264,7 +264,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "THROW_AWAY_WINDOW_INDEX": -1,
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
-                        "instrument": self.instrument_name.s,
+                        "instrument": self.instrument_name.base_name if self.instrument_name is not None else "",
                         "RT": self.rt[i, j]
                         if self.rt is not None and self.rt[i, j] is not None
                         else "None",
@@ -375,8 +375,11 @@ class MusesSpectralWindow(rf.SpectralWindow):
             # special handling here.
             # Temp, until we get this to work for AIRS and CRIS
             different_filter_different_sensor_index = True
-            if iname in (InstrumentIdentifier("AIRS"), InstrumentIdentifier("CRIS"),
-                         InstrumentIdentifier("TES")):
+            if iname in (
+                InstrumentIdentifier("AIRS"),
+                InstrumentIdentifier("CRIS"),
+                InstrumentIdentifier("TES"),
+            ):
                 different_filter_different_sensor_index = False
             res[iname] = cls.create_from_file(
                 spec_fname,
