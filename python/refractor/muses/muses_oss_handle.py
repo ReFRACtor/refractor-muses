@@ -369,23 +369,19 @@ class MusesOssHandle:
                     ctypes.byref(c_int(mx_nfreq)),
                 )
             self.freq_oss = freq_oss[: n_freq.value]
+            # Turns out freq_oss isn't always sorted. Not sure of the history of that,
+            # but it is quicker for us to look stuff up in sorted order. So create
+            # a sorted version, but also with a map for going back to the unsorted
+            # data since that is what the channel select works on.
+            self.freq_oss_argsort = np.argsort(self.freq_oss)
+            self.freq_oss_sorted = self.freq_oss[self.freq_oss_argsort]
+            # Initialize channel select interface. We update this later, but we
+            # need to do an initial just to get stuff bootstrapped
             self.channel_indx = np.array([1,], dtype=c_int)
             self.channel_id_set = c_int(-1)
             self.liboss.cpploadchanselect(*self.to_int_arr(self.channel_indx),
                                           ctypes.byref(self.channel_id_set))
             self.liboss.cppsetchanselect(ctypes.byref(self.channel_id_set))
-            # Initialize channel select interface. We update this later, but we
-            # need to do an initial just to get stuff bootstrapped
-            # Check that self.freq_oss is sorted in ascending
-            # order. We assume that when looking up data. We could
-            # change our code to not assume this, but it seems like a
-            # good idea to take advantage of this. Note numpy doesn't
-            # have a "is_sorted" test, but this takes the difference between
-            # adjacent elements and makes sure this is >= 0. I think this
-            # is probably strictly ascending (>0), but we don't actually require that.
-            # All we need is for searchsorted to work.
-            if not np.all(np.diff(self.freq_oss) >= 0):
-                raise RuntimeError("freq_oss is not sorted in ascending order")
             if self.first_oss_initialize:
                 # First time through, repeat the initialization
                 self.first_oss_initialize = False
@@ -403,7 +399,9 @@ class MusesOssHandle:
         tolerance = 0.001
         # searchsorted returns index of first value <= freq_desired. Due to round off,
         # freq_desired might have point slightly larger. So subtract our tolerance
-        channel_indx = np.searchsorted(muses_oss_handle.freq_oss, freq_desired - tolerance)
+        channel_indx = np.searchsorted(muses_oss_handle.freq_oss_sorted, freq_desired - tolerance)
+        # Map back to the unsorted data
+        channel_indx = self.freq_oss_argsort[channel_indx]
         if not np.all(np.abs(muses_oss_handle.freq_oss[channel_indx] - freq_desired) <= tolerance):
             raise RuntimeError("Desired frequency doesn't match the available frequencies in muses_oss_handle.freq_oss")
         # Fortran is 1 based, so add that to our zero based indices

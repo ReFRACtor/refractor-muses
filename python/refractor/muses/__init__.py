@@ -4,6 +4,7 @@
 # <AUTOGEN_INIT>
 from .cloud_result_summary import (CloudResultSummary,)
 from .column_result_summary import (ColumnResultSummary,)
+from .compare_forward_model import (CompareForwardModel,)
 from .cost_function import (CostFunction,)
 from .cost_function_creator import (CostFunctionCreator,)
 from .creator_handle import (CreatorHandle, CreatorHandleSet,)
@@ -46,8 +47,13 @@ from .muses_observation import (MeasurementId, MeasurementIdDict,
                                 SimulatedObservation,
                                 SimulatedObservationHandle,)
 from .muses_optical_depth import (MusesOpticalDepth,)
-from .muses_oss_fm_object_creator import (CrisFmObjectCreator,
-                                          MusesOssFmObjectCreator,)
+from .muses_oss_fm_object_creator import (AirsFmObjectCreator,
+                                          AirsForwardModelHandle,
+                                          CrisFmObjectCreator,
+                                          CrisForwardModelHandle,
+                                          MusesOssFmObjectCreator,
+                                          TesFmObjectCreator,
+                                          TesForwardModelHandle,)
 from .muses_oss_handle import (muses_oss_handle,)
 from .muses_radiative_transfer_oss import (MusesRadiativeTransferOss,)
 from .muses_radiative_transfer_vlidort import (MusesRadiativeTransferVlidort,)
@@ -140,14 +146,16 @@ from .state_element_single import (StateElementFromCalibration,
 from .state_info import (StateInfo,)
 from .tes_file import (TesFile,)
 
-__all__ = ['AdapterRetrievalConfiguration', 'AttrDictAdapter',
-           'CdfWriteLiteTes', 'CdfWriteTes', 'CloudResultSummary',
-           'ColumnResultSummary', 'CostFunction', 'CostFunctionCreator',
+__all__ = ['AdapterRetrievalConfiguration', 'AirsFmObjectCreator',
+           'AirsForwardModelHandle', 'AttrDictAdapter', 'CdfWriteLiteTes',
+           'CdfWriteTes', 'CloudResultSummary', 'ColumnResultSummary',
+           'CompareForwardModel', 'CostFunction', 'CostFunctionCreator',
            'CostFunctionStateElementNotify', 'CreatorHandle',
-           'CreatorHandleSet', 'CrisFmObjectCreator', 'CrossStateElement',
-           'CrossStateElementDefaultHandle', 'CrossStateElementHandle',
-           'CrossStateElementHandleSet', 'CrossStateElementImplementation',
-           'CurrentState', 'CurrentStateDict', 'CurrentStateRecordAndPlay',
+           'CreatorHandleSet', 'CrisFmObjectCreator', 'CrisForwardModelHandle',
+           'CrossStateElement', 'CrossStateElementDefaultHandle',
+           'CrossStateElementHandle', 'CrossStateElementHandleSet',
+           'CrossStateElementImplementation', 'CurrentState',
+           'CurrentStateDict', 'CurrentStateRecordAndPlay',
            'CurrentStateStateInfo', 'CurrentStrategyStep',
            'CurrentStrategyStepDict', 'DictFilterMetadata', 'ErrorAnalysis',
            'FileFilterMetadata', 'FilterIdentifier', 'FilterMetadata',
@@ -211,9 +219,10 @@ __all__ = ['AdapterRetrievalConfiguration', 'AttrDictAdapter',
            'StateElementPcloud', 'StateElementWithCreate',
            'StateElementWithCreateHandle', 'StateInfo',
            'StrategyStepIdentifier', 'SurfaceAlbedo', 'TesFile',
-           'TesSpectralWindow', 'UwisCamelOptions', 'VerboseSolverLogging',
-           'compare_species', 'docopt_simple', 'extra_l2_output',
-           'get_emis_dispatcher', 'greatcircle', 'is_atmospheric_species',
-           'modify_strategy_table', 'mpy_radiance_from_observation_list',
-           'muses_oss_handle', 'order_species', 'species_type']
+           'TesFmObjectCreator', 'TesForwardModelHandle', 'TesSpectralWindow',
+           'UwisCamelOptions', 'VerboseSolverLogging', 'compare_species',
+           'docopt_simple', 'extra_l2_output', 'get_emis_dispatcher',
+           'greatcircle', 'is_atmospheric_species', 'modify_strategy_table',
+           'mpy_radiance_from_observation_list', 'muses_oss_handle',
+           'order_species', 'species_type']
 # </AUTOGEN_INIT>

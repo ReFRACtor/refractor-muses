@@ -913,19 +913,19 @@ class MusesForwardModelHandle(ForwardModelHandle):
 
 
 # The Muses code is the fallback, so add with the lowest priority
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel),
-    priority_order=-1,
-)
 if False:
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel),
+        priority_order=-1,
+    )
     ForwardModelHandleSet.add_default_handle(
         MusesForwardModelHandle(
             InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel
@@ -938,6 +938,7 @@ if False:
     )
 
 __all__ = [
+    "MusesOssForwardModelBase",
     "MusesCrisForwardModel",
     "MusesAirsForwardModel",
     "MusesTesForwardModel",

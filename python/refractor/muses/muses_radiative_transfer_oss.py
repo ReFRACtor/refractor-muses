@@ -74,11 +74,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
         uip_all["oss_frequencyList"] = list(sd.convert_wave("nm"))
         rad, jac = self.fm_oss_stack(uip_all)
+        if(rad.shape[0] != sd.data.shape[0]):
+            breakpoint()
         sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
             self.instrument_name
         )
         # See MusesForwardModelHandle for a discussion of have_fake_jac_in_oss
-        if jac is not None and jac.ndim > 0 and len(self.retrieval_state_element_id) > 0:
+        if jac is not None and sub_basis_matrix.shape[0] > 0 and jac.ndim > 0 and len(self.retrieval_state_element_id) > 0:
             jac = np.matmul(sub_basis_matrix, jac).transpose()
             a = rf.ArrayAd_double_1(rad, jac)
         else:

@@ -1725,7 +1725,6 @@ class RefractorUip:
             )
         else:
             rinfo = fake_retrieval_info
-
         o_xxx: dict[str, None | MusesObservation] = {
             "AIRS": None,
             "TES": None,
