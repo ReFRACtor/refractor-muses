@@ -4,7 +4,10 @@ import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
+from .irk_forward_model import IrkForwardModel
+from .muses_tes_observation import MusesTesObservation
 import os
+import numpy as np
 from pathlib import Path
 from loguru import logger
 from functools import cached_property
@@ -49,7 +52,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return "APPLY"
 
     @cached_property
-    def spectrum_effect(self) -> list[rf.SpectrumEffect]:
+    def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
         # No spectrum effects currently, although it is possible something
         # like radiance scaling might be a useful option.
         res = []
@@ -76,19 +79,6 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.fix_file,
         )
 
-    @cached_property
-    def forward_model(self) -> rf.ForwardModel:
-        res = rf.StandardForwardModel(
-            self.instrument,
-            self.spec_win,
-            self.radiative_transfer,
-            self.spectrum_sampling,
-            self.spectrum_effect,
-        )
-        self._add_rf_uip_update_to_fm(res)
-        res.setup_grid()
-        return res
-
     # These should probably be pushed down to a lidort FmObjectCreator
     @cached_property
     def cloud_fraction(self) -> rf.CloudFraction:
@@ -112,7 +102,56 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         """
         raise NotImplementedError
 
+class MusesCrisForwardModelOss(IrkForwardModel):
+    '''IRK specialization for CRIS'''
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
 
+class MusesAirsForwardModelOss(IrkForwardModel):
+    '''IRK specialization for AIRS'''
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+
+    @cached_property
+    def irk_obs(self) -> MusesObservation:
+        """Observation to use in IRK calculation."""
+        # Replace with a fake TES observation. This is done to get the
+        # full TES frequency range.
+        tes_frequency_fname = (
+            f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
+        )
+        return MusesTesObservation.create_fake_for_irk(
+            tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
+        )
+
+    def irk_radiance(
+        self,
+        cstate: CurrentState,
+        pointing_angle: rf.DoubleWithUnit,
+    ) -> tuple[rf.Spectrum, None | np.ndarray]:
+        """Calculate radiance/jacobian for the IRK calculation, for the
+        given angle. We also return the UIP we used for the calculation"""
+        # For AIRS, we use the TES forward model instead. Based on comments in
+        # the code it looks like this was done to use the more complete frequency
+        # range of TES
+        obs_original = self.obs
+        try:
+            self.obs = self.irk_obs
+            self.instrument_name = InstrumentIdentifier("TES")
+            return super().irk_radiance(cstate, pointing_angle)
+        finally:
+            self.obs = obs_original
+            self.instrument_name = InstrumentIdentifier("AIRS")
+
+
+class MusesTesForwardModelOss(IrkForwardModel):
+    '''IRK specialization for TES'''
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+            
 class CrisFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
         self,
@@ -193,6 +232,22 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        res = MusesCrisForwardModelOss(
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+        )
+        self._add_rf_uip_update_to_fm(res)
+        res.setup_grid()
+        return res
+
+        
 
 class AirsFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
@@ -252,6 +307,29 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        from refractor.muses_py_fm import MusesAirsForwardModel
+        from .compare_forward_model import CompareForwardModel
+        fm1 = MusesAirsForwardModelOss(
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+        )
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            fm2 = MusesAirsForwardModel(self.current_state, self.observation,
+                                        self.retrieval_config)
+            res = CompareForwardModel(fm2,fm1)
+        else:
+            res = fm1
+        res.setup_grid()
+        return res
+        
 
 class TesFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
@@ -311,6 +389,21 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
+        
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        res = MusesTesForwardModelOss(
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+        )
+        self._add_rf_uip_update_to_fm(res)
+        res.setup_grid()
+        return res
 
 
 class CrisForwardModelHandle(ForwardModelHandle):

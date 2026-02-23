@@ -39,6 +39,21 @@ class CompareForwardModel(rf.ForwardModel):
         # Add whatever comparison is wanted here
         return res1
 
+    def irk(self, current_state: CurrentState) -> ResultIrk:
+        # Not all ForwardModel support IRK. That's fine, we just supply this
+        # for comparing one that do. This just fails if the forward model doesn't
+        # have an IRK calculation.
+        res1 = self.fm1.irk(current_state)
+        res2 = self.fm2.irk(current_state)
+        with open("fm1_uip.txt", "w") as fh:
+            pprint.pprint(self.fm1.rf_uip.uip, fh)
+        with open("fm2_uip.txt", "w") as fh:
+            pprint.pprint(self.fm2.radiative_transfer.rf_uip.uip, fh)
+        subprocess.run(["diff", "-u", "fm1_uip.txt", "fm2_uip.txt"])
+        # Add whatever comparison is wanted here
+        breakpoint()
+        return res1
+
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         if hasattr(self.fm1, "notify_cost_function"):
             self.fm1.notify_cost_function(cfunc)
@@ -49,13 +64,16 @@ class CompareForwardModel(rf.ForwardModel):
         res1 = self.fm1.radiance(sensor_index, skip_jacobian)
         res2 = self.fm2.radiance(sensor_index, skip_jacobian)  # noqa:F841
         # Add whatever comparison is wanted here
-        if not np.allclose(res1.spectral_domain.data, res2.spectral_domain.data):
-            breakpoint()
-        with open("fm1_uip.txt", "w") as fh:
-            pprint.pprint(self.fm1.rf_uip.uip, fh)
-        with open("fm2_uip.txt", "w") as fh:
-            pprint.pprint(self.fm2.radiative_transfer.rf_uip.uip, fh)
-        subprocess.run(["diff", "-u", "fm1_uip.txt", "fm2_uip.txt"])
+        if False:
+            if not np.allclose(res1.spectral_domain.data, res2.spectral_domain.data):
+                breakpoint()
+            with open("fm1_uip.txt", "w") as fh:
+                pprint.pprint(self.fm1.rf_uip.uip, fh)
+            with open("fm2_uip.txt", "w") as fh:
+                pprint.pprint(self.fm2.radiative_transfer.rf_uip.uip, fh)
+            subprocess.run(["diff", "-u", "fm1_uip.txt", "fm2_uip.txt"])
+            if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
+                breakpoint()
         if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
             breakpoint()
         return res1

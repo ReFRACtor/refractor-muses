@@ -921,7 +921,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rt
 
     @cached_property
-    def spectrum_effect(self) -> list[rf.SpectrumEffect]:
+    def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
         res = []
         for i in range(self.num_channels):
             per_channel_eff = []
