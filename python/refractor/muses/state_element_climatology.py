@@ -144,7 +144,7 @@ class StateElementFromClimatology(StateElementOspFile):
             for v, vname in (
                 (sounding_metadata.hour, "hour"),
                 (sounding_metadata.latitude.value, "latitude"),
-                (longitude + 360 if longitude < 0 else longitude, "longitude"),
+                (longitude - 360 if longitude > 180 else longitude, "longitude"),
             ):
                 ind = np.where(
                     (f[f"{vname}_min"][:] <= v) & (v < f[f"{vname}_max"][:])
