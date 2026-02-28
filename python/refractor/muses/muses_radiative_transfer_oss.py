@@ -363,8 +363,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         results = self.fm_oss(uip, jacobianList)
 
-        rad = results["radiance"]
-
         # Prepare Jacobians for pack_jacobian function.
         uip["num_atm_k"] = len(results["nameJacobian"])
 
@@ -438,21 +436,14 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Pack jacobians together based on retrieval parameter ordering.
         # pack_jacobian, uip, rad
 
-        (o_rad, o_jac) = self.pack_jacobian(
+        o_jac = self.pack_jacobian(
             uip,
-            rad,
+            results["radiance"].shape[0],
             jacobian_emiss_ils_map,
             results["xkTskin"],
             atm_jacobians_ils_total,
-            0,
             jacobian_cloud_map,
-            0,
-            0,
-            0,
         )
-
-        # AT_LINE 47 fm_oss_stack.pro
-        radiance = np.copy(o_rad)
 
         # Because we are not really sure the type of uip['jacobians_all'], we have to inspect to see if it is a list
         # or an ndarray
@@ -467,30 +458,21 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if to_copy_jacobian_flag or uip["jacobians_all"] != "":
             jacobian = np.copy(o_jac)
 
-        return (radiance, jacobian)
+        return (results["radiance"], jacobian)
 
     def pack_jacobian(
             self,
             uip,
-            radiance_ils_total,
+            num_rad,
             jacobian_emiss_ils_map, jacobian_tsur_ils_total, atm_jacobians_ils_total, 
-            jacobian_ptg_angle, 
             jacobian_cloud_map, 
-            jacobian_calscale_ils_map, jacobian_caloffset_ils_map, jacobian_resscale_ils_det):
+            ):
         from refractor.muses_py import UtilList
         function_name = "pack_jacobian: "
 
         utilList = UtilList()
 
         o_jacobian = None
-        o_radiance = None
-
-        # Due to the nature of the array radiance_ils_total, which can be multiple dimension, we use a flag to keep track of it.
-        radiance_ils_shape_2d_flag = False
-        if len(radiance_ils_total.shape) > 1:
-            radiance_ils_shape_2d_flag = True
-
-        # AT_LINE 8 src_ms-2018-12-10/ELANOR/pack_jacobian.pro pack_jacobian
 
         # convert to linear Jacobians in this function rather than within
         # ELANOR because affects OSS also
@@ -542,15 +524,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                         assert False
             # end for jj in range(0,len(uip['jacobiansLinear'])):
 
-        # AT_LINE 9 ELANOR/pack_jacobian.pro pack_jacobian
-        o_radiance = radiance_ils_total[:]
-        if radiance_ils_shape_2d_flag:
-            num_rad = len(radiance_ils_total[:0])  # If 2D array, get the row dimension.
-        else:
-            num_rad = len(radiance_ils_total)      # For 1D array, num_rad is the same as num_elem variable.
-
         # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
-        num_elem = len(o_radiance)
         num_par = 0
         num_atm = len(uip['atmosphere'][0, :])
 
@@ -594,16 +568,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     num_par = num_par + num_atm
         # for ii in range(len(uip['jacobians'])):
 
-        # Do a sanity check on num_rad and num_elem values.
-        if num_rad != num_elem:
-            breakpoint()
-            print(function_name, "ERROR: num_rad and num_elem differ: ", num_rad, num_elem)
-            assert False
-
         # AT_LINE 57 ELANOR/pack_jacobian.pro pack_jacobian
         # Now unpack jacobians
         if num_par > 0:  
-            o_jacobian = np.zeros(shape=(num_par, num_elem), dtype=np.float64)  # output jacobian
+            o_jacobian = np.zeros(shape=(num_par, num_rad), dtype=np.float64)  # output jacobian
 
             ii_par = 0
             ii_dets = 0 # Start index for copying jacobina ils total.
@@ -616,10 +584,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 # AT_LINE 70 ELANOR/pack_jacobian.pro pack_jacobian
                 if jacob == 'TSUR':
                     for jj in range(num_det):
-                        if radiance_ils_shape_2d_flag:
-                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:, jj]
-                        else:
-                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:]
+                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:]
                         ii_dets = ii_dets + num_rad
                         ii_dete = ii_dete + num_rad
                     # end for jj range in (num_det):
@@ -629,17 +594,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 # AT_LINE 79 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
                 ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
-                if jacob == 'PTGANG':
-                    for jj in range(num_det):
-                        if radiance_ils_shape_2d_flag:
-                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_ptg_angle[:, jj]
-                        else:
-                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_ptg_angle[:]
-                        ii_dets = ii_dets + num_rad
-                        ii_dete = ii_dete + num_rad
-                    # end for jj in range(num_det):
-                    ii_par = ii_par + 1
-                # end if (jacob == 'PTGANG'):
 
                 # AT_LINE 90 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
@@ -660,43 +614,14 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 # AT_LINE 109 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
                 ii_dete = num_rad
-                if jacob == 'CALSCALE':
-                    num_cal = len(uip['calibration']['frequency'])
-                    ii_ps = ii_par
-                    ii_pe = ii_par + num_cal
-                    for kk in range(num_det):
-                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_calscale_ils_map[kk]['k'][:]
-                        ii_dets = ii_dets + num_rad 
-                        ii_dete = ii_dete + num_rad 
-                    # end for kk in range(num_det):
-                    ii_par = ii_par + num_cal 
-                # end if (jacob == 'CALSCALE')
 
                 # AT_LINE 127 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
                 ii_dete = num_rad
-                if jacob == 'CALOFFSET':
-                    num_cal = len(uip['calibration']['frequency'])
-                    ii_ps = ii_par
-                    ii_pe = ii_par + num_cal
-                    for kk in range(num_det):
-                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_caloffset_ils_map[kk]['k'][:]
-                        ii_dets = ii_dets + num_rad 
-                        ii_dete = ii_dete + num_rad 
-                    # end for kk in range(num_det):
-                    ii_par = ii_par + num_cal 
-                # end if (jacob == 'CALOFFSET' ):
 
                 # AT_LINE 145 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
                 ii_dete = num_rad
-                if jacob == 'RESSCALE':
-                    for jj in range(num_det):
-                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_resscale_ils_det[:, jj]
-                        ii_dets = ii_dets + num_rad
-                        ii_dete = ii_dete + num_rad
-                    # end for jj in range(num_det):
-                    ii_par = ii_par + 1
 
                 # AT_LINE 160 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
@@ -766,7 +691,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # end if (num_par > 0):
         # AT_LINE 213 ELANOR/pack_jacobian.pro pack_jacobian
 
-        return (o_radiance, o_jacobian)
+        return o_jacobian
     
 
 __all__ = [
