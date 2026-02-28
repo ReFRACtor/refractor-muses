@@ -5,6 +5,7 @@ import numpy as np
 import os
 import typing
 from typing import Self
+from loguru import logger
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -111,59 +112,25 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return "MusesRadiativeTransferOss"
 
     def fm_oss(self, i_uip, i_jacobians):
-        from ctypes import c_float
         import math
 
         function_name = "fm_oss: "
 
-        # AT_LINE 8 fm_oss.pro
-        # if dirOSS is None or dirOSS == '':
-        #    dirOSS = '../OSP/OSS_FM/OSS/2017-02/'
-
-        # AT_LINE 10 fm_oss.pro
         if i_jacobians is not None:
             njacob = len(i_jacobians)
         else:
             njacob = 0
 
-        # AT_LINE 11 fm_oss.pro
-        # The value of nameJacobian_arr is not used.
-        # byte_array     = [elem for elem in str.encode(i_jacobians)]
-        # nameJacobian_arr = np.array(byte_array)
-        # nameJacobian_arr = nameJacobian_arr.astype(np.float32)
-
-        # AT_LINE 12 fm_oss.pro
-        # PYTHON_NOTE: Because the array i_uip['atmosphere'] will be messed with later, thus corrupt our memory,
-        #              we need to allocate memory for both pressure and tatm arrays.
         pressure = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
         tatm = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
         pressure[:] = i_uip["atmosphere"][0, :]
         tatm[:] = i_uip["atmosphere"][1, :]
         
-        # AT_LINE 17 fm_oss.pro
-        #  res = call_external(dirOSS+'lib/linux_x86_64/liboss.so', 'IDLsetChanSelect', 1, /F_VALUE)
-
-        # AT_LINE 19 fm_oss.pro
         nchanOSS = len(i_uip["oss_frequencyList"])
         sunang = 90.0
         nemis = len(i_uip["emissivity"]["frequency"])
         ncloud = len(i_uip["cloud"]["frequency"])
         nlevels = len(pressure)
-
-        y = np.zeros(shape=(nchanOSS), dtype=np.float32)
-        xkTemp = np.zeros(shape=(nlevels, nchanOSS), dtype=np.float32)
-        xkTskin = np.zeros(shape=(nchanOSS), dtype=np.float32)
-        if njacob > 1:
-            # If njacob is greater than 1, we don't need to include the 3rd dimension as it is not needed.
-            xkOutGas = np.zeros(shape=(nlevels, nchanOSS, njacob), dtype=np.float32)
-        else:
-            # If njacob is 1, we don't need to include the 3rd dimension of the xkOutGas array.
-            xkOutGas = np.zeros(shape=(nlevels, nchanOSS), dtype=np.float32)
-
-        xkEm = np.zeros(shape=(nemis, nchanOSS), dtype=np.float32)
-        xkRf = np.zeros(shape=(nemis, nchanOSS), dtype=np.float32)
-        xkCldlnPres = np.zeros(shape=(nchanOSS), dtype=np.float32)
-        xkCldlnExt = np.zeros(shape=(ncloud, nchanOSS), dtype=np.float32)
 
         if float(i_uip["obs_table"]["pointing_angle_surface"] * 180 / np.pi) < -990:
             print(
@@ -266,67 +233,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             "something": 1,
             "njacobians": njacob,
             "nchanOSS": nchanOSS,
-            "y": y,
-            "xktemp": xkTemp,
-            "xktskin": xkTskin,
-            "xkoutgas": xkOutGas,
-            "xkem": xkEm,
-            "xkrf": xkRf,
-            "xkcldlnpres": xkCldlnPres,
-            "xkcldlnext": xkCldlnExt,
         }
 
-        # write out diagnostic to see exactly what passed into OSS.
-        # from py_retrieve.app.tools.dict_tools.cdf_write_dict import cdf_write_dict
-        # cdf_write_dict(ss_info, 'oss_input.nc')
-
-        # AT_LINE 91 fm_oss.pro
-        # Res = call_external(dirOSS+'lib/linux_x86_64/liboss.so', 'IDLfwdWrapper', $
-
-        # Create pointers so we can pass them to C function.  After the call to the FORTRAN code, we will need to extract the values back.
-        # see: https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
-        # inputs
-        pressure_ptr = (c_float * len(ss_info["pressure"]))(
-            *ss_info["pressure"].flatten()
-        )
-        tatm_ptr = (c_float * len(ss_info["tatm"]))(*ss_info["tatm"].flatten())
-
-        atmosphere_ptr = (c_float * atmosphere.size)(*atmosphere.flatten(order="F"))
-        emis_ptr = (c_float * len(ss_info["emis"]))(*ss_info["emis"].flatten())
-        refl_ptr = (c_float * len(ss_info["refl"]))(*ss_info["refl"].flatten())
-
-        cloudext_ptr = (c_float * len(ss_info["cloudext"]))(
-            *ss_info["cloudext"].flatten()
-        )
-
-        emis_freq_ptr = (c_float * len(ss_info["emis_freq"]))(
-            *ss_info["emis_freq"].flatten()
-        )
-        cloud_freq_ptr = (c_float * len(ss_info["cloud_freq"]))(
-            *ss_info["cloud_freq"].flatten()
-        )
-
-        # outputs
-        y_ptr = (c_float * nchanOSS)(*y.flatten(order="F"))
-        xkTemp_ptr = (c_float * xkTemp.size)(*xkTemp.flatten(order="F"))
-
-        xkTskin_ptr = (c_float * nchanOSS)(*xkTskin.flatten())
-        xkOutGas_ptr = (c_float * xkOutGas.size)(*xkOutGas.flatten(order="F"))
-        xkEm_ptr = (c_float * xkEm.size)(*xkEm.flatten(order="F"))
-        xkRf_ptr = (c_float * xkRf.size)(*xkRf.flatten(order="F"))
-        xkCldlnPres_ptr = (c_float * nchanOSS)(*xkCldlnPres.flatten())
-        xkCldlnExt_ptr = (c_float * xkCldlnExt.size)(*xkCldlnExt.flatten(order="F"))
-
-        # These are the names of the parameters to FMOSSfwdWrapper function:
-        # ss_info['nlevels'],   ss_info['natmosphere_params'], ss_info['pressure'], ss_info['tatm'], ss_info['tsur'],
-        # ss_info['atmosphere'], ss_info['nemis'],             ss_info['emis'],    ss_info['refl'],     ss_info['scale_pressure'],
-        # ss_info['pcloud'],    ss_info['ncloud'],            ss_info['cloudext'], ss_info['emis_freq'], ss_info['cloud_freq'],
-        # ss_info['ptgang'],    ss_info['sunang'],            ss_info['latitude'], ss_info['surfaceAltitude'], ss_info['something'],
-        # ss_info['njacobians'], ss_info['nchanOSS'],          y,                  xkTemp,               xkTskin,
-        # xkOutGas,             xkEm,                         xkRf,               xkCldlnPres,          xkCldlnExt)
-
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        muses_oss_handle.oss_forward_model(ss_info,
+        (y,
+        xkTemp,
+        xkTskin,
+        xkOutGas,
+        xkEm,
+        xkRf,
+        xkCldlnPres,
+        xkCldlnExt) = muses_oss_handle.oss_forward_model(ss_info,
                                            np.array(pressure),
                                            np.array(tatm),
                                            np.array(atmosphere),
@@ -334,42 +251,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                                            np.array(ss_info["emis"]),
                                            np.array(ss_info["cloud_freq"]),
                                            np.array(ss_info["cloudext"]),
-                                           y_ptr,
-                                           xkTemp_ptr,
-                                           xkTskin_ptr,
-                                           xkOutGas_ptr,
-                                           xkEm_ptr,
-                                           xkRf_ptr,
-                                           xkCldlnPres_ptr,
-                                           xkCldlnExt_ptr,
                                            )
 
-        # The c function above would have filled in the values in the pointers, we now assigned them back, esssentially receiving output
-        # from the c function.
-
-        y[:] = y_ptr[:]
-
-        xkTemp[:, :] = np.reshape(xkTemp_ptr, (nlevels, nchanOSS), order="F")
-
-        xkTskin[:] = xkTskin_ptr[:]
-
-        # Watching out for the 3rd dimension or not.
-        if njacob > 1:
-            xkOutGas[:, :, :] = np.reshape(
-                xkOutGas_ptr, (nlevels, nchanOSS, njacob), order="F"
-            )
-        else:
-            xkOutGas[:, :] = np.reshape(xkOutGas_ptr, (nlevels, nchanOSS), order="F")
-
-        xkEm[:, :] = np.reshape(xkEm_ptr, (nemis, nchanOSS), order="F")
-
-        xkRf[:, :] = np.reshape(xkRf_ptr, (nemis, nchanOSS), order="F")
-
-        xkCldlnPres[:] = xkCldlnPres_ptr[:]
-
-        xkCldlnExt[:, :] = np.reshape(xkCldlnExt_ptr, (ncloud, nchanOSS), order="F")
-
-        # AT_LINE 124 fm_oss.pro
+        logger.info(f"Hi there:  {y.shape}")
         o_result = {
             "radiance": y * 1e-4,
             "xkTemp": xkTemp * 1e-4,
@@ -409,10 +293,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if len(indjac) > 0:
                 indjac = indjac[0]
                 indpan = indpan[0]
-                if len(o_result["nameJacobian"]) > 1:
-                    k = np.copy(o_result["xkOutGas"][:, :, indjac])
-                elif len(o_result["nameJacobian"]) == 1:
-                    k = np.copy(o_result["xkOutGas"])
+                k = np.copy(o_result["xkOutGas"][:, :, indjac])
 
                 # make linear Jacobian
                 for kk in range(len(pan_vmr_oss)):
@@ -430,10 +311,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     k[kk, :] = k[kk, :] * pan_vmr_muses[kk]
 
                 # remake "log" Jacobian with muses VMR
-                if len(o_result["nameJacobian"]) > 1:
-                    o_result["xkOutGas"][:, :, indjac] = k
-                elif len(o_result["nameJacobian"]) == 1:
-                    o_result["xkOutGas"] = k
+                o_result["xkOutGas"][:, :, indjac] = k
             # if len(ind) > 0:
         # end if pan_negative:
 
@@ -444,10 +322,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if len(indjac) > 0:
                 indjac = indjac[0]
                 indnh3 = indnh3[0]
-                if len(o_result["nameJacobian"]) > 1:
-                    k = np.copy(o_result["xkOutGas"][:, :, indjac])
-                elif len(o_result["nameJacobian"]) == 1:
-                    k = np.copy(o_result["xkOutGas"])
+                k = np.copy(o_result["xkOutGas"][:, :, indjac])
 
                 # make linear Jacobian
                 for kk in range(len(nh3_vmr_oss)):
@@ -459,16 +334,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
                 i_uip["atmosphere"][indnh3, :] = nh3_vmr_muses
                 o_result["radiance"] = o_result["radiance"] + dL
-
+                
                 # update "log" Jacobian to multiply by the MUSES VMR
                 for kk in range(len(nh3_vmr_oss)):
                     k[kk, :] = k[kk, :] * nh3_vmr_muses[kk]
 
                 # remake "log" Jacobian with muses VMR
-                if len(o_result["nameJacobian"]) > 1:
-                    o_result["xkOutGas"][:, :, indjac] = k
-                elif len(o_result["nameJacobian"]) == 1:
-                    o_result["xkOutGas"] = k
+                o_result["xkOutGas"][:, :, indjac] = k
             # if len(indjac) > 0:
         # end if nh3_negative:
 
@@ -484,8 +356,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return o_result
 
     def fm_oss_stack(self, uipIn):
-        from refractor.muses_py import pack_jacobian
-
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
@@ -527,13 +397,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     results["nameJacobian"][jj].lstrip().rstrip()
                 )
 
-                if uip["num_atm_k"] > 1:
-                    atm_jacobians_ils_total["k_species"][jj]["k"] = results["xkOutGas"][
-                        :, :, jj
-                    ]
-
-                if uip["num_atm_k"] == 1:
-                    atm_jacobians_ils_total["k_species"][jj]["k"] = results["xkOutGas"]
+                atm_jacobians_ils_total["k_species"][jj]["k"] = results["xkOutGas"][
+                    :, :, jj
+                ]
 
                 # AT_LINE 28 fm_oss_stack.pro
                 # update naming to be consistent with ELANOR
@@ -572,7 +438,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Pack jacobians together based on retrieval parameter ordering.
         # pack_jacobian, uip, rad
 
-        (o_rad, o_jac) = pack_jacobian(
+        (o_rad, o_jac) = self.pack_jacobian(
             uip,
             rad,
             jacobian_emiss_ils_map,
@@ -603,6 +469,305 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         return (radiance, jacobian)
 
+    def pack_jacobian(
+            self,
+            uip,
+            radiance_ils_total,
+            jacobian_emiss_ils_map, jacobian_tsur_ils_total, atm_jacobians_ils_total, 
+            jacobian_ptg_angle, 
+            jacobian_cloud_map, 
+            jacobian_calscale_ils_map, jacobian_caloffset_ils_map, jacobian_resscale_ils_det):
+        from refractor.muses_py import UtilList
+        function_name = "pack_jacobian: "
+
+        utilList = UtilList()
+
+        o_jacobian = None
+        o_radiance = None
+
+        # Due to the nature of the array radiance_ils_total, which can be multiple dimension, we use a flag to keep track of it.
+        radiance_ils_shape_2d_flag = False
+        if len(radiance_ils_total.shape) > 1:
+            radiance_ils_shape_2d_flag = True
+
+        # AT_LINE 8 src_ms-2018-12-10/ELANOR/pack_jacobian.pro pack_jacobian
+
+        # convert to linear Jacobians in this function rather than within
+        # ELANOR because affects OSS also
+
+        # any linear atmospheric Jacobians, convert now
+        if len(uip['jacobiansLinear']) > 0 and uip['jacobiansLinear'][0] != '':
+            all_jacobians_species = []
+            for kkk in range(0, len(atm_jacobians_ils_total['k_species'])):
+                all_jacobians_species.append(atm_jacobians_ils_total['k_species'][kkk]['species'])
+
+            for jj in range(0, len(uip['jacobiansLinear'])):
+
+                specie = uip['jacobiansLinear'][jj]
+
+                if np.all(np.isfinite(atm_jacobians_ils_total['k_species'][0]['k'])) == False:
+                    print(function_name, "Error! Non-finite Jacobian")
+                    print(function_name, f"jj={jj}, uip['jacobiansLinear'][jj]={uip['jacobiansLinear'][jj]}")
+                    assert False
+
+                #if uip['jacobiansLinear'][jj] in all_jacobians_species:
+                if uip['jacobiansLinear'][jj] in all_jacobians_species and uip['jacobiansLinear'][jj] != 'TATM':
+                    # Note: Not sure if below lines are correct.
+                    inds = utilList.WhereEqualIndices(uip['atmosphere_params'], uip['jacobiansLinear'][jj])
+
+                    val = uip['atmosphere'][inds, :]
+                    if len(val.shape) == 2 and val.shape[0] == 1:
+                        val = np.reshape(val, (val.shape[1]))   # Convert (1,64) to (64,)
+
+                    # IDL:
+                    # FOR kk = 0, N_ELEMENTS(val)-1 DO BEGIN
+                    #     atm_jacobians_ils_total[0].k_species[ind].k(kk,*) = atm_jacobians_ils_total[0].k_species[ind].k(kk,*)/val[kk]
+                    # ENDFOR
+
+                    # fixed bug here:  should not be ['k_species'][0]['k'][kk, :]
+                    # should search for correct index, found
+                    # should be ['k_species'][found]['k'][kk, :] ssk 3/4/2023
+                    for ii in range(len(atm_jacobians_ils_total['k_species'])):
+                        if atm_jacobians_ils_total['k_species'][ii]['species'] == specie:
+                            found = ii
+
+                    indx = np.where(atm_jacobians_ils_total['k_species']) 
+                    for kk in range(0, len(val)):
+                        atm_jacobians_ils_total['k_species'][found]['k'][kk, :] = atm_jacobians_ils_total['k_species'][found]['k'][kk, :] / val[kk]
+                    # end for kk in range(0,len(val)):
+
+                    if np.all(np.isfinite(atm_jacobians_ils_total['k_species'][0]['k'])) == False:
+                        print(function_name, "Error! Non-finite Jacobian")
+                        print(function_name, f"jj={jj}, uip['jacobiansLinear'][jj]={uip['jacobiansLinear'][jj]}")
+                        assert False
+            # end for jj in range(0,len(uip['jacobiansLinear'])):
+
+        # AT_LINE 9 ELANOR/pack_jacobian.pro pack_jacobian
+        o_radiance = radiance_ils_total[:]
+        if radiance_ils_shape_2d_flag:
+            num_rad = len(radiance_ils_total[:0])  # If 2D array, get the row dimension.
+        else:
+            num_rad = len(radiance_ils_total)      # For 1D array, num_rad is the same as num_elem variable.
+
+        # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
+        num_elem = len(o_radiance)
+        num_par = 0
+        num_atm = len(uip['atmosphere'][0, :])
+
+        num_det = 1
+
+        # AT_LINE 24 ELANOR/pack_jacobian.pro pack_jacobian
+        for ii in range(len(uip['jacobians'])):
+            jacob = uip['jacobians'][ii].upper()
+
+            if (jacob == 'TSUR' or jacob == 'PTGANG'):
+                num_par = num_par + 1
+
+            if (jacob == 'EMIS' or jacob == 'EMIS_LOG'):
+                num_par = num_par + len(uip['emissivity']['value'])
+
+            if jacob == 'CLOUDEXT':
+                num_par = num_par + len(uip['cloud']['frequency'])
+
+            if jacob == 'PCLOUD':
+                num_par = num_par + 1
+
+            if jacob == 'RESSCALE':
+                num_par = num_par + 1
+
+            if jacob == 'CALSCALE':
+                num_par = num_par + len(uip['calibration']['frequency'])
+
+            if jacob == 'CALOFFSET':
+                num_par = num_par + len(uip['calibration']['frequency'])
+
+            # Have to add in atm jac for oss.  check
+            if len(atm_jacobians_ils_total) > 0:
+                # Collect all species in all atm_jacobians_ils_total
+                all_species = []
+                for jj in range(len(atm_jacobians_ils_total['k_species'])):
+                    species = atm_jacobians_ils_total['k_species'][jj]['species']
+                    if species not in all_species:
+                        all_species.append(species)
+
+                if jacob in all_species:
+                    num_par = num_par + num_atm
+        # for ii in range(len(uip['jacobians'])):
+
+        # Do a sanity check on num_rad and num_elem values.
+        if num_rad != num_elem:
+            breakpoint()
+            print(function_name, "ERROR: num_rad and num_elem differ: ", num_rad, num_elem)
+            assert False
+
+        # AT_LINE 57 ELANOR/pack_jacobian.pro pack_jacobian
+        # Now unpack jacobians
+        if num_par > 0:  
+            o_jacobian = np.zeros(shape=(num_par, num_elem), dtype=np.float64)  # output jacobian
+
+            ii_par = 0
+            ii_dets = 0 # Start index for copying jacobina ils total.
+            ii_dete = num_rad # End index for copying jacobian ils total.
+
+            for ii in range(len(uip['jacobians'])):
+                ii_dets = 0
+                ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
+                jacob = uip['jacobians'][ii]
+                # AT_LINE 70 ELANOR/pack_jacobian.pro pack_jacobian
+                if jacob == 'TSUR':
+                    for jj in range(num_det):
+                        if radiance_ils_shape_2d_flag:
+                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:, jj]
+                        else:
+                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:]
+                        ii_dets = ii_dets + num_rad
+                        ii_dete = ii_dete + num_rad
+                    # end for jj range in (num_det):
+                    ii_par = ii_par + 1
+                # end if (jacob == 'TSUR'):
+
+                # AT_LINE 79 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
+                if jacob == 'PTGANG':
+                    for jj in range(num_det):
+                        if radiance_ils_shape_2d_flag:
+                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_ptg_angle[:, jj]
+                        else:
+                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_ptg_angle[:]
+                        ii_dets = ii_dets + num_rad
+                        ii_dete = ii_dete + num_rad
+                    # end for jj in range(num_det):
+                    ii_par = ii_par + 1
+                # end if (jacob == 'PTGANG'):
+
+                # AT_LINE 90 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad
+                if (jacob == 'EMIS' or jacob == 'EMIS_LOG'):
+                    num_em = len(uip['emissivity']['value'])
+                    ii_ps = ii_par
+                    ii_pe = ii_par + num_em
+
+                    for kk in range(num_det):
+                        # Note: There is only one element for jacobian_emiss_ils_map so there's no need to use index.
+                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_emiss_ils_map['k'][:]
+                        ii_dets = ii_dets + num_rad
+                        ii_dete = ii_dete + num_rad
+                    ii_par = ii_par + num_em
+                # end if (jacob == 'EMIS' or jacob == 'EMIS_LOG'):
+
+                # AT_LINE 109 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad
+                if jacob == 'CALSCALE':
+                    num_cal = len(uip['calibration']['frequency'])
+                    ii_ps = ii_par
+                    ii_pe = ii_par + num_cal
+                    for kk in range(num_det):
+                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_calscale_ils_map[kk]['k'][:]
+                        ii_dets = ii_dets + num_rad 
+                        ii_dete = ii_dete + num_rad 
+                    # end for kk in range(num_det):
+                    ii_par = ii_par + num_cal 
+                # end if (jacob == 'CALSCALE')
+
+                # AT_LINE 127 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad
+                if jacob == 'CALOFFSET':
+                    num_cal = len(uip['calibration']['frequency'])
+                    ii_ps = ii_par
+                    ii_pe = ii_par + num_cal
+                    for kk in range(num_det):
+                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_caloffset_ils_map[kk]['k'][:]
+                        ii_dets = ii_dets + num_rad 
+                        ii_dete = ii_dete + num_rad 
+                    # end for kk in range(num_det):
+                    ii_par = ii_par + num_cal 
+                # end if (jacob == 'CALOFFSET' ):
+
+                # AT_LINE 145 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad
+                if jacob == 'RESSCALE':
+                    for jj in range(num_det):
+                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_resscale_ils_det[:, jj]
+                        ii_dets = ii_dets + num_rad
+                        ii_dete = ii_dete + num_rad
+                    # end for jj in range(num_det):
+                    ii_par = ii_par + 1
+
+                # AT_LINE 160 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad
+                if jacob == 'PCLOUD':
+                    if num_det == 1:
+                        # If we only processing 1 detector, there is only one element in jacobian_cloud_map.
+                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_cloud_map['k_height'][:]
+                    else:
+                        for jj in range(num_det):
+                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_cloud_map[jj]['k_height'][:]
+                            ii_dets = ii_dets + num_rad
+                            ii_dete = ii_dete + num_rad
+                        # end for jj in range(num_det):
+                    ii_par = ii_par + 1
+                # end if (jacob == 'PCLOUD'):
+
+                # AT_LINE 175 ELANOR/pack_jacobian.pro pack_jacobian
+
+                ii_dets = 0
+                ii_dete = num_rad
+                if jacob == 'CLOUDEXT':
+                    num_v = len(uip['cloud']['frequency'])
+                    ii_ps = ii_par
+                    ii_pe = ii_par + num_v
+                    ii_dets = 0
+                    ii_dete = num_rad
+                    if num_det == 1:
+                        # If we only processing 1 detector, there is only one element in jacobian_cloud_map.
+                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_cloud_map['k_ext'][:]
+                    else:
+                        for kk in range(num_det):
+                            o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_cloud_map[kk]['k_ext'][:]
+                            ii_dets = ii_dets + num_rad
+                            ii_dete = ii_dete + num_rad
+                        # end for kk in range(num_det):
+                    ii_par = ii_par + num_v 
+                # end if (jacob == 'CLOUDEXT'):
+
+                # AT_LINE 193 ELANOR/pack_jacobian.pro pack_jacobian
+                ii_dets = 0
+                ii_dete = num_rad # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
+                uu = []
+                if uip['num_atm_k'] > 0:
+                    for mm in range(len(atm_jacobians_ils_total['k_species'])):
+                        if atm_jacobians_ils_total['k_species'][mm]['species'] == jacob:
+                            uu.append(mm)
+
+                if len(uu) > 0:
+                    uu = uu[0]  # We only need one.
+                    ii_ps = ii_par
+                    ii_pe = ii_par + num_atm  # PYTHON_NOTE: We don't need to subtract 1.
+                    if num_det == 1:
+                        # If we only processing 1 detector, there is only one element in atm_jacobians_ils_total.
+                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = atm_jacobians_ils_total['k_species'][uu]['k'][:]
+                    else:
+                        # AT_LINE 203 ELANOR/pack_jacobian.pro pack_jacobian
+                        for kk in range(num_det):
+                            o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = atm_jacobians_ils_total[kk]['k_species'][uu]['k']
+                            ii_dets = ii_dets + num_rad
+                            ii_dete = ii_dete + num_rad
+                        # for kk in range(num_det):
+                    # AT_LINE 209 ELANOR/pack_jacobian.pro pack_jacobian
+                    ii_par = ii_par + num_atm
+                # end if jacob in atm_jacobians_ils_total['k_species']['species']:
+            # end for ii in range(len(uip['jacobians'])):
+        # end if (num_par > 0):
+        # AT_LINE 213 ELANOR/pack_jacobian.pro pack_jacobian
+
+        return (o_radiance, o_jacobian)
+    
 
 __all__ = [
     "MusesRadiativeTransferOss",

@@ -479,15 +479,7 @@ class MusesOssHandle:
                           emis: np.ndarray,
                           cloud_freq: np.ndarray,
                           cloudext: np.ndarray,
-                          y_ptr,
-                          xkTemp_ptr,
-                          xkTskin_ptr,
-                          xkOutGas_ptr,
-                          xkEm_ptr,
-                          xkRf_ptr,
-                          xkCldlnPres_ptr,
-                          xkCldlnExt_ptr,
-                          ):
+                          ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
         self.check_have_library()
         assert self.liboss is not None
         if pressure.shape[0] != tatm.shape[0]:
@@ -498,6 +490,22 @@ class MusesOssHandle:
             raise RuntimeError("emis and emis_freq need to be the same size")
         if cloudext.shape[0] != cloud_freq.shape[0]:
             raise RuntimeError("cloudext and cloud_freq need to be the same size")
+
+        # Setup return stuff
+        nlevels = atmosphere.shape[0]
+        ny = self.channel_indx.shape[0]
+        nemis = emis.shape[0]
+        ncloud = cloudext.shape[0]
+        njac = ss_info["njacobians"]
+        y = np.zeros((ny,), dtype=c_float, order='F')
+        xktemp = np.zeros((nlevels,ny), dtype=c_float, order='F')
+        xktskin = np.zeros((ny,), dtype=c_float, order='F')
+        xkem = np.zeros((nemis, ny), dtype=c_float, order='F')
+        xkrf = np.zeros((nemis, ny), dtype=c_float, order='F')
+        xkcldlnpres = np.zeros((ny,), dtype=c_float, order='F')
+        xkcldlnext = np.zeros((ncloud,ny), dtype=c_float, order='F')
+        xkgas = np.zeros((nlevels, ny, njac), dtype=c_float, order='F')        
+        
         self.liboss.cppfwdwrapper(
             ctypes.byref(c_int(atmosphere.shape[0])),
             ctypes.byref(c_int(atmosphere.shape[1])),
@@ -521,15 +529,16 @@ class MusesOssHandle:
             ctypes.byref(c_int(ss_info["something"])),
             ctypes.byref(c_int(ss_info["njacobians"])),
             ctypes.byref(c_int(ss_info["nchanOSS"])),
-            y_ptr,
-            xkTemp_ptr,
-            xkTskin_ptr,
-            xkOutGas_ptr,
-            xkEm_ptr,
-            xkRf_ptr,
-            xkCldlnPres_ptr,
-            xkCldlnExt_ptr,
+            y.ctypes.data_as(POINTER(c_float)),
+            xktemp.ctypes.data_as(POINTER(c_float)),
+            xktskin.ctypes.data_as(POINTER(c_float)),
+            xkgas.ctypes.data_as(POINTER(c_float)),
+            xkem.ctypes.data_as(POINTER(c_float)),
+            xkrf.ctypes.data_as(POINTER(c_float)),
+            xkcldlnpres.ctypes.data_as(POINTER(c_float)),
+            xkcldlnext.ctypes.data_as(POINTER(c_float)),
         )
+        return y, xktemp, xktskin, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
         
 
 
