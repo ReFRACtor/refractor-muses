@@ -95,6 +95,7 @@ class MusesOssHandle:
         if self.liboss is not None:
             # fmt: off
             c_int_p = POINTER(c_int)
+            c_float_p = POINTER(c_float)
             self.liboss.cppinitwrapper.argtypes = [
                 c_int_p, c_int_p, c_char_p,  # name gas
                 c_int_p, c_int_p, c_char_p,  # name jac
@@ -132,7 +133,39 @@ class MusesOssHandle:
                 c_int_p                      # index select
             ]
             self.liboss.cppreloadchanselect.restype= None
-
+            self.liboss.cppfwdwrapper.argtypes = [
+                c_int_p,              # Number levels
+                c_int_p,              # Number gases in vmr
+                c_float_p,            # Pressure
+                c_float_p,            # TATM
+                c_float_p,            # TSUR
+                c_float_p,            # VMR
+                c_int_p,              # Number EMIS
+                c_float_p,            # EMIS
+                c_float_p,            # Reflectance
+                c_float_p,            # Scale pressure
+                c_float_p,            # Pressure Cloud
+                c_int_p,              # Number cloudext
+                c_float_p,            # CLOUDEXT
+                c_float_p,            # emis_freq
+                c_float_p,            # cloud_freq
+                c_float_p,            # pointing angle
+                c_float_p,            # sun angle
+                c_float_p,            # latitude
+                c_float_p,            # surface altitude
+                c_int_p,              # Lambertian
+                c_int_p,              # Number jacobian
+                c_int_p,              # Number channels
+                c_float_p,            # y (out)
+                c_float_p,            # xkTemp (out)
+                c_float_p,            # xkTskin (out)
+                c_float_p,            # xkOutGas (out)
+                c_float_p,            # xkEm (out)
+                c_float_p,            # xkRf (out)
+                c_float_p,            # xkCldlnPres (out)
+                c_float_p             # xkCldlnExt (out)
+            ]
+            self.liboss.cppfwdwrapper.restype = None
         self.have_oss = False
         # Values we used initializing, we check if this has changed to see if we
         # need to update the initialization
@@ -436,6 +469,68 @@ class MusesOssHandle:
         self.liboss.cppreloadchanselect(
             *self.to_int_arr(self.channel_indx), ctypes.byref(self.channel_id_set)
         )
+
+    def oss_forward_model(self,
+                          ss_info,
+                          pressure: np.ndarray,
+                          tatm: np.ndarray,
+                          atmosphere: np.ndarray,
+                          emis_freq: np.ndarray,
+                          emis: np.ndarray,
+                          cloud_freq: np.ndarray,
+                          cloudext: np.ndarray,
+                          y_ptr,
+                          xkTemp_ptr,
+                          xkTskin_ptr,
+                          xkOutGas_ptr,
+                          xkEm_ptr,
+                          xkRf_ptr,
+                          xkCldlnPres_ptr,
+                          xkCldlnExt_ptr,
+                          ):
+        self.check_have_library()
+        assert self.liboss is not None
+        if pressure.shape[0] != tatm.shape[0]:
+            raise RuntimeError("Pressure and tatm need to have the same number of levels")
+        if pressure.shape[0] != atmosphere.shape[0]:
+            raise RuntimeError("Pressure and atmosphere need to have the same number of levels")
+        if emis.shape[0] != emis_freq.shape[0]:
+            raise RuntimeError("emis and emis_freq need to be the same size")
+        if cloudext.shape[0] != cloud_freq.shape[0]:
+            raise RuntimeError("cloudext and cloud_freq need to be the same size")
+        self.liboss.cppfwdwrapper(
+            ctypes.byref(c_int(atmosphere.shape[0])),
+            ctypes.byref(c_int(atmosphere.shape[1])),
+            np.asfortranarray(pressure, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            np.asfortranarray(tatm, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            ctypes.byref(c_float(ss_info["tsur"])),
+            np.asfortranarray(atmosphere, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            ctypes.byref(c_int(emis.shape[0])),
+            np.asfortranarray(emis, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            (1.0-np.asfortranarray(emis, dtype=c_float)).ctypes.data_as(POINTER(c_float)),
+            ctypes.byref(c_float(ss_info["scale_pressure"])),
+            ctypes.byref(c_float(ss_info["pcloud"])),
+            ctypes.byref(c_int(cloudext.shape[0])),
+            np.asfortranarray(cloudext, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            np.asfortranarray(emis_freq, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            np.asfortranarray(cloud_freq, dtype=c_float).ctypes.data_as(POINTER(c_float)),
+            ctypes.byref(c_float(ss_info["ptgang"])),
+            ctypes.byref(c_float(ss_info["sunang"])),
+            ctypes.byref(c_float(ss_info["latitude"])),
+            ctypes.byref(c_float(ss_info["surfaceAltitude"])),
+            ctypes.byref(c_int(ss_info["something"])),
+            ctypes.byref(c_int(ss_info["njacobians"])),
+            ctypes.byref(c_int(ss_info["nchanOSS"])),
+            y_ptr,
+            xkTemp_ptr,
+            xkTskin_ptr,
+            xkOutGas_ptr,
+            xkEm_ptr,
+            xkRf_ptr,
+            xkCldlnPres_ptr,
+            xkCldlnExt_ptr,
+        )
+        
 
 
 muses_oss_handle = MusesOssHandle()

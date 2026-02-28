@@ -78,8 +78,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
         uip_all["oss_frequencyList"] = list(sd.convert_wave("nm"))
         rad, jac = self.fm_oss_stack(uip_all)
-        if rad.shape[0] != sd.data.shape[0]:
-            breakpoint()
         sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
         # See MusesForwardModelHandle for a discussion of have_fake_jac_in_oss
         if (
@@ -113,13 +111,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return "MusesRadiativeTransferOss"
 
     def fm_oss(self, i_uip, i_jacobians):
-        from refractor.muses_py import fm_oss_load
-        from ctypes import c_float, POINTER, c_int
+        from ctypes import c_float
         import math
 
         function_name = "fm_oss: "
-
-        oss_wrapper = fm_oss_load()
 
         # AT_LINE 8 fm_oss.pro
         # if dirOSS is None or dirOSS == '':
@@ -144,12 +139,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         tatm = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
         pressure[:] = i_uip["atmosphere"][0, :]
         tatm[:] = i_uip["atmosphere"][1, :]
-
+        
         # AT_LINE 17 fm_oss.pro
         #  res = call_external(dirOSS+'lib/linux_x86_64/liboss.so', 'IDLsetChanSelect', 1, /F_VALUE)
-
-        oss_wrapper.FMOSSSetChanSelect.argtypes = [c_int, c_int]
-        oss_wrapper.FMOSSSetChanSelect(1, 0)
 
         # AT_LINE 19 fm_oss.pro
         nchanOSS = len(i_uip["oss_frequencyList"])
@@ -291,40 +283,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 91 fm_oss.pro
         # Res = call_external(dirOSS+'lib/linux_x86_64/liboss.so', 'IDLfwdWrapper', $
 
-        # Define the function signature.  The Python intepreter will barf if the types are wrong, which is good.
-        oss_wrapper.FMOSSfwdWrapper.argtypes = [
-            c_int,  # ss_info['nlevels']
-            c_int,  # ss_info['natmosphere_params']
-            POINTER(c_float),  # ss_info['pressure']
-            POINTER(c_float),  # ss_info['tatm']
-            c_float,  # ss_info['tsur']
-            POINTER(c_float),  # atmosphere
-            c_int,  # ss_info['nemis']
-            POINTER(c_float),  # ss_info['emis']
-            POINTER(c_float),  # ss_info['refl']
-            c_float,  # ss_info['scale_pressure']
-            c_float,  # ss_info['pcloud']
-            c_int,  # ss_info['ncloud']
-            POINTER(c_float),  # ss_info['cloudext']
-            POINTER(c_float),  # ss_info['emis_freq']
-            POINTER(c_float),  # ss_info['cloud_freq']
-            c_float,  # ss_info['ptgang']
-            c_float,  # ss_info['sunang']
-            c_float,  # ss_info['latitude']
-            c_float,  # ss_info['surfaceAltitude']
-            c_int,  # ss_info['something']
-            c_int,  # ss_info['njacobians']
-            c_int,  # ss_info['nchanOSS']
-            POINTER(c_float),  # y
-            POINTER(c_float),  # xkTemp
-            POINTER(c_float),  # xkTskin
-            POINTER(c_float),  # xkOutGas
-            POINTER(c_float),  # xkEm
-            POINTER(c_float),  # xkRf
-            POINTER(c_float),  # xkCldlnPres
-            POINTER(c_float),  # xkCldlnExt
-        ]
-
         # Create pointers so we can pass them to C function.  After the call to the FORTRAN code, we will need to extract the values back.
         # see: https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
         # inputs
@@ -368,38 +326,23 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # xkOutGas,             xkEm,                         xkRf,               xkCldlnPres,          xkCldlnExt)
 
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        oss_wrapper.FMOSSfwdWrapper(
-            ss_info["nlevels"],
-            ss_info["natmosphere_params"],
-            pressure_ptr,
-            tatm_ptr,
-            ss_info["tsur"],
-            atmosphere_ptr,
-            ss_info["nemis"],
-            emis_ptr,
-            refl_ptr,
-            ss_info["scale_pressure"],
-            ss_info["pcloud"],
-            ss_info["ncloud"],
-            cloudext_ptr,
-            emis_freq_ptr,
-            cloud_freq_ptr,
-            ss_info["ptgang"],
-            ss_info["sunang"],
-            ss_info["latitude"],
-            ss_info["surfaceAltitude"],
-            ss_info["something"],
-            ss_info["njacobians"],
-            ss_info["nchanOSS"],
-            y_ptr,
-            xkTemp_ptr,
-            xkTskin_ptr,
-            xkOutGas_ptr,
-            xkEm_ptr,
-            xkRf_ptr,
-            xkCldlnPres_ptr,
-            xkCldlnExt_ptr,
-        )
+        muses_oss_handle.oss_forward_model(ss_info,
+                                           np.array(pressure),
+                                           np.array(tatm),
+                                           np.array(atmosphere),
+                                           np.array(ss_info["emis_freq"]),
+                                           np.array(ss_info["emis"]),
+                                           np.array(ss_info["cloud_freq"]),
+                                           np.array(ss_info["cloudext"]),
+                                           y_ptr,
+                                           xkTemp_ptr,
+                                           xkTskin_ptr,
+                                           xkOutGas_ptr,
+                                           xkEm_ptr,
+                                           xkRf_ptr,
+                                           xkCldlnPres_ptr,
+                                           xkCldlnExt_ptr,
+                                           )
 
         # The c function above would have filled in the values in the pointers, we now assigned them back, esssentially receiving output
         # from the c function.
