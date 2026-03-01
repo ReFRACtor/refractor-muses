@@ -237,7 +237,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         xkEm,
         xkRf,
         xkCldlnPres,
-        xkCldlnExt) = muses_oss_handle.oss_forward_model(ss_info,
+        xkCldlnExt) = muses_oss_handle.oss_forward_model(
                             self.tsur.surface_temperature(sensor_index).value.value,
                             ss_info["scale_pressure"],
                             ss_info["pcloud"],

@@ -471,7 +471,6 @@ class MusesOssHandle:
         )
 
     def oss_forward_model(self,
-                          ss_info,
                           tsur: float,
                           scale_pressure: float,
                           pcloud: float,
@@ -514,7 +513,7 @@ class MusesOssHandle:
         ny = self.channel_indx.shape[0]
         nemis = emis.shape[0]
         ncloud = cloudext.shape[0]
-        njac = ss_info["njacobians"]
+        njac = len(self.jac_spec)
         y = np.zeros((ny,), dtype=c_float, order='F')
         xktemp = np.zeros((nlevels,ny), dtype=c_float, order='F')
         xktskin = np.zeros((ny,), dtype=c_float, order='F')
