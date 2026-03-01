@@ -232,7 +232,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
         (y,
         xkTemp,
-        xkTskin,
+        dy_dtsur,
         xkOutGas,
         xkEm,
         xkRf,
@@ -254,11 +254,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                             np.array(ss_info["cloud_freq"]),
                             np.array(ss_info["cloudext"]),
                                                          )
-
         o_result = {
             "radiance": y * 1e-4,
             "xkTemp": xkTemp * 1e-4,
-            "xkTskin": xkTskin * 1e-4,
+            "drad_dtsur": dy_dtsur * 1e-4,
             "xkOutGas": xkOutGas * 1e-4,
             "xkEm": xkEm * 1e-4,
             "xkRf": xkRf * 1e-4,
@@ -441,7 +440,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             uip,
             results["radiance"].shape[0],
             jacobian_emiss_ils_map,
-            results["xkTskin"],
             atm_jacobians_ils_total,
             jacobian_cloud_map,
         )
@@ -455,13 +453,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             o_jac = np.matmul(sub_basis_matrix, o_jac).transpose()
         else:
             o_jac = None
+        if o_jac is not None:
+            tsurv = self.tsur.surface_temperature(sensor_index).value 
+            if not tsurv.is_constant:
+                o_jac += results["drad_dtsur"][:,np.newaxis] @ tsurv.gradient[np.newaxis,:]
         return (results["radiance"], o_jac)
 
     def pack_jacobian(
             self,
             uip,
             num_rad,
-            jacobian_emiss_ils_map, jacobian_tsur_ils_total, atm_jacobians_ils_total, 
+            jacobian_emiss_ils_map, atm_jacobians_ils_total, 
             jacobian_cloud_map, 
             ):
         from refractor.muses_py import UtilList
@@ -510,7 +512,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                         if atm_jacobians_ils_total['k_species'][ii]['species'] == specie:
                             found = ii
 
-                    indx = np.where(atm_jacobians_ils_total['k_species']) 
                     for kk in range(0, len(val)):
                         atm_jacobians_ils_total['k_species'][found]['k'][kk, :] = atm_jacobians_ils_total['k_species'][found]['k'][kk, :] / val[kk]
                     # end for kk in range(0,len(val)):
@@ -578,16 +579,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 ii_dets = 0
                 ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
                 jacob = uip['jacobians'][ii]
-                # AT_LINE 70 ELANOR/pack_jacobian.pro pack_jacobian
                 if jacob == 'TSUR':
-                    #breakpoint()
-                    for jj in range(num_det):
-                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:]
-                        ii_dets = ii_dets + num_rad
-                        ii_dete = ii_dete + num_rad
-                    # end for jj range in (num_det):
                     ii_par = ii_par + 1
-                # end if (jacob == 'TSUR'):
 
                 # AT_LINE 79 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
