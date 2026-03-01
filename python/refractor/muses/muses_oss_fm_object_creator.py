@@ -52,6 +52,14 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return "APPLY"
 
     @cached_property
+    def surface_temperature(self) -> rf.SurfaceTemperature:
+        selem = [StateElementIdentifier("TSUR"),]
+        stemp, _ = self.current_state.object_state(selem)
+        tsur = rf.SurfaceTemperatureDirect(rf.ArrayWithUnit_double_1(stemp, rf.Unit("K")))
+        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [tsur],)
+        return tsur
+
+    @cached_property
     def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
         # No spectrum effects currently, although it is possible something
         # like radiance scaling might be a useful option.
@@ -65,6 +73,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         return MusesRadiativeTransferOss(
             self._rf_uip,
+            self.surface_temperature,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id

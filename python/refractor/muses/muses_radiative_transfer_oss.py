@@ -21,6 +21,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def __init__(
         self,
         rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
+        tsur: rf.SurfaceTemperature,
         instrument_name: InstrumentIdentifier,
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
@@ -36,6 +37,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     ) -> None:
         super().__init__()
         self.rf_uip = rf_uip
+        self.tsur = tsur
         self.instrument_name = instrument_name
         self.ifile_hlp = ifile_hlp
         self.retrieval_state_element_id = retrieval_state_element_id
@@ -78,16 +80,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         uip_all = self.rf_uip.uip_all(self.instrument_name)
         uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
         uip_all["oss_frequencyList"] = list(sd.convert_wave("nm"))
-        rad, jac = self.fm_oss_stack(uip_all)
-        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
-        # See MusesForwardModelHandle for a discussion of have_fake_jac_in_oss
-        if (
-            jac is not None
-            and sub_basis_matrix.shape[0] > 0
-            and jac.ndim > 0
-            and len(self.retrieval_state_element_id) > 0
-        ):
-            jac = np.matmul(sub_basis_matrix, jac).transpose()
+        rad, jac = self.fm_oss_stack(uip_all, sensor_index)
+        if(jac is not None):
             a = rf.ArrayAd_double_1(rad, jac)
         else:
             a = rf.ArrayAd_double_1(rad)
@@ -111,7 +105,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
-    def fm_oss(self, i_uip, i_jacobians):
+    def fm_oss(self, i_uip, i_jacobians, sensor_index:int):
         import math
 
         function_name = "fm_oss: "
@@ -230,7 +224,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             "sunang": sunang,
             "latitude": i_uip["obs_table"]["target_latitude"] * 180 / math.pi,
             "surfaceAltitude": surfaceAltitude,
-            "something": 1,
+            "lambertian_flag": 1,
             "njacobians": njacob,
             "nchanOSS": nchanOSS,
         }
@@ -244,16 +238,23 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         xkRf,
         xkCldlnPres,
         xkCldlnExt) = muses_oss_handle.oss_forward_model(ss_info,
-                                           np.array(pressure),
-                                           np.array(tatm),
-                                           np.array(atmosphere),
-                                           np.array(ss_info["emis_freq"]),
-                                           np.array(ss_info["emis"]),
-                                           np.array(ss_info["cloud_freq"]),
-                                           np.array(ss_info["cloudext"]),
-                                           )
+                            self.tsur.surface_temperature(sensor_index).value.value,
+                            ss_info["scale_pressure"],
+                            ss_info["pcloud"],
+                            ss_info["ptgang"],
+                            ss_info["sunang"],
+                            ss_info["latitude"],
+                            surfaceAltitude,
+                            ss_info["lambertian_flag"],
+                            np.array(pressure),
+                            np.array(tatm),
+                            np.array(atmosphere),
+                            np.array(ss_info["emis_freq"]),
+                            np.array(ss_info["emis"]),
+                            np.array(ss_info["cloud_freq"]),
+                            np.array(ss_info["cloudext"]),
+                                                         )
 
-        logger.info(f"Hi there:  {y.shape}")
         o_result = {
             "radiance": y * 1e-4,
             "xkTemp": xkTemp * 1e-4,
@@ -355,13 +356,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         return o_result
 
-    def fm_oss_stack(self, uipIn):
+    def fm_oss_stack(self, uipIn, sensor_index:int):
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
         jacobianList = uip["oss_jacobianList"]
 
-        results = self.fm_oss(uip, jacobianList)
+        results = self.fm_oss(uip, jacobianList, sensor_index)
 
         # Prepare Jacobians for pack_jacobian function.
         uip["num_atm_k"] = len(results["nameJacobian"])
@@ -444,21 +445,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             atm_jacobians_ils_total,
             jacobian_cloud_map,
         )
-
-        # Because we are not really sure the type of uip['jacobians_all'], we have to inspect to see if it is a list
-        # or an ndarray
-        to_copy_jacobian_flag = False
-        if "list" in str(type(uip["jacobians_all"])):
-            if len(uip["jacobians_all"]) > 0:
-                to_copy_jacobian_flag = True
-        elif "ndarray" in str(type(uip["jacobians_all"])):
-            if len(uip["jacobians_all"]) > 0:
-                to_copy_jacobian_flag = True
-
-        if to_copy_jacobian_flag or uip["jacobians_all"] != "":
-            jacobian = np.copy(o_jac)
-
-        return (results["radiance"], jacobian)
+        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
+        if (
+            o_jac is not None
+            and sub_basis_matrix.shape[0] > 0
+            and o_jac.ndim > 0
+            and len(self.retrieval_state_element_id) > 0
+        ):
+            o_jac = np.matmul(sub_basis_matrix, o_jac).transpose()
+        else:
+            o_jac = None
+        return (results["radiance"], o_jac)
 
     def pack_jacobian(
             self,
@@ -583,6 +580,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 jacob = uip['jacobians'][ii]
                 # AT_LINE 70 ELANOR/pack_jacobian.pro pack_jacobian
                 if jacob == 'TSUR':
+                    #breakpoint()
                     for jj in range(num_det):
                         o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_tsur_ils_total[:]
                         ii_dets = ii_dets + num_rad

@@ -472,6 +472,14 @@ class MusesOssHandle:
 
     def oss_forward_model(self,
                           ss_info,
+                          tsur: float,
+                          scale_pressure: float,
+                          pcloud: float,
+                          pointing_angle: float,
+                          sun_angle: float,
+                          latitude: float,
+                          surface_altitude: float,
+                          lambertian_flag: int,
                           pressure: np.ndarray,
                           tatm: np.ndarray,
                           atmosphere: np.ndarray,
@@ -480,6 +488,16 @@ class MusesOssHandle:
                           cloud_freq: np.ndarray,
                           cloudext: np.ndarray,
                           ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+        '''
+        tsuf - surface temperature, in kelvin
+        pointing_angle - in degrees
+        sun_angle - in degrees
+        latitude - in degrees
+        lambertian_flag - if set to 0, specular refection, otherwise, a
+            diffusion approximation is used to calculate downwelling ir
+            reflection from the surface
+        '''
+
         self.check_have_library()
         assert self.liboss is not None
         if pressure.shape[0] != tatm.shape[0]:
@@ -511,24 +529,24 @@ class MusesOssHandle:
             ctypes.byref(c_int(atmosphere.shape[1])),
             np.asfortranarray(pressure, dtype=c_float).ctypes.data_as(POINTER(c_float)),
             np.asfortranarray(tatm, dtype=c_float).ctypes.data_as(POINTER(c_float)),
-            ctypes.byref(c_float(ss_info["tsur"])),
+            ctypes.byref(c_float(tsur)),
             np.asfortranarray(atmosphere, dtype=c_float).ctypes.data_as(POINTER(c_float)),
             ctypes.byref(c_int(emis.shape[0])),
             np.asfortranarray(emis, dtype=c_float).ctypes.data_as(POINTER(c_float)),
             (1.0-np.asfortranarray(emis, dtype=c_float)).ctypes.data_as(POINTER(c_float)),
-            ctypes.byref(c_float(ss_info["scale_pressure"])),
-            ctypes.byref(c_float(ss_info["pcloud"])),
+            ctypes.byref(c_float(scale_pressure)),
+            ctypes.byref(c_float(pcloud)),
             ctypes.byref(c_int(cloudext.shape[0])),
             np.asfortranarray(cloudext, dtype=c_float).ctypes.data_as(POINTER(c_float)),
             np.asfortranarray(emis_freq, dtype=c_float).ctypes.data_as(POINTER(c_float)),
             np.asfortranarray(cloud_freq, dtype=c_float).ctypes.data_as(POINTER(c_float)),
-            ctypes.byref(c_float(ss_info["ptgang"])),
-            ctypes.byref(c_float(ss_info["sunang"])),
-            ctypes.byref(c_float(ss_info["latitude"])),
-            ctypes.byref(c_float(ss_info["surfaceAltitude"])),
-            ctypes.byref(c_int(ss_info["something"])),
-            ctypes.byref(c_int(ss_info["njacobians"])),
-            ctypes.byref(c_int(ss_info["nchanOSS"])),
+            ctypes.byref(c_float(pointing_angle)),
+            ctypes.byref(c_float(sun_angle)),
+            ctypes.byref(c_float(latitude)),
+            ctypes.byref(c_float(surface_altitude)),
+            ctypes.byref(c_int(lambertian_flag)),
+            ctypes.byref(c_int(xkgas.shape[2])),
+            ctypes.byref(c_int(y.shape[0])),
             y.ctypes.data_as(POINTER(c_float)),
             xktemp.ctypes.data_as(POINTER(c_float)),
             xktskin.ctypes.data_as(POINTER(c_float)),
