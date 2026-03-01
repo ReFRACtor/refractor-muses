@@ -88,7 +88,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-    
+
     rs.cost_function_creator.notify_update_target(
         rs.measurement_id, rs.retrieval_config
     )
@@ -550,7 +550,8 @@ def test_residual_fm_jac_tropomi2(
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     creator.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-        priority_order=100)
+        priority_order=100,
+    )
     obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
         joint_tropomi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp

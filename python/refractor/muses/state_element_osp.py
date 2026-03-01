@@ -163,12 +163,22 @@ class StateElementOspFile(StateElementWithCreate):
     def _fill_in_state_mapping(self) -> None:
         if self._state_mapping is not None:
             return
-        self._retrieval_levels = self.osp_species_reader.retrieval_levels(
-            self.state_element_id, self.retrieval_type
-        )
-        self._map_type = self.osp_species_reader.map_type(
-            self.state_element_id, self.retrieval_type
-        )
+        # We don't have OSP files for every state element, in particular
+        # ones that are never retrieved. For now, we assume if we can't
+        # read an OSP file that this isn't an error, and we should just use
+        # a linear mapping. It is possible we may need more complicated logic
+        # in place at some point (e.g., what if we really should be reading the
+        # OSP file?). But for now, this is the logic we are using.
+        try:
+            self._retrieval_levels = self.osp_species_reader.retrieval_levels(
+                self.state_element_id, self.retrieval_type
+            )
+            self._map_type = self.osp_species_reader.map_type(
+                self.state_element_id, self.retrieval_type
+            )
+        except FileNotFoundError:
+            self._retrieval_levels = None
+            self._map_type = "linear"
         if self._map_type == "linear":
             self._state_mapping = rf.StateMappingLinear()
         elif self._map_type == "log":

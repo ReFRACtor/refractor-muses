@@ -11,24 +11,28 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from .retrieval_configuration import RetrievalConfiguration
     from refractor.muses_py_fm import RefractorUip
-    
+
+
 class IrkForwardModel(rf.StandardForwardModel):
-    '''This is a rf.StandardForwardModel with the extra code to calculate the
-    IRK added.'''
-    def __init__(self,
-            instrument : rf.Instrument,
-            spec_win: rf.SpectralWindow,
-            radiative_transfer : rf.RadiativeTransfer,
-            spectrum_sampling : rf.SpectrumSampling,
-            spectrum_effect: list[list[rf.SpectrumEffect]],
-            observation: MusesObservation,
-            rconf: RetrievalConfiguration,
-            ) -> None:
-        super().__init__(instrument, spec_win, radiative_transfer, spectrum_sampling,
-                         spectrum_effect)
+    """This is a rf.StandardForwardModel with the extra code to calculate the
+    IRK added."""
+
+    def __init__(
+        self,
+        instrument: rf.Instrument,
+        spec_win: rf.SpectralWindow,
+        radiative_transfer: rf.RadiativeTransfer,
+        spectrum_sampling: rf.SpectrumSampling,
+        spectrum_effect: list[list[rf.SpectrumEffect]],
+        observation: MusesObservation,
+        rconf: RetrievalConfiguration,
+    ) -> None:
+        super().__init__(
+            instrument, spec_win, radiative_transfer, spectrum_sampling, spectrum_effect
+        )
         self.obs = observation
         self.rconf = rconf
-        
+
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return []
@@ -69,7 +73,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         # For Airs, we want to use a tes observation. So provide a place to
         # override the observation
         return self.obs
-    
+
     def irk_radiance(
         self,
         cstate: CurrentState,
@@ -79,6 +83,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         given angle. If pointing_angle is 0, we also return dEdOD."""
         raise RuntimeError("We don't have this working yet")
         from refractor.muses_py_fm import RefractorUip
+
         rf_uip_pointing = RefractorUip.create_uip_from_refractor_objects(
             [
                 self.irk_obs,
@@ -395,4 +400,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         return o_bin
 
-__all__ = ["IrkForwardModel",]    
+
+__all__ = [
+    "IrkForwardModel",
+]

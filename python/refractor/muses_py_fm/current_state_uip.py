@@ -220,6 +220,8 @@ class CurrentStateUip(CurrentState):
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""
+        if str(state_element_id) not in np.array(self.rf_uip.uip["speciesListFM"]):
+            return rf.StateMappingLinear()
         mtype = str(
             np.array(self.rf_uip.uip["mapTypeListFM"])[
                 np.array(self.rf_uip.uip["speciesListFM"]) == str(state_element_id)
@@ -364,6 +366,8 @@ class CurrentStateUip(CurrentState):
             res = np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
         elif str(state_element_id) == "TROPOMICLOUDSURFACEALBEDO":
             res = np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
+        elif str(state_element_id) == "scalePressure":
+            res = np.array([o_uip["cloud"]["scale_pressure"]])
         if res is not None:
             return res.view(FullGridMappedArray)
         # Check if it is a column

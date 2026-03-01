@@ -264,7 +264,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "THROW_AWAY_WINDOW_INDEX": -1,
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
-                        "instrument": self.instrument_name.base_name if self.instrument_name is not None else "",
+                        "instrument": self.instrument_name.base_name
+                        if self.instrument_name is not None
+                        else "",
                         "RT": self.rt[i, j]
                         if self.rt is not None and self.rt[i, j] is not None
                         else "None",

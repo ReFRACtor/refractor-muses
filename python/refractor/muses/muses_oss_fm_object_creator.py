@@ -53,11 +53,51 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def surface_temperature(self) -> rf.SurfaceTemperature:
-        selem = [StateElementIdentifier("TSUR"),]
-        stemp, _ = self.current_state.object_state(selem)
-        tsur = rf.SurfaceTemperatureDirect(rf.ArrayWithUnit_double_1(stemp, rf.Unit("K")))
-        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [tsur],)
+        selem = [
+            StateElementIdentifier("TSUR"),
+        ]
+        stemp, mp = self.current_state.object_state(selem)
+        tsur = rf.SurfaceTemperatureDirect(
+            rf.ArrayWithUnit_double_1(stemp, rf.Unit("K")), mp
+        )
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [tsur],
+        )
         return tsur
+
+    @cached_property
+    def pcloud(self) -> rf.Pcloud:
+        selem = [
+            StateElementIdentifier("PCLOUD"),
+        ]
+        spcloud, mp = self.current_state.object_state(selem)
+        pcloud = rf.PcloudDirect(rf.ArrayWithUnit_double_1(spcloud, rf.Unit("hPa")), mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [pcloud],
+        )
+        return pcloud
+
+    @cached_property
+    def scale_cloud(self) -> rf.ScalePressure:
+        # Not sure why this is called scalePressure, that is just the name used
+        # in py-retrieve. But this is used by the OSS code to give the
+        # scale of cloud log thickness (see oss_ir_module.f90 in muses-oss).
+        # So we cal this scale_cloud, since that is what this is.
+        selem = [
+            StateElementIdentifier("scalePressure"),
+        ]
+        ssclp, mp = self.current_state.object_state(selem)
+        sclp = rf.ScaleCloudDirect(ssclp, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [sclp],
+        )
+        return sclp
 
     @cached_property
     def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
@@ -65,7 +105,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         # like radiance scaling might be a useful option.
         res = []
         for i in range(self.num_channels):
-            per_channel_eff : rf.SpectrumEffect = []
+            per_channel_eff: rf.SpectrumEffect = []
             res.append(per_channel_eff)
         return res
 
@@ -74,6 +114,8 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.surface_temperature,
+            self.pcloud,
+            self.scale_cloud,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id
@@ -111,14 +153,18 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         """
         raise NotImplementedError
 
+
 class MusesCrisForwardModelOss(IrkForwardModel):
-    '''IRK specialization for CRIS'''
+    """IRK specialization for CRIS"""
+
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
 
+
 class MusesAirsForwardModelOss(IrkForwardModel):
-    '''IRK specialization for AIRS'''
+    """IRK specialization for AIRS"""
+
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
@@ -156,11 +202,13 @@ class MusesAirsForwardModelOss(IrkForwardModel):
 
 
 class MusesTesForwardModelOss(IrkForwardModel):
-    '''IRK specialization for TES'''
+    """IRK specialization for TES"""
+
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
-            
+
+
 class CrisFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
         self,
@@ -256,7 +304,6 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         res.setup_grid()
         return res
 
-        
 
 class AirsFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
@@ -320,6 +367,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
     def forward_model(self) -> rf.ForwardModel:
         from refractor.muses_py_fm import MusesAirsForwardModel
         from .compare_forward_model import CompareForwardModel
+
         fm1 = MusesAirsForwardModelOss(
             self.instrument,
             self.spec_win,
@@ -331,14 +379,15 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         )
         self._add_rf_uip_update_to_fm(fm1)
         if False:
-            fm2 = MusesAirsForwardModel(self.current_state, self.observation,
-                                        self.retrieval_config)
-            res = CompareForwardModel(fm2,fm1)
+            fm2 = MusesAirsForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm2, fm1)
         else:
             res = fm1
         res.setup_grid()
         return res
-        
+
 
 class TesFmObjectCreator(MusesOssFmObjectCreator):
     def __init__(
@@ -398,7 +447,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
-        
+
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         res = MusesTesForwardModelOss(

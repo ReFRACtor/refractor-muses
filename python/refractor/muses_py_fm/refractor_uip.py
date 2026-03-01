@@ -251,7 +251,7 @@ class RefractorUip:
         if isinstance(instrument_name, InstrumentIdentifier):
             return instrument_name.base_name
         return instrument_name
-    
+
     def uip_all(self, instrument_name: InstrumentIdentifier | str) -> dict[str, Any]:
         """Add in the stuff for the given instrument name. This is
         used in a number of places in muses-py calls."""
@@ -267,7 +267,8 @@ class RefractorUip:
         # items are copied depending on the type.'''
         res = {}
         for k, v in itertools.chain(
-            self.uip.items(), self.uip[f"uip_{self.instrument_name_base(instrument_name)}"].items()
+            self.uip.items(),
+            self.uip[f"uip_{self.instrument_name_base(instrument_name)}"].items(),
         ):
             if k not in res:
                 res[k] = v.copy() if type(v) in (np.ndarray, list, dict) else v
@@ -578,7 +579,10 @@ class RefractorUip:
 
     def frequency_list(self, instrument_name: InstrumentIdentifier | str) -> np.ndarray:
         return cast(
-            np.ndarray, self.uip[f"uip_{self.instrument_name_base(instrument_name)}"]["frequencyList"]
+            np.ndarray,
+            self.uip[f"uip_{self.instrument_name_base(instrument_name)}"][
+                "frequencyList"
+            ],
         )
 
     @property
@@ -805,7 +809,9 @@ class RefractorUip:
         self, instrument_name: InstrumentIdentifier | str
     ) -> list[str]:
         """List of parameter types to include in the state vector."""
-        return self.uip[f"uip_{self.instrument_name_base(instrument_name)}"]["jacobians"]
+        return self.uip[f"uip_{self.instrument_name_base(instrument_name)}"][
+            "jacobians"
+        ]
 
     def state_vector_names(
         self, instrument_name: InstrumentIdentifier | str

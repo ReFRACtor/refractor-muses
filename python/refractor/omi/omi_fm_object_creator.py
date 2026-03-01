@@ -286,7 +286,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 selem = [
                     StateElementIdentifier("OMISURFACEALBEDOUV1"),
                 ]
-                coeff, mp = self.current_state.object_state(selem)
+                coeff, mp = self.current_state.object_state(
+                    selem, always_have_state_mapping_at_indices=True
+                )
                 albedo[i, 0:1] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
@@ -297,7 +299,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                     StateElementIdentifier("OMISURFACEALBEDOUV2"),
                     StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
                 ]
-                coeff, mp = self.current_state.object_state(selem)
+                coeff, mp = self.current_state.object_state(
+                    selem, always_have_state_mapping_at_indices=True
+                )
                 albedo[i, 0:2] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
