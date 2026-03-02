@@ -76,6 +76,8 @@ class CompareForwardModel(rf.ForwardModel):
                 breakpoint()
         if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
             breakpoint()
+        if not np.allclose(res1.spectral_range.data_ad.jacobian, res2.spectral_range.data_ad.jacobian):
+            breakpoint()
         return res1
 
 

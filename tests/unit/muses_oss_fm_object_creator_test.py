@@ -1,5 +1,6 @@
 from refractor.muses import (
     InstrumentIdentifier,
+    StateElementIdentifier,
     CrisFmObjectCreator,
     AirsFmObjectCreator,
 )
@@ -21,6 +22,9 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
         None,
     )
     obs_cris.spectral_window.include_bad_sample = True
+    # For the purpose of testing, add some extra jacobians in so we can check
+    # that part of the code.
+    rs.current_state.testing_add_retrieval_state_element_id(StateElementIdentifier("TATM"))
     ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
     fm = ocreator.forward_model
     # Set up jacobian of state vector

@@ -4,6 +4,7 @@ import refractor.framework as rf  # type: ignore
 from .identifier import InstrumentIdentifier, StateElementIdentifier
 from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
+from .compare_forward_model import CompareForwardModel
 from .irk_forward_model import IrkForwardModel
 from .muses_tes_observation import MusesTesObservation
 import os
@@ -113,6 +114,8 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         return MusesRadiativeTransferOss(
             self._rf_uip,
+            self.pressure_fm,
+            self.temperature,
             self.surface_temperature,
             self.pcloud,
             self.scale_cloud,
@@ -367,8 +370,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
-        from refractor.muses_py_fm import MusesAirsForwardModel
-        from .compare_forward_model import CompareForwardModel
 
         fm1 = MusesAirsForwardModelOss(
             self.instrument,
@@ -381,6 +382,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         )
         self._add_rf_uip_update_to_fm(fm1)
         if False:
+            from refractor.muses_py_fm import MusesAirsForwardModel
             fm2 = MusesAirsForwardModel(
                 self.current_state, self.observation, self.retrieval_config
             )
@@ -452,7 +454,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
-        res = MusesTesForwardModelOss(
+        fm1 = MusesTesForwardModelOss(
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
@@ -461,7 +463,14 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
             self.observation,
             self.retrieval_config,
         )
-        self._add_rf_uip_update_to_fm(res)
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            from refractor.muses_py_fm import MusesTesForwardModel
+            # If we need to diagnose an issue
+            fm2 = MusesTesForwardModel(self.current_state, self.observation, self.retrieval_config)
+            res = CompareForwardModel(fm2,fm1)
+        else:
+            res = fm1
         res.setup_grid()
         return res
 

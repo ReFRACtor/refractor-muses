@@ -157,8 +157,8 @@ class MusesOssHandle:
                 c_int_p,              # Number jacobian
                 c_int_p,              # Number channels
                 c_float_p,            # y (out)
-                c_float_p,            # xkTemp (out)
-                c_float_p,            # xkTskin (out)
+                c_float_p,            # dy_dtemp (out)
+                c_float_p,            # dy_dtsur (out)
                 c_float_p,            # xkOutGas (out)
                 c_float_p,            # xkEm (out)
                 c_float_p,            # xkRf (out)
@@ -529,8 +529,8 @@ class MusesOssHandle:
         ncloud = cloudext.shape[0]
         njac = len(self.jac_spec)
         y = np.zeros((ny,), dtype=c_float, order="F")
-        xktemp = np.zeros((nlevels, ny), dtype=c_float, order="F")
-        xktskin = np.zeros((ny,), dtype=c_float, order="F")
+        dy_dtemp = np.zeros((nlevels, ny), dtype=c_float, order="F")
+        dy_dtsur = np.zeros((ny,), dtype=c_float, order="F")
         xkem = np.zeros((nemis, ny), dtype=c_float, order="F")
         xkrf = np.zeros((nemis, ny), dtype=c_float, order="F")
         xkcldlnpres = np.zeros((ny,), dtype=c_float, order="F")
@@ -569,15 +569,15 @@ class MusesOssHandle:
             ctypes.byref(c_int(xkgas.shape[2])),
             ctypes.byref(c_int(y.shape[0])),
             y.ctypes.data_as(POINTER(c_float)),
-            xktemp.ctypes.data_as(POINTER(c_float)),
-            xktskin.ctypes.data_as(POINTER(c_float)),
+            dy_dtemp.ctypes.data_as(POINTER(c_float)),
+            dy_dtsur.ctypes.data_as(POINTER(c_float)),
             xkgas.ctypes.data_as(POINTER(c_float)),
             xkem.ctypes.data_as(POINTER(c_float)),
             xkrf.ctypes.data_as(POINTER(c_float)),
             xkcldlnpres.ctypes.data_as(POINTER(c_float)),
             xkcldlnext.ctypes.data_as(POINTER(c_float)),
         )
-        return y, xktemp, xktskin, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
+        return y, dy_dtemp, dy_dtsur, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
 
 
 muses_oss_handle = MusesOssHandle()

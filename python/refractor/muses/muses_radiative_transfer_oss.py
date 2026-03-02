@@ -20,6 +20,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def __init__(
         self,
         rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
+        press: rf.Pressure,
+        temperture: rf.Temperature,
         tsur: rf.SurfaceTemperature,
         pcloud: rf.Pcloud,
         scale_cloud: rf.ScaleCloud,
@@ -40,6 +42,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     ) -> None:
         super().__init__()
         self.rf_uip = rf_uip
+        self.pressure = press
+        self.temperture = temperture
         self.tsur = tsur
         self.pcloud = pcloud
         self.scale_cloud = scale_cloud
@@ -115,10 +119,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def fm_oss(self, i_uip, i_jacobians, sensor_index: int):
         import math
 
-        pressure = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
-        tatm = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
-        pressure[:] = i_uip["atmosphere"][0, :]
-        tatm[:] = i_uip["atmosphere"][1, :]
+        pres = self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE).convert("mbar").value.value
+        tatm = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value.value
 
         # Set values to 1e-20 if NOT in uip.species.
         for jj in range(len(i_uip["atmosphere_params"])):
@@ -193,7 +195,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # but do that for now
         sunang = 90.0
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        (y, xkTemp, dy_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
+        (y, dy_dtemp, dy_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
             muses_oss_handle.oss_forward_model(
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
@@ -205,8 +207,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 self.latitude.convert("deg").value,
                 salt,
                 lambertian_flag,
-                np.array(pressure),
-                np.array(tatm),
+                pres,
+                tatm,
                 np.array(atmosphere),
                 np.array(ss_info["emis_freq"]),
                 np.array(ss_info["emis"]),
@@ -219,7 +221,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         rad_unit_scale = 1e-4
         o_result = {
             "radiance": y * rad_unit_scale,
-            "xkTemp": xkTemp * rad_unit_scale,
+            "drad_dtemp": dy_dtemp * rad_unit_scale,
             "drad_dtsur": dy_dtsur * rad_unit_scale,
             "xkOutGas": xkOutGas * rad_unit_scale,
             "xkEm": xkEm * rad_unit_scale,
@@ -323,21 +325,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Prepare Jacobians for pack_jacobian function.
         uip["num_atm_k"] = len(results["nameJacobian"])
 
-        numTatm = 0
-        if "TATM" in uip["jacobians"]:
-            numTatm = 1
-
         species_list = []
         k_species = []
 
         # AT_LINE 16 fm_oss_stack.pro
         if uip["num_atm_k"] > 0:
             # Create a list of uip['num_atm_k']+numTatm dictionaries with the format of k_struct.
-            for x in range(uip["num_atm_k"] + numTatm):
+            for x in range(uip["num_atm_k"]):
                 k_struct = {
                     "species": results["nameJacobian"][0],
                     "k": np.zeros(
-                        shape=results["xkTemp"].shape,
+                        shape=results["drad_dtemp"].shape,
                         dtype=np.float32,
                     ),
                 }
@@ -371,14 +369,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     atm_jacobians_ils_total["k_species"][jj]["species"] = "CFC22"
             # end for jj in range(uip['num_atm_k']):
 
-        # AT_LINE 30 fm_oss_stack.pro
-        # Add tatm if present into atmospheric Jacobians.
-        if "TATM" in uip["jacobians"]:
-            # Use the last value of jj plus 1 from the for loop above.  We have to add 1 in Python to not overwrite the last set values.
-            atm_jacobians_ils_total["k_species"][jj + 1]["species"] = "TATM"
-            atm_jacobians_ils_total["k_species"][jj + 1]["k"] = results["xkTemp"]
-            species_list.append("TATM")
-
         # AT_LINE 36 fm_oss_stack.pro
         # Make cloud Jac structure.
         jacobian_cloud_map = {
@@ -392,7 +382,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 41 fm_oss_stack.pro
         # Pack jacobians together based on retrieval parameter ordering.
         # pack_jacobian, uip, rad
-
         o_jac = self.pack_jacobian(
             uip,
             results["radiance"].shape[0],
@@ -415,6 +404,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if not tsurv.is_constant:
                 o_jac += (
                     results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
+                )
+            temp = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value
+            if not temp.is_constant:
+                o_jac += (
+                    results["drad_dtemp"].T @ temp.jacobian
                 )
         return (results["radiance"], o_jac)
 
@@ -515,6 +509,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if jacob == "PCLOUD":
                 num_par = num_par + 1
 
+            if jacob == "TATM":
+                num_par = num_par + num_atm
+                
             if jacob == "RESSCALE":
                 num_par = num_par + 1
 
@@ -554,6 +551,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 jacob = uip["jacobians"][ii]
                 if jacob == "TSUR":
                     ii_par = ii_par + 1
+                if jacob == "TATM":
+                    ii_par = ii_par + num_atm
 
                 # AT_LINE 79 ELANOR/pack_jacobian.pro pack_jacobian
                 ii_dets = 0
