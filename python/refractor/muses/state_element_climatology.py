@@ -168,16 +168,16 @@ class StateElementFromClimatology(StateElementOspFile):
                 vmr = f["type_vmr"][tindex, :]
             else:
                 vmr = f["type_vmr"][month_index, tindex, :]
-            # Convert array of int8 type to a string, stripping off trailing '\0'
-            type_name = "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
+            # Convert array of characters to a string
+            type_name_bytes = b"".join(f["type_name"][tindex])
+            type_name = type_name_bytes.decode()
         else:
             # convert type_name to string
             # Convert array of int8 type to a string, stripping off trailing '\0'
             type_name_list = []
             for tindex in range(f["type_name"].shape[0]):
-                type_name_list.append(
-                    "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
-                )
+                type_name_bytes = b"".join(f["type_name"][tindex])
+                type_name_list.append(type_name_bytes.decode())
             type_name = ind_type
             if type_name is None:
                 raise RuntimeError(
