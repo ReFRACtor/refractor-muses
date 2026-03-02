@@ -116,6 +116,8 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.surface_temperature,
             self.pcloud,
             self.scale_cloud,
+            self.observation.surface_altitude,
+            self.current_state.sounding_metadata.latitude,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id

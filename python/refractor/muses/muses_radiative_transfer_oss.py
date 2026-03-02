@@ -5,7 +5,6 @@ import numpy as np
 import os
 import typing
 from typing import Self
-from loguru import logger
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -24,6 +23,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         tsur: rf.SurfaceTemperature,
         pcloud: rf.Pcloud,
         scale_cloud: rf.ScaleCloud,
+        surface_altitude: rf.DoubleWithUnit,
+        latitude: rf.DoubleWithUnit,
         instrument_name: InstrumentIdentifier,
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
@@ -42,6 +43,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.tsur = tsur
         self.pcloud = pcloud
         self.scale_cloud = scale_cloud
+        self.surface_altitude = surface_altitude
+        self.latitude = latitude
         self.instrument_name = instrument_name
         self.ifile_hlp = ifile_hlp
         self.retrieval_state_element_id = retrieval_state_element_id
@@ -112,39 +115,16 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def fm_oss(self, i_uip, i_jacobians, sensor_index: int):
         import math
 
-        function_name = "fm_oss: "
-
-        if i_jacobians is not None:
-            njacob = len(i_jacobians)
-        else:
-            njacob = 0
-
         pressure = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
         tatm = np.ndarray(shape=(i_uip["atmosphere"].shape[1]), dtype=np.float32)
         pressure[:] = i_uip["atmosphere"][0, :]
         tatm[:] = i_uip["atmosphere"][1, :]
 
-        nchanOSS = len(i_uip["oss_frequencyList"])
-        sunang = 90.0
-        nemis = len(i_uip["emissivity"]["frequency"])
-        ncloud = len(i_uip["cloud"]["frequency"])
-        nlevels = len(pressure)
-
-        if float(i_uip["obs_table"]["pointing_angle_surface"] * 180 / np.pi) < -990:
-            print(
-                function_name,
-                "Error! Need to define uip.obs_table.pointing_angle_surface (radians)",
-            )
-            assert False
-
         # Set values to 1e-20 if NOT in uip.species.
-        # Check for both b'CO2' and 'CO2'.  b'CO2' exists when running fm_oss from a netcdf uip file.
-        ns = len(i_uip["atmosphere_params"])
-        for jj in range(ns):
+        for jj in range(len(i_uip["atmosphere_params"])):
             search = i_uip["atmosphere_params"][jj]
             if search not in i_uip["species"]:
                 i_uip["atmosphere"][jj, :] = 1e-20
-        # end for jj in range(ns):
 
         # check for negative values in PAN VMR.  If there are negative values:
         # 1) set VMR0 to original VMR, set VMR to 1e-11
@@ -192,58 +172,39 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             # end if len(indneg) > 0:
         # end if len(indnh3) > 0:
 
-        # AT_LINE 72 fm_oss.pro
         # index 1: pressure, index 2: temperature.  OSS puts those separately elsewhere.
-        indspecies = [(jj + 2) for jj in range(ns - 2)]
-
-        # AT_LINE 74 fm_oss.pro
-        natmosphere_params = len(indspecies)
-
-        surfaceAltitude = i_uip["obs_table"]["surfaceAltitude"]
-        if abs(surfaceAltitude) < 1e-5:
-            surfaceAltitude = 1e-5
-
-        # AT_LINE 69 fm_oss.pro
-        atmosphere = (i_uip["atmosphere"][np.asarray(indspecies), :]).T
-        atmosphere = atmosphere.astype(np.float32)
+        atmosphere = (i_uip["atmosphere"][2:, :]).T
 
         # AT_LINE 71 fm_oss.pro
         ss_info = {
-            "nlevels": nlevels,
-            "natmosphere_params": natmosphere_params,
-            "pressure": pressure,
-            "tatm": tatm,
-            "tsur": i_uip["surface_temperature"],
-            "atmosphere": atmosphere,
-            "nemis": nemis,
             "emis": (i_uip["emissivity"]["value"]).astype(np.float32),
-            "refl": (1 - i_uip["emissivity"]["value"]).astype(np.float32),
-            "scale_cloud": i_uip["cloud"]["scale_pressure"],
-            "pcloud": i_uip["cloud"]["pressure"],
-            "ncloud": ncloud,
             "cloudext": (i_uip["cloud"]["extinction"]).astype(np.float32),
             "emis_freq": (i_uip["emissivity"]["frequency"]).astype(np.float32),
             "cloud_freq": (i_uip["cloud"]["frequency"]).astype(np.float32),
-            "ptgang": i_uip["obs_table"]["pointing_angle_surface"] * 180 / math.pi,
-            "sunang": sunang,
-            "latitude": i_uip["obs_table"]["target_latitude"] * 180 / math.pi,
-            "surfaceAltitude": surfaceAltitude,
-            "lambertian_flag": 1,
-            "njacobians": njacob,
-            "nchanOSS": nchanOSS,
         }
 
+        salt = self.surface_altitude.convert("m").value
+        # TODO Not sure if the logic of this here, but this is what py-retrieve does
+        if salt < 1e-5:
+            salt = 1e-5
+        # Use diffusion approximation, see oss_if_module.f90 in muses_oss
+        lambertian_flag = 1
+        # py-retrieve has sunang always 90. Not sure of the significance of that,
+        # but do that for now
+        sunang = 90.0
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
         (y, xkTemp, dy_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
             muses_oss_handle.oss_forward_model(
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
                 self.pcloud.pressure_cloud(sensor_index).convert("mbar").value.value,
-                ss_info["ptgang"],
-                ss_info["sunang"],
-                ss_info["latitude"],
-                surfaceAltitude,
-                ss_info["lambertian_flag"],
+                # This is a bit involved to get, so leverage off uip until we are
+                # ready to work through this
+                i_uip["obs_table"]["pointing_angle_surface"] * 180 / math.pi,
+                sunang,
+                self.latitude.convert("deg").value,
+                salt,
+                lambertian_flag,
                 np.array(pressure),
                 np.array(tatm),
                 np.array(atmosphere),
@@ -253,20 +214,19 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 np.array(ss_info["cloudext"]),
             )
         )
+        # Not sure of the units here. But py-retrieve uses a scaling of 1e-4 which I
+        # assume is correct
+        rad_unit_scale = 1e-4
         o_result = {
-            "radiance": y * 1e-4,
-            "xkTemp": xkTemp * 1e-4,
-            "drad_dtsur": dy_dtsur * 1e-4,
-            "xkOutGas": xkOutGas * 1e-4,
-            "xkEm": xkEm * 1e-4,
-            "xkRf": xkRf * 1e-4,
-            "xkCldlnPres": xkCldlnPres * 1e-4,
-            "xkCldlnExt": xkCldlnExt * 1e-4,
-            "pressure": pressure,
+            "radiance": y * rad_unit_scale,
+            "xkTemp": xkTemp * rad_unit_scale,
+            "drad_dtsur": dy_dtsur * rad_unit_scale,
+            "xkOutGas": xkOutGas * rad_unit_scale,
+            "xkEm": xkEm * rad_unit_scale,
+            "xkRf": xkRf * rad_unit_scale,
+            "xkCldlnPres": xkCldlnPres * rad_unit_scale,
+            "xkCldlnExt": xkCldlnExt * rad_unit_scale,
             "nameJacobian": i_jacobians,
-            "frequency": i_uip[
-                "oss_frequencyList"
-            ],  # vp changed from frequencylist to oss_frequencylist
         }
 
         # AT_LINE 134 src_ms-2018-12-10/fm_oss.pro
@@ -345,12 +305,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         # check finite
         if not np.all(np.isfinite(y)):
-            print(function_name, "ERROR: Non-finite radiance!")
-            assert False
+            raise RuntimeError("Non-finite radiance")
 
         if not np.all(np.isfinite(o_result["xkOutGas"])):
-            print(function_name, "ERROR: Non-finite jacobians!")
-            assert False
+            raise RuntimeError("Non-finite jacobians")
 
         return o_result
 
@@ -379,7 +337,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 k_struct = {
                     "species": results["nameJacobian"][0],
                     "k": np.zeros(
-                        shape=(len(results["pressure"]), len(results["frequency"])),
+                        shape=results["xkTemp"].shape,
                         dtype=np.float32,
                     ),
                 }
@@ -470,8 +428,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     ):
         from refractor.muses_py import UtilList
 
-        function_name = "pack_jacobian: "
-
         utilList = UtilList()
 
         o_jacobian = None
@@ -490,16 +446,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             for jj in range(0, len(uip["jacobiansLinear"])):
                 specie = uip["jacobiansLinear"][jj]
 
-                if (
-                    np.all(np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"]))
-                    == False
+                if not np.all(
+                    np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"])
                 ):
-                    print(function_name, "Error! Non-finite Jacobian")
-                    print(
-                        function_name,
-                        f"jj={jj}, uip['jacobiansLinear'][jj]={uip['jacobiansLinear'][jj]}",
-                    )
-                    assert False
+                    raise RuntimeError("Non-finite Jacobian")
 
                 # if uip['jacobiansLinear'][jj] in all_jacobians_species:
                 if (
@@ -537,18 +487,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                         )
                     # end for kk in range(0,len(val)):
 
-                    if (
-                        np.all(
-                            np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"])
-                        )
-                        == False
+                    if not np.all(
+                        np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"])
                     ):
-                        print(function_name, "Error! Non-finite Jacobian")
-                        print(
-                            function_name,
-                            f"jj={jj}, uip['jacobiansLinear'][jj]={uip['jacobiansLinear'][jj]}",
-                        )
-                        assert False
+                        raise RuntimeError("Non-finite Jacobian")
             # end for jj in range(0,len(uip['jacobiansLinear'])):
 
         # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
