@@ -290,9 +290,6 @@ class CdfWriteLiteTes:
                 (dataInOut["airDensity".upper()].shape[0]),
             )
 
-        # AT_LINE 123 Lite/products_add_fields.pro
-        mult_factor = 1e9
-
         my_mask = self.pan_mask_var[
             int(dataInOut["latitude".upper()]) + 90,
             int(dataInOut["longitude".upper()]) + 180,
@@ -301,229 +298,6 @@ class CdfWriteLiteTes:
             dataInOut["PAN_desert_QA".upper()] = np.int32(
                 1 - my_mask
             )  # Convert to int32 so the writer can have the correct size.
-
-        # averages
-        if "average_800_TROPOPAUSE".upper() not in dataInOut:
-            dataInOut["average_800_TROPOPAUSE".upper()] = np.asarray([-999.0])
-
-        if "average_800_TROPOPAUSEprior".upper() not in dataInOut:
-            dataInOut["average_800_TROPOPAUSEprior".upper()] = np.asarray([-999.0])
-
-        indp = np.where(
-            (dataInOut["pressure".upper()] > 200)
-            & (dataInOut["pressure".upper()] <= 826)
-        )[0]
-
-        if len(indp) > 0:
-            dataInOut["average_800_TROPOPAUSE".upper()] = (
-                np.mean(dataInOut["species".upper()][indp]) * mult_factor
-            )
-            dataInOut["average_800_TROPOPAUSEprior".upper()] = (
-                np.mean(dataInOut["constraintVector".upper()][indp]) * mult_factor
-            )
-
-        # AT_LINE 123 src_ms-2019-05-29/Lite/products_add_fields.pro
-        # column averages
-        if "xPAN800".upper() not in dataInOut:
-            dataInOut["xPAN800".upper()] = -999.0
-            dataInOut["xPAN800_prior".upper()] = -999.0
-            dataInOut["xPAN800_errorObs".upper()] = -999.0
-            dataInOut["xPAN800_errorSmoothing".upper()] = -999.0
-            dataInOut["xPAN800_AK".upper()] = np.ndarray(shape=(67), dtype=np.float32)
-            dataInOut["xPAN800_AK".upper()].fill(-999.0)
-
-            dataInOut["xPAN".upper()] = -999.0
-            dataInOut["xPAN_prior".upper()] = -999.0
-            dataInOut["xPAN_errorObs".upper()] = -999.0
-            dataInOut["xPAN_errorSmoothing".upper()] = -999.0
-            dataInOut["xPAN_AK".upper()] = np.ndarray(shape=(67), dtype=np.float32)
-            dataInOut["xPAN_AK".upper()].fill(-999.0)
-        # end if 'xPAN800'.upper() not in dataInOut:
-
-        # AT_LINE 140 src_ms-2019-05-29/Lite/products_add_fields.pro
-        indp = np.where(
-            (
-                (dataInOut["pressure".upper()] >= 200)
-                & (dataInOut["pressure".upper()] <= 826)
-            )
-            & (dataInOut["species".upper()] > -990)
-        )[0]
-        if len(indp) > 0:
-            indp = np.where(dataInOut["species".upper()] > -990)[0]
-
-            indpx = np.where(
-                (dataInOut["pressure".upper()][indp] < 200)
-                | (dataInOut["pressure".upper()][indp] > 820)
-            )[0]
-
-            vmr = dataInOut["species".upper()][indp]
-            xa = dataInOut["constraintVector".upper()][indp]
-
-            minIndex = 0
-            maxIndex = 0
-            minPressure = np.asarray([200])
-            maxPressure = np.asarray([800])
-            linearFlag = True
-
-            pressureArr = dataInOut["pressure".upper()][indp]
-            if len(pressureArr.shape) == 2 and pressureArr.shape[1] == 1:
-                pressureArr = np.reshape(pressureArr, (pressureArr.shape[0]))
-
-            result = self.column_integrate(
-                vmr,
-                dataInOut["airDensity".upper()][indp],
-                dataInOut["altitude".upper()][indp],
-                minIndex,
-                maxIndex,
-                linearFlag,
-                pressureArr,
-                minPressure,
-                maxPressure,
-            )
-            dataInOut["xpan800".upper()] = (
-                result.column / result.columnAir * mult_factor
-            )
-
-            resultprior = self.column_integrate(
-                xa,
-                dataInOut["airdensity".upper()][indp],
-                dataInOut["altitude".upper()][indp],
-                minIndex,
-                maxIndex,
-                linearFlag,
-                pressureArr,
-                minPressure,
-                maxPressure,
-            )
-            dataInOut["xpan800_prior".upper()] = (
-                resultprior.column / resultprior.columnAir * mult_factor
-            )
-
-            # map layer to level
-            # do not specify pressure range
-            resultAll = self.column_integrate(
-                vmr,
-                dataInOut["airdensity".upper()][indp],
-                dataInOut["altitude".upper()][indp],
-                minIndex,
-                maxIndex,
-                linearFlag,
-            )
-
-            resultAllprior = self.column_integrate(
-                xa,
-                dataInOut["airdensity".upper()][indp],
-                dataInOut["altitude".upper()][indp],
-                minIndex,
-                maxIndex,
-                linearFlag,
-            )
-
-            dataInOut["xpan".upper()] = (
-                resultAll.column / resultAll.columnAir * mult_factor
-            )
-            dataInOut["xpan_prior".upper()] = (
-                resultAllprior.column / resultAllprior.columnAir * mult_factor
-            )
-
-            # calculate air mass ratio for indpx (800 to 200) versus
-            # indp (all non-fill)
-
-            # calculate pwf for 800 to 200 (pwflevel) and whole column (pwflevel0)
-            pwf = resultAllprior.columnAirLayer / np.sum(resultAllprior.columnAirLayer)
-
-            # pwflevel0 = pwf ## resultAllprior.level_to_layer
-            pwflevel0 = np.matmul(resultAllprior.level_to_layer, pwf)
-
-            pwflevel = copy.deepcopy(pwflevel0)
-            pwflevel[indpx] = 0
-            my_factor = np.sum(pwflevel) / np.sum(pwflevel0)
-            pwflevel = pwflevel / np.sum(pwflevel)
-
-            # full column AK
-            AK0 = dataInOut["averagingkernel".upper()][indp, :][:, indp].astype(
-                np.float64
-            )
-            dataInOut["xPAN_AK".upper()][indp] = np.matmul(AK0, pwflevel0) / pwflevel0
-
-            # 800 to 200 column AK
-            AK = dataInOut["averagingkernel".upper()][indp, :][:, indp].astype(
-                np.float64
-            )
-            AK[:, indpx] = 0
-
-            # dataInOut['xPAN800_AK'.upper()][indp] = (pwflevel ## AK ) / pwflevel0 * my_factor
-            dataInOut["xPAN800_AK".upper()][indp] = (
-                np.matmul(AK, pwflevel) / pwflevel0 * my_factor
-            )
-
-            # derivative full column... for collapsing errors
-            derivative0 = resultAll.derivative
-            if not linearFlag:
-                derivative0 = derivative0 * vmr
-
-            # derivative partial column
-            derivative = derivative0
-            derivative[indpx] = 0
-
-            # errors
-            errorObs = dataInOut["OBSERVATIONERRORCOVARIANCE"][indp, :][:, indp].astype(
-                np.float64
-            )
-            errorSmooth = (
-                dataInOut["TOTALERRORCOVARIANCE"][indp, :][:, indp].astype(np.float64)
-                - errorObs
-            )
-
-            # calculate error
-            # In Python 3.8 this could be written as:
-            # np.sqrt(derivative0 @ errorObs @ derivative0.T) / resultAll.columnAir * mult_factor
-            # np.sqrt(derivative0 @ errorSmooth @ derivative0.T) / resultAll.columnAir * mult_factor
-            dataInOut["xPAN_errorObs".upper()] = (
-                np.sqrt(
-                    np.matmul(np.matmul(derivative0.transpose(), errorObs), derivative0)
-                )
-                / resultAll.columnAir
-                * mult_factor
-            )
-            dataInOut["xPAN_errorSmoothing".upper()] = (
-                np.sqrt(
-                    np.matmul(
-                        np.matmul(derivative0.transpose(), errorSmooth), derivative0
-                    )
-                )
-                / resultAll.columnAir
-                * mult_factor
-            )
-
-            # calculate error
-
-            # IDL:
-            # dataInOut['xPAN800_errorObs'.upper()] = sqrt(derivative ## errorObs ## transpose(derivative)) / result.columnAir * mult
-            # dataInOut['xPAN800_errorSmoothing'.upper()] = sqrt(derivative ## errorSmooth ## transpose(derivative)) / result.columnAir*mult
-
-            # In Python 3.8 this could be written as:
-            # np.sqrt(derivative @ errorObs @ derivative.T) / resultAll.columnAir * mult_factor
-            dataInOut["xPAN800_errorObs".upper()] = (
-                np.sqrt(
-                    np.matmul(np.matmul(derivative.transpose(), errorObs), derivative)
-                )
-                / result.columnAir
-                * mult_factor
-            )
-
-            # In Python 3.8 this could be written as:
-            # np.sqrt(derivative @ errorSmooth @ derivative.T) / resultAll.columnAir * mult_factor
-            dataInOut["xPAN800_errorSmoothing".upper()] = (
-                np.sqrt(
-                    np.matmul(
-                        np.matmul(derivative.transpose(), errorSmooth), derivative
-                    )
-                )
-                / result.columnAir
-                * mult_factor
-            )
-        # end if len(indp) > 0:
 
         return dataInOut
 
@@ -2076,8 +1850,9 @@ class CdfWriteLiteTes:
         # end if 'landflag' not in dataIn:
         return dataIn
 
+    @classmethod
     def idl_interpol_1d(
-        self,
+        cls,
         i_vector: np.ndarray,
         i_abscissaValues: np.ndarray,
         i_abscissaResult: np.ndarray,
@@ -2086,8 +1861,9 @@ class CdfWriteLiteTes:
             i_abscissaValues, i_vector, fill_value="extrapolate"
         )(i_abscissaResult)
 
+    @classmethod
     def column_integrate(
-        self,
+        cls,
         VMRIn: np.ndarray,
         airDensityIn: np.ndarray,
         altitudeIn: np.ndarray,
@@ -2113,7 +1889,7 @@ class CdfWriteLiteTes:
         if len(minPressure) > 0 or len(maxPressure) > 0:
             altitudeNew = altitude
             if len(maxPressure) > 0:
-                altitudeNew0 = self.idl_interpol_1d(
+                altitudeNew0 = cls.idl_interpol_1d(
                     altitude, np.log(pressure), np.log(maxPressure)
                 )
                 if np.amin(np.abs(altitudeNew0 - altitudeNew)) > 0.1:
@@ -2121,7 +1897,7 @@ class CdfWriteLiteTes:
                     altitudeNew = np.sort(altitudeNew)
 
             if len(minPressure) > 0:
-                altitudeNew0 = self.idl_interpol_1d(
+                altitudeNew0 = cls.idl_interpol_1d(
                     altitude, np.log(pressure), np.log(minPressure)
                 )
                 if np.amin(np.abs(altitudeNew0 - altitudeNew)) > 0.1:
@@ -2129,13 +1905,13 @@ class CdfWriteLiteTes:
                     altitudeNew = np.sort(altitudeNew)
 
             if len(altitudeNew) != len(altitude):
-                airDensityNew = self.idl_interpol_1d(airDensity, altitude, altitudeNew)
+                airDensityNew = cls.idl_interpol_1d(airDensity, altitude, altitudeNew)
 
                 if linearFlag:
-                    vmrNew = self.idl_interpol_1d(VMR, altitude, altitudeNew)
+                    vmrNew = cls.idl_interpol_1d(VMR, altitude, altitudeNew)
                 else:
                     vmrNew = np.exp(
-                        self.idl_interpol_1d(np.log(VMR), altitude, altitudeNew)
+                        cls.idl_interpol_1d(np.log(VMR), altitude, altitudeNew)
                     )
 
                 VMR = vmrNew
