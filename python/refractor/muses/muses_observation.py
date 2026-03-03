@@ -222,6 +222,21 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     We have all the normal rf.Observation stuff, plus what is found in
     this class.
 
+    Note, somewhat confusingly the OSS instruments (CRIS, AIRS, TES)
+    use wavenumber (cm^-1), while the lidort instruments (TROPOMI,
+    OMI) use wavelength (nm). This isn't wrong, but the old
+    py-retrieve code isn't at all clear about that.
+
+    The units listed in files are often cm^-1, however you just need
+    to "know" that for TROPOMI and OMI this is really nm. If you are
+    reading old py-retrieve code these tend to get mixed. As far as I
+    know, everything is actually correctly done in the old py-retrieve
+    code. It just isn't clear when things are wavenumber vs
+    wavelength.
+
+    Since we generally carry units around in refractor, we don't have
+    the same confusion. But you should be aware that different
+    instruments use different units for the spectral domain.
     """
 
     def __init__(
@@ -703,12 +718,16 @@ class MusesObservationImp(MusesObservation):
         # that depends on the 1 base.
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
-        return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        # Note, we somewhat arbitrarily select cm^-1 as the "default" units here.
+        # TROPOMI/OMI override this function to give the right nm units.
+        return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
-
+        
+        Note that some instruments use  wavenumber (cm^-1) and some use
+        wavelength (nm). spectral_domain_full puts in the right units.
         """
         raise NotImplementedError
 
@@ -844,6 +863,9 @@ class SimulatedObservation(MusesObservationImp):
         """
         return self._rad_full[sensor_index]
 
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        return self._obs.spectral_domain_full(sensor_index)
+    
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.

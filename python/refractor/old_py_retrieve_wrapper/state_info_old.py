@@ -113,12 +113,12 @@ class StateElementOld(object, metaclass=abc.ABCMeta):
         return None
 
     @property
-    def spectral_domain_wavelength(self) -> np.ndarray | None:
+    def spectral_domain_wavenumber(self) -> np.ndarray | None:
         """Short cut to return the spectral domain in units of nm."""
         sd = self.spectral_domain
         if sd is None:
             return None
-        return sd.convert_wave(rf.Unit("nm"))
+        return sd.convert_wave(rf.Unit("cm^-1"))
 
     @abc.abstractproperty
     def value(self) -> np.ndarray:

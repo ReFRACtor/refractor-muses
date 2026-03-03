@@ -210,7 +210,7 @@ class RetrievalResult:
 
     @property
     def Desert_Emiss_QA(self) -> float:
-        wlen = self.current_state.state_spectral_domain_wavelength(
+        wlen = self.current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier("EMIS")
         )
         if wlen is None:

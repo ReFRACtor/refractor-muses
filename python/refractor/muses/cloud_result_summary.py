@@ -227,7 +227,7 @@ class CloudResultSummary:
 
     @property
     def cloudODAve(self) -> float:
-        freq = self.current_state.state_spectral_domain_wavelength(
+        freq = self.current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier("CLOUDEXT")
         )
         if freq is None:

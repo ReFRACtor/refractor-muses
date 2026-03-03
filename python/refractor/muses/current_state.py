@@ -712,10 +712,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
-        """Return the spectral domain (as nm) for the given state_element_id, or None if
+        """Return the spectral domain (as cm^-1) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
@@ -1143,7 +1143,7 @@ class CurrentStateDict(CurrentState):
         # the constructor or something).
         return rf.StateMappingLinear()
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()

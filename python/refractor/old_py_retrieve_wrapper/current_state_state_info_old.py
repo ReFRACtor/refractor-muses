@@ -340,11 +340,11 @@ class CurrentStateStateInfoOld(CurrentState):
             sid = StateElementIdentifier("emissivity")
         return self.state_info.state_element(sid, step)
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         selem = self.state_element_old(state_element_id)
-        return selem.spectral_domain_wavelength
+        return selem.spectral_domain_wavenumber
 
     def state_value(
         self, state_element_id: StateElementIdentifier | str

@@ -286,6 +286,12 @@ class MusesReflectanceObservation(MusesObservationImp):
     def desc(self) -> str:
         return "MusesReflectanceObservation"
 
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        # Put in the right units for the VLIDORT instruments
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+
     def solar_interp_for_od(
         self,
         sensor_index: int,

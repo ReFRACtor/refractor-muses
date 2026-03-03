@@ -405,13 +405,13 @@ class CurrentStateStateInfo(CurrentState):
         )
         return self._state_info[sid]
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         sd = self.state_element(state_element_id).spectral_domain
         if sd is None:
             return None
-        return sd.convert_wave(rf.Unit("nm"))
+        return sd.convert_wave(rf.Unit("cm^-1"))
 
     def state_value(
         self, state_element_id: StateElementIdentifier | str

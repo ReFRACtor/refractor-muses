@@ -51,7 +51,7 @@ class MusesAirsObservation(MusesObservationImp):
         mw_range[2, 0, :] = 1119.81, 1444.00
         mw_range[3, 0, :] = 1444.01, 1890.80
         mw_range[4, 0, :] = 1890.81, 9999.00
-        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("cm^-1"))
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod

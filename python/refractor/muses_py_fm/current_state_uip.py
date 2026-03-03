@@ -215,7 +215,7 @@ class CurrentStateUip(CurrentState):
     ) -> StateElement:
         raise NotImplementedError()
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()

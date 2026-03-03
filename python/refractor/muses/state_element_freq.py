@@ -245,7 +245,7 @@ class StateElementEmis(StateElementFreqShared):
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
-        spectral_domain = rf.SpectralDomain(f.checked_table["Frequency"], rf.Unit("nm"))
+        spectral_domain = rf.SpectralDomain(f.checked_table["Frequency"], rf.Unit("cm^-1"))
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
@@ -384,7 +384,7 @@ class StateElementNativeEmis(StateElementFreqShared):
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
         spectral_domain_in = rf.SpectralDomain(
-            f.checked_table["Frequency"], rf.Unit("nm")
+            f.checked_table["Frequency"], rf.Unit("cm^-1")
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -406,7 +406,7 @@ class StateElementNativeEmis(StateElementFreqShared):
             retrieval_config.get("CAMEL_Lab_Directory"),
         )
         spectral_domain = rf.SpectralDomain(
-            uwis_data["native_wavenumber"], rf.Unit("nm")
+            uwis_data["native_wavenumber"], rf.Unit("cm^-1")
         )
         value_fm = uwis_data["native_emis"].view(FullGridMappedArray)
         create_kwargs = {
@@ -431,7 +431,7 @@ class StateElementCloudExt(StateElementFreqShared):
         )
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(
-            f.checked_table["Frequencies"], rf.Unit("nm")
+            f.checked_table["Frequencies"], rf.Unit("cm^-1")
         )
         value_fm = np.array(f.checked_table["verticalEXT"]).view(FullGridMappedArray)
         create_kwargs = {"spectral_domain": spectral_domain}

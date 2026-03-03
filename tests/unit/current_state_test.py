@@ -125,7 +125,7 @@ def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     assert cstate.state_value(StateElementIdentifier("EMIS"))[0] == pytest.approx(
         0.9822874992046337
     )
-    assert cstate.state_spectral_domain_wavelength(StateElementIdentifier("EMIS"))[
+    assert cstate.state_spectral_domain_wavenumber(StateElementIdentifier("EMIS"))[
         0
     ] == pytest.approx(600)
     assert cstate.sounding_metadata.latitude.value == pytest.approx(62.8646)
@@ -139,7 +139,7 @@ def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     assert cstate.state_value(StateElementIdentifier("CLOUDEXT"))[0] == pytest.approx(
         1e-29
     )
-    assert cstate.state_spectral_domain_wavelength(StateElementIdentifier("CLOUDEXT"))[
+    assert cstate.state_spectral_domain_wavenumber(StateElementIdentifier("CLOUDEXT"))[
         0
     ] == pytest.approx(600)
     assert cstate.state_value(StateElementIdentifier("PCLOUD"))[0] == pytest.approx(

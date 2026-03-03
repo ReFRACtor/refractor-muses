@@ -84,6 +84,21 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def reflectance(
         self, sd: rf.SpectralDomain, sensor_index: int, skip_jacobian: bool
     ) -> rf.Spectrum:
+        '''Note that despite the name, this is actually radiance. We named this
+        back when we just had LIDORT, which does return reflectance. The OSS
+        forward model returns radiance.
+
+        We do have units right in the rf.Spectrum we pass back. It is just the
+        name of this function that is wrong.
+
+        We probably need so generic name for "thing the forward model returns",
+        similar to how we had SpectralDomain for "wavelength or wavenumber". But
+        for now, we just use this incorrect name.
+
+        Note that the function in StandardForwardModel is actually correctly
+        named for this code (unlike our VLIDORT/LIDORT which doesn't include the
+        solar model so it really does return reflectance).
+        '''
         muses_oss_handle.oss_init(
             self.ifile_hlp,
             self.retrieval_state_element_id,
@@ -98,7 +113,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         muses_oss_handle.oss_channel_select(sd)
         uip_all = self.rf_uip.uip_all(self.instrument_name)
         uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
-        uip_all["oss_frequencyList"] = list(sd.convert_wave("nm"))
+        uip_all["oss_frequencyList"] = list(sd.convert_wave("cm^-1"))
         rad, jac = self.fm_oss_stack(uip_all, sensor_index)
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
@@ -125,8 +140,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return "MusesRadiativeTransferOss"
 
     def fm_oss(self, i_uip, i_jacobians, sensor_index: int):
-        import math
-
         pres = self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE).convert("mbar").value.value
         tatm = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value.value
         emisv = self.emissivity.emissivity
@@ -199,7 +212,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # but do that for now
         sunang = 90.0
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        (y, dy_dtemp, dy_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
+        # The units of rad are "W  m^-2 sr^-1 cm^-1"
+        (rad, drad_dtemp, drad_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
             muses_oss_handle.oss_forward_model(
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
@@ -212,9 +226,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 pres,
                 tatm,
                 np.array(atmosphere),
-                self.emissivity.emissivity_spectral_domain.convert_wave("nm"),
+                self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
                 emisv.value,
-                self.cloud_ext.cloud_ext_spectral_domain.convert_wave("nm"),
+                self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
                 cloudextv.value,
             )
         )
@@ -222,9 +236,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # assume is correct
         rad_unit_scale = 1e-4
         o_result = {
-            "radiance": y * rad_unit_scale,
-            "drad_dtemp": dy_dtemp * rad_unit_scale,
-            "drad_dtsur": dy_dtsur * rad_unit_scale,
+            "radiance": rad * rad_unit_scale,
+            "drad_dtemp": drad_dtemp * rad_unit_scale,
+            "drad_dtsur": drad_dtsur * rad_unit_scale,
             "xkOutGas": xkOutGas * rad_unit_scale,
             "xkEm": xkEm * rad_unit_scale,
             "xkRf": xkRf * rad_unit_scale,
@@ -308,7 +322,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # end if nh3_negative:
 
         # check finite
-        if not np.all(np.isfinite(y)):
+        if not np.all(np.isfinite(rad)):
             raise RuntimeError("Non-finite radiance")
 
         if not np.all(np.isfinite(o_result["xkOutGas"])):

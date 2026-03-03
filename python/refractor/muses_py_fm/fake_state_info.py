@@ -167,7 +167,7 @@ class FakeStateInfo:
         # I think this is always 'yes', it looks like the logic in muses-py for setting
         # this to 'no' is never active.
         self._cloud_pars["use"] = "yes"
-        self._cloud_pars["frequency"] = current_state.state_spectral_domain_wavelength(
+        self._cloud_pars["frequency"] = current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier("CLOUDEXT")
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
@@ -178,7 +178,7 @@ class FakeStateInfo:
         # I think this is always 'yes', it looks like the logic in muses-py for setting
         # this to 'no' is never active.
         self._emis_pars["use"] = "yes"
-        self._emis_pars["frequency"] = current_state.state_spectral_domain_wavelength(
+        self._emis_pars["frequency"] = current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier("EMIS")
         )
         self._emis_pars["num_frequencies"] = self._emis_pars["frequency"].shape[0]
@@ -194,7 +194,7 @@ class FakeStateInfo:
         # this to 'yes' is never active.
         self._calibration_pars["use"] = "no"
         self._calibration_pars["frequency"] = (
-            current_state.state_spectral_domain_wavelength(
+            current_state.state_spectral_domain_wavenumber(
                 StateElementIdentifier("calibrationScale")
             )
         )

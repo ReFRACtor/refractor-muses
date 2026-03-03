@@ -66,6 +66,22 @@ class MusesSpectralWindow(rf.SpectralWindow):
     least currently none of the metadata is used by refractor code,
     this really is only needed to generate the UIP.
 
+    Note, somewhat confusingly the OSS instruments (CRIS, AIRS, TES)
+    use wavenumber (cm^-1), while the lidort instruments (TROPOMI,
+    OMI) use wavelength (nm). This isn't wrong, but the old
+    py-retrieve code isn't at all clear about that.
+
+    The units listed in files are often cm^-1, however you just need
+    to "know" that for TROPOMI and OMI this is really nm. If you are
+    reading old py-retrieve code these tend to get mixed. As far as I
+    know, everything is actually correctly done in the old py-retrieve
+    code. It just isn't clear when things are wavenumber vs
+    wavelength.
+
+    Since we generally carry units around in refractor, we don't have
+    the same confusion. But you should be aware that different
+    instruments use different units for the spectral domain.
+
     """
 
     def __init__(
@@ -470,9 +486,22 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 mw_range[ind, j, 0] = mw["WindowStart"]
                 mw_range[ind, j, 1] = mw["WindowEnd"]
                 filter_name[ind, j] = mw["Filter"]
-                rt[ind, j] = mw["RT"]
+                rt[ind, j] = mw["RT"].upper()
                 species_list[ind, j] = mw["Species"]
-        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        # Somewhat confusingly, the units depend on the instrument type. We
+        # leverage off of the RT type for this, VLIDORT is in nm, OSS
+        # is in wavenumber cm^-1. The file actually has units listed in it
+        # for each of the columns, but this is just wrong for the VLIDORT
+        # instruments. We look for the RT value in our microwindows, making
+        # sure they are consistent
+        t = np.array([i for i in rt.flatten() if i is not None])
+        if t.shape[0] > 0 and np.all(t == "VLIDORT"):
+            units = rf.Unit("nm")
+        elif t.shape[0] > 0 and np.all(t == "OSS"):
+            units = rf.Unit("cm^-1")
+        else:
+            raise RuntimeError("Don't know how to determine microwindow units")
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, units)
         return cls(
             spec_win=rf.SpectralWindowRange(mw_range),
             obs=None,

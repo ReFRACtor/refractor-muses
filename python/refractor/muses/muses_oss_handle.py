@@ -442,7 +442,7 @@ class MusesOssHandle:
         indices of freq_oss to calculate)."""
         self.check_have_library()
         assert self.liboss is not None
-        freq_desired = sd_desired.convert_wave("nm")
+        freq_desired = sd_desired.convert_wave("cm^-1")
         # Make sure the freq_desired actually matches the freq_oss values. We allow
         # a small amount of slop for round off, but need to be pretty close
         tolerance = 0.001
@@ -498,13 +498,23 @@ class MusesOssHandle:
         np.ndarray,
     ]:
         """
+        This information comes from the developers guide in muses-oss
+        
         tsuf - surface temperature, in kelvin
         pointing_angle - in degrees
         sun_angle - in degrees
         latitude - in degrees
+        pressure - from high to low, in mbar
+        cloud_ext - cloud peak extinction in km^-1
+        emis - emissivity (unitless)
+        reflectance - not passed in, we have this as 1 - emis
+        emis_freq - wavenumbers in cm^-1
+        cloud_freq - wavenumbers in cm^-1
         lambertian_flag - if set to 0, specular refection, otherwise, a
             diffusion approximation is used to calculate downwelling ir
             reflection from the surface
+
+        returns radiance in W / (m^2 sr^-1 cm^-1)
         """
 
         self.check_have_library()
@@ -524,18 +534,18 @@ class MusesOssHandle:
 
         # Setup return stuff
         nlevels = atmosphere.shape[0]
-        ny = self.channel_indx.shape[0]
+        nrad = self.channel_indx.shape[0]
         nemis = emis.shape[0]
         ncloud = cloudext.shape[0]
         njac = len(self.jac_spec)
-        y = np.zeros((ny,), dtype=c_float, order="F")
-        dy_dtemp = np.zeros((nlevels, ny), dtype=c_float, order="F")
-        dy_dtsur = np.zeros((ny,), dtype=c_float, order="F")
-        xkem = np.zeros((nemis, ny), dtype=c_float, order="F")
-        xkrf = np.zeros((nemis, ny), dtype=c_float, order="F")
-        xkcldlnpres = np.zeros((ny,), dtype=c_float, order="F")
-        xkcldlnext = np.zeros((ncloud, ny), dtype=c_float, order="F")
-        xkgas = np.zeros((nlevels, ny, njac), dtype=c_float, order="F")
+        rad = np.zeros((nrad,), dtype=c_float, order="F")
+        drad_dtemp = np.zeros((nlevels, nrad), dtype=c_float, order="F")
+        drad_dtsur = np.zeros((nrad,), dtype=c_float, order="F")
+        xkem = np.zeros((nemis, nrad), dtype=c_float, order="F")
+        xkrf = np.zeros((nemis, nrad), dtype=c_float, order="F")
+        xkcldlnpres = np.zeros((nrad,), dtype=c_float, order="F")
+        xkcldlnext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
+        xkgas = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
 
         self.liboss.cppfwdwrapper(
             ctypes.byref(c_int(atmosphere.shape[0])),
@@ -567,17 +577,17 @@ class MusesOssHandle:
             ctypes.byref(c_float(surface_altitude)),
             ctypes.byref(c_int(lambertian_flag)),
             ctypes.byref(c_int(xkgas.shape[2])),
-            ctypes.byref(c_int(y.shape[0])),
-            y.ctypes.data_as(POINTER(c_float)),
-            dy_dtemp.ctypes.data_as(POINTER(c_float)),
-            dy_dtsur.ctypes.data_as(POINTER(c_float)),
+            ctypes.byref(c_int(rad.shape[0])),
+            rad.ctypes.data_as(POINTER(c_float)),
+            drad_dtemp.ctypes.data_as(POINTER(c_float)),
+            drad_dtsur.ctypes.data_as(POINTER(c_float)),
             xkgas.ctypes.data_as(POINTER(c_float)),
             xkem.ctypes.data_as(POINTER(c_float)),
             xkrf.ctypes.data_as(POINTER(c_float)),
             xkcldlnpres.ctypes.data_as(POINTER(c_float)),
             xkcldlnext.ctypes.data_as(POINTER(c_float)),
         )
-        return y, dy_dtemp, dy_dtsur, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
+        return rad, drad_dtemp, drad_dtsur, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
 
 
 muses_oss_handle = MusesOssHandle()

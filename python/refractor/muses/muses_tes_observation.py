@@ -57,7 +57,7 @@ class MusesTesObservation(MusesObservationImp):
             freq = o_tes["radianceStruct"]["frequency"][sindex:eindex]
             mw_range[i, 0, :] = min(freq), max(freq)
             sindex = eindex
-        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("cm^-1"))
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
