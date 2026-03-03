@@ -9,6 +9,8 @@ from typing import Self
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier, InstrumentIdentifier
     from .input_file_helper import InputFilePath, InputFileHelper
+    from .emis_state import EmisState
+    from .cloud_ext_state import CloudExtState
 
 
 class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
@@ -25,8 +27,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         tsur: rf.SurfaceTemperature,
         pcloud: rf.Pcloud,
         scale_cloud: rf.ScaleCloud,
+        emissivity: EmisState,
+        cloud_ext: CloudExtState,
         surface_altitude: rf.DoubleWithUnit,
         latitude: rf.DoubleWithUnit,
+        pointing_angle: rf.DoubleWithUnit,
         instrument_name: InstrumentIdentifier,
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
@@ -47,8 +52,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.tsur = tsur
         self.pcloud = pcloud
         self.scale_cloud = scale_cloud
+        self.emissivity = emissivity
+        self.cloud_ext = cloud_ext
         self.surface_altitude = surface_altitude
         self.latitude = latitude
+        self.pointing_angle = pointing_angle
         self.instrument_name = instrument_name
         self.ifile_hlp = ifile_hlp
         self.retrieval_state_element_id = retrieval_state_element_id
@@ -121,7 +129,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         pres = self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE).convert("mbar").value.value
         tatm = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value.value
-
+        emisv = self.emissivity.emissivity
+        cloudextv = self.cloud_ext.cloud_ext
+        # These aren't working yet. Need to work through how these get updated
+        emisv = rf.ArrayAd_double_1(i_uip["emissivity"]["value"])
+        cloudextv = rf.ArrayAd_double_1(i_uip["cloud"]["extinction"])
         # Set values to 1e-20 if NOT in uip.species.
         for jj in range(len(i_uip["atmosphere_params"])):
             search = i_uip["atmosphere_params"][jj]
@@ -177,14 +189,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # index 1: pressure, index 2: temperature.  OSS puts those separately elsewhere.
         atmosphere = (i_uip["atmosphere"][2:, :]).T
 
-        # AT_LINE 71 fm_oss.pro
-        ss_info = {
-            "emis": (i_uip["emissivity"]["value"]).astype(np.float32),
-            "cloudext": (i_uip["cloud"]["extinction"]).astype(np.float32),
-            "emis_freq": (i_uip["emissivity"]["frequency"]).astype(np.float32),
-            "cloud_freq": (i_uip["cloud"]["frequency"]).astype(np.float32),
-        }
-
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:
@@ -200,9 +204,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
                 self.pcloud.pressure_cloud(sensor_index).convert("mbar").value.value,
-                # This is a bit involved to get, so leverage off uip until we are
-                # ready to work through this
-                i_uip["obs_table"]["pointing_angle_surface"] * 180 / math.pi,
+                self.pointing_angle.convert("deg").value,
                 sunang,
                 self.latitude.convert("deg").value,
                 salt,
@@ -210,10 +212,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 pres,
                 tatm,
                 np.array(atmosphere),
-                np.array(ss_info["emis_freq"]),
-                np.array(ss_info["emis"]),
-                np.array(ss_info["cloud_freq"]),
-                np.array(ss_info["cloudext"]),
+                self.emissivity.emissivity_spectral_domain.convert_wave("nm"),
+                emisv.value,
+                self.cloud_ext.cloud_ext_spectral_domain.convert_wave("nm"),
+                cloudextv.value,
             )
         )
         # Not sure of the units here. But py-retrieve uses a scaling of 1e-4 which I

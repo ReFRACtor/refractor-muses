@@ -7,6 +7,8 @@ from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .compare_forward_model import CompareForwardModel
 from .irk_forward_model import IrkForwardModel
 from .muses_tes_observation import MusesTesObservation
+from .emis_state import EmisState
+from .cloud_ext_state import CloudExtState
 import os
 import numpy as np
 from pathlib import Path
@@ -21,7 +23,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
 
-
+    
 # Leverage off RefractorFmObjectCreator. We probably want to
 # rework this, either make MusesOssFmObjectCreator stand alone
 # or extract out a common base class. Right now RefractorFmObjectCreator
@@ -69,6 +71,36 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return tsur
 
     @cached_property
+    def emissivity(self) -> EmisState:
+        selem = [
+            StateElementIdentifier("EMIS"),
+        ]
+        semis, mp = self.current_state.object_state(selem)
+        semis_sd = self.current_state.state_element(selem[0]).spectral_domain
+        emis = EmisState(semis, semis_sd, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [emis],
+        )
+        return emis
+
+    @cached_property
+    def cloud_ext(self) -> CloudExtState:
+        selem = [
+            StateElementIdentifier("CLOUDEXT"),
+        ]
+        scloudext, mp = self.current_state.object_state(selem)
+        scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
+        cext = CloudExtState(scloudext, scloudext_sd, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [cext],
+        )
+        return cext
+    
+    @cached_property
     def pcloud(self) -> rf.Pcloud:
         selem = [
             StateElementIdentifier("PCLOUD"),
@@ -112,6 +144,9 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
+        # This is a bit involved to get, so leverage off uip until we are
+        # ready to work through this
+        pointing_angle = rf.DoubleWithUnit(self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"]["pointing_angle_surface"], "rad")
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -119,8 +154,11 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.surface_temperature,
             self.pcloud,
             self.scale_cloud,
+            self.emissivity,
+            self.cloud_ext,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
+            pointing_angle,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id
