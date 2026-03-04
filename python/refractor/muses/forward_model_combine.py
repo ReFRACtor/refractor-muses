@@ -16,18 +16,19 @@ class ObservationCombine(rf.StackedRadianceMixin):
         return len(self.obs_list)
 
     def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
-        # Note that we *can't* actually combine OSS and VLIDORT forward models,
-        # because they use different units here. We just strip off the units to
-        # skip this, all we want is to line everything up
-        return rf.SpectralDomain(self.obs_list[sensor_index].spectral_domain_all().data, rf.Unit("nm"))
+        return self.obs_list[sensor_index].spectral_domain_all()
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
+        # If we have more than one observation, we assume we have a mix of OSS and
+        # VLIDORT.
         # Note that we *can't* actually combine OSS and VLIDORT forward models,
         # because they use different units here. We just strip off the units to
-        # skip this, all we want is to line everything up
+        # combine the data. 
         t = self.obs_list[sensor_index].radiance_all()
-        return rf.Spectrum(rf.SpectralDomain(t.spectral_domain.data, rf.Unit("nm")),
-                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("dimensionless")))
+        if len(self.obs_list) == 1:
+            return t
+        return rf.Spectrum(t.spectral_domain,
+                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")))
 
 
 class ForwardModelCombine(rf.ForwardModel):
@@ -79,18 +80,19 @@ class ForwardModelCombine(rf.ForwardModel):
         return len(self.fm_list)
 
     def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
-        # Note that we *can't* actually combine OSS and VLIDORT forward models,
-        # because they use different units here. We just strip off the units to
-        # skip this, all we want is to line everything up
-        return rf.SpectralDomain(self.fm_list[sensor_index].spectral_domain_all().data, rf.Unit("nm"))
-        return 
+        return self.fm_list[sensor_index].spectral_domain_all()
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         t = self.fm_list[sensor_index].radiance_all(skip_jacobian)
         if not np.all(np.isfinite(t.spectral_range.data_ad.jacobian)):
             raise RuntimeError("jacobian not finite")
+        # If we have more than one forward mode, we assume we have a mix of OSS and
+        # VLIDORT.
         # Note that we *can't* actually combine OSS and VLIDORT forward models,
         # because they use different units here. We just strip off the units to
-        # skip this, all we want is to line everything up
-        return rf.Spectrum(rf.SpectralDomain(t.spectral_domain.data, rf.Unit("nm")),
-                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("dimensionless")))        
+        # combine the data. 
+        if len(self.fm_list) == 1:
+            return t
+        return rf.Spectrum(t.spectral_domain,
+                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")))
+
