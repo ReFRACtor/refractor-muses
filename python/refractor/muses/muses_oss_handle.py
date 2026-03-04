@@ -514,7 +514,7 @@ class MusesOssHandle:
             diffusion approximation is used to calculate downwelling ir
             reflection from the surface
 
-        returns radiance in W / (m^2 sr^-1 cm^-1)
+        returns radiance in W / (m^2 sr cm^-1)
         """
 
         self.check_have_library()

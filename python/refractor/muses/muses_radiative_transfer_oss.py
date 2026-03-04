@@ -3,6 +3,7 @@ import refractor.framework as rf  # type: ignore
 from .muses_oss_handle import muses_oss_handle
 import numpy as np
 import os
+from contextlib import contextmanager
 import typing
 from typing import Self
 
@@ -31,7 +32,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         cloud_ext: CloudExtState,
         surface_altitude: rf.DoubleWithUnit,
         latitude: rf.DoubleWithUnit,
-        pointing_angle: rf.DoubleWithUnit,
+        pointing_angle_surface: rf.DoubleWithUnit,
         instrument_name: InstrumentIdentifier,
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
@@ -56,7 +57,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.cloud_ext = cloud_ext
         self.surface_altitude = surface_altitude
         self.latitude = latitude
-        self.pointing_angle = pointing_angle
+        self.pointing_angle_surface = pointing_angle_surface
         self.instrument_name = instrument_name
         self.ifile_hlp = ifile_hlp
         self.retrieval_state_element_id = retrieval_state_element_id
@@ -81,9 +82,53 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             self.fix_file,
         )
 
+    def dEdOD(self):
+        # Not clear where exactly this belongs. Have here for now, it would
+        # be good if we could pull this out perhaps into IrkForwardModel
+        ray_info = self.rf_uip.ray_info(self.instrument_name,
+                                        set_pointing_angle_zero = True,
+                                        set_cloud_extinction_one= True)
+        return 1.0 / ray_info["cloud"]["tau_total"]
+        
+        
+    @contextmanager
+    def modify_pointing(self, pointing_angle: rf.DoubleWithUnit):
+        '''For the IRK calculation, we need to generate the reflectance for
+        different pointing angles.
+
+        The most natural interface would be to pass the pointing angle
+        as a argument to the ForwardModel radiance, and then to this
+        objects reflectance. However, the rf.ForwardModel doesn't have
+        an argument for this. I briefly considered changing the
+        interface for ForwardModel, but it seems much cleaner to
+        handle this without doing this.
+
+        Instead, we provide a context manager here to set the pointing
+        angle that we want - basically as a way to just add an extra
+        argument.  This is similar to how we handle modifying the
+        spectral window for MusesObservation (see
+        MusesObservation.modify_spectral_window).
+
+        Although this is a little indirect, this seems the cleanest
+        way to handle this. This is currently only used in
+        IrkForwardModel, so the fact that this is a little obscure
+        seems a reasonable price to pay to keep the existing
+        rf.ForwardModel interface.  We can reevaluate this in the
+        future if needed.
+        '''
+        original_pointing = self.pointing_angle_surface
+        try:
+            pointing_angle_surface = rf.DoubleWithUnit(self.rf_uip.ray_info(self.instrument_name, pointing_angle = pointing_angle.convert("rad").value
+                                                                            )["ray_angle_surface"], "rad")
+            self.pointing_angle_surface = pointing_angle_surface
+            yield
+        finally:
+            self.pointing_angle_surface = original_pointing
+
     def reflectance(
         self, sd: rf.SpectralDomain, sensor_index: int, skip_jacobian: bool
     ) -> rf.Spectrum:
+
         '''Note that despite the name, this is actually radiance. We named this
         back when we just had LIDORT, which does return reflectance. The OSS
         forward model returns radiance.
@@ -114,12 +159,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         uip_all = self.rf_uip.uip_all(self.instrument_name)
         uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
         uip_all["oss_frequencyList"] = list(sd.convert_wave("cm^-1"))
-        rad, jac = self.fm_oss_stack(uip_all, sensor_index)
+        rad, jac, rad_units = self.fm_oss_stack(uip_all, sensor_index)
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
         else:
             a = rf.ArrayAd_double_1(rad)
-        sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+        sr = rf.SpectralRange(a, rad_units)
         return rf.Spectrum(sd, sr)
 
     def stokes(self, sd: rf.SpectralDomain, sensor_index: int) -> np.ndarray:
@@ -218,7 +263,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
                 self.pcloud.pressure_cloud(sensor_index).convert("mbar").value.value,
-                self.pointing_angle.convert("deg").value,
+                self.pointing_angle_surface.convert("deg").value,
                 sunang,
                 self.latitude.convert("deg").value,
                 salt,
@@ -232,18 +277,21 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 cloudextv.value,
             )
         )
-        # Not sure of the units here. But py-retrieve uses a scaling of 1e-4 which I
-        # assume is correct
-        rad_unit_scale = 1e-4
+        # This comes from the OSS documentation in muses_oss
+        rad_in_units = rf.Unit("W / (m^2 sr cm^-1)")
+        # Units that we want
+        rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
+        rad_unit_f = rf.conversion(rad_in_units, rad_units)
         o_result = {
-            "radiance": rad * rad_unit_scale,
-            "drad_dtemp": drad_dtemp * rad_unit_scale,
-            "drad_dtsur": drad_dtsur * rad_unit_scale,
-            "xkOutGas": xkOutGas * rad_unit_scale,
-            "xkEm": xkEm * rad_unit_scale,
-            "xkRf": xkRf * rad_unit_scale,
-            "xkCldlnPres": xkCldlnPres * rad_unit_scale,
-            "xkCldlnExt": xkCldlnExt * rad_unit_scale,
+            "rad_units": rad_units,
+            "radiance": rad * rad_unit_f,
+            "drad_dtemp": drad_dtemp * rad_unit_f,
+            "drad_dtsur": drad_dtsur * rad_unit_f,
+            "xkOutGas": xkOutGas * rad_unit_f,
+            "xkEm": xkEm * rad_unit_f,
+            "xkRf": xkRf * rad_unit_f,
+            "xkCldlnPres": xkCldlnPres * rad_unit_f,
+            "xkCldlnExt": xkCldlnExt * rad_unit_f,
             "nameJacobian": i_jacobians,
         }
 
@@ -426,7 +474,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 o_jac += (
                     results["drad_dtemp"].T @ temp.jacobian
                 )
-        return (results["radiance"], o_jac)
+        return (results["radiance"], o_jac, results["rad_units"])
 
     def pack_jacobian(
         self,

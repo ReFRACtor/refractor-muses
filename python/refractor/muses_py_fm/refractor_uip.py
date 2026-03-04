@@ -718,6 +718,7 @@ class RefractorUip:
         instrument_name: InstrumentIdentifier | str,
         set_pointing_angle_zero: bool = True,
         set_cloud_extinction_one: bool = False,
+        pointing_angle: float | None = None,
     ) -> dict[str, Any]:
         uall = self.uip_all(instrument_name)
         # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
@@ -727,6 +728,8 @@ class RefractorUip:
             uall["obs_table"]["pointing_angle"] = 0.0
         if set_cloud_extinction_one:
             uall["cloud"]["extinction"][:] = 1.0
+        if pointing_angle is not None:
+            uall["obs_table"]["pointing_angle"] = pointing_angle
         return mpy_raylayer_nadir(
             AttrDictAdapter(uall), AttrDictAdapter(mpy_atmosphere_level(uall))
         )

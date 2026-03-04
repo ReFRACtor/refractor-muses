@@ -247,7 +247,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                 a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
             else:
                 a = rf.ArrayAd_double_1(rad[gmask])
-            sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+            sr = rf.SpectralRange(a, rf.Unit("W / (cm^2 sr cm^-1)"))
         return rf.Spectrum(sd, sr)
 
 

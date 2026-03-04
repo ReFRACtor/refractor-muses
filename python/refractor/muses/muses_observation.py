@@ -409,6 +409,10 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        raise NotImplementedError()
+    
 
 class MusesObservationImp(MusesObservation):
     """Common behavior for each of the MusesObservation classes we
@@ -691,15 +695,7 @@ class MusesObservationImp(MusesObservation):
         samples or applied the microwindows.
 
         """
-        if sensor_index < 0 or sensor_index >= self.num_channels:
-            raise RuntimeError("sensor_index out of range")
-        sd = self.spectral_domain_full(sensor_index)
-        sr = rf.SpectralRange(
-            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
-            rf.Unit("sr^-1"),
-            self.nesr_full(sensor_index),
-        )
-        return rf.Spectrum(sd, sr)
+        raise NotImplementedError()
 
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
@@ -713,14 +709,7 @@ class MusesObservationImp(MusesObservation):
     def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         """Spectral domain before we have removed bad samples or
         applied the microwindows."""
-        # By convention, sample index starts with 1. This was from OCO-2, I'm not
-        # sure if that necessarily makes sense here or not. But I think we have code
-        # that depends on the 1 base.
-        freq = self.frequency_full(sensor_index)
-        sindex = np.array(list(range(len(freq)))) + 1
-        # Note, we somewhat arbitrarily select cm^-1 as the "default" units here.
-        # TROPOMI/OMI override this function to give the right nm units.
-        return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
+        raise NotImplementedError
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
@@ -807,6 +796,10 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.observation_table
 
     @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        return sold._obs.pointing_angle
+    
+    @property
     def across_track(self) -> list[int]:
         return self._obs.across_track
 
@@ -865,6 +858,23 @@ class SimulatedObservation(MusesObservationImp):
 
     def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         return self._obs.spectral_domain_full(sensor_index)
+    
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
+        """The full list of radiance, before we have removed bad
+        samples or applied the microwindows.
+
+        """
+        if sensor_index < 0 or sensor_index >= self.num_channels:
+            raise RuntimeError("sensor_index out of range")
+        sd = self.spectral_domain_full(sensor_index)
+        sr = rf.SpectralRange(
+            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
+            self._obs.spectrum_full(sensor_index).units,
+            self.nesr_full(sensor_index),
+        )
+        return rf.Spectrum(sd, sr)
     
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad

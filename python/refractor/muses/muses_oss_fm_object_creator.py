@@ -144,9 +144,10 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
+        pointing_angle = self.observation.pointing_angle
         # This is a bit involved to get, so leverage off uip until we are
         # ready to work through this
-        pointing_angle = rf.DoubleWithUnit(self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"]["pointing_angle_surface"], "rad")
+        pointing_angle_surface = rf.DoubleWithUnit(self._rf_uip.ray_info(self.observation.instrument_name, pointing_angle = pointing_angle.convert("rad").value)["ray_angle_surface"], "rad")
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -158,7 +159,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.cloud_ext,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
-            pointing_angle,
+            pointing_angle_surface,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id

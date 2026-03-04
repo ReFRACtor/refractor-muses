@@ -39,7 +39,7 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp)
+    npt.assert_allclose(jac, jaccmp, atol=1e-20, rtol=1e-7)
 
 
 @require_muses_py_fm
@@ -66,4 +66,4 @@ def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp)
+    npt.assert_allclose(jac, jaccmp, atol=1e-20, rtol=1e-7)

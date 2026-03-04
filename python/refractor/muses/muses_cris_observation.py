@@ -180,6 +180,10 @@ class MusesCrisObservation(MusesObservationImp):
     def scan_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self._muses_py_dict["SCANANG"]), "deg")
 
+    @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        return self.scan_angle
+    
     def window_fix_for_uip(self, win: dict[str, Any]) -> None:
         """This is bit of kludge for use in RefractorUip.create_uip. This adjusts
         windows needed for doing a joint retrieval with tropomi.
@@ -278,6 +282,23 @@ class MusesCrisObservation(MusesObservationImp):
             )
         return obs
 
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
+        """The full list of radiance, before we have removed bad
+        samples or applied the microwindows.
+
+        """
+        if sensor_index < 0 or sensor_index >= self.num_channels:
+            raise RuntimeError("sensor_index out of range")
+        sd = self.spectral_domain_full(sensor_index)
+        sr = rf.SpectralRange(
+            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
+            rf.Unit("W / (cm^2 sr cm^-1)"),
+            self.nesr_full(sensor_index),
+        )
+        return rf.Spectrum(sd, sr)
+    
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> np.ndarray:
@@ -289,6 +310,16 @@ class MusesCrisObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self._muses_py_dict["RADIANCE"]
 
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        """Spectral domain before we have removed bad samples or
+        applied the microwindows."""
+        # By convention, sample index starts with 1. This was from OCO-2, I'm not
+        # sure if that necessarily makes sense here or not. But I think we have code
+        # that depends on the 1 base.
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
+    
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
@@ -405,14 +436,14 @@ class MusesCrisObservation(MusesObservationImp):
         # NOTE: CrIS L1B noise is NEDR (noise equivalent delta radiance), not NESR (noise equivalent spectral radiance)
 
         # unit convert from mW/(m2 sr cm-1) to w/(cm^2*sr*cm-1)
-        rad_convert = 1e-7
+        rad_unit_f = rf.conversion(rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)"))
 
-        rad_conv_lw = rad_lw0 * rad_convert
-        nesr_conv_lw = nedn_lw0 * rad_convert
-        rad_conv_mw = rad_mw0 * rad_convert
-        nesr_conv_mw = nedn_mw0 * rad_convert
-        rad_conv_sw = rad_sw0 * rad_convert
-        nesr_conv_sw = nedn_sw0 * rad_convert
+        rad_conv_lw = rad_lw0 * rad_unit_f
+        nesr_conv_lw = nedn_lw0 * rad_unit_f
+        rad_conv_mw = rad_mw0 * rad_unit_f
+        nesr_conv_mw = nedn_mw0 * rad_unit_f
+        rad_conv_sw = rad_sw0 * rad_unit_f
+        nesr_conv_sw = nedn_sw0 * rad_unit_f
 
         rad_conv_arr = np.concatenate((rad_conv_lw, rad_conv_mw, rad_conv_sw), axis=0)
         nesr_conv_arr = np.concatenate(
@@ -608,13 +639,13 @@ class MusesCrisObservation(MusesObservationImp):
         nedn_mw0 = es_nednmw[atrack, xtrack, pixel_index, :np_mw]
         nedn_sw0 = es_nednsw[atrack, xtrack, pixel_index, :np_sw]
 
-        rad_convert = 1e-7
-        rad_conv_lw = rad_lw0 * rad_convert
-        nesr_conv_lw = nedn_lw0 * rad_convert
-        rad_conv_mw = rad_mw0 * rad_convert
-        nesr_conv_mw = nedn_mw0 * rad_convert
-        rad_conv_sw = rad_sw0 * rad_convert
-        nesr_conv_sw = nedn_sw0 * rad_convert
+        rad_unit_f = rf.conversion(rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)"))
+        rad_conv_lw = rad_lw0 * rad_unit_f
+        nesr_conv_lw = nedn_lw0 * rad_unit_f
+        rad_conv_mw = rad_mw0 * rad_unit_f
+        nesr_conv_mw = nedn_mw0 * rad_unit_f
+        rad_conv_sw = rad_sw0 * rad_unit_f
+        nesr_conv_sw = nedn_sw0 * rad_unit_f
 
         rad_conv_list = np.concatenate((rad_conv_lw, rad_conv_mw, rad_conv_sw), axis=0)
         nesr_conv_list = np.concatenate(

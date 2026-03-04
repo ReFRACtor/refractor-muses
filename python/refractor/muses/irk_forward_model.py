@@ -76,39 +76,14 @@ class IrkForwardModel(rf.StandardForwardModel):
 
     def irk_radiance(
         self,
-        cstate: CurrentState,
         pointing_angle: rf.DoubleWithUnit,
-    ) -> tuple[rf.Spectrum, None | np.ndarray]:
+    ) -> rf.Spectrum:
         """Calculate radiance/jacobian for the IRK calculation, for the
-        given angle. If pointing_angle is 0, we also return dEdOD."""
-        raise RuntimeError("We don't have this working yet")
-        from refractor.muses_py_fm import RefractorUip
-
-        rf_uip_pointing = RefractorUip.create_uip_from_refractor_objects(
-            [
-                self.irk_obs,
-            ],
-            cstate,
-            self.rconf,
-            pointing_angle=pointing_angle,
-        )
-        # TODO Very clumsy, we'll want to clean this up
-        rf_uip_original = self.radiative_transfer.rf_uip
-        try:
-            self.radiative_transfer.rf_uip = rf_uip_pointing
+        given angle."""
+        with self.radiative_transfer.modify_pointing(pointing_angle):
             with self.obs.modify_spectral_window(include_bad_sample=True):
-                r = self.radiance_all(False)
-            if pointing_angle.value == 0.0:
-                ray_info = rf_uip_pointing.ray_info(
-                    self.obs.instrument_name, set_cloud_extinction_one=True
-                )
-                dEdOD = 1.0 / ray_info["cloud"]["tau_total"]
-            else:
-                dEdOD = None
-        finally:
-            self.radiative_transfer.rf_uip = rf_uip_original
-        return r, dEdOD
-
+                return self.radiance_all(False)
+            
     def irk(self, current_state: CurrentState) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
@@ -118,19 +93,13 @@ class IrkForwardModel(rf.StandardForwardModel):
         rad_l1b = np.array(t.spectral_range.data)
         radiance = []
         jacobian = []
+        frequency = None
         for gi_angle in self.irk_angle():
-            if gi_angle == 0.0:
-                r, dEdOD = self.irk_radiance(
-                    current_state, rf.DoubleWithUnit(0.0, "deg")
-                )
+            r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
+            if frequency is None:
                 frequency = r.spectral_domain.data
-            else:
-                r, _ = self.irk_radiance(
-                    current_state, rf.DoubleWithUnit(gi_angle, "deg")
-                )
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
-
         freq_step = frequency[1:] - frequency[:-1]
         freq_step = np.array([freq_step[0], *freq_step])
         n_l1b = len(frq_l1b)
@@ -291,8 +260,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             # convert cloudext to cloudod
             # dL/dod = dL/dext * dext/dod
             if species_name == "CLOUDEXT":
-                if dEdOD is None:
-                    raise RuntimeError("dEdOD should not be None")
+                dEdOD = self.radiative_transfer.dEdOD()
                 myirfk = np.multiply(myirfk, dEdOD)
                 for pp in range(dEdOD.shape[0]):
                     myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]

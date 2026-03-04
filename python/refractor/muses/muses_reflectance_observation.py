@@ -286,6 +286,10 @@ class MusesReflectanceObservation(MusesObservationImp):
     def desc(self) -> str:
         return "MusesReflectanceObservation"
 
+    @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        raise RuntimeError("Need to track this down")
+
     def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         # Put in the right units for the VLIDORT instruments
         freq = self.frequency_full(sensor_index)
