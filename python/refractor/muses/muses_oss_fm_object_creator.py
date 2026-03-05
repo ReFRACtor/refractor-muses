@@ -9,6 +9,7 @@ from .irk_forward_model import IrkForwardModel
 from .muses_tes_observation import MusesTesObservation
 from .emis_state import EmisState
 from .cloud_ext_state import CloudExtState
+from .pointing_angle_surface import pointing_angle_surface
 import os
 from pathlib import Path
 from loguru import logger
@@ -146,13 +147,11 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         pointing_angle = self.observation.pointing_angle
         # This is a bit involved to get, so leverage off uip until we are
         # ready to work through this
-        pointing_angle_surface = rf.DoubleWithUnit(
-            self._rf_uip.ray_info(
-                self.observation.instrument_name,
-                pointing_angle=pointing_angle.convert("rad").value,
-            )["ray_angle_surface"],
-            "rad",
-        )
+        pangle = pointing_angle_surface(self._rf_uip, self.observation.instrument_name,
+                                        pointing_angle)
+        print(pointing_angle.convert("deg"))
+        print(pangle.convert("deg"))
+        breakpoint()
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -164,7 +163,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.cloud_ext,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
-            pointing_angle_surface,
+            pangle,
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id
