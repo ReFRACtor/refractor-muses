@@ -23,12 +23,14 @@ class ObservationCombine(rf.StackedRadianceMixin):
         # VLIDORT.
         # Note that we *can't* actually combine OSS and VLIDORT forward models,
         # because they use different units here. We just strip off the units to
-        # combine the data. 
+        # combine the data.
         t = self.obs_list[sensor_index].radiance_all()
         if len(self.obs_list) == 1:
             return t
-        return rf.Spectrum(t.spectral_domain,
-                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")))
+        return rf.Spectrum(
+            t.spectral_domain,
+            rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")),
+        )
 
 
 class ForwardModelCombine(rf.ForwardModel):
@@ -90,9 +92,10 @@ class ForwardModelCombine(rf.ForwardModel):
         # VLIDORT.
         # Note that we *can't* actually combine OSS and VLIDORT forward models,
         # because they use different units here. We just strip off the units to
-        # combine the data. 
+        # combine the data.
         if len(self.fm_list) == 1:
             return t
-        return rf.Spectrum(t.spectral_domain,
-                           rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")))
-
+        return rf.Spectrum(
+            t.spectral_domain,
+            rf.SpectralRange(t.spectral_range.data_ad, rf.Unit("mixed_units")),
+        )

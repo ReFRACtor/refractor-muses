@@ -9,16 +9,16 @@ from refractor.muses_py_fm import (
     MusesAirsForwardModel,
 )
 from fixtures.require_check import require_muses_py_fm
-import numpy.testing as npt
 import pprint
 import subprocess
 
+
 @require_muses_py_fm
 def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
-    '''We don't normally run IRK for CRIS (only for AIRS), but put this test
+    """We don't normally run IRK for CRIS (only for AIRS), but put this test
     in because it doesn't have the added complication that AIRS uses the
     TES frequencies. This tests the IRK code without including that extra
-    piece (which we test separately'''
+    piece (which we test separately"""
     rs, rstep, _ = joint_tropomi_step_12
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
@@ -29,7 +29,9 @@ def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
     obs_cris.spectral_window.include_bad_sample = True
     # For the purpose of testing, add some extra jacobians in so we can check
     # that part of the code.
-    rs.current_state.testing_add_retrieval_state_element_id(StateElementIdentifier("TATM"))
+    rs.current_state.testing_add_retrieval_state_element_id(
+        StateElementIdentifier("TATM")
+    )
     ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
     fm = ocreator.forward_model
     # Set up jacobian of state vector
@@ -44,5 +46,29 @@ def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
     with open("rirkcmp.txt", "w") as fh:
         pprint.pprint(rirkcmp, fh)
     subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)
-    
-        
+
+
+@require_muses_py_fm
+def test_muses_airs_forward_model_irk(airs_irk_step_6):
+    rs, rstep, _ = airs_irk_step_6
+    obs_airs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("AIRS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
+        None,
+    )
+    obs_airs.spectral_window.include_bad_sample = True
+    ocreator = AirsFmObjectCreator(rs.current_state, rs.retrieval_config, obs_airs)
+    fm = ocreator.forward_model
+    # Set up jacobian of state vector
+    fm_sv = ocreator.fm_sv
+    fm_sv.update_state(fm_sv.state)
+    rirk = fm.irk(rs.current_state)
+
+    fmcmp = MusesAirsForwardModel(rs.current_state, obs_airs, rs.retrieval_config)
+    rirkcmp = fmcmp.irk(rs.current_state)
+    with open("rirk.txt", "w") as fh:
+        pprint.pprint(rirk, fh)
+    with open("rirkcmp.txt", "w") as fh:
+        pprint.pprint(rirkcmp, fh)
+    subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)

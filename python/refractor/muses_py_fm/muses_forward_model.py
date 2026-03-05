@@ -813,7 +813,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         # Replace with a fake TES observation. This is done to get the
         # full TES frequency range.
         tes_frequency_fname = (
-            f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
+            self.rconf["spectralWindowDirectory"].parent.parent / "tes_frequency.nc"
         )
         return MusesTesObservation.create_fake_for_irk(
             tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper

@@ -277,7 +277,7 @@ class MusesTesObservation(MusesObservationImp):
     @property
     def pointing_angle(self) -> rf.DoubleWithUnit:
         return self.boresight_angle
-    
+
     @property
     def spacecraft_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["instrumentAltitude"], "km")
@@ -557,7 +557,7 @@ class MusesTesObservation(MusesObservationImp):
             self.nesr_full(sensor_index),
         )
         return rf.Spectrum(sd, sr)
-    
+
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> np.ndarray:
@@ -578,7 +578,7 @@ class MusesTesObservation(MusesObservationImp):
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
         return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
-    
+
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.

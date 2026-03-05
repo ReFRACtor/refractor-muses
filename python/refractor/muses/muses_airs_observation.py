@@ -141,7 +141,7 @@ class MusesAirsObservation(MusesObservationImp):
     @property
     def pointing_angle(self) -> rf.DoubleWithUnit:
         return self.scan_angle
-    
+
     @classmethod
     def create_from_filename(
         cls,
@@ -245,7 +245,7 @@ class MusesAirsObservation(MusesObservationImp):
             self.nesr_full(sensor_index),
         )
         return rf.Spectrum(sd, sr)
-    
+
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> np.ndarray:
@@ -266,7 +266,7 @@ class MusesAirsObservation(MusesObservationImp):
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
         return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
-    
+
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
@@ -404,7 +404,9 @@ class MusesAirsObservation(MusesObservationImp):
 
         # AIRS currently in mw/m2/sr/cm-1
         # convert AIRS to w/cm2/sr/cm-1 by multiplying by 1e-7
-        rad_unit_f = rf.conversion(rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)"))
+        rad_unit_f = rf.conversion(
+            rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)")
+        )
         airs = {
             "latitude": lat_var,
             "longitude": lon_var,

@@ -7,6 +7,8 @@ import subprocess
 
 if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
+    from .misc import ResultIrk
+    from .current_state import CurrentState
 
 
 class CompareForwardModel(rf.ForwardModel):
@@ -37,6 +39,8 @@ class CompareForwardModel(rf.ForwardModel):
         res1 = self.fm1.spectral_domain(sensor_index)
         res2 = self.fm2.spectral_domain(sensor_index)  # noqa:F841
         # Add whatever comparison is wanted here
+        if not np.allclose(res1.data, res2.data):
+            breakpoint()
         return res1
 
     def irk(self, current_state: CurrentState) -> ResultIrk:
@@ -45,13 +49,11 @@ class CompareForwardModel(rf.ForwardModel):
         # have an IRK calculation.
         res1 = self.fm1.irk(current_state)
         res2 = self.fm2.irk(current_state)
-        with open("fm1_uip.txt", "w") as fh:
-            pprint.pprint(self.fm1.rf_uip.uip, fh)
-        with open("fm2_uip.txt", "w") as fh:
-            pprint.pprint(self.fm2.radiative_transfer.rf_uip.uip, fh)
+        with open("res1.txt", "w") as fh:
+            pprint.pprint(res1, fh)
+        with open("res2.txt", "w") as fh:
+            pprint.pprint(res2, fh)
         subprocess.run(["diff", "-u", "fm1_uip.txt", "fm2_uip.txt"])
-        # Add whatever comparison is wanted here
-        breakpoint()
         return res1
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
@@ -76,7 +78,9 @@ class CompareForwardModel(rf.ForwardModel):
                 breakpoint()
         if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
             breakpoint()
-        if not np.allclose(res1.spectral_range.data_ad.jacobian, res2.spectral_range.data_ad.jacobian):
+        if not np.allclose(
+            res1.spectral_range.data_ad.jacobian, res2.spectral_range.data_ad.jacobian
+        ):
             breakpoint()
         return res1
 

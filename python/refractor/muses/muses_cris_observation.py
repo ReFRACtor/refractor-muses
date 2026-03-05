@@ -183,7 +183,7 @@ class MusesCrisObservation(MusesObservationImp):
     @property
     def pointing_angle(self) -> rf.DoubleWithUnit:
         return self.scan_angle
-    
+
     def window_fix_for_uip(self, win: dict[str, Any]) -> None:
         """This is bit of kludge for use in RefractorUip.create_uip. This adjusts
         windows needed for doing a joint retrieval with tropomi.
@@ -298,7 +298,7 @@ class MusesCrisObservation(MusesObservationImp):
             self.nesr_full(sensor_index),
         )
         return rf.Spectrum(sd, sr)
-    
+
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> np.ndarray:
@@ -319,7 +319,7 @@ class MusesCrisObservation(MusesObservationImp):
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
         return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
-    
+
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
@@ -436,7 +436,9 @@ class MusesCrisObservation(MusesObservationImp):
         # NOTE: CrIS L1B noise is NEDR (noise equivalent delta radiance), not NESR (noise equivalent spectral radiance)
 
         # unit convert from mW/(m2 sr cm-1) to w/(cm^2*sr*cm-1)
-        rad_unit_f = rf.conversion(rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)"))
+        rad_unit_f = rf.conversion(
+            rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)")
+        )
 
         rad_conv_lw = rad_lw0 * rad_unit_f
         nesr_conv_lw = nedn_lw0 * rad_unit_f
@@ -639,7 +641,9 @@ class MusesCrisObservation(MusesObservationImp):
         nedn_mw0 = es_nednmw[atrack, xtrack, pixel_index, :np_mw]
         nedn_sw0 = es_nednsw[atrack, xtrack, pixel_index, :np_sw]
 
-        rad_unit_f = rf.conversion(rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)"))
+        rad_unit_f = rf.conversion(
+            rf.Unit("mW / (m^2 sr cm^-1)"), rf.Unit("W / (cm^2 sr cm^-1)")
+        )
         rad_conv_lw = rad_lw0 * rad_unit_f
         nesr_conv_lw = nedn_lw0 * rad_unit_f
         rad_conv_mw = rad_mw0 * rad_unit_f

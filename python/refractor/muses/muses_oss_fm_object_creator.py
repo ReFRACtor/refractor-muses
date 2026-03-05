@@ -10,7 +10,6 @@ from .muses_tes_observation import MusesTesObservation
 from .emis_state import EmisState
 from .cloud_ext_state import CloudExtState
 import os
-import numpy as np
 from pathlib import Path
 from loguru import logger
 from functools import cached_property
@@ -23,7 +22,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
 
-    
+
 # Leverage off RefractorFmObjectCreator. We probably want to
 # rework this, either make MusesOssFmObjectCreator stand alone
 # or extract out a common base class. Right now RefractorFmObjectCreator
@@ -99,7 +98,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             [cext],
         )
         return cext
-    
+
     @cached_property
     def pcloud(self) -> rf.Pcloud:
         selem = [
@@ -147,7 +146,13 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         pointing_angle = self.observation.pointing_angle
         # This is a bit involved to get, so leverage off uip until we are
         # ready to work through this
-        pointing_angle_surface = rf.DoubleWithUnit(self._rf_uip.ray_info(self.observation.instrument_name, pointing_angle = pointing_angle.convert("rad").value)["ray_angle_surface"], "rad")
+        pointing_angle_surface = rf.DoubleWithUnit(
+            self._rf_uip.ray_info(
+                self.observation.instrument_name,
+                pointing_angle=pointing_angle.convert("rad").value,
+            )["ray_angle_surface"],
+            "rad",
+        )
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -219,30 +224,11 @@ class MusesAirsForwardModelOss(IrkForwardModel):
         # Replace with a fake TES observation. This is done to get the
         # full TES frequency range.
         tes_frequency_fname = (
-            f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
+            self.rconf["spectralWindowDirectory"].parent.parent / "tes_frequency.nc"
         )
         return MusesTesObservation.create_fake_for_irk(
             tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
         )
-
-    def irk_radiance(
-        self,
-        cstate: CurrentState,
-        pointing_angle: rf.DoubleWithUnit,
-    ) -> tuple[rf.Spectrum, None | np.ndarray]:
-        """Calculate radiance/jacobian for the IRK calculation, for the
-        given angle. We also return the UIP we used for the calculation"""
-        # For AIRS, we use the TES forward model instead. Based on comments in
-        # the code it looks like this was done to use the more complete frequency
-        # range of TES
-        obs_original = self.obs
-        try:
-            self.obs = self.irk_obs
-            self.instrument_name = InstrumentIdentifier("TES")
-            return super().irk_radiance(cstate, pointing_angle)
-        finally:
-            self.obs = obs_original
-            self.instrument_name = InstrumentIdentifier("AIRS")
 
 
 class MusesTesForwardModelOss(IrkForwardModel):
@@ -408,8 +394,59 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
     @cached_property
-    def forward_model(self) -> rf.ForwardModel:
+    def tes_radiative_transfer(self) -> rf.RadiativeTransfer:
+        # For the IRK, we want to use the more full tes frequencies. So create
+        # a RT set up for this.
+        tes_dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "TES" / "2018-03-14"
+        tes_sel_file = (
+            tes_dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
+        )
+        tes_od_file = (
+            tes_dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
+        )
+        tes_sol_file = tes_dir_lut / "newkur.dat"
+        tes_fix_file = tes_dir_lut / "default.dat"
 
+        pointing_angle = self.observation.pointing_angle
+        # This is a bit involved to get, so leverage off uip until we are
+        # ready to work through this
+        pointing_angle_surface = rf.DoubleWithUnit(
+            self._rf_uip.ray_info(
+                self.observation.instrument_name,
+                pointing_angle=pointing_angle.convert("rad").value,
+            )["ray_angle_surface"],
+            "rad",
+        )
+        return MusesRadiativeTransferOss(
+            self._rf_uip,
+            self.pressure_fm,
+            self.temperature,
+            self.surface_temperature,
+            self.pcloud,
+            self.scale_cloud,
+            self.emissivity,
+            self.cloud_ext,
+            self.observation.surface_altitude,
+            self.current_state.sounding_metadata.latitude,
+            pointing_angle_surface,
+            InstrumentIdentifier("TES"),
+            self.ifile_hlp,
+            self.current_state.systematic_state_element_id
+            if self.current_state.use_systematic
+            else self.current_state.retrieval_state_element_id,
+            self.species_list,
+            self.nlevels,
+            self.nfreq,
+            tes_sel_file,
+            tes_od_file,
+            tes_sol_file,
+            tes_fix_file,
+        )
+
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesAirsForwardModelOss(
             self.instrument,
             self.spec_win,
@@ -418,10 +455,12 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             self.spectrum_effect,
             self.observation,
             self.retrieval_config,
+            irk_radiative_transfer=self.tes_radiative_transfer,
         )
         self._add_rf_uip_update_to_fm(fm1)
         if False:
             from refractor.muses_py_fm import MusesAirsForwardModel
+
             fm2 = MusesAirsForwardModel(
                 self.current_state, self.observation, self.retrieval_config
             )
@@ -505,9 +544,12 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         self._add_rf_uip_update_to_fm(fm1)
         if False:
             from refractor.muses_py_fm import MusesTesForwardModel
+
             # If we need to diagnose an issue
-            fm2 = MusesTesForwardModel(self.current_state, self.observation, self.retrieval_config)
-            res = CompareForwardModel(fm2,fm1)
+            fm2 = MusesTesForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm2, fm1)
         else:
             res = fm1
         res.setup_grid()

@@ -528,7 +528,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
-            [StateElementIdentifier("TATM"),],
+            [
+                StateElementIdentifier("TATM"),
+            ],
             [
                 tlevel,
             ],

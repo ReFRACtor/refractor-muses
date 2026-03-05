@@ -2,16 +2,24 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import numpy as np
 
+
 class EmisState(rf.GenericStateImpBase):
-    '''We don't have a Emissivity class at the C++ level. We may add that, but
-    for now just add a python class to handle this.'''
-    def __init__(self, emisv : np.ndarray, emis_sd: rf.SpectralDomain,
-                 mp: rf.StateMapping = rf.StateMappingLinear):
+    """We don't have a Emissivity class at the C++ level. We may add that, but
+    for now just add a python class to handle this."""
+
+    def __init__(
+        self,
+        emisv: np.ndarray,
+        emis_sd: rf.SpectralDomain,
+        mp: rf.StateMapping = rf.StateMappingLinear,
+    ):
         super().__init__()
         self.init(emisv, mp)
         self._emis_sd = emis_sd
         if emisv.shape != emis_sd.data.shape:
-            raise RuntimeError("emisivity and emisivity spectral domain need to be the same size")
+            raise RuntimeError(
+                "emisivity and emisivity spectral domain need to be the same size"
+            )
 
     @property
     def emissivity(self) -> rf.ArrayAd_double_1:
@@ -21,20 +29,24 @@ class EmisState(rf.GenericStateImpBase):
     def emissivity_spectral_domain(self) -> rf.SpectralDomain:
         return self._emis_sd
 
-    def desc(self):
+    def desc(self) -> str:
         return "EmisState"
 
     def clone(self) -> rf.GenericState:
-        return EmisState(self.emissivity, self.emissivity_spectral_domain, self.state_mapping)
+        return EmisState(
+            self.emissivity, self.emissivity_spectral_domain, self.state_mapping
+        )
 
     def sub_state_identifier(self) -> str:
         return "emis_state"
 
-    def state_vector_name_i(self, i : int) -> str:
+    def state_vector_name_i(self, i: int) -> str:
         mname = self.state_mapping.name
         if mname != "linear":
-            return f"{mname} Emissivity Freq {i+1}"
-        return f"Emissivity Freq {i+1}"
-    
+            return f"{mname} Emissivity Freq {i + 1}"
+        return f"Emissivity Freq {i + 1}"
 
-__all__ = ["EmisState",]    
+
+__all__ = [
+    "EmisState",
+]

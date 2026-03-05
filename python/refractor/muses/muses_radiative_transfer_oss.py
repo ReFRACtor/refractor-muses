@@ -4,8 +4,9 @@ from .muses_oss_handle import muses_oss_handle
 import numpy as np
 import os
 from contextlib import contextmanager
+import copy
 import typing
-from typing import Self
+from typing import Self, Iterator, Any
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -70,30 +71,26 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.fix_file = fix_file
 
     def clone(self) -> Self:
-        return MusesRadiativeTransferOss(
-            self.ifile_hlp,
-            self.retrieval_state_element_id,
-            self.species_list,
-            self.nlevels,
-            self.nfreq,
-            self.sel_file,
-            self.od_file,
-            self.sol_file,
-            self.fix_file,
-        )
+        return copy.deepcopy(self)
 
-    def dEdOD(self):
+    def dEdOD(self) -> np.ndarray:
         # Not clear where exactly this belongs. Have here for now, it would
         # be good if we could pull this out perhaps into IrkForwardModel
-        ray_info = self.rf_uip.ray_info(self.instrument_name,
-                                        set_pointing_angle_zero = True,
-                                        set_cloud_extinction_one= True)
+        try:
+            ray_info = self.rf_uip.ray_info(
+                self.instrument_name,
+                set_pointing_angle_zero=True,
+                set_cloud_extinction_one=True,
+            )
+        except KeyError:
+            ray_info = self.rf_uip.ray_info(
+                "AIRS", set_pointing_angle_zero=True, set_cloud_extinction_one=True
+            )
         return 1.0 / ray_info["cloud"]["tau_total"]
-        
-        
+
     @contextmanager
-    def modify_pointing(self, pointing_angle: rf.DoubleWithUnit):
-        '''For the IRK calculation, we need to generate the reflectance for
+    def modify_pointing(self, pointing_angle: rf.DoubleWithUnit) -> Iterator[None]:
+        """For the IRK calculation, we need to generate the reflectance for
         different pointing angles.
 
         The most natural interface would be to pass the pointing angle
@@ -115,11 +112,27 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         seems a reasonable price to pay to keep the existing
         rf.ForwardModel interface.  We can reevaluate this in the
         future if needed.
-        '''
+        """
         original_pointing = self.pointing_angle_surface
         try:
-            pointing_angle_surface = rf.DoubleWithUnit(self.rf_uip.ray_info(self.instrument_name, pointing_angle = pointing_angle.convert("rad").value
-                                                                            )["ray_angle_surface"], "rad")
+            try:
+                pointing_angle_surface = rf.DoubleWithUnit(
+                    self.rf_uip.ray_info(
+                        self.instrument_name,
+                        pointing_angle=pointing_angle.convert("rad").value,
+                    )["ray_angle_surface"],
+                    "rad",
+                )
+            except KeyError:
+                # Work around, since we use a fake tes for AIRS IRK. We could do something
+                # cleaner, but hopefully we'll be removing the uip stuff. So just have a
+                # fix that works for now.
+                pointing_angle_surface = rf.DoubleWithUnit(
+                    self.rf_uip.ray_info(
+                        "AIRS", pointing_angle=pointing_angle.convert("rad").value
+                    )["ray_angle_surface"],
+                    "rad",
+                )
             self.pointing_angle_surface = pointing_angle_surface
             yield
         finally:
@@ -128,8 +141,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def reflectance(
         self, sd: rf.SpectralDomain, sensor_index: int, skip_jacobian: bool
     ) -> rf.Spectrum:
-
-        '''Note that despite the name, this is actually radiance. We named this
+        """Note that despite the name, this is actually radiance. We named this
         back when we just had LIDORT, which does return reflectance. The OSS
         forward model returns radiance.
 
@@ -143,7 +155,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         Note that the function in StandardForwardModel is actually correctly
         named for this code (unlike our VLIDORT/LIDORT which doesn't include the
         solar model so it really does return reflectance).
-        '''
+        """
         muses_oss_handle.oss_init(
             self.ifile_hlp,
             self.retrieval_state_element_id,
@@ -156,9 +168,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             self.fix_file,
         )
         muses_oss_handle.oss_channel_select(sd)
-        uip_all = self.rf_uip.uip_all(self.instrument_name)
-        uip_all["oss_jacobianList"] = [str(s) for s in muses_oss_handle.jac_spec]
-        uip_all["oss_frequencyList"] = list(sd.convert_wave("cm^-1"))
+        try:
+            uip_all = self.rf_uip.uip_all(self.instrument_name)
+        except KeyError:
+            # Work around, since we use a fake tes for AIRS IRK. We could do something
+            # cleaner, but hopefully we'll be removing the uip stuff. So just have a
+            # fix that works for now.
+            uip_all = self.rf_uip.uip_all("AIRS")
         rad, jac, rad_units = self.fm_oss_stack(uip_all, sensor_index)
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
@@ -184,9 +200,20 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
-    def fm_oss(self, i_uip, i_jacobians, sensor_index: int):
-        pres = self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE).convert("mbar").value.value
-        tatm = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value.value
+    def fm_oss(self, i_uip: dict[str, Any], i_jacobians : list[str],
+               sensor_index: int) -> dict[str,Any]:
+        pres = (
+            self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
+            .convert("mbar")
+            .value.value
+        )
+        tatm = (
+            self.temperture.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value.value
+        )
         emisv = self.emissivity.emissivity
         cloudextv = self.cloud_ext.cloud_ext
         # These aren't working yet. Need to work through how these get updated
@@ -378,11 +405,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         return o_result
 
-    def fm_oss_stack(self, uipIn, sensor_index: int):
+    def fm_oss_stack(self, uipIn : dict[str, Any], sensor_index: int) -> tuple[np.ndarray, np.ndarray, rf.Unit]:
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
-        jacobianList = uip["oss_jacobianList"]
+        jacobianList = [str(s) for s in muses_oss_handle.jac_spec]
 
         results = self.fm_oss(uip, jacobianList, sensor_index)
 
@@ -453,7 +480,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             atm_jacobians_ils_total,
             jacobian_cloud_map,
         )
-        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
+        try:
+            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
+                self.instrument_name
+            )
+        except KeyError:
+            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
         if (
             o_jac is not None
             and sub_basis_matrix.shape[0] > 0
@@ -469,11 +501,15 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 o_jac += (
                     results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
                 )
-            temp = self.temperture.temperature_grid(self.pressure,rf.Pressure.DECREASING_PRESSURE).convert("K").value
-            if not temp.is_constant:
-                o_jac += (
-                    results["drad_dtemp"].T @ temp.jacobian
+            temp = (
+                self.temperture.temperature_grid(
+                    self.pressure, rf.Pressure.DECREASING_PRESSURE
                 )
+                .convert("K")
+                .value
+            )
+            if not temp.is_constant:
+                o_jac += results["drad_dtemp"].T @ temp.jacobian
         return (results["radiance"], o_jac, results["rad_units"])
 
     def pack_jacobian(
@@ -575,7 +611,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
             if jacob == "TATM":
                 num_par = num_par + num_atm
-                
+
             if jacob == "RESSCALE":
                 num_par = num_par + 1
 

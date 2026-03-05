@@ -412,7 +412,7 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def pointing_angle(self) -> rf.DoubleWithUnit:
         raise NotImplementedError()
-    
+
 
 class MusesObservationImp(MusesObservation):
     """Common behavior for each of the MusesObservation classes we
@@ -714,7 +714,7 @@ class MusesObservationImp(MusesObservation):
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
-        
+
         Note that some instruments use  wavenumber (cm^-1) and some use
         wavelength (nm). spectral_domain_full puts in the right units.
         """
@@ -797,8 +797,8 @@ class SimulatedObservation(MusesObservationImp):
 
     @property
     def pointing_angle(self) -> rf.DoubleWithUnit:
-        return sold._obs.pointing_angle
-    
+        return self._obs.pointing_angle
+
     @property
     def across_track(self) -> list[int]:
         return self._obs.across_track
@@ -858,7 +858,7 @@ class SimulatedObservation(MusesObservationImp):
 
     def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         return self._obs.spectral_domain_full(sensor_index)
-    
+
     def spectrum_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> rf.Spectrum:
@@ -875,7 +875,7 @@ class SimulatedObservation(MusesObservationImp):
             self.nesr_full(sensor_index),
         )
         return rf.Spectrum(sd, sr)
-    
+
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.

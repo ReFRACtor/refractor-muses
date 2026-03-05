@@ -245,7 +245,9 @@ class StateElementEmis(StateElementFreqShared):
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
-        spectral_domain = rf.SpectralDomain(f.checked_table["Frequency"], rf.Unit("cm^-1"))
+        spectral_domain = rf.SpectralDomain(
+            f.checked_table["Frequency"], rf.Unit("cm^-1")
+        )
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]

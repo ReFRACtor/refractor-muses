@@ -204,11 +204,11 @@ class CurrentStateUip(CurrentState):
     @property
     def sounding_metadata(self) -> SoundingMetadata:
         otable = self.rf_uip.uip_all(self.rf_uip.uip["instrumentList"][0])["obs_table"]
-        return SoundingMetadata(rf.DoubleWithUnit(otable["target_latitude"], "deg"),
-                                rf.DoubleWithUnit(0, "deg"),
-                                rf.DoubleWithUnit(otable["surfaceAltitude"], "km"),
-                                )
-                                                  
+        return SoundingMetadata(
+            rf.DoubleWithUnit(otable["target_latitude"], "deg"),
+            rf.DoubleWithUnit(0, "deg"),
+            rf.DoubleWithUnit(otable["surfaceAltitude"], "km"),
+        )
 
     def state_element(
         self, state_element_id: StateElementIdentifier | str

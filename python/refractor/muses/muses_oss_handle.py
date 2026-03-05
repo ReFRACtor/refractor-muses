@@ -499,7 +499,7 @@ class MusesOssHandle:
     ]:
         """
         This information comes from the developers guide in muses-oss
-        
+
         tsuf - surface temperature, in kelvin
         pointing_angle - in degrees
         sun_angle - in degrees

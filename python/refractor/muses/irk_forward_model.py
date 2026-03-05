@@ -10,7 +10,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_observation import MusesObservation
     from .retrieval_configuration import RetrievalConfiguration
-    from refractor.muses_py_fm import RefractorUip
+    from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
 
 
 class IrkForwardModel(rf.StandardForwardModel):
@@ -21,17 +21,19 @@ class IrkForwardModel(rf.StandardForwardModel):
         self,
         instrument: rf.Instrument,
         spec_win: rf.SpectralWindow,
-        radiative_transfer: rf.RadiativeTransfer,
+        radiative_transfer: rf.MusesRadiativeTransferOss,
         spectrum_sampling: rf.SpectrumSampling,
         spectrum_effect: list[list[rf.SpectrumEffect]],
         observation: MusesObservation,
         rconf: RetrievalConfiguration,
+        irk_radiative_transfer: rf.MusesRadiativeTransferOss | None = None,
     ) -> None:
         super().__init__(
             instrument, spec_win, radiative_transfer, spectrum_sampling, spectrum_effect
         )
         self.obs = observation
         self.rconf = rconf
+        self._irk_radiative_transfer = irk_radiative_transfer
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
@@ -74,32 +76,47 @@ class IrkForwardModel(rf.StandardForwardModel):
         # override the observation
         return self.obs
 
+    @property
+    def irk_radiative_transfer(self) -> MusesRadiativeTransferOss:
+        # For Airs, we want to use a tes radiative transfer to get
+        # the more full frequency range.
+        if self._irk_radiative_transfer is not None:
+            return self._irk_radiative_transfer
+        return self.radiative_transfer
+
     def irk_radiance(
         self,
         pointing_angle: rf.DoubleWithUnit,
     ) -> rf.Spectrum:
         """Calculate radiance/jacobian for the IRK calculation, for the
         given angle."""
-        with self.radiative_transfer.modify_pointing(pointing_angle):
-            with self.obs.modify_spectral_window(include_bad_sample=True):
-                return self.radiance_all(False)
-            
+        if self.num_channels != 1:
+            raise RuntimeError(
+                "We are currently assuming only 1 channel when doing IRK calculation. This could get extended, but we would need to modify the code to do this."
+            )
+        with self.irk_radiative_transfer.modify_pointing(pointing_angle):
+            with self.irk_obs.modify_spectral_window(include_bad_sample=True):
+                return self.irk_radiative_transfer.reflectance(
+                    self.irk_obs.spectral_domain_all(), 0, False
+                )
+
     def irk(self, current_state: CurrentState) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         """
-        t = self.obs.radiance_all_extended(include_bad_sample=True)
+        t = self.irk_obs.radiance_all_extended(include_bad_sample=True)
         frq_l1b = np.array(t.spectral_domain.data)
         rad_l1b = np.array(t.spectral_range.data)
         radiance = []
         jacobian = []
-        frequency = None
+        frequency : None | np.ndarray = None
         for gi_angle in self.irk_angle():
             r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
             if frequency is None:
                 frequency = r.spectral_domain.data
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
+        assert frequency is not None
         freq_step = frequency[1:] - frequency[:-1]
         freq_step = np.array([freq_step[0], *freq_step])
         n_l1b = len(frq_l1b)
@@ -350,7 +367,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             arrayOut[ii] = val
         return arrayOut
 
-    def _find_bin(self, x: float, y: np.ndarray) -> np.ndarray:
+    def _find_bin(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         # IDL_LEGACY_NOTE: This function _find_bin is the same as findbin in run_irk.pro file.
         #
         # Returns the bin numbers for nearest value of x array to values of y
