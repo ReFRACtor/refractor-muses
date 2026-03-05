@@ -104,14 +104,24 @@ class IrkForwardModel(rf.StandardForwardModel):
         """This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         """
-        t = self.irk_obs.radiance_all_extended(include_bad_sample=True)
+        t = self.obs.radiance_all_extended(include_bad_sample=True)
         frq_l1b = np.array(t.spectral_domain.data)
         rad_l1b = np.array(t.spectral_range.data)
         radiance = []
         jacobian = []
         frequency : None | np.ndarray = None
-        for gi_angle in self.irk_angle():
-            r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
+        # I think this is wrong, but we should compare against py-retrieve.
+        # I'm also not sure about the mix of self.obs and self.irk_obs,
+        # these have different spectral domains. However it looks like
+        # the _find_bin maps our spectrum to frq_l1b, so maybe that is
+        # ok
+        #
+        # There if freq_fm and freq_l1b and they are different, so maybe this
+        # is ok
+        for gi_angle, gi_angle2 in zip(self.irk_angle(),
+                                       [0.0, 0.25431251128513854, 0.568022126213156, 0.8403935075751815, 1.030992841567678, 1.1107996243909235]):
+            #r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
+            r = self.irk_radiance(rf.DoubleWithUnit(gi_angle2, "rad"))
             if frequency is None:
                 frequency = r.spectral_domain.data
             radiance.append(r.spectral_range.data)

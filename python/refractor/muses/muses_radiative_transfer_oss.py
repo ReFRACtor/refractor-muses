@@ -133,6 +133,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     )["ray_angle_surface"],
                     "rad",
                 )
+            pointing_angle_surface = pointing_angle
+            print(pointing_angle_surface)
             self.pointing_angle_surface = pointing_angle_surface
             yield
         finally:
