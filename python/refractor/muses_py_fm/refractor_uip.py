@@ -1670,6 +1670,7 @@ class RefractorUip:
         rconf: RetrievalConfiguration,
         pointing_angle: rf.DoubleWithUnit | None = None,
         vlidort_dir: None | str | os.PathLike[str] = None,
+        fake_tes_for_irk: bool = False,
     ) -> RefractorUip:
         """Create a RefractorUIP from the higher level refractor.muses objects.
 
@@ -1735,7 +1736,8 @@ class RefractorUip:
             "labels1": "retrievalType",
             "data": [cstate.retrieval_type.lower()] * cstate.strategy_step.step_number,
         }
-        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
+        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list,
+                                        fake_tes_for_irk=fake_tes_for_irk)
         # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
         fake_retrieval_info = FakeRetrievalInfo(cstate)
         if cstate.use_systematic:

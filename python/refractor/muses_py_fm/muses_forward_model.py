@@ -306,6 +306,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             cstate,
             self.rconf,
             pointing_angle=pointing_angle,
+            fake_tes_for_irk=True,
         )
         rf_uip_original = self.rf_uip
         try:
@@ -344,7 +345,6 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
                 )
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
-
         freq_step = frequency[1:] - frequency[:-1]
         freq_step = np.array([freq_step[0], *freq_step])
         n_l1b = len(frq_l1b)

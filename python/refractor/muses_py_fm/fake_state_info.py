@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import typing
 from typing import Any
+import math
 
 if typing.TYPE_CHECKING:
     from refractor.muses import CurrentState, MusesObservation
@@ -31,6 +32,7 @@ class FakeStateInfo:
         self,
         current_state: CurrentState,
         obs_list: list[MusesObservation] | None = None,
+        fake_tes_for_irk: bool = False,
     ):
         from refractor.muses import StateElementIdentifier, InstrumentIdentifier
 
@@ -230,6 +232,18 @@ class FakeStateInfo:
             self.fill_cris(current_state, obs_dict[InstrumentIdentifier("CRIS")])
         if InstrumentIdentifier("TES") in obs_dict:
             self.fill_tes(current_state, obs_dict[InstrumentIdentifier("TES")])
+            # Duplicate what run_irk.py in py-retrieve does
+            if fake_tes_for_irk:
+                target_radius = 6.356779e06 + (6.37816e6 - 6.356779e06) * math.cos(
+                    math.radians(current_state.sounding_metadata.latitude.value)
+                )
+                sat_altitude = 705000
+                sat_radius = sat_altitude + target_radius
+                self._current["tes"]["instrumentAltitude"] = 0
+                self._current["tes"]["instrumentRadius"] = sat_radius
+                self._current["tes"]["targetRadius"] = target_radius
+                self._current["tes"]["orbitInclinationAngle"] = -99
+                
         # print(self._current['tes'])
         # print(current_state._state_info.state_info_dict["current"]["tes"].keys())
         # print(self._current['tes'].keys())
