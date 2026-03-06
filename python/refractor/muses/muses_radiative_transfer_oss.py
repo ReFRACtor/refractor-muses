@@ -202,8 +202,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
-    def fm_oss(self, i_uip: dict[str, Any], i_jacobians : list[str],
-               sensor_index: int) -> dict[str,Any]:
+    def fm_oss(
+        self, i_uip: dict[str, Any], i_jacobians: list[str], sensor_index: int
+    ) -> dict[str, Any]:
         pres = (
             self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
             .convert("mbar")
@@ -407,7 +408,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         return o_result
 
-    def fm_oss_stack(self, uipIn : dict[str, Any], sensor_index: int) -> tuple[np.ndarray, np.ndarray, rf.Unit]:
+    def fm_oss_stack(
+        self, uipIn: dict[str, Any], sensor_index: int
+    ) -> tuple[np.ndarray, np.ndarray, rf.Unit]:
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 

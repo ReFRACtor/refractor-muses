@@ -243,7 +243,7 @@ class FakeStateInfo:
                 self._current["tes"]["instrumentRadius"] = sat_radius
                 self._current["tes"]["targetRadius"] = target_radius
                 self._current["tes"]["orbitInclinationAngle"] = -99
-                
+
         # print(self._current['tes'])
         # print(current_state._state_info.state_info_dict["current"]["tes"].keys())
         # print(self._current['tes'].keys())

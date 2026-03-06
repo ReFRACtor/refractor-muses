@@ -155,7 +155,12 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.current_state.sounding_metadata.surface_altitude.convert("m").value,
             self.current_state.sounding_metadata.latitude.value,
         )
-        sat_radius = rf.DoubleWithUnit(self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"]["sat_radius"], "m")
+        sat_radius = rf.DoubleWithUnit(
+            self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
+                "sat_radius"
+            ],
+            "m",
+        )
         pangle = pointing_angle_surface(sat_radius, pointing_angle, alt)
         print(pointing_angle.convert("deg"))
         print(pangle.convert("deg"))

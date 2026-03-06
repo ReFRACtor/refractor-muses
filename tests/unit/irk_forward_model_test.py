@@ -72,8 +72,11 @@ def test_muses_airs_forward_model_irk(airs_irk_step_6):
     with open("rirkcmp.txt", "w") as fh:
         pprint.pprint(rirkcmp, fh)
     import pickle
-    rirk_py_retrieve = pickle.load(open("/home/smyth/Local/refractor-muses/py-retrieve_result_irk.pkl", "rb"))
+
+    rirk_py_retrieve = pickle.load(
+        open("/home/smyth/Local/refractor-muses/py-retrieve_result_irk.pkl", "rb")
+    )
     with open("rirk_py_retrieve.txt", "w") as fh:
         pprint.pprint(rirk_py_retrieve, fh)
     subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)
-    #subprocess.run(["diff", "-u", "rirk.txt", "rirk_py_retrieve.txt"], check=True)
+    # subprocess.run(["diff", "-u", "rirk.txt", "rirk_py_retrieve.txt"], check=True)
