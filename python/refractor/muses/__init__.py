@@ -2,6 +2,9 @@
 #   mkinit . -w
 
 # <AUTOGEN_INIT>
+from .cloud_ext_state import (
+    CloudExtState,
+)
 from .cloud_result_summary import (
     CloudResultSummary,
 )
@@ -39,6 +42,9 @@ from .current_state_state_info import (
 )
 from .docopt_simple import (
     docopt_simple,
+)
+from .emis_state import (
+    EmisState,
 )
 from .eof_state_element import (
     OmiEofStateElement,
@@ -90,6 +96,9 @@ from .input_file_helper import (
     InputFileRecord,
     InputFileSave,
 )
+from .irk_forward_model import (
+    IrkForwardModel,
+)
 from .misc import (
     AttrDictAdapter,
     ResultIrk,
@@ -99,6 +108,7 @@ from .muses_airs_observation import (
     MusesAirsObservation,
 )
 from .muses_altitude_pge import (
+    MusesAltitude,
     MusesAltitudePge,
 )
 from .muses_cris_observation import (
@@ -196,6 +206,9 @@ from .osp_reader import (
     OspL2SetupControlInitial,
     OspSpeciesReader,
     RangeFind,
+)
+from .pointing_angle_surface import (
+    pointing_angle_surface,
 )
 from .priority_handle_set import (
     NoHandleFound,
@@ -346,6 +359,7 @@ __all__ = [
     "AttrDictAdapter",
     "CdfWriteLiteTes",
     "CdfWriteTes",
+    "CloudExtState",
     "CloudResultSummary",
     "ColumnResultSummary",
     "CompareForwardModel",
@@ -368,6 +382,7 @@ __all__ = [
     "CurrentStrategyStep",
     "CurrentStrategyStepDict",
     "DictFilterMetadata",
+    "EmisState",
     "ErrorAnalysis",
     "FileFilterMetadata",
     "FilterIdentifier",
@@ -392,10 +407,12 @@ __all__ = [
     "InputFileRecord",
     "InputFileSave",
     "InstrumentIdentifier",
+    "IrkForwardModel",
     "MeasurementId",
     "MeasurementIdDict",
     "MeasurementIdFile",
     "MusesAirsObservation",
+    "MusesAltitude",
     "MusesAltitudePge",
     "MusesCrisObservation",
     "MusesLevmarSolver",
@@ -529,6 +546,7 @@ __all__ = [
     "mpy_radiance_from_observation_list",
     "muses_oss_handle",
     "order_species",
+    "pointing_angle_surface",
     "species_type",
 ]
 # </AUTOGEN_INIT>

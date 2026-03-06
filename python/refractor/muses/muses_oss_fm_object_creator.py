@@ -144,6 +144,13 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     @cached_property
+    def h2o_vmr(self) -> rf.AbsorberVmr:
+        # Probably temp, we'll get the absorber stuff straightened out and this
+        # may get replaces
+        coeff, mp = self.current_state.object_state([StateElementIdentifier("H2O")])
+        return rf.AbsorberVmrLevel(self.pressure_fm, coeff, "H2O", mp)
+
+    @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         pointing_angle = self.observation.pointing_angle
         # This is a bit involved to get, so leverage off uip until we are
@@ -155,20 +162,19 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.current_state.sounding_metadata.surface_altitude.convert("m").value,
             self.current_state.sounding_metadata.latitude.value,
         )
-        # Temp, we'll need to get absorber_vmr sorted out
-        coeff, mp = self.current_state.object_state([StateElementIdentifier("H2O")])
-        # Need to get mp to be the log mapping in current_state, but for
-        # now just work around this
-        mp = rf.StateMappingLinear()
-        h2o_vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, "H2O", mp)
-        alt2 = MusesAltitude(self.pressure_fm, self.temperature, h2o_vmr,
-                             self.current_state.sounding_metadata.latitude,
-                             self.current_state.sounding_metadata.surface_altitude
-                             )
+        alt2 = MusesAltitude(
+            self.pressure_fm,
+            self.temperature,
+            self.h2o_vmr,
+            self.current_state.sounding_metadata.latitude,
+            self.current_state.sounding_metadata.surface_altitude,
+        )
         sat_radius = rf.DoubleWithUnit(
-            float(self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
-                "sat_radius"
-            ]),
+            float(
+                self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
+                    "sat_radius"
+                ]
+            ),
             "m",
         )
         pangle = pointing_angle_surface(sat_radius, pointing_angle, alt)

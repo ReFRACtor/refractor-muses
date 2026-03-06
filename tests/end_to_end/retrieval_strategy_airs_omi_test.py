@@ -66,13 +66,16 @@ def test_retrieval_strategy_airs_omi(
         # Record input file, just for our information
         rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver(
-            "retrieval_strategy_retrieval_step", "starting run_step"
-        )
         # Temp, as we are working on MusesRadiativeTransferOss, we can't pickle this
-        # rs.add_observer(rscap)
-        rscap2 = RetrievalStrategyCaptureObserver("retrieval_result", "retrieval step")
-        # rs.add_observer(rscap2)
+        if False:
+            rscap = RetrievalStrategyCaptureObserver(
+                "retrieval_strategy_retrieval_step", "starting run_step"
+            )
+            rs.add_observer(rscap)
+            rscap2 = RetrievalStrategyCaptureObserver(
+                "retrieval_result", "retrieval step"
+            )
+            rs.add_observer(rscap2)
         if run_lidort:
             # Use refractor forward model.
             ihandle = OmiForwardModelHandle(

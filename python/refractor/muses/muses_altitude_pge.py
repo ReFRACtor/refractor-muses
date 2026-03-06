@@ -11,6 +11,7 @@ from typing import Any, Self
 # easily work around this by using composition instead of inheritance.
 # class MusesAltitude(rf.Altitude, rf.CacheInvalidatedObserver):
 
+
 class MusesAltitude(rf.Altitude):
     """We already have height objects in our ReFRACtor forward model, but py-retrieval
     had it own calculation of this. So we can match old data, we duplicate this
@@ -27,19 +28,23 @@ class MusesAltitude(rf.Altitude):
     We should marry those two classes, but right now leave separate just so everything
     is working. We'll want to clean this up, but that isn't a huge priority right now.
     """
-    def __init__(self, pressure: rf.Pressure, temperature: rf.Temperature,
-                 h2o_vmr : rf.AbsorberVmr,
-                 latitude: rf.DoubleWithUnit,
-                 surface_height: rf.DoubleWithUnit,
-                 tes_pge: bool = False,
-                 h2o_type: int = 1,
-                 ):
-        '''
+
+    def __init__(
+        self,
+        pressure: rf.Pressure,
+        temperature: rf.Temperature,
+        h2o_vmr: rf.AbsorberVmr,
+        latitude: rf.DoubleWithUnit,
+        surface_height: rf.DoubleWithUnit,
+        tes_pge: bool = False,
+        h2o_type: int = 1,
+    ):
+        """
         h2o_type = 0    h2o is fractional mixing ratio (nh2o/airDensity) relative to total air
         h2o_type = 1    h2o is fractional mixing ratio relative to dry air
         h2o_type = 2    h2o is in g/kg with respect to dry air
         Use either or.. makes a negligble difference (i.e., 1 cm difference)
-        '''
+        """
         super().__init__()
         self.pressure = pressure
         self.temperature = temperature
@@ -60,14 +65,22 @@ class MusesAltitude(rf.Altitude):
             return
         # Skip jacobians for now. We can put this in, but I'm not sure if we
         # actually used them anywhere
-        self._pgrid = self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE).convert("hPa").value.value
-        self._tatm = self.temperature.temperature_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value.value
-        self._h2ogrid = self.h2o_vmr.vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value
+        self._pgrid = (
+            self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
+            .convert("hPa")
+            .value.value
+        )
+        self._tatm = self.temperature.temperature_grid(
+            self.pressure, rf.Pressure.DECREASING_PRESSURE
+        ).value.value
+        self._h2ogrid = self.h2o_vmr.vmr_grid(
+            self.pressure, rf.Pressure.DECREASING_PRESSURE
+        ).value
         Avo = 6.0225e23
         kb = 1.380622e-23
 
         self._air_density = self._pgrid * 1e-4 / (kb * self._tatm)
-        
+
         if self.h2o_type == 0:
             chi = self._h2ogrid
             self._air_density_dry = (
@@ -192,7 +205,9 @@ class MusesAltitude(rf.Altitude):
             self._air_density_dry / 1000000.0
         )  # convert to molecules/cm3
         # This takes pressure in hPa and returns the altitude in meters
-        self._alt_inter = scipy.interpolate.interp1d(self._pgrid, self._altitude, fill_value="extrapolate")
+        self._alt_inter = scipy.interpolate.interp1d(
+            self._pgrid, self._altitude, fill_value="extrapolate"
+        )
         self.cache_observer.cache_valid_flag = True
 
     def _gravity_calc(self, altitude: float) -> float:
@@ -213,7 +228,7 @@ class MusesAltitude(rf.Altitude):
         return res
 
     def earth_radius(self) -> rf.DoubleWithUnit:
-        '''The earth radius for self.latitude'''
+        """The earth radius for self.latitude"""
         if self.tes_pge:
             # TES pge (note TES PGE in km, however these numbers are meters).
             polar_radius = 6.356779e06
@@ -233,23 +248,38 @@ class MusesAltitude(rf.Altitude):
                 self.latitude.convert("rad").value
             )
         return rf.DoubleWithUnit(res, "m")
-    
 
     def desc(self) -> str:
         return "MusesAltitude"
 
-    def altitude(self, p : rf.AutoDerivativeWithUnit_double) -> rf.AutoDerivativeWithUnit_double:
+    def altitude(
+        self, p: rf.AutoDerivativeWithUnit_double
+    ) -> rf.AutoDerivativeWithUnitDouble:
         self._fill_in_cache()
-        return rf.DoubleWithUnit(self._alt_inter(p.convert("hPa").value.value)[()], "m")
+        return rf.AutoDerivativeWithUnitDouble(
+            rf.AutoDerivativeDouble(self._alt_inter(p.convert("hPa").value.value)[()]),
+            "m",
+        )
 
-    def gravity(self, p : rf.AutoDerivativeWithUnit_double) -> rf.AutoDerivativeWithUnit_double:
-        return self._gravity_calc(self.altitude(p))
+    def gravity(
+        self, p: rf.AutoDerivativeWithUnit_double
+    ) -> rf.AutoDerivativeWithUnitDouble:
+        return rf.AutoDerivativeWithUnitDouble(
+            rf.AutoDerivativeDouble(self._gravity_calc(self.altitude(p))), "m/s^2"
+        )
 
     def clone(self) -> Self:
-        return MusesAltitude(self.pressure, self.temperature,
-                             self.h2o_vmr, self.latitude, self.surface_height,
-                             self.tes_pge, self.h2o_type)
-    
+        return MusesAltitude(
+            self.pressure,
+            self.temperature,
+            self.h2o_vmr,
+            self.latitude,
+            self.surface_height,
+            self.tes_pge,
+            self.h2o_type,
+        )
+
+
 class MusesAltitudePge:
     """We already have height objects in our ReFRACtor forward model, but muses-py
     had it own calculation of this. So we can match old data, we duplicate this

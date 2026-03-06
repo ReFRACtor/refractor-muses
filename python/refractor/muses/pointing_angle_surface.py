@@ -82,8 +82,9 @@ def pointing_angle_surface(
     cos_theta_u = math.sqrt(1.0 - sin_theta_u**2)
 
     for jj in reversed(range(0, nlayers)):  # go from top to bottom
-        hp = -(altitude[jj + 1] - altitude[jj]) / np.log(pressure[jj + 1] / pressure[jj])
-        r_u = altitude[jj + 1] + alt.earth_radius(alt.latitude)
+        hp = -(altitude[jj + 1] - altitude[jj]) / np.log(
+            pressure[jj + 1] / pressure[jj]
+        )
         a_u = altitude[jj + 1]
         flag = 0
         while flag == 0:  # sub layer loop
@@ -93,7 +94,6 @@ def pointing_angle_surface(
                 da = a_u - altitude[jj]
                 flag = 1
             a_l = a_u - da
-            r_l = a_l + alt.earth_radius(alt.latitude)
             p_l = pressure[jj] * math.exp(-(a_l - altitude[jj]) / hp)
             t_l = temperature[jj] + (a_l - altitude[jj]) * (
                 temperature[jj + 1] - temperature[jj]
