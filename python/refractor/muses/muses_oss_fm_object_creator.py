@@ -10,7 +10,7 @@ from .muses_tes_observation import MusesTesObservation
 from .emis_state import EmisState
 from .cloud_ext_state import CloudExtState
 from .pointing_angle_surface import pointing_angle_surface
-from .muses_altitude_pge import MusesAltitudePge
+from .muses_altitude_pge import MusesAltitudePge, MusesAltitude
 import os
 from pathlib import Path
 from loguru import logger
@@ -155,17 +155,28 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.current_state.sounding_metadata.surface_altitude.convert("m").value,
             self.current_state.sounding_metadata.latitude.value,
         )
+        # Temp, we'll need to get absorber_vmr sorted out
+        coeff, mp = self.current_state.object_state([StateElementIdentifier("H2O")])
+        # Need to get mp to be the log mapping in current_state, but for
+        # now just work around this
+        mp = rf.StateMappingLinear()
+        h2o_vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, "H2O", mp)
+        alt2 = MusesAltitude(self.pressure_fm, self.temperature, h2o_vmr,
+                             self.current_state.sounding_metadata.latitude,
+                             self.current_state.sounding_metadata.surface_altitude
+                             )
         sat_radius = rf.DoubleWithUnit(
-            self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
+            float(self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
                 "sat_radius"
-            ],
+            ]),
             "m",
         )
         pangle = pointing_angle_surface(sat_radius, pointing_angle, alt)
-        print(pointing_angle.convert("deg"))
-        print(pangle.convert("deg"))
-        assert pangle.value == -0.33262607038454667
-        breakpoint()
+        # While debugging
+        if False:
+            print(pointing_angle.convert("deg"))
+            print(pangle.convert("deg"))
+            assert pangle.value == -0.33262607038454667
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,

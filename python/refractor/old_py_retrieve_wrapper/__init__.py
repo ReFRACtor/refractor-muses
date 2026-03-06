@@ -17,8 +17,8 @@ from .misc_support import (
     muses_py_read_all_tes,
     muses_py_register_replacement_function,
 )
-from .muses_altitude import (
-    MusesAltitude,
+from .old_muses_altitude import (
+    OldMusesAltitude,
 )
 from .muses_forward_model_step import (
     MusesForwardModelStep,

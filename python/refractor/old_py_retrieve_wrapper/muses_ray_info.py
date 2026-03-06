@@ -136,7 +136,7 @@ class MusesRayInfo:
         return self._ray_info()["pbar"][::-1][: self._nlay()]
 
     def altitude_grid(self) -> np.ndarray:
-        """Return altitude grid of each level. This gets used in MusesAltitude, I don't think
+        """Return altitude grid of each level. This gets used in OldMusesAltitude, I don't think
         it is used anywhere else"""
 
         t = self._ray_info()["level_params"]["radius"]

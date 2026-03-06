@@ -5,7 +5,7 @@ from .muses_ray_info import MusesRayInfo
 from typing import cast, Self
 
 
-class MusesAltitude(rf.Altitude):
+class OldMusesAltitude(rf.Altitude):
     """This uses the py-retrieve MusesRayInfo to calculate Altitude information.
 
     This was used initially to match how py-retrieve did the calculation, so we could
@@ -90,12 +90,12 @@ class MusesAltitude(rf.Altitude):
         return rf.AutoDerivativeWithUnitDouble(rf.AutoDerivativeDouble(grav), "m/s^2")
 
     def clone(self) -> Self:
-        return MusesAltitude(self.ray_info, self._pressure, self._latitude)
+        return OldMusesAltitude(self.ray_info, self._pressure, self._latitude)
 
     def desc(self) -> str:
-        return "MusesAltitude"
+        return "OldMusesAltitude"
 
 
 __all__ = [
-    "MusesAltitude",
+    "OldMusesAltitude",
 ]

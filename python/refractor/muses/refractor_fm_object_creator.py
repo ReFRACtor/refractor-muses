@@ -717,11 +717,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude_muses(self) -> list[rf.Altitude]:
-        from refractor.old_py_retrieve_wrapper import MusesAltitude
+        from refractor.old_py_retrieve_wrapper import OldMusesAltitude
 
         res = []
         for i in range(self.num_channels):
-            chan_alt = MusesAltitude(
+            chan_alt = OldMusesAltitude(
                 self.ray_info, self.pressure, self.observation.latitude[i]
             )
             res.append(chan_alt)
