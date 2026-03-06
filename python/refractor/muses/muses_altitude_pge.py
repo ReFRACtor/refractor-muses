@@ -43,6 +43,8 @@ class MusesAltitudePge:
 
         self.air_density = pressure * 1e-4 / (kb * tatm)
         self.pressure = pressure
+        self.tatm = tatm
+        self.h2o = h2o
 
         # h2o_type = 0    h2o is fractional mixing ratio (nh2o/airDensity) relative to total air
         # h2o_type = 1    h2o is fractional mixing ratio relative to dry air
@@ -172,6 +174,7 @@ class MusesAltitudePge:
         self.air_density_dry = (
             self.air_density_dry / 1000000.0
         )  # convert to molecules/cm3
+        self.radius = self.altitude + self.earth_radius(latitude)
 
     def cloud_factor(self, pcloud: float, scale_pressure: float) -> float:
         """This is compute_cloud_factor from muses_py"""
