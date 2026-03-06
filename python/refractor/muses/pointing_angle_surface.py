@@ -102,6 +102,9 @@ def pointing_angle_surface(
                 h2o[jj + 1] - h2o[jj]
             ) / np.log(pressure[jj + 1] / pressure[jj])
             n_l = ref_index(t_l, p_l * 100.0, h2o_l)
+            print(a_l)
+            print(jj)
+            print(n_l)
 
             sin_theta_u = snells_constant / (a_l + alt.earth_radius(alt.latitude)) / n_l
             cos_theta_u = math.sqrt(1 - sin_theta_u**2)

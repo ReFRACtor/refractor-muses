@@ -57,8 +57,6 @@ class MusesAltitude(rf.Altitude):
         self.pressure.add_cache_invalidated_observer(self.cache_observer)
         self.temperature.add_cache_invalidated_observer(self.cache_observer)
         self.h2o_vmr.add_cache_invalidated_observer(self.cache_observer)
-        # Temp, just to check calculation as we work in this.
-        self._fill_in_cache()
 
     def _fill_in_cache(self):
         if self.cache_observer.cache_valid_flag:
@@ -72,7 +70,7 @@ class MusesAltitude(rf.Altitude):
         )
         self._tatm = self.temperature.temperature_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
-        ).value.value
+        ).convert("K").value.value
         self._h2ogrid = self.h2o_vmr.vmr_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value
