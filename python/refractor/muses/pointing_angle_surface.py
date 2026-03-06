@@ -55,58 +55,41 @@ def ref_index(
 def pointing_angle_surface(
     sat_radius: rf.DoubleWithUnit,
     pointing_angle: rf.DoubleWithUnit,
-    alt: MusesAltitudePge,
+    p: rf.Pressure,
+    alt: MusesAltitude,
+    rindex: MusesRefractiveIndex,
 ) -> rf.DoubleWithUnit:
-    # These parameters are needed for the atmospheric equation of state
-    pressure = alt.pressure
-    lnp = np.log(pressure)
-    temperature = alt.tatm
-    h2o = alt.h2o
-
-    radius = alt.altitude + alt.earth_radius(alt.latitude)
-    altitude = alt.altitude
-    nlayers = pressure.shape[0] - 1
+    agrid = alt.altitude_grid(p, rf.Pressure.DECREASING_PRESSURE).convert("m").value.value
+    nlayers = agrid.shape[0] - 1
 
     ds_fix = 500.0
 
     # spherical snells law with n = 1
 
+    eradius = alt.earth_radius().convert("m").value
     sin_theta_u = (
         sat_radius.convert("m").value
         * math.sin(pointing_angle.convert("rad").value)
-        / radius[nlayers]
+        / (agrid[-1] + eradius)
     )
 
-    snells_constant = radius[nlayers] * sin_theta_u
+    snells_constant = (agrid[-1] + eradius) * sin_theta_u
 
     cos_theta_u = math.sqrt(1.0 - sin_theta_u**2)
 
     for jj in reversed(range(0, nlayers)):  # go from top to bottom
-        hp = -(altitude[jj + 1] - altitude[jj]) / np.log(
-            pressure[jj + 1] / pressure[jj]
-        )
-        a_u = altitude[jj + 1]
+        a_u = agrid[jj + 1]
         flag = 0
         while flag == 0:  # sub layer loop
             da = ds_fix * cos_theta_u
             # This while loop only exit if the following condition is true.
-            if (a_u - da) < altitude[jj]:
-                da = a_u - altitude[jj]
+            if (a_u - da) < agrid[jj]:
+                da = a_u - agrid[jj]
                 flag = 1
             a_l = a_u - da
-            p_l = pressure[jj] * math.exp(-(a_l - altitude[jj]) / hp)
-            t_l = temperature[jj] + (a_l - altitude[jj]) * (
-                temperature[jj + 1] - temperature[jj]
-            ) / (altitude[jj + 1] - altitude[jj])
-            h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (
-                h2o[jj + 1] - h2o[jj]
-            ) / np.log(pressure[jj + 1] / pressure[jj])
-            n_l = ref_index(t_l, p_l * 100.0, h2o_l)
-            print(a_l)
-            print(jj)
-            print(n_l)
-
-            sin_theta_u = snells_constant / (a_l + alt.earth_radius(alt.latitude)) / n_l
+            n_l = rindex.refractive_index(rf.DoubleWithUnit(a_l, "m"))
+            
+            sin_theta_u = snells_constant / (a_l + eradius) / n_l
             cos_theta_u = math.sqrt(1 - sin_theta_u**2)
             a_u = a_l
 

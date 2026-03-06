@@ -3,12 +3,13 @@ from refractor.muses import (
     AirsFmObjectCreator,
     MusesAltitude,
     MusesRefractiveIndex,
+    pointing_angle_surface,
 )
 import refractor.framework as rf  # type: ignore
 import numpy.testing as npt
 import pytest
 
-def test_muses_refractive_index(joint_omi_step_8_no_run_dir):
+def test_pointing_angle_surface(joint_omi_step_8_no_run_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
@@ -17,8 +18,8 @@ def test_muses_refractive_index(joint_omi_step_8_no_run_dir):
         None,
     )
     ocreator = AirsFmObjectCreator(rs.current_state, rs.retrieval_config, obs_airs)
-    rindex = MusesRefractiveIndex(ocreator.pressure_fm, ocreator.temperature, ocreator.h2o_vmr,
-                                  ocreator.muses_altitude)
     # Grabbed from old py-retrieve code.
-    assert rindex.refractive_index(rf.DoubleWithUnit(1618.063355672948, "m")) == pytest.approx(1.0002328018712983)
-    assert rindex.refractive_index(rf.DoubleWithUnit(31149.47757696744, "m")) == pytest.approx(1.0000034326320308)
+    sat_radius = rf.DoubleWithUnit(7080047.110649415, "m")
+    pointing_angle = rf.DoubleWithUnit(-17.09299659729004, "deg")
+    pangle = pointing_angle_surface(sat_radius, pointing_angle, ocreator.pressure_fm, ocreator.muses_altitude, ocreator.refractive_index)
+    assert pangle.convert("deg").value == pytest.approx(-19.058069989055987)

@@ -2095,6 +2095,17 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "m",
         )
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(
+            float(
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "SpacecraftAltitude"
+                ][-1]
+            ),
+            "m",
+        )
+    
 
 class MusesOmiObservation(MusesReflectanceObservation):
     """Observation for OMI"""
@@ -2414,6 +2425,17 @@ class MusesOmiObservation(MusesReflectanceObservation):
             "m",
         )
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(
+            float(
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "SpacecraftAltitude"
+                ][0]
+            ),
+            "m",
+        )
+    
     @classmethod
     def read_omi_l1b(
         cls,

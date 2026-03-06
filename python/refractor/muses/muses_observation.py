@@ -410,6 +410,10 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
     def pointing_angle(self) -> rf.DoubleWithUnit:
         raise NotImplementedError()
 
@@ -894,6 +898,10 @@ class SimulatedObservation(MusesObservationImp):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._obs.surface_altitude
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return self._obs.spacecraft_altitude
+    
     def monthly_minimum_surface_reflectance(self, band: int) -> float:
         return self._obs.monthly_minimum_surface_reflectance(band)
 
