@@ -9,9 +9,9 @@ from .irk_forward_model import IrkForwardModel
 from .muses_tes_observation import MusesTesObservation
 from .emis_state import EmisState
 from .cloud_ext_state import CloudExtState
-from .pointing_angle_surface import pointing_angle_surface
-from .muses_altitude_pge import MusesAltitudePge, MusesAltitude
+from .muses_altitude_pge import MusesAltitude
 from .muses_refractive_index import MusesRefractiveIndex
+from .pointing_angle_surface import PointingAngleSurface
 import os
 from pathlib import Path
 from loguru import logger
@@ -163,25 +163,22 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def refractive_index(self) -> MusesRefractiveIndex:
-        return MusesRefractiveIndex(self.pressure_fm, self.temperature, self.h2o_vmr,
-                                    self.muses_altitude)        
+        return MusesRefractiveIndex(
+            self.pressure_fm, self.temperature, self.h2o_vmr, self.muses_altitude
+        )
+
+    @cached_property
+    def pointing_angle_surface(self) -> PointingAngleSurface:
+        return PointingAngleSurface(
+            self.observation.spacecraft_altitude,
+            self.muses_altitude.earth_radius(),
+            self.pressure_fm,
+            self.muses_altitude,
+            self.refractive_index,
+        )
 
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
-        pointing_angle = self.observation.pointing_angle
-        sat_radius = rf.DoubleWithUnit(
-            float(
-                self._rf_uip.uip_all(self.observation.instrument_name)["obs_table"][
-                    "sat_radius"
-                ]
-            ),
-            "m",
-        )
-        sat_radius = rf.DoubleWithUnit(self.observation.spacecraft_altitude.convert("m").value +
-                                       self.muses_altitude.earth_radius().convert("m").value,
-                                       "m")
-        pangle = pointing_angle_surface(sat_radius, pointing_angle, self.pressure_fm,
-                                        self.muses_altitude, self.refractive_index)
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -193,7 +190,9 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.cloud_ext,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
-            pangle,
+            self.pointing_angle_surface.pointing_angle_surface(
+                self.observation.pointing_angle
+            ),
             self.observation.instrument_name,
             self.ifile_hlp,
             self.current_state.systematic_state_element_id
@@ -358,7 +357,9 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
             self.spectrum_effect,
             self.observation,
             self.retrieval_config,
+            self.pointing_angle_surface,
         )
+        # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(res)
         res.setup_grid()
         return res
@@ -423,6 +424,39 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
     @cached_property
+    def tes_pointing_angle_surface(self) -> PointingAngleSurface:
+        # TODO Determine if this is actually correct.  py-retrieve
+        # replaces AIRS with TES for the IRK calculation. A side
+        # effect of that is to replace the altitude used in the
+        # PointingAngleSurface calculation with a height of 0. This
+        # has the effect of significantly changing the surface
+        # pointing angle. It isn't clear if this was intended or
+        # not. It isn't super clear in the old py-retrieve code that
+        # this is what is being done, it is possible that this was an
+        # accident. This also has the effect of making the
+        # pointing_angle_surface almost the same as the passed in
+        # pointing angle. It is possible that this was the intent,
+        # that the IRK integration should be in terms of the surface
+        # pointing angle and the spacecraft pointing angle was used
+        # just because that is how the fm_oss code in py-retrieve was
+        # set up. In any case, somebody knowledgeable should look into
+        # this.
+        #
+        # For now, we duplicate the py-retrieve behavior. Note this
+        # this *not* done for CRIS or TES IRK calculation, although we
+        # also don't seem to ever actually do the IRK for CRIS or TES
+        # (the code is in py-retrieve, but it isn't clear if it ever
+        # gets executed.
+
+        return PointingAngleSurface(
+            rf.DoubleWithUnit(0.0, "m"),
+            self.muses_altitude.earth_radius(),
+            self.pressure_fm,
+            self.muses_altitude,
+            self.refractive_index,
+        )
+
+    @cached_property
     def tes_radiative_transfer(self) -> rf.RadiativeTransfer:
         # For the IRK, we want to use the more full tes frequencies. So create
         # a RT set up for this.
@@ -438,16 +472,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         tes_sol_file = tes_dir_lut / "newkur.dat"
         tes_fix_file = tes_dir_lut / "default.dat"
 
-        pointing_angle = self.observation.pointing_angle
-        # This is a bit involved to get, so leverage off uip until we are
-        # ready to work through this
-        pointing_angle_surface = rf.DoubleWithUnit(
-            self._rf_uip.ray_info(
-                self.observation.instrument_name,
-                pointing_angle=pointing_angle.convert("rad").value,
-            )["ray_angle_surface"],
-            "rad",
-        )
         return MusesRadiativeTransferOss(
             self._rf_uip,
             self.pressure_fm,
@@ -459,7 +483,9 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             self.cloud_ext,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
-            pointing_angle_surface,
+            self.tes_pointing_angle_surface.pointing_angle_surface(
+                self.observation.pointing_angle
+            ),
             InstrumentIdentifier("TES"),
             self.ifile_hlp,
             self.current_state.systematic_state_element_id
@@ -484,8 +510,10 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             self.spectrum_effect,
             self.observation,
             self.retrieval_config,
+            self.tes_pointing_angle_surface,
             irk_radiative_transfer=self.tes_radiative_transfer,
         )
+        # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
         if False:
             from refractor.muses_py_fm import MusesAirsForwardModel
@@ -569,7 +597,9 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
             self.spectrum_effect,
             self.observation,
             self.retrieval_config,
+            self.pointing_angle_surface,
         )
+        # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
         if False:
             from refractor.muses_py_fm import MusesTesForwardModel

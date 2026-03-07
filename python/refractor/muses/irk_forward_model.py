@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
+    from .pointing_angle_surface import PointingAngleSurface
 
 
 class IrkForwardModel(rf.StandardForwardModel):
@@ -26,6 +27,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         spectrum_effect: list[list[rf.SpectrumEffect]],
         observation: MusesObservation,
         rconf: RetrievalConfiguration,
+        pntsurf: PointingAngleSurface,
         irk_radiative_transfer: rf.MusesRadiativeTransferOss | None = None,
     ) -> None:
         super().__init__(
@@ -33,6 +35,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         )
         self.obs = observation
         self.rconf = rconf
+        self.pntsurf = pntsurf
         self._irk_radiative_transfer = irk_radiative_transfer
 
     def irk_angle(self) -> list[float]:
@@ -94,7 +97,9 @@ class IrkForwardModel(rf.StandardForwardModel):
             raise RuntimeError(
                 "We are currently assuming only 1 channel when doing IRK calculation. This could get extended, but we would need to modify the code to do this."
             )
-        with self.irk_radiative_transfer.modify_pointing(pointing_angle):
+        with self.irk_radiative_transfer.modify_pointing(
+            self.pntsurf.pointing_angle_surface(pointing_angle)
+        ):
             with self.irk_obs.modify_spectral_window(include_bad_sample=True):
                 return self.irk_radiative_transfer.reflectance(
                     self.irk_obs.spectral_domain_all(), 0, False
@@ -118,19 +123,8 @@ class IrkForwardModel(rf.StandardForwardModel):
         #
         # There if freq_fm and freq_l1b and they are different, so maybe this
         # is ok
-        for gi_angle, gi_angle2 in zip(
-            self.irk_angle(),
-            [
-                0.0,
-                0.25431251128513854,
-                0.568022126213156,
-                0.8403935075751815,
-                1.030992841567678,
-                1.1107996243909235,
-            ],
-        ):
-            # r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
-            r = self.irk_radiance(rf.DoubleWithUnit(gi_angle2, "rad"))
+        for gi_angle in self.irk_angle():
+            r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
             if frequency is None:
                 frequency = r.spectral_domain.data
             radiance.append(r.spectral_range.data)

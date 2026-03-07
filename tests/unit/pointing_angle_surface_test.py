@@ -1,13 +1,11 @@
 from refractor.muses import (
     InstrumentIdentifier,
     AirsFmObjectCreator,
-    MusesAltitude,
-    MusesRefractiveIndex,
-    pointing_angle_surface,
+    PointingAngleSurface,
 )
 import refractor.framework as rf  # type: ignore
-import numpy.testing as npt
 import pytest
+
 
 def test_pointing_angle_surface(joint_omi_step_8_no_run_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
@@ -19,7 +17,34 @@ def test_pointing_angle_surface(joint_omi_step_8_no_run_dir):
     )
     ocreator = AirsFmObjectCreator(rs.current_state, rs.retrieval_config, obs_airs)
     # Grabbed from old py-retrieve code.
-    sat_radius = rf.DoubleWithUnit(7080047.110649415, "m")
+    sat_radius = rf.DoubleWithUnit(708698.5473632812, "m")
+    earth_radius = rf.DoubleWithUnit(6371348.563286134, "m")
     pointing_angle = rf.DoubleWithUnit(-17.09299659729004, "deg")
-    pangle = pointing_angle_surface(sat_radius, pointing_angle, ocreator.pressure_fm, ocreator.muses_altitude, ocreator.refractive_index)
+    pntsurf = PointingAngleSurface(
+        sat_radius,
+        earth_radius,
+        ocreator.pressure_fm,
+        ocreator.muses_altitude,
+        ocreator.refractive_index,
+    )
+    pangle = pntsurf.pointing_angle_surface(pointing_angle)
     assert pangle.convert("deg").value == pytest.approx(-19.058069989055987)
+    # For IRK, for some reason a different altitude is used. I'm not sure this was
+    # actually intended
+    sat_radius = rf.DoubleWithUnit(0, "m")
+    pntsurf = PointingAngleSurface(
+        sat_radius,
+        earth_radius,
+        ocreator.pressure_fm,
+        ocreator.muses_altitude,
+        ocreator.refractive_index,
+    )
+    pointing_angle = rf.DoubleWithUnit(48.16890311054117, "deg")
+    pangle = pntsurf.pointing_angle_surface(pointing_angle)
+    assert pangle.convert("deg").value == pytest.approx(48.151082849612976)
+    pointing_angle = rf.DoubleWithUnit(59.0983034698522, "deg")
+    pangle = pntsurf.pointing_angle_surface(pointing_angle)
+    assert pangle.convert("deg").value == pytest.approx(59.07165952959758)
+    pointing_angle = rf.DoubleWithUnit(63.6764997367534, "deg")
+    pangle = pntsurf.pointing_angle_surface(pointing_angle)
+    assert pangle.convert("deg").value == pytest.approx(63.644272237719804)

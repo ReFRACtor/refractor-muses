@@ -68,9 +68,13 @@ class MusesAltitude(rf.Altitude):
             .convert("hPa")
             .value.value
         )
-        self._tatm = self.temperature.temperature_grid(
-            self.pressure, rf.Pressure.DECREASING_PRESSURE
-        ).convert("K").value.value
+        self._tatm = (
+            self.temperature.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value.value
+        )
         self._h2ogrid = self.h2o_vmr.vmr_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value

@@ -2105,7 +2105,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             ),
             "m",
         )
-    
+
 
 class MusesOmiObservation(MusesReflectanceObservation):
     """Observation for OMI"""
@@ -2435,7 +2435,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             ),
             "m",
         )
-    
+
     @classmethod
     def read_omi_l1b(
         cls,

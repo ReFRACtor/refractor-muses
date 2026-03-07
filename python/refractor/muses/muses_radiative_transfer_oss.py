@@ -89,7 +89,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return 1.0 / ray_info["cloud"]["tau_total"]
 
     @contextmanager
-    def modify_pointing(self, pointing_angle: rf.DoubleWithUnit) -> Iterator[None]:
+    def modify_pointing(
+        self, pointing_angle_surface: rf.DoubleWithUnit
+    ) -> Iterator[None]:
         """For the IRK calculation, we need to generate the reflectance for
         different pointing angles.
 
@@ -115,26 +117,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         """
         original_pointing = self.pointing_angle_surface
         try:
-            try:
-                pointing_angle_surface = rf.DoubleWithUnit(
-                    self.rf_uip.ray_info(
-                        self.instrument_name,
-                        pointing_angle=pointing_angle.convert("rad").value,
-                    )["ray_angle_surface"],
-                    "rad",
-                )
-            except KeyError:
-                # Work around, since we use a fake tes for AIRS IRK. We could do something
-                # cleaner, but hopefully we'll be removing the uip stuff. So just have a
-                # fix that works for now.
-                pointing_angle_surface = rf.DoubleWithUnit(
-                    self.rf_uip.ray_info(
-                        "AIRS", pointing_angle=pointing_angle.convert("rad").value
-                    )["ray_angle_surface"],
-                    "rad",
-                )
-            pointing_angle_surface = pointing_angle
-            print(pointing_angle_surface)
             self.pointing_angle_surface = pointing_angle_surface
             yield
         finally:

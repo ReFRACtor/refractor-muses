@@ -308,11 +308,6 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             pointing_angle=pointing_angle,
             fake_tes_for_irk=True,
         )
-        print(
-            rf_uip_pointing.uip_all(self.obs.instrument_name)["obs_table"][
-                "pointing_angle_surface"
-            ]
-        )
         rf_uip_original = self.rf_uip
         try:
             self.rf_uip = rf_uip_pointing

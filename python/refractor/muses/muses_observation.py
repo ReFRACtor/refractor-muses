@@ -901,7 +901,7 @@ class SimulatedObservation(MusesObservationImp):
     @property
     def spacecraft_altitude(self) -> rf.DoubleWithUnit:
         return self._obs.spacecraft_altitude
-    
+
     def monthly_minimum_surface_reflectance(self, band: int) -> float:
         return self._obs.monthly_minimum_surface_reflectance(band)
 

@@ -3,9 +3,15 @@ import refractor.framework as rf  # type: ignore
 import math
 import numpy as np
 
+
 class MusesRefractiveIndex:
-    def __init__(self, pressure: rf.Pressure, temperature: rf.Temperature,
-                 h2o_vmr : rf.AbsorberVmr, altitude: rf.Altitude) -> None:
+    def __init__(
+        self,
+        pressure: rf.Pressure,
+        temperature: rf.Temperature,
+        h2o_vmr: rf.AbsorberVmr,
+        altitude: rf.Altitude,
+    ) -> None:
         self.pressure = pressure
         self.temperature = temperature
         self.h2o_vmr = h2o_vmr
@@ -25,14 +31,22 @@ class MusesRefractiveIndex:
             .value.value
         )
         self._lnp = np.log(self._pgrid)
-        self._tatm = self.temperature.temperature_grid(
-            self.pressure, rf.Pressure.DECREASING_PRESSURE
-        ).convert("K").value.value
+        self._tatm = (
+            self.temperature.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value.value
+        )
         self._h2ogrid = self.h2o_vmr.vmr_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value
-        self._altgrid = self.altitude.altitude_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).convert("m").value.value
-        
+        self._altgrid = (
+            self.altitude.altitude_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE)
+            .convert("m")
+            .value.value
+        )
+
         self.cache_observer.cache_valid_flag = True
 
     def refractive_index(self, alt: rf.DoubleWithUnit) -> float:
@@ -41,7 +55,7 @@ class MusesRefractiveIndex:
         # Find the index that is just >= to av
         ind = np.searchsorted(self._altgrid, av)
         # Handle the == case, to give strictly >
-        if(av >= self._altgrid[ind]):
+        if av >= self._altgrid[ind]:
             ind += 1
         ind -= 1
         # And handle end points, we just extrapolate if needed.
@@ -63,9 +77,9 @@ class MusesRefractiveIndex:
         ) / np.log(self._pgrid[ind + 1] / self._pgrid[ind])
         return self._ref_index(t, p, h2o)
 
-    def _ref_index(self,
-            i_temperature: float, i_pressure: float, i_H2O_vmr: float
-                   ) -> float:
+    def _ref_index(
+        self, i_temperature: float, i_pressure: float, i_H2O_vmr: float
+    ) -> float:
         frequency = 1050.0
         refractive_index = 0.0
         frequency_squared = 0.0
@@ -88,10 +102,12 @@ class MusesRefractiveIndex:
 
         frequency_squared = (frequency * 1.0e-4) * (frequency * 1.0e-4)
         temperature_centigrade = i_temperature - TEMPERATURE_CONVERSION_FACTOR
-        
+
         H2O_partial_pressure = i_H2O_vmr * i_pressure
 
-        b0 = 1.0e-8 * (a0 + a1 / (a2 - frequency_squared) + a3 / (a4 - frequency_squared))
+        b0 = 1.0e-8 * (
+            a0 + a1 / (a2 - frequency_squared) + a3 / (a4 - frequency_squared)
+        )
         b1 = (
             i_pressure
             * b0
@@ -105,6 +121,8 @@ class MusesRefractiveIndex:
         )
 
         return refractive_index
-    
 
-__all__ = ["MusesRefractiveIndex",]    
+
+__all__ = [
+    "MusesRefractiveIndex",
+]
