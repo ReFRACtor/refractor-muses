@@ -25,7 +25,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self,
         rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
         press: rf.Pressure,
-        temperture: rf.Temperature,
+        temperature: rf.Temperature,
         tsur: rf.SurfaceTemperature,
         pcloud: rf.Pcloud,
         scale_cloud: rf.ScaleCloud,
@@ -50,7 +50,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         super().__init__()
         self.rf_uip = rf_uip
         self.pressure = press
-        self.temperture = temperture
+        self.temperature = temperature
         self.tsur = tsur
         self.pcloud = pcloud
         self.scale_cloud = scale_cloud
@@ -193,7 +193,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             .value.value
         )
         tatm = (
-            self.temperture.temperature_grid(
+            self.temperature.temperature_grid(
                 self.pressure, rf.Pressure.DECREASING_PRESSURE
             )
             .convert("K")
@@ -489,7 +489,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
                 )
             temp = (
-                self.temperture.temperature_grid(
+                self.temperature.temperature_grid(
                     self.pressure, rf.Pressure.DECREASING_PRESSURE
                 )
                 .convert("K")

@@ -233,13 +233,14 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         obs = self.observation_handle_set.observation(
             iname, None, self.current_strategy_step.spectral_window_dict[iname], None
         )
-        fm_sv = rf.StateVector()
-        return self.rs.forward_model_handle_set.forward_model(
+        fm_sv = self.current_state.setup_fm_state_vector()
+        fm = self.rs.forward_model_handle_set.forward_model(
             iname,
             self.current_state,
             obs,
             fm_sv,
         )
+        return fm
 
     def create_forward_model_combine(
         self,

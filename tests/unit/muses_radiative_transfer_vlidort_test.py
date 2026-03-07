@@ -33,9 +33,6 @@ def test_muses_tropomi_forward_model_vlidort(joint_tropomi_step_12_no_run_dir):
         match_py_retrieve=True,
     )
     fm = ocreator.forward_model
-    # Set up jacobians
-    ocreator.fm_sv.update_state(ocreator.fm_sv.state, ocreator.fm_sv.state_covariance)
-
     s = fm.radiance_all()
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian.copy()
@@ -85,9 +82,6 @@ def test_muses_omi_forward_model_vlidort(joint_omi_step_8_no_run_dir):
         match_py_retrieve=True,
     )
     fm = ocreator.forward_model
-    # Set up jacobians
-    ocreator.fm_sv.update_state(ocreator.fm_sv.state, ocreator.fm_sv.state_covariance)
-
     s = fm.radiance_all()
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

@@ -961,7 +961,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         # Right now, always use ForwardModelWithCloudHandling.
-        return self.forward_model_ch
+        res = self.forward_model_ch
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if(self.fm_sv.state.shape[0] > 0):
+            self.fm_sv.update_state(self.fm_sv.state)
+        return res
 
     @cached_property
     def forward_model_ch(self) -> rf.ForwardModelWithCloudHandling:

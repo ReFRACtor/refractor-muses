@@ -34,9 +34,6 @@ def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
     )
     ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
     fm = ocreator.forward_model
-    # Set up jacobian of state vector
-    fm_sv = ocreator.fm_sv
-    fm_sv.update_state(fm_sv.state)
     rirk = fm.irk(rs.current_state)
 
     fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
@@ -65,23 +62,11 @@ def test_muses_airs_forward_model_irk(airs_irk_step_6):
     obs_airs.spectral_window.include_bad_sample = True
     ocreator = AirsFmObjectCreator(rs.current_state, rs.retrieval_config, obs_airs)
     fm = ocreator.forward_model
-    # Set up jacobian of state vector
-    fm_sv = ocreator.fm_sv
-    fm_sv.update_state(fm_sv.state)
     rirk = fm.irk(rs.current_state)
-
     fmcmp = MusesAirsForwardModel(rs.current_state, obs_airs, rs.retrieval_config)
     rirkcmp = fmcmp.irk(rs.current_state)
     with open("rirk.txt", "w") as fh:
         pprint.pprint(rirk, fh)
     with open("rirkcmp.txt", "w") as fh:
         pprint.pprint(rirkcmp, fh)
-    import pickle
-
-    rirk_py_retrieve = pickle.load(
-        open("/home/smyth/Local/refractor-muses/py-retrieve_result_irk.pkl", "rb")
-    )
-    with open("rirk_py_retrieve.txt", "w") as fh:
-        pprint.pprint(rirk_py_retrieve, fh)
     subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)
-    # subprocess.run(["diff", "-u", "rirk.txt", "rirk_py_retrieve.txt"], check=True)

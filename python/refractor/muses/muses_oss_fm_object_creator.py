@@ -362,6 +362,10 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(res)
         res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if(self.fm_sv.state.shape[0] > 0):
+            self.fm_sv.update_state(self.fm_sv.state)
         return res
 
 
@@ -525,6 +529,10 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         else:
             res = fm1
         res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if(self.fm_sv.state.shape[0] > 0):
+            self.fm_sv.update_state(self.fm_sv.state)
         return res
 
 
@@ -612,6 +620,10 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         else:
             res = fm1
         res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if(self.fm_sv.state.shape[0] > 0):
+            self.fm_sv.update_state(self.fm_sv.state)
         return res
 
 

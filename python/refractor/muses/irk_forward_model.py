@@ -115,14 +115,6 @@ class IrkForwardModel(rf.StandardForwardModel):
         radiance = []
         jacobian = []
         frequency: None | np.ndarray = None
-        # I think this is wrong, but we should compare against py-retrieve.
-        # I'm also not sure about the mix of self.obs and self.irk_obs,
-        # these have different spectral domains. However it looks like
-        # the _find_bin maps our spectrum to frq_l1b, so maybe that is
-        # ok
-        #
-        # There if freq_fm and freq_l1b and they are different, so maybe this
-        # is ok
         for gi_angle in self.irk_angle():
             r = self.irk_radiance(rf.DoubleWithUnit(gi_angle, "deg"))
             if frequency is None:
