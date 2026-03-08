@@ -1,7 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .misc import ResultIrk
-from functools import cached_property
+from functools import cache
 import numpy as np
 import copy
 import typing
@@ -90,11 +90,10 @@ class IrkForwardModel(rf.StandardForwardModel):
         # irk_angle
         return [0, 0.096782, 0.167175, 0.146387, 0.073909, 0.015748]
 
-    @cached_property
-    def irk_obs(self) -> MusesObservation:
-        # For Airs, we want to use a tes observation. So provide a place to
-        # override the observation
-        return self.obs
+    @cache
+    def irk_spectral_domain(self, spec_index: int) -> rf.SpectralDomain:
+        with self.obs.modify_spectral_window(include_bad_sample=True):
+            return self.obs.spectral_domain(spec_index)
 
     @property
     def irk_radiative_transfer(self) -> MusesRadiativeTransferOss:
@@ -114,15 +113,12 @@ class IrkForwardModel(rf.StandardForwardModel):
             raise RuntimeError(
                 "We are currently assuming only 1 channel when doing IRK calculation. This could get extended, but we would need to modify the code to do this."
             )
-        with self.irk_obs.modify_spectral_window(include_bad_sample=True):
-            return self.irk_radiative_transfer.reflectance(
-                self.irk_obs.spectral_domain_all(),
-                0,
-                False,
-                pointing_angle_surface=self.pntsurf.pointing_angle_surface(
-                    pointing_angle
-                ),
-            )
+        return self.irk_radiative_transfer.reflectance(
+            self.irk_spectral_domain(0),
+            0,
+            False,
+            pointing_angle_surface=self.pntsurf.pointing_angle_surface(pointing_angle),
+        )
 
     def irk(self, current_state: CurrentState) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We

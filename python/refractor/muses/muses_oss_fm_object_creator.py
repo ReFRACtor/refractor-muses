@@ -15,7 +15,7 @@ from .pointing_angle_surface import PointingAngleSurface
 import os
 from pathlib import Path
 from loguru import logger
-from functools import cached_property
+from functools import cached_property, cache
 import typing
 from typing import Any
 
@@ -246,17 +246,20 @@ class MusesAirsForwardModelOss(IrkForwardModel):
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
 
-    @cached_property
-    def irk_obs(self) -> MusesObservation:
-        """Observation to use in IRK calculation."""
-        # Replace with a fake TES observation. This is done to get the
-        # full TES frequency range.
+    @cache
+    def irk_spectral_domain(self, spec_index: int) -> rf.SpectralDomain:
+        # TODO Clean this up. Going through an entire fake observation just
+        # to get a spectral_domain seems unnecessarily complicated. This
+        # also depends on TesSpectralWindow, which in turn depends on
+        # py-retrieve. We should be able to clean this up.
         tes_frequency_fname = (
             self.rconf["spectralWindowDirectory"].parent.parent / "tes_frequency.nc"
         )
-        return MusesTesObservation.create_fake_for_irk(
+        tes_obs = MusesTesObservation.create_fake_for_irk(
             tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
         )
+        with tes_obs.modify_spectral_window(include_bad_sample=True):
+            return tes_obs.spectral_domain(spec_index)
 
 
 class MusesTesForwardModelOss(IrkForwardModel):
