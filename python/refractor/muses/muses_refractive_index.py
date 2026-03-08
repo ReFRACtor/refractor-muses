@@ -22,7 +22,7 @@ class MusesRefractiveIndex:
         self.h2o_vmr.add_cache_invalidated_observer(self.cache_observer)
         self.altitude.add_cache_invalidated_observer(self.cache_observer)
 
-    def _fill_in_cache(self):
+    def _fill_in_cache(self) -> None:
         if self.cache_observer.cache_valid_flag:
             return
         self._pgrid = (

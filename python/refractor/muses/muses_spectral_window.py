@@ -5,6 +5,7 @@ import copy
 import numpy as np
 import os
 from typing import Any, Self
+import itertools
 import typing
 from .identifier import (
     InstrumentIdentifier,
@@ -694,21 +695,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         # Pull out pieces that we depend on, just to make clear what the dependency is
         with self._obs.modify_spectral_window(full_band=True):
             sd = self._obs.spectral_domain_all()
-        d = {
-            "frequency": sd.data,
-            "filterNames": [str(fid) for fid, _ in self._obs.filter_data_full],
-            "filterSizes": [sz for _, sz in self._obs.filter_data_full],
-            "instrumentNames": [
-                self._obs.instrument_name.s,
-            ],
-            "instrumentSizes": [
-                sd.size,
-            ],
-            # This values get grabbed, but nothing happens with it. Pass as nan to
-            # make clear we aren't filling this in
-            "NESR": np.nan,
-        }
-        muses_gindex = self.radiance_get_indices(d, self.muses_microwindows())
+        muses_gindex = self._radiance_get_indices(sd, self.muses_microwindows())
 
         if self.include_bad_sample:
             return [int(i) for i in muses_gindex]
@@ -718,93 +705,29 @@ class TesSpectralWindow(MusesSpectralWindow):
         )
         return [int(i) for i in muses_gindex if i in good_gindex]
 
-    def radiance_get_indices(self, radianceStruct, mw):
-        from refractor.muses_py import radiance_get_filter_array, radiance_get_instrument_array
-
-        frequency = radianceStruct['frequency']
-
-        # AT_LINE 699 TOOLS/Radiance_File_Struct.pro 
-        filterArray = radiance_get_filter_array(radianceStruct)
-
-        # AT_LINE 699 TOOLS/Radiance_File_Struct.pro 
-        instrumentArray = radiance_get_instrument_array(radianceStruct)
-
-        # Set all filter information to '' if either is missing.
-        if len(filterArray) == 0 or mw[0]['filter'] == '':
-            filterArray[:] = ''
-            mw[:]['filter'] = ''
-
-        nn = len(mw)
-
-        indexOut = [-1] 
-
-        for ii in range(0,nn):
-            # get expected tolerance, by looking at the spacing around the current frequency
-
-            # in some cases tolerance = 0.0001 will result in the wrong number of frequencies selected
-            # tolerance = 0.0001
-            tolerance = 0.0
-
-            if (mw[ii]['instrument'].lower() == 'tes'):
-                tolerance = 0.01
-
-            if (mw[ii]['instrument'].lower() == 'cris') or \
-                mw[ii]['instrument'].lower() == 'airs' or \
-                mw[ii]['instrument'] == '':
-
-                my_index = self._get_accuracy_indices_no_filters(
-                    mw[ii]['start'], mw[ii]['endd'], tolerance, frequency, 
-                    mw[ii]['instrument'], instrumentArray)
-            else:
-                my_index = self._get_accuracy_indices_with_filters(
-                    mw[ii]['start'], mw[ii]['endd'], tolerance, frequency, 
-                    mw[ii]['instrument'], instrumentArray,
-                    mw[ii]['filter'], filterArray)
-
+    def _radiance_get_indices(self, sd, mw):
+        frequency = sd.data
+        filterArray = list(
+            itertools.chain.from_iterable(
+                [
+                    [
+                        str(fid),
+                    ]
+                    * sz
+                    for fid, sz in self._obs.filter_data_full
+                ]
+            )
+        )
+        # Note logic of calling this ensures that instrument is always tes, so we
+        # don't need to check that
+        indexOut = []
+        tolerance = 0.01
+        for mwv in mw:
+            my_index = [i for (i, frq), filtname in zip(enumerate(frequency), filterArray)
+                        if ((mwv["start"] - tolerance) <= frq and
+                            (mwv["endd"] + tolerance) >= frq
+                            and filtname == mwv["filter"])]
             indexOut.extend(my_index)
-        # end for ii in range(0,nn):
-
-        # Ignore the first element since we don't want it.
-        indexOut = indexOut[1:]
-
-
         return indexOut
-
-    def _get_accuracy_indices_no_filters(
-            self,
-            mw_start, mw_endd, accuracy, frequency,
-            mw_instrument, instrumentArray):
-
-
-        o_indices = []
-        array_len = len(frequency)
-
-        for ii in range(0, array_len):
-            if ((mw_start - accuracy) <= frequency[ii]) and (mw_endd + accuracy >= frequency[ii]):
-                # Also check if the instrument name matches.
-                if instrumentArray[ii] == mw_instrument:
-                    o_indices.append(ii)
-
-        return np.asarray(o_indices)
-
-    def _get_accuracy_indices_with_filters(
-            self,
-            mw_start, mw_endd, accuracy, frequency,
-            mw_instrument, instrumentArray,
-            mw_filter, filterArray):
-
-
-        o_indices = []
-        array_len = len(frequency)
-
-        for ii in range(0, array_len):
-            if ((mw_start - accuracy) <= frequency[ii]) and (mw_endd + accuracy >= frequency[ii]):
-                # Also check if the instrument and filter names match
-                if instrumentArray[ii] == mw_instrument and filterArray[ii] == mw_filter:
-                    o_indices.append(ii)
-
-        return np.asarray(o_indices)
-    
-
 
 __all__ = ["MusesSpectralWindow", "TesSpectralWindow"]

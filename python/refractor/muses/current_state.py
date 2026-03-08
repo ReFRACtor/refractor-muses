@@ -576,6 +576,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 raise RuntimeError(
                     f"Don't currently handle mixing state elements with mixes mapping types. Got {mp2.name} and {t.name}"
                 )
+        assert mp2 is not None
         if mp is None:
             mp = mp2
         elif mp2.name == "linear":
