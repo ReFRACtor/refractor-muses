@@ -20,6 +20,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
     def __init__(
         self,
+        rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
         instrument: rf.Instrument,
         spec_win: rf.SpectralWindow,
         radiative_transfer: rf.MusesRadiativeTransferOss,
@@ -37,6 +38,22 @@ class IrkForwardModel(rf.StandardForwardModel):
         self.rconf = rconf
         self.pntsurf = pntsurf
         self._irk_radiative_transfer = irk_radiative_transfer
+        self.rf_uip = rf_uip
+
+    def dEdOD(self) -> np.ndarray:
+        # Not clear where exactly this belongs. Have here for now, it would
+        # be good if we could pull this out perhaps into IrkForwardModel
+        try:
+            ray_info = self.rf_uip.ray_info(
+                self.obs.instrument_name,
+                set_pointing_angle_zero=True,
+                set_cloud_extinction_one=True,
+            )
+        except KeyError:
+            ray_info = self.rf_uip.ray_info(
+                "AIRS", set_pointing_angle_zero=True, set_cloud_extinction_one=True
+            )
+        return 1.0 / ray_info["cloud"]["tau_total"]
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
@@ -97,13 +114,15 @@ class IrkForwardModel(rf.StandardForwardModel):
             raise RuntimeError(
                 "We are currently assuming only 1 channel when doing IRK calculation. This could get extended, but we would need to modify the code to do this."
             )
-        with self.irk_radiative_transfer.modify_pointing(
-            self.pntsurf.pointing_angle_surface(pointing_angle)
-        ):
-            with self.irk_obs.modify_spectral_window(include_bad_sample=True):
-                return self.irk_radiative_transfer.reflectance(
-                    self.irk_obs.spectral_domain_all(), 0, False
-                )
+        with self.irk_obs.modify_spectral_window(include_bad_sample=True):
+            return self.irk_radiative_transfer.reflectance(
+                self.irk_obs.spectral_domain_all(),
+                0,
+                False,
+                pointing_angle_surface=self.pntsurf.pointing_angle_surface(
+                    pointing_angle
+                ),
+            )
 
     def irk(self, current_state: CurrentState) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
@@ -282,7 +301,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             # convert cloudext to cloudod
             # dL/dod = dL/dext * dext/dod
             if species_name == "CLOUDEXT":
-                dEdOD = self.radiative_transfer.dEdOD()
+                dEdOD = self.dEdOD()
                 myirfk = np.multiply(myirfk, dEdOD)
                 for pp in range(dEdOD.shape[0]):
                     myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]

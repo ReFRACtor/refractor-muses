@@ -3,10 +3,9 @@ import refractor.framework as rf  # type: ignore
 from .muses_oss_handle import muses_oss_handle
 import numpy as np
 import os
-from contextlib import contextmanager
 import copy
 import typing
-from typing import Self, Iterator, Any
+from typing import Self, Any
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -73,57 +72,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def clone(self) -> Self:
         return copy.deepcopy(self)
 
-    def dEdOD(self) -> np.ndarray:
-        # Not clear where exactly this belongs. Have here for now, it would
-        # be good if we could pull this out perhaps into IrkForwardModel
-        try:
-            ray_info = self.rf_uip.ray_info(
-                self.instrument_name,
-                set_pointing_angle_zero=True,
-                set_cloud_extinction_one=True,
-            )
-        except KeyError:
-            ray_info = self.rf_uip.ray_info(
-                "AIRS", set_pointing_angle_zero=True, set_cloud_extinction_one=True
-            )
-        return 1.0 / ray_info["cloud"]["tau_total"]
-
-    @contextmanager
-    def modify_pointing(
-        self, pointing_angle_surface: rf.DoubleWithUnit
-    ) -> Iterator[None]:
-        """For the IRK calculation, we need to generate the reflectance for
-        different pointing angles.
-
-        The most natural interface would be to pass the pointing angle
-        as a argument to the ForwardModel radiance, and then to this
-        objects reflectance. However, the rf.ForwardModel doesn't have
-        an argument for this. I briefly considered changing the
-        interface for ForwardModel, but it seems much cleaner to
-        handle this without doing this.
-
-        Instead, we provide a context manager here to set the pointing
-        angle that we want - basically as a way to just add an extra
-        argument.  This is similar to how we handle modifying the
-        spectral window for MusesObservation (see
-        MusesObservation.modify_spectral_window).
-
-        Although this is a little indirect, this seems the cleanest
-        way to handle this. This is currently only used in
-        IrkForwardModel, so the fact that this is a little obscure
-        seems a reasonable price to pay to keep the existing
-        rf.ForwardModel interface.  We can reevaluate this in the
-        future if needed.
-        """
-        original_pointing = self.pointing_angle_surface
-        try:
-            self.pointing_angle_surface = pointing_angle_surface
-            yield
-        finally:
-            self.pointing_angle_surface = original_pointing
-
     def reflectance(
-        self, sd: rf.SpectralDomain, sensor_index: int, skip_jacobian: bool
+        self,
+        sd: rf.SpectralDomain,
+        sensor_index: int,
+        skip_jacobian: bool,
+        pointing_angle_surface: rf.DoubleWithUnit | None = None,
     ) -> rf.Spectrum:
         """Note that despite the name, this is actually radiance. We named this
         back when we just had LIDORT, which does return reflectance. The OSS
@@ -139,6 +93,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         Note that the function in StandardForwardModel is actually correctly
         named for this code (unlike our VLIDORT/LIDORT which doesn't include the
         solar model so it really does return reflectance).
+
+        We allow the pointing_angle_surface to be passed in. This overrides the one
+        passed in the constructor. This is used to support the IRK calculation. This
+        does mean that our function isn't a rf.RadiativeTransfer.reflectance - it has
+        an extra optional argument. It isn't clear the best way to handle the IRK, but
+        for right now this seems to be the cleanest way to have this extra functionality.
         """
         muses_oss_handle.oss_init(
             self.ifile_hlp,
@@ -159,7 +119,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             # cleaner, but hopefully we'll be removing the uip stuff. So just have a
             # fix that works for now.
             uip_all = self.rf_uip.uip_all("AIRS")
-        rad, jac, rad_units = self.fm_oss_stack(uip_all, sensor_index)
+        rad, jac, rad_units = self.fm_oss_stack(
+            uip_all, sensor_index, pointing_angle_surface
+        )
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
         else:
@@ -185,7 +147,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return "MusesRadiativeTransferOss"
 
     def fm_oss(
-        self, i_uip: dict[str, Any], i_jacobians: list[str], sensor_index: int
+        self,
+        i_uip: dict[str, Any],
+        i_jacobians: list[str],
+        sensor_index: int,
+        pointing_angle_surface: rf.DoubleWithUnit | None = None,
     ) -> dict[str, Any]:
         pres = (
             self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
@@ -275,7 +241,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 self.tsur.surface_temperature(sensor_index).value.value,
                 self.scale_cloud.scale_cloud(sensor_index).value,
                 self.pcloud.pressure_cloud(sensor_index).convert("mbar").value.value,
-                self.pointing_angle_surface.convert("deg").value,
+                pointing_angle_surface.convert("deg").value
+                if pointing_angle_surface is not None
+                else self.pointing_angle_surface.convert("deg").value,
                 sunang,
                 self.latitude.convert("deg").value,
                 salt,
@@ -391,14 +359,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         return o_result
 
     def fm_oss_stack(
-        self, uipIn: dict[str, Any], sensor_index: int
+        self,
+        uipIn: dict[str, Any],
+        sensor_index: int,
+        pointing_angle_surface: rf.DoubleWithUnit | None = None,
     ) -> tuple[np.ndarray, np.ndarray, rf.Unit]:
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
         jacobianList = [str(s) for s in muses_oss_handle.jac_spec]
 
-        results = self.fm_oss(uip, jacobianList, sensor_index)
+        results = self.fm_oss(uip, jacobianList, sensor_index, pointing_angle_surface)
 
         # Prepare Jacobians for pack_jacobian function.
         uip["num_atm_k"] = len(results["nameJacobian"])

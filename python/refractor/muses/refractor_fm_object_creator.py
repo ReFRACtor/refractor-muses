@@ -964,7 +964,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         res = self.forward_model_ch
         # Set up jacobians (happens already for CostFunction, but not
         # we are using the bare ForwardModel
-        if(self.fm_sv.state.shape[0] > 0):
+        if self.fm_sv.state.shape[0] > 0:
             self.fm_sv.update_state(self.fm_sv.state)
         return res
 

@@ -350,6 +350,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         res = MusesCrisForwardModelOss(
+            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
@@ -364,7 +365,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         res.setup_grid()
         # Set up jacobians (happens already for CostFunction, but not
         # we are using the bare ForwardModel
-        if(self.fm_sv.state.shape[0] > 0):
+        if self.fm_sv.state.shape[0] > 0:
             self.fm_sv.update_state(self.fm_sv.state)
         return res
 
@@ -507,6 +508,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesAirsForwardModelOss(
+            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
@@ -531,7 +533,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         res.setup_grid()
         # Set up jacobians (happens already for CostFunction, but not
         # we are using the bare ForwardModel
-        if(self.fm_sv.state.shape[0] > 0):
+        if self.fm_sv.state.shape[0] > 0:
             self.fm_sv.update_state(self.fm_sv.state)
         return res
 
@@ -598,6 +600,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesTesForwardModelOss(
+            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
@@ -622,7 +625,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         res.setup_grid()
         # Set up jacobians (happens already for CostFunction, but not
         # we are using the bare ForwardModel
-        if(self.fm_sv.state.shape[0] > 0):
+        if self.fm_sv.state.shape[0] > 0:
             self.fm_sv.update_state(self.fm_sv.state)
         return res
 
