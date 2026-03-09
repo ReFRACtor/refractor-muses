@@ -153,10 +153,12 @@ class StateElementIdentifier(IdentifierStr):
         reason OSS and py-retrieve use different names. I think one might have
         been used with the old ELANOR code and one with OSS. In any case,
         this gives the OSS version of the species name if different."""
-        spec_rename = { "CFC11" : "F11",
-                        "CFC12" : "F12",
-                        "ISOP" : "C5H8",
-                        "CFC22" : "CHCLF2" }
+        spec_rename = {
+            "CFC11": "F11",
+            "CFC12": "F12",
+            "ISOP": "C5H8",
+            "CFC22": "CHCLF2",
+        }
         s = str(self)
         if s in spec_rename:
             return spec_rename[s]

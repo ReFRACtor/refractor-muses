@@ -48,7 +48,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         sol_file: str | os.PathLike[str] | InputFilePath,
         fix_file: str | os.PathLike[str] | InputFilePath,
     ) -> None:
-        '''species_list is the total list of supported gases in the
+        """species_list is the total list of supported gases in the
         OSS. I believe this is just information about the contents of
         the OD file used by OSS, this seems to correspond to the list
         "molecName" in ConvertModule.f90 of muses-oss code. In any
@@ -60,7 +60,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         a subset of the gases included in the RT where we calculate
         the jacobians (as well as other things we retrieve unrelated
         to the gases).
-        '''
+        """
         super().__init__()
         self.rf_uip = rf_uip
         self.pressure = press
@@ -193,8 +193,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             for s in self.species_list
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
-        #atmosphere2 = np.vstack([self.absorber_vmr[spc].vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value for spc in atm_spec])
-        
+        # atmosphere2 = np.vstack([self.absorber_vmr[spc].vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value for spc in atm_spec])
+
         # Set values to 1e-20 if NOT in uip.species.
         for jj in range(len(i_uip["atmosphere_params"])):
             search = i_uip["atmosphere_params"][jj]
@@ -249,7 +249,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         # index 1: pressure, index 2: temperature.  OSS puts those separately elsewhere.
         atmosphere = (i_uip["atmosphere"][2:, :]).T
-        #breakpoint()
+        # breakpoint()
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:

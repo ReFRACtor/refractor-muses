@@ -145,7 +145,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
-        self.absorption_gases = copy.copy(absorption_gases)
+        self._absorption_gases = copy.copy(absorption_gases)
         self.primary_absorber = primary_absorber
 
     def solar_model(self, sensor_index: int) -> rf.SolarModel:
@@ -546,17 +546,25 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.RayleighBodhaine(self.pressure, self.altitude, self.constants)
 
     @cached_property
+    def absorption_gases(self) -> list[StateElementIdentifier]:
+        """List of absorption gases to read in absorber_vmr."""
+        return [StateElementIdentifier(i) for i in self._absorption_gases]
+
+    @cached_property
     def absorber_vmr(self) -> list[rf.AbsorberVmr]:
         vmrs = []
         for gas in self.absorption_gases:
-            selem = [
-                StateElementIdentifier(gas),
-            ]
-            coeff, mp = self.current_state.object_state(selem)
-            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
+            coeff, mp = self.current_state.object_state(
+                [
+                    gas,
+                ]
+            )
+            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, str(gas), mp)
             self.current_state.add_fm_state_vector_if_needed(
                 self.fm_sv,
-                selem,
+                [
+                    gas,
+                ],
                 [
                     vmr,
                 ],
@@ -654,14 +662,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         absorptions = []
         skipped_gases = []
         for gas in self.absorption_gases:
-            fname = self.absco_filename(gas)
+            fname = self.absco_filename(str(gas))
             if fname is not None:
                 self.ifile_hlp.notify_file_input(fname)
                 absorptions.append(
                     rf.AbscoAer(str(fname), 1.0, 5000, rf.AbscoAer.NEAREST_NEIGHBOR_WN)
                 )
             else:
-                skipped_gases.append(gas)
+                skipped_gases.append(str(gas))
         if len(skipped_gases) > 0:
             logger.info(
                 f"One or absorption_gases does not have a ABSCO file, so won't be include. Skipped gases: {', '.join(skipped_gases)}"

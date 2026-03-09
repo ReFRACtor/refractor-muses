@@ -2,8 +2,9 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import numpy as np
 
+
 class MusesOssAtmosphere:
-    '''The muses-oss code takes an "atmosphere" argument. This is the
+    """The muses-oss code takes an "atmosphere" argument. This is the
     VMR for a set of absorbers.
 
     This class handles the mapping to the muses-oss code from our
@@ -18,7 +19,7 @@ class MusesOssAtmosphere:
     gases in our OCO-2 forward models. I believe this is just
     information about the contents of the OD file used by OSS, this
     seems to correspond to the list "molecName" in ConvertModule.f90
-    of muses-oss code. 
+    of muses-oss code.
 
     A subset of these gases are marked for having jacobians
     generated. This subset will vary from strategy step to strategy
@@ -63,18 +64,22 @@ class MusesOssAtmosphere:
     examples of modifications, we may be able to come up with a
     generalized way of doing this.
 
-    '''
+    """
+
     def __init__(self, absorber_vmr_list: list[rf.AbsorberVmr]) -> None:
-        self.absorber_vmr = { vmr.gas_name : vmr for vmr in absorber_vmr_list }
+        self.absorber_vmr = {vmr.gas_name: vmr for vmr in absorber_vmr_list}
 
     @property
     def oss_atmosphere(self) -> np.ndarray:
-        '''Return np.ndarray that we should pass to OSS code for doing
-        RT.'''
+        """Return np.ndarray that we should pass to OSS code for doing
+        RT."""
         pass
 
-    def post_process(self, rad : np.ndarray, drad_datm: np.ndarray) -> np.ndarray:
-        '''Perform any updates to rad, i.e., with negative VMR handling'''
+    def post_process(self, rad: np.ndarray, drad_datm: np.ndarray) -> np.ndarray:
+        """Perform any updates to rad, i.e., with negative VMR handling"""
         pass
 
-__all__ = ["MusesOssAtmosphere",]    
+
+__all__ = [
+    "MusesOssAtmosphere",
+]

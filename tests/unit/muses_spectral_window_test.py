@@ -522,3 +522,31 @@ def test_microwindows_fname(ifile_hlp):
     )
     print(spec_fname)
     assert spec_fname == str(spec_fname2)
+
+
+def test_species_list_all(ifile_hlp):
+    swin = MusesSpectralWindow.create_dict_from_file(
+        ifile_hlp.osp_dir
+        / "Strategy_Tables"
+        / "ops"
+        / "OSP-CrIS-TROPOMI-v7"
+        / "MWDefinitions"
+        / "Windows_Nadir_H2O_O3_joint.asc",
+        ifile_hlp,
+    )
+    print(list(str(s) for s in swin[InstrumentIdentifier("CRIS")].species_list_all))
+    assert swin[InstrumentIdentifier("CRIS")].species_list_all == [
+        StateElementIdentifier(s)
+        for s in [
+            "H2O",
+            "CO2",
+            "O3",
+            "N2O",
+            "CH4",
+            "NH3",
+            "CFC11",
+            "CFC12",
+            "HDO",
+            "CH3OH",
+        ]
+    ]

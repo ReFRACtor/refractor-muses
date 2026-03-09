@@ -146,8 +146,15 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     @cached_property
+    def absorption_gases(self) -> list[StateElementIdentifier]:
+        # Use list found in the microwindow file for our MusesSpectralWindow
+        return self.observation.spectral_window.species_list_all
+
+    @cached_property
     def h2o_vmr(self) -> rf.AbsorberVmr:
-        return self.absorber_vmr[self.absorption_gases.index("H2O")]
+        return self.absorber_vmr[
+            self.absorption_gases.index(StateElementIdentifier("H2O"))
+        ]
 
     @cached_property
     def muses_oss_atmosphere(self) -> MusesOssAtmosphere:
@@ -349,7 +356,6 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        self.absorption_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
@@ -431,7 +437,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        self.absorption_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
@@ -602,7 +607,6 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        self.absorption_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]

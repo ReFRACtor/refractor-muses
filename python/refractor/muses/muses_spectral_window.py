@@ -215,6 +215,26 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 res.append((FilterIdentifier(self.filter_name[i, j]), d[i, j, 0]))
         return res
 
+    @property
+    def species_list_all(self) -> list[StateElementIdentifier]:
+        """This is a combined list of all the species_list found in
+        our metadata. This is information about what species are
+        covered by each microwindow (found in the microwindow
+        files). This information is used to determine what species to
+        include in our OSS forward model.
+        """
+        if self.species_list is None:
+            return []
+        ress = set()
+        # Split species_list strings (which are like 'H2O,HDO,NH3,O3,CO2').
+        # Get a union of all these values, and sort in our standard order
+        for sv in [set(sl.split(",")) for sl in self.species_list.flatten()]:
+            ress |= sv
+        res = StateElementIdentifier.sort_identifier(
+            [StateElementIdentifier(sv) for sv in ress]
+        )
+        return res
+
     def grid_indexes(self, grid: rf.SpectralDomain, spec_index: int) -> list[int]:
         if self._spec_win is None or self.full_band:
             return list(range(grid.data.shape[0]))
@@ -705,7 +725,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         )
         return [int(i) for i in muses_gindex if i in good_gindex]
 
-    def _radiance_get_indices(self, sd, mw):
+    def _radiance_get_indices(self, sd : np.ndarray, mw : list[dict[str, Any]]) -> list[int]:
         frequency = sd.data
         filterArray = list(
             itertools.chain.from_iterable(
@@ -723,11 +743,17 @@ class TesSpectralWindow(MusesSpectralWindow):
         indexOut = []
         tolerance = 0.01
         for mwv in mw:
-            my_index = [i for (i, frq), filtname in zip(enumerate(frequency), filterArray)
-                        if ((mwv["start"] - tolerance) <= frq and
-                            (mwv["endd"] + tolerance) >= frq
-                            and filtname == mwv["filter"])]
+            my_index = [
+                i
+                for (i, frq), filtname in zip(enumerate(frequency), filterArray)
+                if (
+                    (mwv["start"] - tolerance) <= frq
+                    and (mwv["endd"] + tolerance) >= frq
+                    and filtname == mwv["filter"]
+                )
+            ]
             indexOut.extend(my_index)
         return indexOut
+
 
 __all__ = ["MusesSpectralWindow", "TesSpectralWindow"]
