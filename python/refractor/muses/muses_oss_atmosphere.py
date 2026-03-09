@@ -1,5 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
+from .muses_oss_handle import muses_oss_handle
+from .identifier import StateElementIdentifier
 import numpy as np
 
 
@@ -66,18 +68,105 @@ class MusesOssAtmosphere:
 
     """
 
-    def __init__(self, absorber_vmr_list: list[rf.AbsorberVmr]) -> None:
-        self.absorber_vmr = {vmr.gas_name: vmr for vmr in absorber_vmr_list}
+    def __init__(
+        self,
+        pressure: rf.Pressure,
+        absorber_vmr_list: list[rf.AbsorberVmr],
+    ) -> None:
+        self.pressure = pressure
+        self.absorber_vmr = {
+            StateElementIdentifier(vmr.gas_name): vmr for vmr in absorber_vmr_list
+        }
 
     @property
     def oss_atmosphere(self) -> np.ndarray:
         """Return np.ndarray that we should pass to OSS code for doing
         RT."""
-        pass
+        # Sanity check that we don't have any absorbers not supported
+        # by the OSS code
+        if len(set(self.absorber_vmr.keys()) - set(muses_oss_handle.atm_spec)) > 0:
+            raise RuntimeError(
+                "absorber_vmr_list has gases not supported by the OSS code"
+            )
+        # Also, any jacobians we have need to have absorber_vmr
+        if len(set(muses_oss_handle.atm_jac_spec) - set(self.absorber_vmr.keys())) > 0:
+            raise RuntimeError("atm_jac_spec has gases not in absorber_vmr")
+        # Go through all the absorbers need by OSS, and get values for them.
+        # For absorbers not in absorber_vmr, fill in as all 1e20
+        res = []
+        self.have_pan_negative = False
+        for spc in muses_oss_handle.atm_spec:
+            if spc in self.absorber_vmr:
+                vmr = (
+                    self.absorber_vmr[spc]
+                    .vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE)
+                    .value
+                )
+                # Special handling for negative vmr values. Note that this behavior
+                # was hardcoded in the old py-retrieve code, see about line 1621 of
+                # refractor_uip.py code. We duplicate this here, although it might be
+                # nice to have cleaner way of handling this.
+                if (
+                    hasattr(self.absorber_vmr[spc], "state_mapping")
+                    and self.absorber_vmr[spc].state_mapping.name == "linear"
+                ):
+                    # These values only happen for linear state mapping
+                    if spc == StateElementIdentifier("HCN"):
+                        threshold = 1e-12
+                        vmr = vmr.copy()
+                        vmr[vmr < threshold] = threshold
+                    elif spc == StateElementIdentifier("NH3"):
+                        threshold = 5e-11
+                        vmr = vmr.copy()
+                        vmr[vmr < threshold] = threshold
+                    elif spc == StateElementIdentifier("ACET"):
+                        threshold = 1e-12
+                        vmr = vmr.copy()
+                        vmr[vmr < threshold] = threshold
+                # While pan just happens for any negative values.
+                # Not sure why the different logic is used, but match
+                # what py-retrieve is doing
+                if spc == StateElementIdentifier("PAN"):
+                    # Logic is a bit convoluted here, but we replace
+                    # any vmr < 1e-11, but *only* if at least one of
+                    # the vmrs is negative. I'm not sure if this
+                    # specific logic was intended or not (why
+                    # different than for other state elements)?, but
+                    # this is what is done in the py-retrieve code
+                    if np.count_nonzero(vmr < 0) > 0:
+                        self.have_pan_negative = True
+                        threshold = 1e-11
+                        # Save for use in post_process, vmr before we have modified it
+                        self.pan_vmr_muses = vmr
+                        vmr = vmr.copy()
+                        vmr[vmr < threshold] = threshold
+                        # Save for use in post_process, vmr after modification
+                        self.pan_vmr_oss = vmr
+                res.append(vmr)
+            else:
+                res.append(np.full((self.pressure.number_level,), 1e-20))
+        return np.vstack(res).T
 
-    def post_process(self, rad: np.ndarray, drad_datm: np.ndarray) -> np.ndarray:
+    def post_process(
+        self, rad: np.ndarray, drad_datm: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Perform any updates to rad, i.e., with negative VMR handling"""
-        pass
+        if not self.have_pan_negative:
+            return rad, drad_datm
+        indjac = muses_oss_handle.atm_jac_spec.index(StateElementIdentifier("PAN"))
+        k = drad_datm[:, :, indjac].copy() / self.pan_vmr_oss[:, np.newaxis]
+        # modify radiance to ACTUAL VMR using K.dx
+        # vmr0 used by OSS, vmr is what we want
+        dL = k.T @ (self.pan_vmr_muses - self.pan_vmr_oss)
+        rad2 = rad + dL
+        drad_datm2 = drad_datm.copy()
+        drad_datm2[:, :, indjac] = k * self.pan_vmr_muses[:, np.newaxis]
+        # Note the old py-retrieve code had a block for handling negative
+        # NH3. However, the logic was such that NH3 could never be negative,
+        # the value was changed to >= 5e-11 before it hit the block of code
+        # for handling negative NH3. We could put similar logic to PAN in
+        # for NH3, but for now match the way py-retrieve worked.
+        return rad2, drad_datm2
 
 
 __all__ = [

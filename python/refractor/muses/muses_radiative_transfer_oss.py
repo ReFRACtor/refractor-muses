@@ -187,69 +187,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         emisv = rf.ArrayAd_double_1(i_uip["emissivity"]["value"])
         cloudextv = rf.ArrayAd_double_1(i_uip["cloud"]["extinction"])
 
-        # muses_oss has an assumed order of the atmosphere data passed to it
-        atm_spec = [
-            s
-            for s in self.species_list
-            if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
-        ]
-        # atmosphere2 = np.vstack([self.absorber_vmr[spc].vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value for spc in atm_spec])
-
-        # Set values to 1e-20 if NOT in uip.species.
-        for jj in range(len(i_uip["atmosphere_params"])):
-            search = i_uip["atmosphere_params"][jj]
-            if search not in i_uip["species"]:
-                i_uip["atmosphere"][jj, :] = 1e-20
-
-        # check for negative values in PAN VMR.  If there are negative values:
-        # 1) set VMR0 to original VMR, set VMR to 1e-11
-        # 2) run OSS
-        # 3) modify radiance by K ## (VMR0 - VMR)
-        # 4) re-set VMR to VMR0
-
-        pan_negative = False
-        indpan = np.where(i_uip["atmosphere_params"] == "PAN")[0]
-        if len(indpan) > 0:
-            # assume there is only one parameter for PAN
-            indpan = indpan[0]
-
-            # Force negative PAN for testing. Leave commented out if not testing
-            # i_uip['atmosphere'][indpan, 0] = -2.16e-09
-
-            indneg = np.where(i_uip["atmosphere"][indpan, :] < 0)[0]
-            if len(indneg) > 0:
-                pan_vmr_muses = np.copy(i_uip["atmosphere"][indpan, :])
-                pan_vmr_oss = np.copy(pan_vmr_muses)
-                indneg = np.where(i_uip["atmosphere"][indpan, :] < 1e-11)[0]
-                pan_vmr_oss[indneg] = 1e-11
-                i_uip["atmosphere"][indpan] = pan_vmr_oss[:]
-                pan_negative = True
-            # end if len(indneg) > 0:
-        # end if len(indpan) > 0:
-
-        nh3_negative = False
-        indnh3 = np.where(i_uip["atmosphere_params"] == "NH3")[0]
-        if len(indnh3) > 0:
-            # assume indnh3 is only one parameter for NH3
-            indnh3 = indnh3[0]
-
-            # Force negative PAN for testing. Leave commented out if not testing
-            # i_uip['atmosphere'][indpan, 0] = -2.16e-09
-
-            indneg = np.where(i_uip["atmosphere"][indnh3, :] < 0)[0]
-            if len(indneg) > 0:
-                nh3_vmr_muses = np.copy(i_uip["atmosphere"][indnh3, :])
-                nh3_vmr_oss = np.copy(nh3_vmr_muses)
-                indneg = np.where(i_uip["atmosphere"][indnh3, :] < 1e-11)[0]
-                nh3_vmr_oss[indneg] = 1e-11
-                i_uip["atmosphere"][indpan] = nh3_vmr_oss[:]
-                nh3_negative = True
-            # end if len(indneg) > 0:
-        # end if len(indnh3) > 0:
-
-        # index 1: pressure, index 2: temperature.  OSS puts those separately elsewhere.
-        atmosphere = (i_uip["atmosphere"][2:, :]).T
-        # breakpoint()
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:
@@ -275,7 +212,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 lambertian_flag,
                 pres,
                 tatm,
-                np.array(atmosphere),
+                self.atmosphere.oss_atmosphere,
                 self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
                 emisv.value,
                 self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
@@ -299,83 +236,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             "xkCldlnExt": xkCldlnExt * rad_unit_f,
             "nameJacobian": i_jacobians,
         }
-
-        # AT_LINE 134 src_ms-2018-12-10/fm_oss.pro
-        # update naming to be consistent with ELANOR
-        for jj in range(0, len(o_result["nameJacobian"])):
-            if o_result["nameJacobian"][jj] == "F11":
-                o_result["nameJacobian"][jj] = "CFC11"
-
-            if o_result["nameJacobian"][jj] == "F12":
-                o_result["nameJacobian"][jj] = "CFC12"
-
-            if o_result["nameJacobian"][jj] == "C5H8":
-                o_result["nameJacobian"][jj] = "ISOP"
-
-            if o_result["nameJacobian"][jj] == "CHCLF2":
-                o_result["nameJacobian"][jj] = "CFC22"
-        # end for jj in range(0,len(o_result['nameJacobian')):
-
-        if pan_negative:
-            name_jacobians_stripped = np.char.strip(o_result["nameJacobian"])
-            indjac = np.where(np.char.strip(name_jacobians_stripped) == "PAN")[0]
-            indpan = np.where(i_uip["atmosphere_params"] == "PAN")[0]
-            if len(indjac) > 0:
-                indjac = indjac[0]
-                indpan = indpan[0]
-                k = np.copy(o_result["xkOutGas"][:, :, indjac])
-
-                # make linear Jacobian
-                for kk in range(len(pan_vmr_oss)):
-                    k[kk, :] = k[kk, :] / pan_vmr_oss[kk]
-
-                # modify radiance to ACTUAL VMR using K.dx
-                # vmr0 used by OSS, vmr is what we want
-                dL = k.T @ (pan_vmr_muses - pan_vmr_oss)
-
-                i_uip["atmosphere"][indpan, :] = pan_vmr_muses
-                o_result["radiance"] = o_result["radiance"] + dL
-
-                # update "log" Jacobian to multiply by the MUSES VMR
-                for kk in range(len(pan_vmr_oss)):
-                    k[kk, :] = k[kk, :] * pan_vmr_muses[kk]
-
-                # remake "log" Jacobian with muses VMR
-                o_result["xkOutGas"][:, :, indjac] = k
-            # if len(ind) > 0:
-        # end if pan_negative:
-
-        if nh3_negative:
-            name_jacobians_stripped = np.char.strip(o_result["nameJacobian"])
-            indjac = np.where(np.char.strip(name_jacobians_stripped) == "NH3")[0]
-            indnh3 = np.where(i_uip["atmosphere_params"] == "NH3")[0]
-            if len(indjac) > 0:
-                indjac = indjac[0]
-                indnh3 = indnh3[0]
-                k = np.copy(o_result["xkOutGas"][:, :, indjac])
-
-                # make linear Jacobian
-                for kk in range(len(nh3_vmr_oss)):
-                    k[kk, :] = k[kk, :] / nh3_vmr_oss[kk]
-
-                # modify radiance to ACTUAL VMR using K.dx
-                # vmr0 used by OSS, vmr is what we want
-                dL = k.T @ (nh3_vmr_muses - nh3_vmr_oss)
-
-                i_uip["atmosphere"][indnh3, :] = nh3_vmr_muses
-                o_result["radiance"] = o_result["radiance"] + dL
-
-                # update "log" Jacobian to multiply by the MUSES VMR
-                for kk in range(len(nh3_vmr_oss)):
-                    k[kk, :] = k[kk, :] * nh3_vmr_muses[kk]
-
-                # remake "log" Jacobian with muses VMR
-                o_result["xkOutGas"][:, :, indjac] = k
-            # if len(indjac) > 0:
-        # end if nh3_negative:
+        o_result["radiance"], o_result["xkOutGas"] = self.atmosphere.post_process(
+            o_result["radiance"], o_result["xkOutGas"]
+        )
 
         # check finite
-        if not np.all(np.isfinite(rad)):
+        if not np.all(np.isfinite(o_result["radiance"])):
             raise RuntimeError("Non-finite radiance")
 
         if not np.all(np.isfinite(o_result["xkOutGas"])):
@@ -392,7 +258,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
-        jacobianList = [str(s) for s in muses_oss_handle.atm_jac_spec]
+        jacobianList = [str(s) for s in muses_oss_handle.atm_jac_spec2]
 
         results = self.fm_oss(uip, jacobianList, sensor_index, pointing_angle_surface)
 

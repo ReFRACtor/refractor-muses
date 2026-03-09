@@ -1,6 +1,6 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .identifier import InstrumentIdentifier, StateElementIdentifier
+from .identifier import StateElementIdentifier
 import os
 import ctypes
 from ctypes import c_int, POINTER, c_float, c_char_p
@@ -298,7 +298,9 @@ class MusesOssHandle:
         # Special case, turns out OSS doesn't work with no jacobians. So if our list
         # is empty, just add H2O so that there is something there
         if len(self.atm_jac_spec) == 0:
-            self.atm_jac_spec = [StateElementIdentifier("H2O")]
+            self.atm_jac_spec2 = [StateElementIdentifier("H2O")]
+        else:
+            self.atm_jac_spec2 = self.atm_jac_spec
 
         if do_jac_only:
             # Nothing to do if Jacobian matches
@@ -307,42 +309,9 @@ class MusesOssHandle:
             # Otherwise, update just the jacobian part
             self.liboss.cppupdatejacobwrapper(
                 *self.to_c_str_arr(self.atm_spec),
-                *self.to_c_str_arr(self.atm_jac_spec),
+                *self.to_c_str_arr(self.atm_jac_spec2),
             )
             return
-
-        # Should perhaps move this logic out of here and into the forward models.
-        # We could just pass in sel_file, od_file, sol_file and fix_file
-        if False:
-            instrument = "blah"
-            if instrument == InstrumentIdentifier("TES"):
-                if self.dir_lut is None:
-                    self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "TES " / "2018-03-14"
-                self.sel_file = (
-                    self.dir_lut
-                    / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
-                )
-                self.od_file = (
-                    self.dir_lut
-                    / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
-                )
-                self.sol_file = self.dir_lut / "newkur.dat"
-                self.fix_file = self.dir_lut / "default.dat"
-            elif instrument == InstrumentIdentifier("AIRS"):
-                if self.dir_lut is None:
-                    self.dir_lut = ifile_hlp.osp_dir / "OSS_FM" / "AIRS" / "2017-07"
-                self.sel_file = (
-                    self.dir_lut
-                    / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
-                )
-                self.od_file = (
-                    self.dir_lut
-                    / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
-                )
-                self.sol_file = self.dir_lut / "newkur.dat"
-                self.fix_file = self.dir_lut / "default.dat"
-            else:
-                raise RuntimeError("Instrument does not match possible list")
 
         # Notify that we read these files, since this is done in fortran we can't
         # notify when we actually open the file like we do most places
@@ -383,7 +352,7 @@ class MusesOssHandle:
             with suppress_stdout():
                 self.liboss.cppinitwrapper(
                     *self.to_c_str_arr(self.atm_spec),
-                    *self.to_c_str_arr(self.atm_jac_spec),
+                    *self.to_c_str_arr(self.atm_jac_spec2),
                     *self.to_c_str(self.sel_file),
                     *self.to_c_str(self.od_file),
                     *self.to_c_str(self.sol_file),
@@ -524,7 +493,7 @@ class MusesOssHandle:
         nrad = self.channel_indx.shape[0]
         nemis = emis.shape[0]
         ncloud = cloudext.shape[0]
-        njac = len(self.atm_jac_spec)
+        njac = len(self.atm_jac_spec2)
         rad = np.zeros((nrad,), dtype=c_float, order="F")
         drad_dtemp = np.zeros((nlevels, nrad), dtype=c_float, order="F")
         drad_dtsur = np.zeros((nrad,), dtype=c_float, order="F")

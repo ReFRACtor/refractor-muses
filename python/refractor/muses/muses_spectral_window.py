@@ -725,7 +725,9 @@ class TesSpectralWindow(MusesSpectralWindow):
         )
         return [int(i) for i in muses_gindex if i in good_gindex]
 
-    def _radiance_get_indices(self, sd : np.ndarray, mw : list[dict[str, Any]]) -> list[int]:
+    def _radiance_get_indices(
+        self, sd: np.ndarray, mw: list[dict[str, Any]]
+    ) -> list[int]:
         frequency = sd.data
         filterArray = list(
             itertools.chain.from_iterable(
