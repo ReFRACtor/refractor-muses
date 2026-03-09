@@ -56,6 +56,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.scale_cloud = scale_cloud
         self.emissivity = emissivity
         self.cloud_ext = cloud_ext
+        self.absorber_vmr = absorber_vmr
         self.surface_altitude = surface_altitude
         self.latitude = latitude
         self.pointing_angle_surface = pointing_angle_surface
