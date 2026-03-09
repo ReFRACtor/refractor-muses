@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .muses_oss_handle import muses_oss_handle
+from .identifier import StateElementIdentifier, InstrumentIdentifier
 import numpy as np
 import os
 import copy
@@ -8,10 +9,10 @@ import typing
 from typing import Self, Any
 
 if typing.TYPE_CHECKING:
-    from .identifier import StateElementIdentifier, InstrumentIdentifier
     from .input_file_helper import InputFilePath, InputFileHelper
     from .emis_state import EmisState
     from .cloud_ext_state import CloudExtState
+    from .muses_oss_atmosphere import MusesOssAtmosphere
 
 
 class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
@@ -30,7 +31,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         scale_cloud: rf.ScaleCloud,
         emissivity: EmisState,
         cloud_ext: CloudExtState,
-        absorber_vmr: list[rf.AbsorberVmr],
+        atmosphere: MusesOssAtmosphere,
         surface_altitude: rf.DoubleWithUnit,
         latitude: rf.DoubleWithUnit,
         pointing_angle_surface: rf.DoubleWithUnit,
@@ -47,6 +48,19 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         sol_file: str | os.PathLike[str] | InputFilePath,
         fix_file: str | os.PathLike[str] | InputFilePath,
     ) -> None:
+        '''species_list is the total list of supported gases in the
+        OSS. I believe this is just information about the contents of
+        the OD file used by OSS, this seems to correspond to the list
+        "molecName" in ConvertModule.f90 of muses-oss code. In any
+        case, we take this in as an argument.
+
+        Note only a subset of these gases are actually included in the
+        RT, see MusesOssAtmosphere for a discussion of
+        this. retrieval_state_element_id will in general contain only
+        a subset of the gases included in the RT where we calculate
+        the jacobians (as well as other things we retrieve unrelated
+        to the gases).
+        '''
         super().__init__()
         self.rf_uip = rf_uip
         self.pressure = press
@@ -56,7 +70,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.scale_cloud = scale_cloud
         self.emissivity = emissivity
         self.cloud_ext = cloud_ext
-        self.absorber_vmr = absorber_vmr
+        self.atmosphere = atmosphere
         self.surface_altitude = surface_altitude
         self.latitude = latitude
         self.pointing_angle_surface = pointing_angle_surface
@@ -172,6 +186,15 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # These aren't working yet. Need to work through how these get updated
         emisv = rf.ArrayAd_double_1(i_uip["emissivity"]["value"])
         cloudextv = rf.ArrayAd_double_1(i_uip["cloud"]["extinction"])
+
+        # muses_oss has an assumed order of the atmosphere data passed to it
+        atm_spec = [
+            s
+            for s in self.species_list
+            if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
+        ]
+        #atmosphere2 = np.vstack([self.absorber_vmr[spc].vmr_grid(self.pressure, rf.Pressure.DECREASING_PRESSURE).value for spc in atm_spec])
+        
         # Set values to 1e-20 if NOT in uip.species.
         for jj in range(len(i_uip["atmosphere_params"])):
             search = i_uip["atmosphere_params"][jj]
@@ -226,7 +249,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
         # index 1: pressure, index 2: temperature.  OSS puts those separately elsewhere.
         atmosphere = (i_uip["atmosphere"][2:, :]).T
-
+        #breakpoint()
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:
@@ -369,7 +392,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 5 fm_oss_stack.pro
         uip = uipIn
 
-        jacobianList = [str(s) for s in muses_oss_handle.jac_spec]
+        jacobianList = [str(s) for s in muses_oss_handle.atm_jac_spec]
 
         results = self.fm_oss(uip, jacobianList, sensor_index, pointing_angle_surface)
 
@@ -405,19 +428,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     :, :, jj
                 ]
 
-                # AT_LINE 28 fm_oss_stack.pro
-                # update naming to be consistent with ELANOR
-                if atm_jacobians_ils_total["k_species"][jj]["species"] == "F11":
-                    atm_jacobians_ils_total["k_species"][jj]["species"] = "CFC11"
-
-                if atm_jacobians_ils_total["k_species"][jj]["species"] == "F12":
-                    atm_jacobians_ils_total["k_species"][jj]["species"] = "CFC12"
-
-                if atm_jacobians_ils_total["k_species"][jj]["species"] == "C5H8":
-                    atm_jacobians_ils_total["k_species"][jj]["species"] = "ISOP"
-
-                if atm_jacobians_ils_total["k_species"][jj]["species"] == "CHCLF2":
-                    atm_jacobians_ils_total["k_species"][jj]["species"] = "CFC22"
             # end for jj in range(uip['num_atm_k']):
 
         # AT_LINE 36 fm_oss_stack.pro

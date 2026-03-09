@@ -177,7 +177,7 @@ class MusesOssHandle:
         self.nlevels = -1
         self.nfreq = -1
         self.atm_spec: list[StateElementIdentifier] = []
-        self.jac_spec: list[StateElementIdentifier] = []
+        self.atm_jac_spec: list[StateElementIdentifier] = []
         # We handle the channel selection outside of the OSS code. This selects
         # the subsets of the full range of frequencies that we actually run the
         # forward model on
@@ -221,7 +221,7 @@ class MusesOssHandle:
         Fitting to lenMol works with that.
         """
         # Truncate and/or add spaces to make exactly slen
-        t = [str(s).encode("utf-8")[:slen].ljust(slen) for s in slist]
+        t = [s.oss_species_name.encode("utf-8")[:slen].ljust(slen) for s in slist]
         # Join into on array, and return
         return (
             ctypes.byref(c_int(len(slist))),
@@ -269,7 +269,7 @@ class MusesOssHandle:
             do_jac_only = True
         else:
             do_jac_only = False
-        self.current_jac_spec = self.jac_spec
+        self.current_jac_spec = self.atm_jac_spec
         self.sel_file = sel_file
         self.od_file = od_file
         self.sol_file = sol_file
@@ -289,38 +289,25 @@ class MusesOssHandle:
             for s in self.species_list
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
-        self.jac_spec = [
+        self.atm_jac_spec = [
             s
             for s in self.retrieval_state_element_id
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
-        # Some of the species names have a different name in OSS. Not sure of
-        # the history of this, but map names to OSS name. This comes from py-retrieve
-        spec_rename = [
-            (StateElementIdentifier("CFC11"), StateElementIdentifier("F11")),
-            (StateElementIdentifier("CFC12"), StateElementIdentifier("F12")),
-            (StateElementIdentifier("ISOP"), StateElementIdentifier("C5H8")),
-            (StateElementIdentifier("CFC22"), StateElementIdentifier("CHCLF2")),
-        ]
-        for nm, rname in spec_rename:
-            if nm in self.atm_spec:
-                self.atm_spec[self.atm_spec.index(nm)] = rname
-            if nm in self.jac_spec:
-                self.jac_spec[self.jac_spec.index(nm)] = rname
 
         # Special case, turns out OSS doesn't work with no jacobians. So if our list
         # is empty, just add H2O so that there is something there
-        if len(self.jac_spec) == 0:
-            self.jac_spec = [StateElementIdentifier("H2O")]
+        if len(self.atm_jac_spec) == 0:
+            self.atm_jac_spec = [StateElementIdentifier("H2O")]
 
         if do_jac_only:
             # Nothing to do if Jacobian matches
-            if self.jac_spec == self.current_jac_spec:
+            if self.atm_jac_spec == self.current_jac_spec:
                 return
             # Otherwise, update just the jacobian part
             self.liboss.cppupdatejacobwrapper(
                 *self.to_c_str_arr(self.atm_spec),
-                *self.to_c_str_arr(self.jac_spec),
+                *self.to_c_str_arr(self.atm_jac_spec),
             )
             return
 
@@ -396,7 +383,7 @@ class MusesOssHandle:
             with suppress_stdout():
                 self.liboss.cppinitwrapper(
                     *self.to_c_str_arr(self.atm_spec),
-                    *self.to_c_str_arr(self.jac_spec),
+                    *self.to_c_str_arr(self.atm_jac_spec),
                     *self.to_c_str(self.sel_file),
                     *self.to_c_str(self.od_file),
                     *self.to_c_str(self.sol_file),
@@ -537,7 +524,7 @@ class MusesOssHandle:
         nrad = self.channel_indx.shape[0]
         nemis = emis.shape[0]
         ncloud = cloudext.shape[0]
-        njac = len(self.jac_spec)
+        njac = len(self.atm_jac_spec)
         rad = np.zeros((nrad,), dtype=c_float, order="F")
         drad_dtemp = np.zeros((nlevels, nrad), dtype=c_float, order="F")
         drad_dtsur = np.zeros((nrad,), dtype=c_float, order="F")

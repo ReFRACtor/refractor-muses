@@ -140,11 +140,27 @@ class StateElementIdentifier(IdentifierStr):
     def is_atmospheric_species(self) -> bool:
         """Some species are marked as "atmospheric_species". This is used in the
         determination of the microwindows file name, this wants to filter out things
-        like O3_EMIS, O3_TSUR, and just have O3 pass. I don't think this gets used
-        anywhere else.
+        like O3_EMIS, O3_TSUR, and just have O3 pass.
 
         This indicates if this StateElementIdentifier is an atmospheric species"""
         return is_atmospheric_species(str(self))
+
+    @property
+    def oss_species_name(self) -> str:
+        """The MUSES OSS code mostly used the same name for species as we use
+        for the state element name. However there are a few species that have
+        different names. I'm not sure of the history of this, but for whatever
+        reason OSS and py-retrieve use different names. I think one might have
+        been used with the old ELANOR code and one with OSS. In any case,
+        this gives the OSS version of the species name if different."""
+        spec_rename = { "CFC11" : "F11",
+                        "CFC12" : "F12",
+                        "ISOP" : "C5H8",
+                        "CFC22" : "CHCLF2" }
+        s = str(self)
+        if s in spec_rename:
+            return spec_rename[s]
+        return s
 
     @classmethod
     def sort_identifier(cls, lst: list) -> list:

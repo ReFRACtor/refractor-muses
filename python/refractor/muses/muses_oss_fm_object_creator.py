@@ -11,6 +11,7 @@ from .emis_state import EmisState
 from .cloud_ext_state import CloudExtState
 from .muses_altitude_pge import MusesAltitude
 from .muses_refractive_index import MusesRefractiveIndex
+from .muses_oss_atmosphere import MusesOssAtmosphere
 from .pointing_angle_surface import PointingAngleSurface
 import os
 from pathlib import Path
@@ -149,6 +150,10 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         return self.absorber_vmr[self.absorption_gases.index("H2O")]
 
     @cached_property
+    def muses_oss_atmosphere(self) -> MusesOssAtmosphere:
+        return MusesOssAtmosphere(self.absorber_vmr)
+
+    @cached_property
     def muses_altitude(self) -> MusesAltitude:
         return MusesAltitude(
             self.pressure_fm,
@@ -185,7 +190,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.scale_cloud,
             self.emissivity,
             self.cloud_ext,
-            self.absorber_vmr,
+            self.muses_oss_atmosphere,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
             self.pointing_angle_surface.pointing_angle_surface(
@@ -489,7 +494,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             self.scale_cloud,
             self.emissivity,
             self.cloud_ext,
-            self.absorber_vmr,
+            self.muses_oss_atmosphere,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
             self.tes_pointing_angle_surface.pointing_angle_surface(
