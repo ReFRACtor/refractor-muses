@@ -146,10 +146,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def h2o_vmr(self) -> rf.AbsorberVmr:
-        # Probably temp, we'll get the absorber stuff straightened out and this
-        # may get replaces
-        coeff, mp = self.current_state.object_state([StateElementIdentifier("H2O")])
-        return rf.AbsorberVmrLevel(self.pressure_fm, coeff, "H2O", mp)
+        return self.absorber_vmr[self.absorber_gases.index("H2O")]
 
     @cached_property
     def muses_altitude(self) -> MusesAltitude:
@@ -188,6 +185,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             self.scale_cloud,
             self.emissivity,
             self.cloud_ext,
+            self.absorber_vmr,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
             self.pointing_angle_surface.pointing_angle_surface(
@@ -346,6 +344,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
+        self.absorber_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
@@ -427,6 +426,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
+        self.absorber_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
@@ -489,6 +489,7 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             self.scale_cloud,
             self.emissivity,
             self.cloud_ext,
+            self.absorber_vmr,
             self.observation.surface_altitude,
             self.current_state.sounding_metadata.latitude,
             self.tes_pointing_angle_surface.pointing_angle_surface(
@@ -596,6 +597,7 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
+        self.absorber_gases = [str(self.species_list[i]) for i in range(2, len(self.species_list))]
         # We need to come up with a way to get these values
         self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
         self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]

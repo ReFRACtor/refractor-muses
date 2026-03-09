@@ -11,6 +11,8 @@ from refractor.muses_py_fm import (
 from fixtures.require_check import require_muses_py_fm
 import pprint
 import subprocess
+import pytest
+import numpy.testing as npt
 
 
 @require_muses_py_fm
@@ -38,16 +40,18 @@ def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
 
     fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
     rirkcmp = fmcmp.irk(rs.current_state)
-    with open("rirk.txt", "w") as fh:
-        pprint.pprint(rirk, fh)
-    with open("rirkcmp.txt", "w") as fh:
-        pprint.pprint(rirkcmp, fh)
-    # This gives small round off differences, the calculation the pointing angle at
-    # the surface are slightly different. Inspected an everything look ok. The
-    # data isn't super easy to do a npt.allclose or anything, so we just occasionally
-    # can check this output if there is an issue
-    if False:
-        subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)
+    # Small round off errors, so increase tolerance slightly.
+    assert rirk.flux == pytest.approx(rirkcmp.flux)
+    assert rirk.flux_l1b == pytest.approx(rirkcmp.flux_l1b)
+    npt.assert_allclose(rirk.fluxSegments, rirkcmp.fluxSegments,rtol=1e-6)
+    npt.assert_allclose(rirk.fluxSegments_l1b, rirkcmp.fluxSegments_l1b, rtol=2e-6)
+    npt.assert_allclose(rirk.freqSegments_irk, rirkcmp.freqSegments_irk,rtol=1e-6)
+    assert rirk.radiances["gi_angle"] == pytest.approx(rirkcmp.radiances["gi_angle"])
+    npt.assert_allclose(rirk.radiances["radarr_fm"], rirkcmp.radiances["radarr_fm"],
+                        atol=1e-10, rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["freq_fm"], rirkcmp.radiances["freq_fm"], rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["rad_L1b"], rirkcmp.radiances["rad_L1b"], rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["freq_L1b"], rirkcmp.radiances["freq_L1b"], rtol=1e-6)
 
 
 @require_muses_py_fm
@@ -65,8 +69,15 @@ def test_muses_airs_forward_model_irk(airs_irk_step_6):
     rirk = fm.irk(rs.current_state)
     fmcmp = MusesAirsForwardModel(rs.current_state, obs_airs, rs.retrieval_config)
     rirkcmp = fmcmp.irk(rs.current_state)
-    with open("rirk.txt", "w") as fh:
-        pprint.pprint(rirk, fh)
-    with open("rirkcmp.txt", "w") as fh:
-        pprint.pprint(rirkcmp, fh)
-    subprocess.run(["diff", "-u", "rirk.txt", "rirkcmp.txt"], check=True)
+    # Small round off errors, so increase tolerance slightly.
+    assert rirk.flux == pytest.approx(rirkcmp.flux)
+    assert rirk.flux_l1b == pytest.approx(rirkcmp.flux_l1b)
+    npt.assert_allclose(rirk.fluxSegments, rirkcmp.fluxSegments,rtol=1e-6)
+    npt.assert_allclose(rirk.fluxSegments_l1b, rirkcmp.fluxSegments_l1b, rtol=1e-6)
+    npt.assert_allclose(rirk.freqSegments_irk, rirkcmp.freqSegments_irk,rtol=1e-6)
+    assert rirk.radiances["gi_angle"] == pytest.approx(rirkcmp.radiances["gi_angle"])
+    npt.assert_allclose(rirk.radiances["radarr_fm"], rirkcmp.radiances["radarr_fm"],
+                        atol=1e-10, rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["freq_fm"], rirkcmp.radiances["freq_fm"], rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["rad_L1b"], rirkcmp.radiances["rad_L1b"], rtol=1e-6)
+    npt.assert_allclose(rirk.radiances["freq_L1b"], rirkcmp.radiances["freq_L1b"], rtol=1e-6)

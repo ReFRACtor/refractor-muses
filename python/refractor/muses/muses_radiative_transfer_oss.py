@@ -30,6 +30,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         scale_cloud: rf.ScaleCloud,
         emissivity: EmisState,
         cloud_ext: CloudExtState,
+        absorber_vmr: list[rf.AbsorberVmr],
         surface_altitude: rf.DoubleWithUnit,
         latitude: rf.DoubleWithUnit,
         pointing_angle_surface: rf.DoubleWithUnit,

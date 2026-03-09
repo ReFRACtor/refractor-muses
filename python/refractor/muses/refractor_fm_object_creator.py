@@ -553,9 +553,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 StateElementIdentifier(gas),
             ]
             coeff, mp = self.current_state.object_state(selem)
-            # Need to get mp to be the log mapping in current_state, but for
-            # now just work around this
-            mp = rf.StateMappingLog()
             vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
             self.current_state.add_fm_state_vector_if_needed(
                 self.fm_sv,
