@@ -180,7 +180,9 @@ class MusesOssAtmosphere:
         if selem in self.absorber_vmr:
             self.absorber_vmr[selem] = VmrHandleNeg(self.absorber_vmr[selem], threshold)
 
-    def oss_atmosphere(self, press: rf.Pressure) -> tuple[np.ndarray, np.ndarray | None]:
+    def oss_atmosphere(
+        self, press: rf.Pressure
+    ) -> tuple[np.ndarray, np.ndarray | None]:
         """Return np.ndarray that we should pass to OSS code for doing
         RT.
 
@@ -204,9 +206,8 @@ class MusesOssAtmosphere:
         res_jac = []
         for spc in muses_oss_handle.atm_spec:
             if spc in self.absorber_vmr:
-                vmr = (
-                    self.absorber_vmr[spc]
-                    .vmr_grid(press, rf.Pressure.DECREASING_PRESSURE)
+                vmr = self.absorber_vmr[spc].vmr_grid(
+                    press, rf.Pressure.DECREASING_PRESSURE
                 )
                 res.append(vmr.value)
                 if spc in muses_oss_handle.atm_jac_spec:

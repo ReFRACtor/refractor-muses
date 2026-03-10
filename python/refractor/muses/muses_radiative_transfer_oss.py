@@ -6,7 +6,7 @@ import numpy as np
 import os
 import copy
 import typing
-from typing import Self, Any
+from typing import Self
 
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFilePath, InputFileHelper
@@ -135,9 +135,166 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             # cleaner, but hopefully we'll be removing the uip stuff. So just have a
             # fix that works for now.
             uip_all = self.rf_uip.uip_all("AIRS")
-        rad, jac, rad_units = self.fm_oss_stack(
-            uip_all, sensor_index, pointing_angle_surface
+        tsurv = self.tsur.surface_temperature(sensor_index).value
+        scale_cloudv = self.scale_cloud.scale_cloud(sensor_index)
+        pcloudv = self.pcloud.pressure_cloud(sensor_index).convert("mbar").value
+        pres = (
+            self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
+            .convert("mbar")
+            .value
         )
+        tatm = (
+            self.temperature.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value
+        )
+        oss_atmosphere, datm_jac_spec_dstate = self.atmosphere.oss_atmosphere(
+            self.pressure
+        )
+        emisv = self.emissivity.emissivity
+        cloudextv = self.cloud_ext.cloud_ext
+        # These aren't working yet. Need to work through how these get updated
+        emisv = rf.ArrayAd_double_1(uip_all["emissivity"]["value"])
+        cloudextv = rf.ArrayAd_double_1(uip_all["cloud"]["extinction"])
+
+        salt = self.surface_altitude.convert("m").value
+        # TODO Not sure if the logic of this here, but this is what py-retrieve does
+        if salt < 1e-5:
+            salt = 1e-5
+        # Use diffusion approximation, see oss_if_module.f90 in muses_oss
+        lambertian_flag = 1
+        # py-retrieve has sunang always 90. Not sure of the significance of that,
+        # but do that for now
+        sunang = 90.0
+        # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
+        # The units of rad are "W  m^-2 sr^-1 cm^-1"
+        (
+            rad,
+            drad_dtemp,
+            drad_dtsur,
+            drad_datm_jac_spec,
+            xkEm,
+            xkRf,
+            xkCldlnPres,
+            xkCldlnExt,
+        ) = muses_oss_handle.oss_forward_model(
+            tsurv.value,
+            scale_cloudv.value,
+            pcloudv.value,
+            pointing_angle_surface.convert("deg").value
+            if pointing_angle_surface is not None
+            else self.pointing_angle_surface.convert("deg").value,
+            sunang,
+            self.latitude.convert("deg").value,
+            salt,
+            lambertian_flag,
+            pres.value,
+            tatm.value,
+            oss_atmosphere,
+            self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
+            emisv.value,
+            self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
+            cloudextv.value,
+        )
+        # This comes from the OSS documentation in muses_oss
+        rad_in_units = rf.Unit("W / (m^2 sr cm^-1)")
+        # Units that we want
+        rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
+        rad_unit_f = rf.conversion(rad_in_units, rad_units)
+        rad *= rad_unit_f
+        drad_dtemp *= rad_unit_f
+        drad_dtsur *= rad_unit_f
+        drad_datm_jac_spec *= rad_unit_f
+        xkEm *= rad_unit_f
+        xkRf *= rad_unit_f
+        xkCldlnPres *= rad_unit_f
+        xkCldlnExt *= rad_unit_f
+        name_jacobian = [str(s) for s in muses_oss_handle.atm_jac_spec]
+        rad, drad_datm_jac_spec = self.atmosphere.post_process(rad, drad_datm_jac_spec)
+
+        # check finite
+        if not np.all(np.isfinite(rad)):
+            raise RuntimeError("Non-finite radiance")
+
+        if not np.all(np.isfinite(drad_datm_jac_spec)):
+            raise RuntimeError("Non-finite jacobians")
+
+        # Prepare Jacobians for pack_jacobian function.
+        uip_all["num_atm_k"] = len(muses_oss_handle.atm_jac_spec)
+
+        species_list = []
+        k_species = []
+
+        # AT_LINE 16 fm_oss_stack.pro
+        if uip_all["num_atm_k"] == 0:
+            atm_jacobians_ils_total = {"k_species": []}
+        if uip_all["num_atm_k"] > 0:
+            # Create a list of uip_all['num_atm_k']+numTatm dictionaries with the format of k_struct.
+            for x in range(uip_all["num_atm_k"]):
+                k_struct = {
+                    "species": name_jacobian[0],
+                    "k": np.zeros(
+                        shape=drad_dtemp.shape,
+                        dtype=np.float32,
+                    ),
+                }
+                k_species.append(k_struct)
+
+            atm_jacobians_ils_total = {"k_species": k_species}
+
+            # AT_LINE 22 fm_oss_stack.pro
+            for jj in range(uip_all["num_atm_k"]):
+                species_list.append(name_jacobian[jj].lstrip().rstrip())
+                atm_jacobians_ils_total["k_species"][jj]["species"] = (
+                    name_jacobian[jj].lstrip().rstrip()
+                )
+
+                atm_jacobians_ils_total["k_species"][jj]["k"] = drad_datm_jac_spec[
+                    :, :, jj
+                ]
+
+            # end for jj in range(uip_all['num_atm_k']):
+
+        # AT_LINE 36 fm_oss_stack.pro
+        # Make cloud Jac structure.
+        jacobian_cloud_map = {
+            "k_height": xkCldlnPres,
+            "k_ext": xkCldlnExt,
+        }
+
+        # Make emissivity Jac structure.
+        jacobian_emiss_ils_map = {"k": xkEm}
+
+        jac = None
+        if not tsurv.is_constant:
+            jac = self._add_jac(
+                jac, drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
+            )
+        if not tatm.is_constant:
+            jac = self._add_jac(jac, drad_dtemp.T @ tatm.jacobian)
+
+        jac2 = self.pack_jacobian(
+            uip_all,
+            rad.shape[0],
+            jacobian_emiss_ils_map,
+            atm_jacobians_ils_total,
+            jacobian_cloud_map,
+        )
+        try:
+            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
+                self.instrument_name
+            )
+        except KeyError:
+            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
+        if (
+            jac2 is not None
+            and sub_basis_matrix.shape[0] > 0
+            and jac2.ndim > 0
+            and len(self.retrieval_state_element_id) > 0
+        ):
+            jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
         else:
@@ -162,171 +319,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
-    def _add_jac(self, jac : np.ndarray | None, jacadd : np.ndarray) -> np.ndarray:
+    def _add_jac(self, jac: np.ndarray | None, jacadd: np.ndarray) -> np.ndarray:
         "Add a jacobian, correctly handling none"
         if jac is None:
             return jacadd
         return jac + jacadd
-
-    def fm_oss_stack(
-        self,
-        uip: dict[str, Any],
-        sensor_index: int,
-        pointing_angle_surface: rf.DoubleWithUnit | None = None,
-    ) -> tuple[np.ndarray, np.ndarray | None, rf.Unit]:
-        tsurv = self.tsur.surface_temperature(sensor_index).value
-        scale_cloudv = self.scale_cloud.scale_cloud(sensor_index)
-        pcloudv = self.pcloud.pressure_cloud(sensor_index).convert("mbar").value
-        pres = (
-            self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
-            .convert("mbar")
-            .value
-        )
-        tatm = (
-            self.temperature.temperature_grid(
-                self.pressure, rf.Pressure.DECREASING_PRESSURE
-            )
-            .convert("K")
-            .value
-        )
-        oss_atmosphere, datm_jac_spec_dstate = self.atmosphere.oss_atmosphere(self.pressure)
-        emisv = self.emissivity.emissivity
-        cloudextv = self.cloud_ext.cloud_ext
-        # These aren't working yet. Need to work through how these get updated
-        emisv = rf.ArrayAd_double_1(uip["emissivity"]["value"])
-        cloudextv = rf.ArrayAd_double_1(uip["cloud"]["extinction"])
-
-        salt = self.surface_altitude.convert("m").value
-        # TODO Not sure if the logic of this here, but this is what py-retrieve does
-        if salt < 1e-5:
-            salt = 1e-5
-        # Use diffusion approximation, see oss_if_module.f90 in muses_oss
-        lambertian_flag = 1
-        # py-retrieve has sunang always 90. Not sure of the significance of that,
-        # but do that for now
-        sunang = 90.0
-        # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        # The units of rad are "W  m^-2 sr^-1 cm^-1"
-        (rad, drad_dtemp, drad_dtsur, drad_datm_jac_spec, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
-            muses_oss_handle.oss_forward_model(
-                tsurv.value,
-                scale_cloudv.value,
-                pcloudv.value,
-                pointing_angle_surface.convert("deg").value
-                if pointing_angle_surface is not None
-                else self.pointing_angle_surface.convert("deg").value,
-                sunang,
-                self.latitude.convert("deg").value,
-                salt,
-                lambertian_flag,
-                pres.value,
-                tatm.value,
-                oss_atmosphere,
-                self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
-                emisv.value,
-                self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
-                cloudextv.value,
-            )
-        )
-        # This comes from the OSS documentation in muses_oss
-        rad_in_units = rf.Unit("W / (m^2 sr cm^-1)")
-        # Units that we want
-        rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
-        rad_unit_f = rf.conversion(rad_in_units, rad_units)
-        rad *= rad_unit_f
-        drad_dtemp *= rad_unit_f
-        drad_dtsur *= rad_unit_f
-        drad_datm_jac_spec *= rad_unit_f
-        xkEm *= rad_unit_f
-        xkRf *= rad_unit_f
-        xkCldlnPres *= rad_unit_f
-        xkCldlnExt *= rad_unit_f
-        name_jacobian = [str(s) for s in muses_oss_handle.atm_jac_spec]
-        rad, drad_datm_jac_spec = self.atmosphere.post_process(
-            rad, drad_datm_jac_spec
-        )
-
-        # check finite
-        if not np.all(np.isfinite(rad)):
-            raise RuntimeError("Non-finite radiance")
-
-        if not np.all(np.isfinite(drad_datm_jac_spec)):
-            raise RuntimeError("Non-finite jacobians")
-        
-        # Prepare Jacobians for pack_jacobian function.
-        uip["num_atm_k"] = len(muses_oss_handle.atm_jac_spec)
-
-        species_list = []
-        k_species = []
-
-        # AT_LINE 16 fm_oss_stack.pro
-        if uip["num_atm_k"] == 0:
-            atm_jacobians_ils_total = {"k_species": []}
-        if uip["num_atm_k"] > 0:
-            # Create a list of uip['num_atm_k']+numTatm dictionaries with the format of k_struct.
-            for x in range(uip["num_atm_k"]):
-                k_struct = {
-                    "species": name_jacobian[0],
-                    "k": np.zeros(
-                        shape=drad_dtemp.shape,
-                        dtype=np.float32,
-                    ),
-                }
-                k_species.append(k_struct)
-
-            atm_jacobians_ils_total = {"k_species": k_species}
-
-            # AT_LINE 22 fm_oss_stack.pro
-            for jj in range(uip["num_atm_k"]):
-                species_list.append(name_jacobian[jj].lstrip().rstrip())
-                atm_jacobians_ils_total["k_species"][jj]["species"] = (
-                    name_jacobian[jj].lstrip().rstrip()
-                )
-
-                atm_jacobians_ils_total["k_species"][jj]["k"] = drad_datm_jac_spec[
-                    :, :, jj
-                ]
-
-            # end for jj in range(uip['num_atm_k']):
-
-        # AT_LINE 36 fm_oss_stack.pro
-        # Make cloud Jac structure.
-        jacobian_cloud_map = {
-            "k_height": xkCldlnPres,
-            "k_ext": xkCldlnExt,
-        }
-
-        # Make emissivity Jac structure.
-        jacobian_emiss_ils_map = {"k": xkEm}
-
-        jac = None
-        if not tsurv.is_constant:
-            jac = self._add_jac(jac, drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :])
-        if not tatm.is_constant:
-            jac = self._add_jac(jac, drad_dtemp.T @ tatm.jacobian)
-        
-        jac2 = self.pack_jacobian(
-            uip,
-            rad.shape[0],
-            jacobian_emiss_ils_map,
-            atm_jacobians_ils_total,
-            jacobian_cloud_map,
-        )
-        try:
-            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
-                self.instrument_name
-            )
-        except KeyError:
-            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
-        if (
-            jac2 is not None
-            and sub_basis_matrix.shape[0] > 0
-            and jac2.ndim > 0
-            and len(self.retrieval_state_element_id) > 0
-        ):
-            jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
-                
-        return (rad, jac, rad_units)
 
     def pack_jacobian(
         self,

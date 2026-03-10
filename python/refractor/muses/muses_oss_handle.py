@@ -396,16 +396,16 @@ class MusesOssHandle:
 
     @property
     def atm_spec(self) -> list[StateElementIdentifier]:
-        '''The list of gases we use in the OSS calculation. Note that
+        """The list of gases we use in the OSS calculation. Note that
         the MusesRadiativeTransferOss select only a subset of these for
         a particular OSS run, but it keeps the full list of gases
         setting the vmr of gases not in the desired subset to very
-        small values (1e-20), effectively removing them from the calculation.'''
+        small values (1e-20), effectively removing them from the calculation."""
         return self._atm_spec
 
     @property
     def atm_jac_spec(self) -> list[StateElementIdentifier]:
-        '''The subset of atm_spec that we calculate jacobians for.'''
+        """The subset of atm_spec that we calculate jacobians for."""
         return self._atm_jac_spec
 
     def oss_channel_select(self, sd_desired: rf.SpectralDomain) -> None:
@@ -558,7 +558,16 @@ class MusesOssHandle:
             xkcldlnpres.ctypes.data_as(POINTER(c_float)),
             xkcldlnext.ctypes.data_as(POINTER(c_float)),
         )
-        return rad, drad_dtemp, drad_dtsur, drad_datm_jac_spec, xkem, xkrf, xkcldlnpres, xkcldlnext
+        return (
+            rad,
+            drad_dtemp,
+            drad_dtsur,
+            drad_datm_jac_spec,
+            xkem,
+            xkrf,
+            xkcldlnpres,
+            xkcldlnext,
+        )
 
 
 muses_oss_handle = MusesOssHandle()
