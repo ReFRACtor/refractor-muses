@@ -158,7 +158,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def muses_oss_atmosphere(self) -> MusesOssAtmosphere:
-        return MusesOssAtmosphere(self.pressure_fm, self.absorber_vmr)
+        return MusesOssAtmosphere(self.absorber_vmr)
 
     @cached_property
     def muses_altitude(self) -> MusesAltitude:

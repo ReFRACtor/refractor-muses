@@ -176,8 +176,8 @@ class MusesOssHandle:
         self.species_list: list[StateElementIdentifier] = []
         self.nlevels = -1
         self.nfreq = -1
-        self.atm_spec: list[StateElementIdentifier] = []
-        self.atm_jac_spec: list[StateElementIdentifier] = []
+        self._atm_spec: list[StateElementIdentifier] = []
+        self._atm_jac_spec: list[StateElementIdentifier] = []
         # We handle the channel selection outside of the OSS code. This selects
         # the subsets of the full range of frequencies that we actually run the
         # forward model on
@@ -269,7 +269,7 @@ class MusesOssHandle:
             do_jac_only = True
         else:
             do_jac_only = False
-        self.current_jac_spec = self.atm_jac_spec
+        self.current_jac_spec = self._atm_jac_spec
         self.sel_file = sel_file
         self.od_file = od_file
         self.sol_file = sol_file
@@ -284,23 +284,24 @@ class MusesOssHandle:
 
         # Strip out items that aren't atmospheric, and also TATM (which gets
         # marked as atmospheric but isn't a gas species)
-        self.atm_spec = [
+        self._atm_spec = [
             s
             for s in self.species_list
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
-        self.atm_jac_spec = [
+        self._atm_jac_spec = [
             s
             for s in self.retrieval_state_element_id
             if s.is_atmospheric_species and s != StateElementIdentifier("TATM")
         ]
 
         # Special case, turns out OSS doesn't work with no jacobians. So if our list
-        # is empty, just add H2O so that there is something there
+        # is empty, just add H2O so that there is something there. self._atm_jac_spec2
+        # either self.atm_jac_spec or just H2O
         if len(self.atm_jac_spec) == 0:
-            self.atm_jac_spec2 = [StateElementIdentifier("H2O")]
+            self._atm_jac_spec2 = [StateElementIdentifier("H2O")]
         else:
-            self.atm_jac_spec2 = self.atm_jac_spec
+            self._atm_jac_spec2 = self.atm_jac_spec
 
         if do_jac_only:
             # Nothing to do if Jacobian matches
@@ -309,7 +310,7 @@ class MusesOssHandle:
             # Otherwise, update just the jacobian part
             self.liboss.cppupdatejacobwrapper(
                 *self.to_c_str_arr(self.atm_spec),
-                *self.to_c_str_arr(self.atm_jac_spec2),
+                *self.to_c_str_arr(self._atm_jac_spec2),
             )
             return
 
@@ -352,7 +353,7 @@ class MusesOssHandle:
             with suppress_stdout():
                 self.liboss.cppinitwrapper(
                     *self.to_c_str_arr(self.atm_spec),
-                    *self.to_c_str_arr(self.atm_jac_spec2),
+                    *self.to_c_str_arr(self._atm_jac_spec2),
                     *self.to_c_str(self.sel_file),
                     *self.to_c_str(self.od_file),
                     *self.to_c_str(self.sol_file),
@@ -392,6 +393,20 @@ class MusesOssHandle:
             else:
                 self.have_oss = True
                 do_init = False
+
+    @property
+    def atm_spec(self) -> list[StateElementIdentifier]:
+        '''The list of gases we use in the OSS calculation. Note that
+        the MusesRadiativeTransferOss select only a subset of these for
+        a particular OSS run, but it keeps the full list of gases
+        setting the vmr of gases not in the desired subset to very
+        small values (1e-20), effectively removing them from the calculation.'''
+        return self._atm_spec
+
+    @property
+    def atm_jac_spec(self) -> list[StateElementIdentifier]:
+        '''The subset of atm_spec that we calculate jacobians for.'''
+        return self._atm_jac_spec
 
     def oss_channel_select(self, sd_desired: rf.SpectralDomain) -> None:
         """Set the channels selected in OSS (the terminology of the OSS code - pick the
@@ -493,7 +508,7 @@ class MusesOssHandle:
         nrad = self.channel_indx.shape[0]
         nemis = emis.shape[0]
         ncloud = cloudext.shape[0]
-        njac = len(self.atm_jac_spec2)
+        njac = len(self._atm_jac_spec2)
         rad = np.zeros((nrad,), dtype=c_float, order="F")
         drad_dtemp = np.zeros((nlevels, nrad), dtype=c_float, order="F")
         drad_dtsur = np.zeros((nrad,), dtype=c_float, order="F")
@@ -501,7 +516,7 @@ class MusesOssHandle:
         xkrf = np.zeros((nemis, nrad), dtype=c_float, order="F")
         xkcldlnpres = np.zeros((nrad,), dtype=c_float, order="F")
         xkcldlnext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
-        xkgas = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
+        drad_datm_jac_spec = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
 
         self.liboss.cppfwdwrapper(
             ctypes.byref(c_int(atmosphere.shape[0])),
@@ -532,18 +547,18 @@ class MusesOssHandle:
             ctypes.byref(c_float(latitude)),
             ctypes.byref(c_float(surface_altitude)),
             ctypes.byref(c_int(lambertian_flag)),
-            ctypes.byref(c_int(xkgas.shape[2])),
+            ctypes.byref(c_int(drad_datm_jac_spec.shape[2])),
             ctypes.byref(c_int(rad.shape[0])),
             rad.ctypes.data_as(POINTER(c_float)),
             drad_dtemp.ctypes.data_as(POINTER(c_float)),
             drad_dtsur.ctypes.data_as(POINTER(c_float)),
-            xkgas.ctypes.data_as(POINTER(c_float)),
+            drad_datm_jac_spec.ctypes.data_as(POINTER(c_float)),
             xkem.ctypes.data_as(POINTER(c_float)),
             xkrf.ctypes.data_as(POINTER(c_float)),
             xkcldlnpres.ctypes.data_as(POINTER(c_float)),
             xkcldlnext.ctypes.data_as(POINTER(c_float)),
         )
-        return rad, drad_dtemp, drad_dtsur, xkgas, xkem, xkrf, xkcldlnpres, xkcldlnext
+        return rad, drad_dtemp, drad_dtsur, drad_datm_jac_spec, xkem, xkrf, xkcldlnpres, xkcldlnext
 
 
 muses_oss_handle = MusesOssHandle()

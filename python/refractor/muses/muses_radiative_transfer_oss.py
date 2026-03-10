@@ -162,13 +162,15 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
-    def fm_oss(
+    def fm_oss_stack(
         self,
-        i_uip: dict[str, Any],
-        i_jacobians: list[str],
+        uip: dict[str, Any],
         sensor_index: int,
         pointing_angle_surface: rf.DoubleWithUnit | None = None,
-    ) -> dict[str, Any]:
+    ) -> tuple[np.ndarray, np.ndarray | None, rf.Unit]:
+        tsurv = self.tsur.surface_temperature(sensor_index).value
+        scale_cloudv = self.scale_cloud.scale_cloud(sensor_index)
+        pcloudv = self.pcloud.pressure_cloud(sensor_index).convert("mbar").value
         pres = (
             self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
             .convert("mbar")
@@ -181,11 +183,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             .convert("K")
             .value.value
         )
+        oss_atmosphere, datm_jac_spec_dstate = self.atmosphere.oss_atmosphere(self.pressure)
         emisv = self.emissivity.emissivity
         cloudextv = self.cloud_ext.cloud_ext
         # These aren't working yet. Need to work through how these get updated
-        emisv = rf.ArrayAd_double_1(i_uip["emissivity"]["value"])
-        cloudextv = rf.ArrayAd_double_1(i_uip["cloud"]["extinction"])
+        emisv = rf.ArrayAd_double_1(uip["emissivity"]["value"])
+        cloudextv = rf.ArrayAd_double_1(uip["cloud"]["extinction"])
 
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
@@ -198,11 +201,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         sunang = 90.0
         # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
         # The units of rad are "W  m^-2 sr^-1 cm^-1"
-        (rad, drad_dtemp, drad_dtsur, xkOutGas, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
+        (rad, drad_dtemp, drad_dtsur, drad_datm_jac_spec, xkEm, xkRf, xkCldlnPres, xkCldlnExt) = (
             muses_oss_handle.oss_forward_model(
-                self.tsur.surface_temperature(sensor_index).value.value,
-                self.scale_cloud.scale_cloud(sensor_index).value,
-                self.pcloud.pressure_cloud(sensor_index).convert("mbar").value.value,
+                tsurv.value,
+                scale_cloudv.value,
+                pcloudv.value,
                 pointing_angle_surface.convert("deg").value
                 if pointing_angle_surface is not None
                 else self.pointing_angle_surface.convert("deg").value,
@@ -212,7 +215,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 lambertian_flag,
                 pres,
                 tatm,
-                self.atmosphere.oss_atmosphere,
+                oss_atmosphere,
                 self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
                 emisv.value,
                 self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
@@ -224,44 +227,29 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Units that we want
         rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
         rad_unit_f = rf.conversion(rad_in_units, rad_units)
-        o_result = {
+        results = {
             "rad_units": rad_units,
             "radiance": rad * rad_unit_f,
             "drad_dtemp": drad_dtemp * rad_unit_f,
             "drad_dtsur": drad_dtsur * rad_unit_f,
-            "xkOutGas": xkOutGas * rad_unit_f,
+            "drad_datm_jac_spec": drad_datm_jac_spec * rad_unit_f,
             "xkEm": xkEm * rad_unit_f,
             "xkRf": xkRf * rad_unit_f,
             "xkCldlnPres": xkCldlnPres * rad_unit_f,
             "xkCldlnExt": xkCldlnExt * rad_unit_f,
-            "nameJacobian": i_jacobians,
+            "nameJacobian": [str(s) for s in muses_oss_handle.atm_jac_spec]
         }
-        o_result["radiance"], o_result["xkOutGas"] = self.atmosphere.post_process(
-            o_result["radiance"], o_result["xkOutGas"]
+        results["radiance"], results["drad_datm_jac_spec"] = self.atmosphere.post_process(
+            results["radiance"], results["drad_datm_jac_spec"]
         )
 
         # check finite
-        if not np.all(np.isfinite(o_result["radiance"])):
+        if not np.all(np.isfinite(results["radiance"])):
             raise RuntimeError("Non-finite radiance")
 
-        if not np.all(np.isfinite(o_result["xkOutGas"])):
+        if not np.all(np.isfinite(results["drad_datm_jac_spec"])):
             raise RuntimeError("Non-finite jacobians")
-
-        return o_result
-
-    def fm_oss_stack(
-        self,
-        uipIn: dict[str, Any],
-        sensor_index: int,
-        pointing_angle_surface: rf.DoubleWithUnit | None = None,
-    ) -> tuple[np.ndarray, np.ndarray, rf.Unit]:
-        # AT_LINE 5 fm_oss_stack.pro
-        uip = uipIn
-
-        jacobianList = [str(s) for s in muses_oss_handle.atm_jac_spec2]
-
-        results = self.fm_oss(uip, jacobianList, sensor_index, pointing_angle_surface)
-
+        
         # Prepare Jacobians for pack_jacobian function.
         uip["num_atm_k"] = len(results["nameJacobian"])
 
@@ -269,6 +257,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         k_species = []
 
         # AT_LINE 16 fm_oss_stack.pro
+        if uip["num_atm_k"] == 0:
+            atm_jacobians_ils_total = {"k_species": []}
         if uip["num_atm_k"] > 0:
             # Create a list of uip['num_atm_k']+numTatm dictionaries with the format of k_struct.
             for x in range(uip["num_atm_k"]):
@@ -290,7 +280,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     results["nameJacobian"][jj].lstrip().rstrip()
                 )
 
-                atm_jacobians_ils_total["k_species"][jj]["k"] = results["xkOutGas"][
+                atm_jacobians_ils_total["k_species"][jj]["k"] = results["drad_datm_jac_spec"][
                     :, :, jj
                 ]
 
