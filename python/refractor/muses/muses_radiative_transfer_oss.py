@@ -162,6 +162,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     def desc(self) -> str:
         return "MusesRadiativeTransferOss"
 
+    def _add_jac(self, jac : np.ndarray | None, jacadd : np.ndarray) -> np.ndarray:
+        "Add a jacobian, correctly handling none"
+        if jac is None:
+            return jacadd
+        return jac + jacadd
+
     def fm_oss_stack(
         self,
         uip: dict[str, Any],
@@ -231,13 +237,11 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         drad_dtemp *= rad_unit_f
         drad_dtsur *= rad_unit_f
         drad_datm_jac_spec *= rad_unit_f
-        results = {
-            "xkEm": xkEm * rad_unit_f,
-            "xkRf": xkRf * rad_unit_f,
-            "xkCldlnPres": xkCldlnPres * rad_unit_f,
-            "xkCldlnExt": xkCldlnExt * rad_unit_f,
-            "nameJacobian": [str(s) for s in muses_oss_handle.atm_jac_spec]
-        }
+        xkEm *= rad_unit_f
+        xkRf *= rad_unit_f
+        xkCldlnPres *= rad_unit_f
+        xkCldlnExt *= rad_unit_f
+        name_jacobian = [str(s) for s in muses_oss_handle.atm_jac_spec]
         rad, drad_datm_jac_spec = self.atmosphere.post_process(
             rad, drad_datm_jac_spec
         )
@@ -250,7 +254,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             raise RuntimeError("Non-finite jacobians")
         
         # Prepare Jacobians for pack_jacobian function.
-        uip["num_atm_k"] = len(results["nameJacobian"])
+        uip["num_atm_k"] = len(muses_oss_handle.atm_jac_spec)
 
         species_list = []
         k_species = []
@@ -262,9 +266,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             # Create a list of uip['num_atm_k']+numTatm dictionaries with the format of k_struct.
             for x in range(uip["num_atm_k"]):
                 k_struct = {
-                    "species": results["nameJacobian"][0],
+                    "species": name_jacobian[0],
                     "k": np.zeros(
-                        shape=drad_dtemp,
+                        shape=drad_dtemp.shape,
                         dtype=np.float32,
                     ),
                 }
@@ -274,9 +278,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
             # AT_LINE 22 fm_oss_stack.pro
             for jj in range(uip["num_atm_k"]):
-                species_list.append(results["nameJacobian"][jj].lstrip().rstrip())
+                species_list.append(name_jacobian[jj].lstrip().rstrip())
                 atm_jacobians_ils_total["k_species"][jj]["species"] = (
-                    results["nameJacobian"][jj].lstrip().rstrip()
+                    name_jacobian[jj].lstrip().rstrip()
                 )
 
                 atm_jacobians_ils_total["k_species"][jj]["k"] = drad_datm_jac_spec[
@@ -288,28 +292,18 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 36 fm_oss_stack.pro
         # Make cloud Jac structure.
         jacobian_cloud_map = {
-            "k_height": results["xkCldlnPres"],
-            "k_ext": results["xkCldlnExt"],
+            "k_height": xkCldlnPres,
+            "k_ext": xkCldlnExt,
         }
 
         # Make emissivity Jac structure.
-        jacobian_emiss_ils_map = {"k": results["xkEm"]}
+        jacobian_emiss_ils_map = {"k": xkEm}
 
         jac = None
         if not tsurv.is_constant:
-            j = (
-                drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
-            )
-            if jac is None:
-                jac = j
-            else:
-                jac += j
+            jac = self._add_jac(jac, drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :])
         if not tatm.is_constant:
-            j = drad_dtemp.T @ tatm.jacobian
-            if jac is None:
-                jac = j
-            else:
-                jac += j
+            jac = self._add_jac(jac, drad_dtemp.T @ tatm.jacobian)
         
         jac2 = self.pack_jacobian(
             uip,
@@ -330,11 +324,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             and jac2.ndim > 0
             and len(self.retrieval_state_element_id) > 0
         ):
-            j = np.matmul(sub_basis_matrix, jac2).transpose()
-            if jac is None:
-                jac = j
-            else:
-                jac += j
+            jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
                 
         return (rad, jac, rad_units)
 
