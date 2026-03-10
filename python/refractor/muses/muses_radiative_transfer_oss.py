@@ -174,14 +174,14 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         pres = (
             self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
             .convert("mbar")
-            .value.value
+            .value
         )
         tatm = (
             self.temperature.temperature_grid(
                 self.pressure, rf.Pressure.DECREASING_PRESSURE
             )
             .convert("K")
-            .value.value
+            .value
         )
         oss_atmosphere, datm_jac_spec_dstate = self.atmosphere.oss_atmosphere(self.pressure)
         emisv = self.emissivity.emissivity
@@ -213,8 +213,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 self.latitude.convert("deg").value,
                 salt,
                 lambertian_flag,
-                pres,
-                tatm,
+                pres.value,
+                tatm.value,
                 oss_atmosphere,
                 self.emissivity.emissivity_spectral_domain.convert_wave("cm^-1"),
                 emisv.value,
@@ -227,27 +227,26 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Units that we want
         rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
         rad_unit_f = rf.conversion(rad_in_units, rad_units)
+        rad *= rad_unit_f
+        drad_dtemp *= rad_unit_f
+        drad_dtsur *= rad_unit_f
+        drad_datm_jac_spec *= rad_unit_f
         results = {
-            "rad_units": rad_units,
-            "radiance": rad * rad_unit_f,
-            "drad_dtemp": drad_dtemp * rad_unit_f,
-            "drad_dtsur": drad_dtsur * rad_unit_f,
-            "drad_datm_jac_spec": drad_datm_jac_spec * rad_unit_f,
             "xkEm": xkEm * rad_unit_f,
             "xkRf": xkRf * rad_unit_f,
             "xkCldlnPres": xkCldlnPres * rad_unit_f,
             "xkCldlnExt": xkCldlnExt * rad_unit_f,
             "nameJacobian": [str(s) for s in muses_oss_handle.atm_jac_spec]
         }
-        results["radiance"], results["drad_datm_jac_spec"] = self.atmosphere.post_process(
-            results["radiance"], results["drad_datm_jac_spec"]
+        rad, drad_datm_jac_spec = self.atmosphere.post_process(
+            rad, drad_datm_jac_spec
         )
 
         # check finite
-        if not np.all(np.isfinite(results["radiance"])):
+        if not np.all(np.isfinite(rad)):
             raise RuntimeError("Non-finite radiance")
 
-        if not np.all(np.isfinite(results["drad_datm_jac_spec"])):
+        if not np.all(np.isfinite(drad_datm_jac_spec)):
             raise RuntimeError("Non-finite jacobians")
         
         # Prepare Jacobians for pack_jacobian function.
@@ -265,7 +264,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 k_struct = {
                     "species": results["nameJacobian"][0],
                     "k": np.zeros(
-                        shape=results["drad_dtemp"].shape,
+                        shape=drad_dtemp,
                         dtype=np.float32,
                     ),
                 }
@@ -280,7 +279,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     results["nameJacobian"][jj].lstrip().rstrip()
                 )
 
-                atm_jacobians_ils_total["k_species"][jj]["k"] = results["drad_datm_jac_spec"][
+                atm_jacobians_ils_total["k_species"][jj]["k"] = drad_datm_jac_spec[
                     :, :, jj
                 ]
 
@@ -296,33 +295,25 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Make emissivity Jac structure.
         jacobian_emiss_ils_map = {"k": results["xkEm"]}
 
-        o_jac = None
-        tsurv = self.tsur.surface_temperature(sensor_index).value
+        jac = None
         if not tsurv.is_constant:
             j = (
-                results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
+                drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
             )
-            if o_jac is None:
-                o_jac = j
+            if jac is None:
+                jac = j
             else:
-                o_jac += j
-        temp = (
-            self.temperature.temperature_grid(
-                self.pressure, rf.Pressure.DECREASING_PRESSURE
-            )
-            .convert("K")
-            .value
-        )
-        if not temp.is_constant:
-            j = results["drad_dtemp"].T @ temp.jacobian
-            if o_jac is None:
-                o_jac = j
+                jac += j
+        if not tatm.is_constant:
+            j = drad_dtemp.T @ tatm.jacobian
+            if jac is None:
+                jac = j
             else:
-                o_jac += j
+                jac += j
         
-        o_jac2 = self.pack_jacobian(
+        jac2 = self.pack_jacobian(
             uip,
-            results["radiance"].shape[0],
+            rad.shape[0],
             jacobian_emiss_ils_map,
             atm_jacobians_ils_total,
             jacobian_cloud_map,
@@ -334,18 +325,18 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         except KeyError:
             sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
         if (
-            o_jac2 is not None
+            jac2 is not None
             and sub_basis_matrix.shape[0] > 0
-            and o_jac2.ndim > 0
+            and jac2.ndim > 0
             and len(self.retrieval_state_element_id) > 0
         ):
-            j = np.matmul(sub_basis_matrix, o_jac2).transpose()
-            if o_jac is None:
-                o_jac = j
+            j = np.matmul(sub_basis_matrix, jac2).transpose()
+            if jac is None:
+                jac = j
             else:
-                o_jac += j
+                jac += j
                 
-        return (results["radiance"], o_jac, results["rad_units"])
+        return (rad, jac, rad_units)
 
     def pack_jacobian(
         self,
