@@ -296,10 +296,31 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # Make emissivity Jac structure.
         jacobian_emiss_ils_map = {"k": results["xkEm"]}
 
-        # AT_LINE 41 fm_oss_stack.pro
-        # Pack jacobians together based on retrieval parameter ordering.
-        # pack_jacobian, uip, rad
-        o_jac = self.pack_jacobian(
+        o_jac = None
+        tsurv = self.tsur.surface_temperature(sensor_index).value
+        if not tsurv.is_constant:
+            j = (
+                results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
+            )
+            if o_jac is None:
+                o_jac = j
+            else:
+                o_jac += j
+        temp = (
+            self.temperature.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value
+        )
+        if not temp.is_constant:
+            j = results["drad_dtemp"].T @ temp.jacobian
+            if o_jac is None:
+                o_jac = j
+            else:
+                o_jac += j
+        
+        o_jac2 = self.pack_jacobian(
             uip,
             results["radiance"].shape[0],
             jacobian_emiss_ils_map,
@@ -313,29 +334,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         except KeyError:
             sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
         if (
-            o_jac is not None
+            o_jac2 is not None
             and sub_basis_matrix.shape[0] > 0
-            and o_jac.ndim > 0
+            and o_jac2.ndim > 0
             and len(self.retrieval_state_element_id) > 0
         ):
-            o_jac = np.matmul(sub_basis_matrix, o_jac).transpose()
-        else:
-            o_jac = None
-        if o_jac is not None:
-            tsurv = self.tsur.surface_temperature(sensor_index).value
-            if not tsurv.is_constant:
-                o_jac += (
-                    results["drad_dtsur"][:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
-                )
-            temp = (
-                self.temperature.temperature_grid(
-                    self.pressure, rf.Pressure.DECREASING_PRESSURE
-                )
-                .convert("K")
-                .value
-            )
-            if not temp.is_constant:
-                o_jac += results["drad_dtemp"].T @ temp.jacobian
+            j = np.matmul(sub_basis_matrix, o_jac2).transpose()
+            if o_jac is None:
+                o_jac = j
+            else:
+                o_jac += j
+                
         return (results["radiance"], o_jac, results["rad_units"])
 
     def pack_jacobian(
