@@ -211,9 +211,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         xkRf *= rad_unit_f
         xkCldlnPres *= rad_unit_f
         xkCldlnExt *= rad_unit_f
-        name_jacobian = [str(s) for s in muses_oss_handle.atm_jac_spec]
-        # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index. 
-        drad_dvmr = drad_dlog_vmr.transpose([1, 2, 0]) * dlog_vmr_dvmr[np.newaxis,:,:]
+        # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index.
+        if dlog_vmr_dvmr is not None:
+            drad_dvmr = (
+                drad_dlog_vmr.transpose([1, 2, 0]) * dlog_vmr_dvmr[np.newaxis, :, :]
+            )
+        else:
+            drad_dvmr = None
         rad = self.atmosphere.update_rt_radiance(
             rad, drad_dvmr, self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
@@ -222,7 +226,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if not np.all(np.isfinite(rad)):
             raise RuntimeError("Non-finite radiance")
 
-        if not np.all(np.isfinite(drad_dvmr)):
+        if drad_dvmr is not None and not np.all(np.isfinite(drad_dvmr)):
             raise RuntimeError("Non-finite jacobians")
 
         # Prepare Jacobians for pack_jacobian function.
@@ -304,10 +308,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         jacobian_emiss_ils_map,
         jacobian_cloud_map,
     ):
-        from refractor.muses_py import UtilList
-
-        utilList = UtilList()
-
         o_jacobian = None
 
         # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
@@ -448,10 +448,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     ii_par = ii_par + num_v
                 # end if (jacob == 'CLOUDEXT'):
 
-
                 if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
                     ii_par = ii_par + num_atm
-                    
+
             # end for ii in range(len(uip['jacobians'])):
         # end if (num_par > 0):
         # AT_LINE 213 ELANOR/pack_jacobian.pro pack_jacobian

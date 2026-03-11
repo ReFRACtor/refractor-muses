@@ -362,7 +362,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
-        res = MusesCrisForwardModelOss(
+        fm1 = MusesCrisForwardModelOss(
             self._rf_uip,
             self.instrument,
             self.spec_win,
@@ -374,7 +374,18 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
             self.pointing_angle_surface,
         )
         # TODO Remove this when no longer using UIP
-        self._add_rf_uip_update_to_fm(res)
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
+            from refractor.muses_py_fm import MusesCrisForwardModel
+
+            fm2 = MusesCrisForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm1, fm2)
+        else:
+            res = fm1
         res.setup_grid()
         # Set up jacobians (happens already for CostFunction, but not
         # we are using the bare ForwardModel
@@ -536,12 +547,14 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
         if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
             from refractor.muses_py_fm import MusesAirsForwardModel
 
             fm2 = MusesAirsForwardModel(
                 self.current_state, self.observation, self.retrieval_config
             )
-            res = CompareForwardModel(fm2, fm1)
+            res = CompareForwardModel(fm1, fm2)
         else:
             res = fm1
         res.setup_grid()
@@ -627,13 +640,15 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
         # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
         if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
             from refractor.muses_py_fm import MusesTesForwardModel
 
             # If we need to diagnose an issue
             fm2 = MusesTesForwardModel(
                 self.current_state, self.observation, self.retrieval_config
             )
-            res = CompareForwardModel(fm2, fm1)
+            res = CompareForwardModel(fm1, fm2)
         else:
             res = fm1
         res.setup_grid()

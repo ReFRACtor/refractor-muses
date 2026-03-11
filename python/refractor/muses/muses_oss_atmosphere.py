@@ -100,15 +100,16 @@ class VmrHandleNeg(VmrModify):
         drad_dvmr: np.ndarray | None,
         press: rf.Pressure,
         pdir: rf.Pressure.PressureGridType,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> np.ndarray:
         """Perform any updates to rad, i.e., with negative VMR handling"""
         if not self.have_negative:
-            return rad, drad_dvmr
+            return rad
         if drad_dvmr is None:
             raise RuntimeError("Need drad_dvmr for update_rt_radiance")
         # modify radiance to ACTUAL VMR (vmr_muses) using K.dx
         # vrm_oss used by OSS, vmr_muses is what we want
         return rad + drad_dvmr @ (self.vmr_muses - self.vmr_oss)
+
 
 class MusesOssAtmosphere:
     """The muses-oss code takes an "atmosphere" argument. This is the
@@ -191,7 +192,7 @@ class MusesOssAtmosphere:
 
     def oss_atmosphere(
         self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
-    ) -> tuple[np.ndarray, np.ndarray | None]:
+    ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
         """Return np.ndarray that we should pass to OSS code for doing
         RT.
 
@@ -240,10 +241,10 @@ class MusesOssAtmosphere:
     def update_rt_radiance(
         self,
         rad: np.ndarray,
-        drad_dvmr: np.ndarray,
+        drad_dvmr: np.ndarray | None,
         press: rf.Pressure,
         pdir: rf.Pressure.PressureGridType,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> np.ndarray:
         """Perform any updates to rad, i.e., with negative VMR handling
 
         drad_dvmr should be rad_index, gas_index, vmr_index
@@ -252,7 +253,7 @@ class MusesOssAtmosphere:
         for spc in muses_oss_handle.atm_spec:
             if spc in self.absorber_vmr:
                 if hasattr(self.absorber_vmr[spc], "update_rt_radiance"):
-                    if spc in muses_oss_handle.atm_jac_spec:
+                    if spc in muses_oss_handle.atm_jac_spec and drad_dvmr is not None:
                         jac = drad_dvmr[:, muses_oss_handle.atm_jac_spec.index(spc), :]
                     else:
                         jac = None
