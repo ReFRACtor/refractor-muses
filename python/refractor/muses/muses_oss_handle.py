@@ -516,7 +516,7 @@ class MusesOssHandle:
         xkrf = np.zeros((nemis, nrad), dtype=c_float, order="F")
         xkcldlnpres = np.zeros((nrad,), dtype=c_float, order="F")
         xkcldlnext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
-        drad_datm_jac_spec = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
+        drad_dlog_vmr = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
 
         self.liboss.cppfwdwrapper(
             ctypes.byref(c_int(atmosphere.shape[0])),
@@ -547,12 +547,12 @@ class MusesOssHandle:
             ctypes.byref(c_float(latitude)),
             ctypes.byref(c_float(surface_altitude)),
             ctypes.byref(c_int(lambertian_flag)),
-            ctypes.byref(c_int(drad_datm_jac_spec.shape[2])),
+            ctypes.byref(c_int(drad_dlog_vmr.shape[2])),
             ctypes.byref(c_int(rad.shape[0])),
             rad.ctypes.data_as(POINTER(c_float)),
             drad_dtemp.ctypes.data_as(POINTER(c_float)),
             drad_dtsur.ctypes.data_as(POINTER(c_float)),
-            drad_datm_jac_spec.ctypes.data_as(POINTER(c_float)),
+            drad_dlog_vmr.ctypes.data_as(POINTER(c_float)),
             xkem.ctypes.data_as(POINTER(c_float)),
             xkrf.ctypes.data_as(POINTER(c_float)),
             xkcldlnpres.ctypes.data_as(POINTER(c_float)),
@@ -562,7 +562,7 @@ class MusesOssHandle:
             rad,
             drad_dtemp,
             drad_dtsur,
-            drad_datm_jac_spec,
+            drad_dlog_vmr,
             xkem,
             xkrf,
             xkcldlnpres,

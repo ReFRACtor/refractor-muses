@@ -150,8 +150,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             .convert("K")
             .value
         )
-        oss_atmosphere, datm_jac_spec_dstate = self.atmosphere.oss_atmosphere(
-            self.pressure
+        oss_atmosphere, dvmr_dstate, dlog_vmr_dvmr = self.atmosphere.oss_atmosphere(
+            self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
         emisv = self.emissivity.emissivity
         cloudextv = self.cloud_ext.cloud_ext
@@ -174,7 +174,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             rad,
             drad_dtemp,
             drad_dtsur,
-            drad_datm_jac_spec,
+            drad_dlog_vmr,
             xkEm,
             xkRf,
             xkCldlnPres,
@@ -206,56 +206,27 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         rad *= rad_unit_f
         drad_dtemp *= rad_unit_f
         drad_dtsur *= rad_unit_f
-        drad_datm_jac_spec *= rad_unit_f
+        drad_dlog_vmr *= rad_unit_f
         xkEm *= rad_unit_f
         xkRf *= rad_unit_f
         xkCldlnPres *= rad_unit_f
         xkCldlnExt *= rad_unit_f
         name_jacobian = [str(s) for s in muses_oss_handle.atm_jac_spec]
-        rad, drad_datm_jac_spec = self.atmosphere.post_process(rad, drad_datm_jac_spec)
+        # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index. 
+        drad_dvmr = drad_dlog_vmr.transpose([1, 2, 0]) * dlog_vmr_dvmr[np.newaxis,:,:]
+        rad = self.atmosphere.update_rt_radiance(
+            rad, drad_dvmr, self.pressure, rf.Pressure.DECREASING_PRESSURE
+        )
 
         # check finite
         if not np.all(np.isfinite(rad)):
             raise RuntimeError("Non-finite radiance")
 
-        if not np.all(np.isfinite(drad_datm_jac_spec)):
+        if not np.all(np.isfinite(drad_dvmr)):
             raise RuntimeError("Non-finite jacobians")
 
         # Prepare Jacobians for pack_jacobian function.
         uip_all["num_atm_k"] = len(muses_oss_handle.atm_jac_spec)
-
-        species_list = []
-        k_species = []
-
-        # AT_LINE 16 fm_oss_stack.pro
-        if uip_all["num_atm_k"] == 0:
-            atm_jacobians_ils_total = {"k_species": []}
-        if uip_all["num_atm_k"] > 0:
-            # Create a list of uip_all['num_atm_k']+numTatm dictionaries with the format of k_struct.
-            for x in range(uip_all["num_atm_k"]):
-                k_struct = {
-                    "species": name_jacobian[0],
-                    "k": np.zeros(
-                        shape=drad_dtemp.shape,
-                        dtype=np.float32,
-                    ),
-                }
-                k_species.append(k_struct)
-
-            atm_jacobians_ils_total = {"k_species": k_species}
-
-            # AT_LINE 22 fm_oss_stack.pro
-            for jj in range(uip_all["num_atm_k"]):
-                species_list.append(name_jacobian[jj].lstrip().rstrip())
-                atm_jacobians_ils_total["k_species"][jj]["species"] = (
-                    name_jacobian[jj].lstrip().rstrip()
-                )
-
-                atm_jacobians_ils_total["k_species"][jj]["k"] = drad_datm_jac_spec[
-                    :, :, jj
-                ]
-
-            # end for jj in range(uip_all['num_atm_k']):
 
         # AT_LINE 36 fm_oss_stack.pro
         # Make cloud Jac structure.
@@ -274,12 +245,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             )
         if not tatm.is_constant:
             jac = self._add_jac(jac, drad_dtemp.T @ tatm.jacobian)
-
+        if dvmr_dstate is not None:
+            # axes = 2 because we have both vmr_index and gas_index to loop over.
+            jac = self._add_jac(jac, np.tensordot(drad_dvmr, dvmr_dstate, axes=2))
         jac2 = self.pack_jacobian(
             uip_all,
             rad.shape[0],
             jacobian_emiss_ils_map,
-            atm_jacobians_ils_total,
             jacobian_cloud_map,
         )
         try:
@@ -330,7 +302,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         uip,
         num_rad,
         jacobian_emiss_ils_map,
-        atm_jacobians_ils_total,
         jacobian_cloud_map,
     ):
         from refractor.muses_py import UtilList
@@ -338,67 +309,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         utilList = UtilList()
 
         o_jacobian = None
-
-        # convert to linear Jacobians in this function rather than within
-        # ELANOR because affects OSS also
-
-        # any linear atmospheric Jacobians, convert now
-        if len(uip["jacobiansLinear"]) > 0 and uip["jacobiansLinear"][0] != "":
-            all_jacobians_species = []
-            for kkk in range(0, len(atm_jacobians_ils_total["k_species"])):
-                all_jacobians_species.append(
-                    atm_jacobians_ils_total["k_species"][kkk]["species"]
-                )
-
-            for jj in range(0, len(uip["jacobiansLinear"])):
-                specie = uip["jacobiansLinear"][jj]
-
-                if not np.all(
-                    np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"])
-                ):
-                    raise RuntimeError("Non-finite Jacobian")
-
-                # if uip['jacobiansLinear'][jj] in all_jacobians_species:
-                if (
-                    uip["jacobiansLinear"][jj] in all_jacobians_species
-                    and uip["jacobiansLinear"][jj] != "TATM"
-                ):
-                    # Note: Not sure if below lines are correct.
-                    inds = utilList.WhereEqualIndices(
-                        uip["atmosphere_params"], uip["jacobiansLinear"][jj]
-                    )
-
-                    val = uip["atmosphere"][inds, :]
-                    if len(val.shape) == 2 and val.shape[0] == 1:
-                        val = np.reshape(val, (val.shape[1]))  # Convert (1,64) to (64,)
-
-                    # IDL:
-                    # FOR kk = 0, N_ELEMENTS(val)-1 DO BEGIN
-                    #     atm_jacobians_ils_total[0].k_species[ind].k(kk,*) = atm_jacobians_ils_total[0].k_species[ind].k(kk,*)/val[kk]
-                    # ENDFOR
-
-                    # fixed bug here:  should not be ['k_species'][0]['k'][kk, :]
-                    # should search for correct index, found
-                    # should be ['k_species'][found]['k'][kk, :] ssk 3/4/2023
-                    for ii in range(len(atm_jacobians_ils_total["k_species"])):
-                        if (
-                            atm_jacobians_ils_total["k_species"][ii]["species"]
-                            == specie
-                        ):
-                            found = ii
-
-                    for kk in range(0, len(val)):
-                        atm_jacobians_ils_total["k_species"][found]["k"][kk, :] = (
-                            atm_jacobians_ils_total["k_species"][found]["k"][kk, :]
-                            / val[kk]
-                        )
-                    # end for kk in range(0,len(val)):
-
-                    if not np.all(
-                        np.isfinite(atm_jacobians_ils_total["k_species"][0]["k"])
-                    ):
-                        raise RuntimeError("Non-finite Jacobian")
-            # end for jj in range(0,len(uip['jacobiansLinear'])):
 
         # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
         num_par = 0
@@ -434,17 +344,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if jacob == "CALOFFSET":
                 num_par = num_par + len(uip["calibration"]["frequency"])
 
-            # Have to add in atm jac for oss.  check
-            if len(atm_jacobians_ils_total) > 0:
-                # Collect all species in all atm_jacobians_ils_total
-                all_species = []
-                for jj in range(len(atm_jacobians_ils_total["k_species"])):
-                    species = atm_jacobians_ils_total["k_species"][jj]["species"]
-                    if species not in all_species:
-                        all_species.append(species)
+            if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
+                num_par = num_par + num_atm
 
-                if jacob in all_species:
-                    num_par = num_par + num_atm
         # for ii in range(len(uip['jacobians'])):
 
         # AT_LINE 57 ELANOR/pack_jacobian.pro pack_jacobian
@@ -520,7 +422,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                         # end for jj in range(num_det):
                     ii_par = ii_par + 1
                 # end if (jacob == 'PCLOUD'):
-
                 # AT_LINE 175 ELANOR/pack_jacobian.pro pack_jacobian
 
                 ii_dets = 0
@@ -547,38 +448,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                     ii_par = ii_par + num_v
                 # end if (jacob == 'CLOUDEXT'):
 
-                # AT_LINE 193 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
-                uu = []
-                if uip["num_atm_k"] > 0:
-                    for mm in range(len(atm_jacobians_ils_total["k_species"])):
-                        if atm_jacobians_ils_total["k_species"][mm]["species"] == jacob:
-                            uu.append(mm)
 
-                if len(uu) > 0:
-                    uu = uu[0]  # We only need one.
-                    ii_ps = ii_par
-                    ii_pe = (
-                        ii_par + num_atm
-                    )  # PYTHON_NOTE: We don't need to subtract 1.
-                    if num_det == 1:
-                        # If we only processing 1 detector, there is only one element in atm_jacobians_ils_total.
-                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = (
-                            atm_jacobians_ils_total["k_species"][uu]["k"][:]
-                        )
-                    else:
-                        # AT_LINE 203 ELANOR/pack_jacobian.pro pack_jacobian
-                        for kk in range(num_det):
-                            o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = (
-                                atm_jacobians_ils_total[kk]["k_species"][uu]["k"]
-                            )
-                            ii_dets = ii_dets + num_rad
-                            ii_dete = ii_dete + num_rad
-                        # for kk in range(num_det):
-                    # AT_LINE 209 ELANOR/pack_jacobian.pro pack_jacobian
+                if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
                     ii_par = ii_par + num_atm
-                # end if jacob in atm_jacobians_ils_total['k_species']['species']:
+                    
             # end for ii in range(len(uip['jacobians'])):
         # end if (num_par > 0):
         # AT_LINE 213 ELANOR/pack_jacobian.pro pack_jacobian

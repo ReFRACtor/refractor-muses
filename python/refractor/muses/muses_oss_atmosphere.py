@@ -13,20 +13,29 @@ class VmrModify:
     """
 
     def __init__(self, initial_absorber_vmr: rf.AbsorberVmr) -> None:
-        self.initial_absorber_vmr = initial_absorber_vmr
+        self._underlying_absorber_vmr = initial_absorber_vmr
+
+    @property
+    def underlying_absorber_vmr(self) -> rf.AbsorberVmr:
+        return self._underlying_absorber_vmr
 
     def vmr_grid(
         self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
     ) -> rf.ArrayAd_double_1:
         raise NotImplementedError()
 
-    def post_process(
-        self, rad: np.ndarray, drad_datm_jac_spec: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
-        return rad, drad_datm_jac_spec
+    def update_rt_radiance(
+        self,
+        rad: np.ndarray,
+        drad_dvmr: np.ndarray | None,
+        press: rf.Pressure,
+        pdir: rf.Pressure.PressureGridType,
+    ) -> np.ndarray:
+        """drad_dvmr should be"""
+        return rad
 
 
-class VmrModifyNegToFixed(VmrModify):
+class VmrModifySmallToFixed(VmrModify):
     def __init__(self, initial_absorber_vmr: rf.AbsorberVmr, threshold: float) -> None:
         super().__init__(initial_absorber_vmr)
         self.threshold = threshold
@@ -34,13 +43,13 @@ class VmrModifyNegToFixed(VmrModify):
     def vmr_grid(
         self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
     ) -> rf.ArrayAd_double_1:
-        vmr_s = self.initial_absorber_vmr.vmr_grid(press, pdir)
+        vmr_s = self.underlying_absorber_vmr.vmr_grid(press, pdir)
         # TODO Any reason why this is restricted to linear? This is the
         # logic in py-retrieve and we duplicate it, but might want
         # to just replace any negative value.
         if (
-            not hasattr(self.initial_absorber_vmr, "state_mapping")
-            or not self.initial_absorber_vmr.state_mapping.name == "linear"
+            not hasattr(self.underlying_absorber_vmr, "state_mapping")
+            or not self.underlying_absorber_vmr.state_mapping.name == "linear"
         ):
             return vmr_s
         vmr = vmr_s.value.copy()
@@ -64,7 +73,7 @@ class VmrHandleNeg(VmrModify):
     def vmr_grid(
         self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
     ) -> rf.ArrayAd_double_1:
-        vmr_s = self.initial_absorber_vmr.vmr_grid(press, pdir)
+        vmr_s = self.underlying_absorber_vmr.vmr_grid(press, pdir)
         # Logic is a bit convoluted here, but we replace
         # any vmr < 1e-11, but *only* if at least one of
         # the vmrs is negative. I'm not sure if this
@@ -75,32 +84,31 @@ class VmrHandleNeg(VmrModify):
             return vmr_s
 
         self.have_negative = True
-        # Save for use in post_process, vmr before we have modified it
+        # Save for use in update_rt_radiance, vmr before we have modified it
         self.vmr_muses = vmr_s.value
         vmr = vmr_s.value.copy()
         vmr[vmr < self.threshold] = self.threshold
-        # Save for use in post_process, vmr after modification
+        # Save for use in update_rt_radiance, vmr after modification
         self.vmr_oss = vmr
         return rf.ArrayAd_double_1(vmr, vmr_s.jacobian)
 
-    def post_process(
-        self, rad: np.ndarray, drad_datm_jac_spec: np.ndarray
+    # TODO Change to take pressure and direction, so we aren't saving data here. Don't
+    # want an assume call order
+    def update_rt_radiance(
+        self,
+        rad: np.ndarray,
+        drad_dvmr: np.ndarray | None,
+        press: rf.Pressure,
+        pdir: rf.Pressure.PressureGridType,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Perform any updates to rad, i.e., with negative VMR handling"""
         if not self.have_negative:
-            return rad, drad_datm_jac_spec
-        indjac = muses_oss_handle.atm_jac_spec.index(
-            StateElementIdentifier(self.initial_absorber_vmr.gas_name)
-        )
-        k = drad_datm_jac_spec[:, :, indjac].copy() / self.vmr_oss[:, np.newaxis]
+            return rad, drad_dvmr
+        if drad_dvmr is None:
+            raise RuntimeError("Need drad_dvmr for update_rt_radiance")
         # modify radiance to ACTUAL VMR (vmr_muses) using K.dx
         # vrm_oss used by OSS, vmr_muses is what we want
-        dL = k.T @ (self.vmr_muses - self.vmr_oss)
-        rad2 = rad + dL
-        drad_datm_jac_spec2 = drad_datm_jac_spec.copy()
-        drad_datm_jac_spec2[:, :, indjac] = k * self.vmr_muses[:, np.newaxis]
-        return rad2, drad_datm_jac_spec2
-
+        return rad + drad_dvmr @ (self.vmr_muses - self.vmr_oss)
 
 class MusesOssAtmosphere:
     """The muses-oss code takes an "atmosphere" argument. This is the
@@ -165,6 +173,7 @@ class MusesOssAtmosphere:
         self.absorber_vmr = {
             StateElementIdentifier(vmr.gas_name): vmr for vmr in absorber_vmr_list
         }
+        # TODO Move to fm_creator, pull out vmr and separately test
         # Special handling for some species
         for selem, threshold in (
             (StateElementIdentifier("HCN"), 1e-12),
@@ -172,7 +181,7 @@ class MusesOssAtmosphere:
             (StateElementIdentifier("ACET"), 1e-12),
         ):
             if selem in self.absorber_vmr:
-                self.absorber_vmr[selem] = VmrModifyNegToFixed(
+                self.absorber_vmr[selem] = VmrModifySmallToFixed(
                     self.absorber_vmr[selem], threshold
                 )
         selem = StateElementIdentifier("PAN")
@@ -181,15 +190,19 @@ class MusesOssAtmosphere:
             self.absorber_vmr[selem] = VmrHandleNeg(self.absorber_vmr[selem], threshold)
 
     def oss_atmosphere(
-        self, press: rf.Pressure
+        self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
     ) -> tuple[np.ndarray, np.ndarray | None]:
         """Return np.ndarray that we should pass to OSS code for doing
         RT.
 
         Note we could return a rf.ArrayAd like we typically do. However, only
         a subset of the state elements actually have their jacobian calculated
-        by the OSS code. So as a convenience we just return datm_jac_spec_dstate which
+        by the OSS code. So as a convenience we just return dvmr_dstate_subset which
         is the subset of dvmr_dstate for columns that occur in the OSS jacobians.
+        This is indexed by gas_index, vmr_index, state_index
+
+        In addition, the muses oss code calculate drad_dlog_vmr rather than drad_dvmr.
+        We return dlog_vmr_dvmr to convert this. This is gas_index, vmr_index
         """
         # Sanity check that we don't have any absorbers not supported
         # by the OSS code
@@ -203,36 +216,50 @@ class MusesOssAtmosphere:
         # Go through all the absorbers needed by OSS, and get values for them.
         # For absorbers not in absorber_vmr, fill in as all 1e-20
         res = []
-        res_jac = []
+        res_dvmr_dstate = []
+        res_dlog_vmr_dvmr = []
         for spc in muses_oss_handle.atm_spec:
             if spc in self.absorber_vmr:
-                vmr = self.absorber_vmr[spc].vmr_grid(
-                    press, rf.Pressure.DECREASING_PRESSURE
-                )
+                vmr = self.absorber_vmr[spc].vmr_grid(press, pdir)
                 res.append(vmr.value)
                 if spc in muses_oss_handle.atm_jac_spec:
-                    res_jac.append(vmr.jacobian)
+                    # Add a column for the gas index
+                    res_dvmr_dstate.append(vmr.jacobian[np.newaxis, :])
+                    res_dlog_vmr_dvmr.append((1 / vmr.value)[np.newaxis, :])
             else:
                 res.append(np.full((press.number_level,), 1e-20))
-        if len(res_jac) > 0:
-            jac = np.vstack(res_jac)
+        if len(res_dvmr_dstate) > 0:
+            # This is ngas x nlevel x nstate
+            dvmr_dstate = np.vstack(res_dvmr_dstate)
+            dlog_vmr_dvmr = np.vstack(res_dlog_vmr_dvmr)
         else:
-            jac = None
-        return np.vstack(res).T, jac
+            dvmr_dstate = None
+            dlog_vmr_dvmr = None
+        return np.vstack(res).T, dvmr_dstate, dlog_vmr_dvmr
 
-    def post_process(
-        self, rad: np.ndarray, drad_datm_jac_spec: np.ndarray
+    def update_rt_radiance(
+        self,
+        rad: np.ndarray,
+        drad_dvmr: np.ndarray,
+        press: rf.Pressure,
+        pdir: rf.Pressure.PressureGridType,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Perform any updates to rad, i.e., with negative VMR handling"""
+        """Perform any updates to rad, i.e., with negative VMR handling
+
+        drad_dvmr should be rad_index, gas_index, vmr_index
+        """
         rad2 = rad
-        drad_datm_jac_spec2 = drad_datm_jac_spec
         for spc in muses_oss_handle.atm_spec:
             if spc in self.absorber_vmr:
-                if hasattr(self.absorber_vmr[spc], "post_process"):
-                    rad2, drad_datm_jac_spec2 = self.absorber_vmr[spc].post_process(
-                        rad2, drad_datm_jac_spec2
+                if hasattr(self.absorber_vmr[spc], "update_rt_radiance"):
+                    if spc in muses_oss_handle.atm_jac_spec:
+                        jac = drad_dvmr[:, muses_oss_handle.atm_jac_spec.index(spc), :]
+                    else:
+                        jac = None
+                    rad2 = self.absorber_vmr[spc].update_rt_radiance(
+                        rad2, jac, press, pdir
                     )
-        return rad2, drad_datm_jac_spec2
+        return rad2
 
 
 __all__ = [
