@@ -375,7 +375,7 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         )
         # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
-        if False:
+        if True:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.
             from refractor.muses_py_fm import MusesCrisForwardModel

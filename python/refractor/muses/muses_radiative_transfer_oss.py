@@ -175,10 +175,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             drad_dtemp,
             drad_dtsur,
             drad_dlog_vmr,
-            xkEm,
-            xkRf,
-            xkCldlnPres,
-            xkCldlnExt,
+            drad_demis,
+            drad_drefl,
+            drad_dlog_pcloud,
+            drad_dcloudext,
         ) = muses_oss_handle.oss_forward_model(
             tsurv.value,
             scale_cloudv.value,
@@ -207,10 +207,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         drad_dtemp *= rad_unit_f
         drad_dtsur *= rad_unit_f
         drad_dlog_vmr *= rad_unit_f
-        xkEm *= rad_unit_f
-        xkRf *= rad_unit_f
-        xkCldlnPres *= rad_unit_f
-        xkCldlnExt *= rad_unit_f
+        drad_demis *= rad_unit_f
+        drad_drefl *= rad_unit_f
+        drad_dlog_pcloud *= rad_unit_f
+        drad_dcloudext *= rad_unit_f
         # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index.
         if dlog_vmr_dvmr is not None:
             drad_dvmr = (
@@ -218,6 +218,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             )
         else:
             drad_dvmr = None
+        dlog_pcloud_dpcloud = 1/pcloudv.value
+        drad_dpcloud = drad_dlog_pcloud * dlog_pcloud_dpcloud
         rad = self.atmosphere.update_rt_radiance(
             rad, drad_dvmr, self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
@@ -235,12 +237,12 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # AT_LINE 36 fm_oss_stack.pro
         # Make cloud Jac structure.
         jacobian_cloud_map = {
-            "k_height": xkCldlnPres,
-            "k_ext": xkCldlnExt,
+            "k_height": drad_dlog_pcloud,
+            "k_ext": drad_dcloudext,
         }
 
         # Make emissivity Jac structure.
-        jacobian_emiss_ils_map = {"k": xkEm}
+        jacobian_emiss_ils_map = {"k": drad_demis}
 
         jac = None
         if not tsurv.is_constant:
@@ -252,6 +254,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if dvmr_dstate is not None:
             # axes = 2 because we have both vmr_index and gas_index to loop over.
             jac = self._add_jac(jac, np.tensordot(drad_dvmr, dvmr_dstate, axes=2))
+        if not pcloudv.is_constant:
+            jac = self._add_jac(jac, drad_dpcloud[:, np.newaxis] @ pcloudv.gradient[np.newaxis, :])
         jac2 = self.pack_jacobian(
             uip_all,
             rad.shape[0],
@@ -347,113 +351,39 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
                 num_par = num_par + num_atm
 
-        # for ii in range(len(uip['jacobians'])):
-
-        # AT_LINE 57 ELANOR/pack_jacobian.pro pack_jacobian
-        # Now unpack jacobians
         if num_par > 0:
             o_jacobian = np.zeros(
                 shape=(num_par, num_rad), dtype=np.float64
-            )  # output jacobian
+            )
 
             ii_par = 0
-            ii_dets = 0  # Start index for copying jacobina ils total.
-            ii_dete = num_rad  # End index for copying jacobian ils total.
 
             for ii in range(len(uip["jacobians"])):
-                ii_dets = 0
-                ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
                 jacob = uip["jacobians"][ii]
                 if jacob == "TSUR":
                     ii_par = ii_par + 1
                 if jacob == "TATM":
                     ii_par = ii_par + num_atm
-
-                # AT_LINE 79 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad  # PYTHON_NOTE: Because the slices in Python does not include num_rad, we don't have to subtract 1.
-
-                # AT_LINE 90 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad
-                if jacob == "EMIS" or jacob == "EMIS_LOG":
-                    num_em = len(uip["emissivity"]["value"])
-                    ii_ps = ii_par
-                    ii_pe = ii_par + num_em
-
-                    for kk in range(num_det):
-                        # Note: There is only one element for jacobian_emiss_ils_map so there's no need to use index.
-                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = (
-                            jacobian_emiss_ils_map["k"][:]
-                        )
-                        ii_dets = ii_dets + num_rad
-                        ii_dete = ii_dete + num_rad
-                    ii_par = ii_par + num_em
-                # end if (jacob == 'EMIS' or jacob == 'EMIS_LOG'):
-
-                # AT_LINE 109 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad
-
-                # AT_LINE 127 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad
-
-                # AT_LINE 145 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad
-
-                # AT_LINE 160 ELANOR/pack_jacobian.pro pack_jacobian
-                ii_dets = 0
-                ii_dete = num_rad
                 if jacob == "PCLOUD":
-                    if num_det == 1:
-                        # If we only processing 1 detector, there is only one element in jacobian_cloud_map.
-                        o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_cloud_map[
-                            "k_height"
-                        ][:]
-                    else:
-                        for jj in range(num_det):
-                            o_jacobian[ii_par, ii_dets:ii_dete] = jacobian_cloud_map[
-                                jj
-                            ]["k_height"][:]
-                            ii_dets = ii_dets + num_rad
-                            ii_dete = ii_dete + num_rad
-                        # end for jj in range(num_det):
                     ii_par = ii_par + 1
-                # end if (jacob == 'PCLOUD'):
-                # AT_LINE 175 ELANOR/pack_jacobian.pro pack_jacobian
-
-                ii_dets = 0
-                ii_dete = num_rad
-                if jacob == "CLOUDEXT":
-                    num_v = len(uip["cloud"]["frequency"])
-                    ii_ps = ii_par
-                    ii_pe = ii_par + num_v
-                    ii_dets = 0
-                    ii_dete = num_rad
-                    if num_det == 1:
-                        # If we only processing 1 detector, there is only one element in jacobian_cloud_map.
-                        o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = jacobian_cloud_map[
-                            "k_ext"
-                        ][:]
-                    else:
-                        for kk in range(num_det):
-                            o_jacobian[ii_ps:ii_pe, ii_dets:ii_dete] = (
-                                jacobian_cloud_map[kk]["k_ext"][:]
-                            )
-                            ii_dets = ii_dets + num_rad
-                            ii_dete = ii_dete + num_rad
-                        # end for kk in range(num_det):
-                    ii_par = ii_par + num_v
-                # end if (jacob == 'CLOUDEXT'):
-
                 if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
                     ii_par = ii_par + num_atm
 
-            # end for ii in range(len(uip['jacobians'])):
-        # end if (num_par > 0):
-        # AT_LINE 213 ELANOR/pack_jacobian.pro pack_jacobian
+                if jacob == "EMIS" or jacob == "EMIS_LOG":
+                    num_em = len(uip["emissivity"]["value"])
+                    o_jacobian[ii_par:ii_par+num_em, :num_rad] = (
+                        jacobian_emiss_ils_map["k"][:]
+                    )
+                    ii_par = ii_par + num_em
+
+                if jacob == "CLOUDEXT":
+                    num_v = len(uip["cloud"]["frequency"])
+                    ii_ps = ii_par
+                    o_jacobian[ii_par:ii_par+num_v, :num_rad] = jacobian_cloud_map[
+                            "k_ext"
+                        ][:]
+                    ii_par = ii_par + num_v
+
 
         return o_jacobian
 

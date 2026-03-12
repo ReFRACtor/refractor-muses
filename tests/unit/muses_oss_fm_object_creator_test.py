@@ -38,8 +38,35 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp, atol=1e-20, rtol=1e-7)
+    npt.assert_allclose(jac, jaccmp)
 
+@require_muses_py_fm
+def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
+    # Step 4 in the pan step. There is special handling for negative PAN VMR,
+    # so we want to test this out specifically
+    rs, rstep, _ = joint_tropomi_step_4_no_run_dir
+    obs_cris = rs.observation_handle_set.observation(
+        InstrumentIdentifier("CRIS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
+        None,
+    )
+    rs.strategy_executor.continue_retrieval(4)
+    breakpoint()
+    obs_cris.spectral_window.include_bad_sample = True
+    ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
+    fm = ocreator.forward_model
+    s = fm.radiance(0)
+    rad = s.spectral_range.data
+    jac = s.spectral_range.data_ad.jacobian
+
+    fmcmp = MusesCrisForwardModel(rs.current_state, obs_cris, rs.retrieval_config)
+    scmp = fmcmp.radiance(0)
+    radcmp = scmp.spectral_range.data
+    jaccmp = scmp.spectral_range.data_ad.jacobian
+    npt.assert_allclose(rad, radcmp)
+    npt.assert_allclose(jac, jaccmp)
+    
 
 @require_muses_py_fm
 def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):
@@ -62,4 +89,4 @@ def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):
     radcmp = scmp.spectral_range.data
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
-    npt.assert_allclose(jac, jaccmp, atol=1e-20, rtol=1e-7)
+    npt.assert_allclose(jac, jaccmp)

@@ -512,10 +512,10 @@ class MusesOssHandle:
         rad = np.zeros((nrad,), dtype=c_float, order="F")
         drad_dtemp = np.zeros((nlevels, nrad), dtype=c_float, order="F")
         drad_dtsur = np.zeros((nrad,), dtype=c_float, order="F")
-        xkem = np.zeros((nemis, nrad), dtype=c_float, order="F")
-        xkrf = np.zeros((nemis, nrad), dtype=c_float, order="F")
-        xkcldlnpres = np.zeros((nrad,), dtype=c_float, order="F")
-        xkcldlnext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
+        drad_demis = np.zeros((nemis, nrad), dtype=c_float, order="F")
+        drad_drefl = np.zeros((nemis, nrad), dtype=c_float, order="F")
+        drad_dlog_pcloud = np.zeros((nrad,), dtype=c_float, order="F")
+        drad_dcloudext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
         drad_dlog_vmr = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
 
         self.liboss.cppfwdwrapper(
@@ -553,20 +553,20 @@ class MusesOssHandle:
             drad_dtemp.ctypes.data_as(POINTER(c_float)),
             drad_dtsur.ctypes.data_as(POINTER(c_float)),
             drad_dlog_vmr.ctypes.data_as(POINTER(c_float)),
-            xkem.ctypes.data_as(POINTER(c_float)),
-            xkrf.ctypes.data_as(POINTER(c_float)),
-            xkcldlnpres.ctypes.data_as(POINTER(c_float)),
-            xkcldlnext.ctypes.data_as(POINTER(c_float)),
+            drad_demis.ctypes.data_as(POINTER(c_float)),
+            drad_drefl.ctypes.data_as(POINTER(c_float)),
+            drad_dlog_pcloud.ctypes.data_as(POINTER(c_float)),
+            drad_dcloudext.ctypes.data_as(POINTER(c_float)),
         )
         return (
             rad,
             drad_dtemp,
             drad_dtsur,
             drad_dlog_vmr,
-            xkem,
-            xkrf,
-            xkcldlnpres,
-            xkcldlnext,
+            drad_demis,
+            drad_drefl,
+            drad_dlog_pcloud,
+            drad_dcloudext,
         )
 
 

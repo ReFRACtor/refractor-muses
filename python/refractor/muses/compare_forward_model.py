@@ -4,6 +4,7 @@ import numpy as np
 import typing
 import pprint
 import subprocess
+from loguru import logger
 
 if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
@@ -41,6 +42,8 @@ class CompareForwardModel(rf.ForwardModel):
         # Add whatever comparison is wanted here
         if not np.allclose(res1.data, res2.data):
             breakpoint()
+        else:
+            logger.debug("Compare forward model spectral domain successful")
         return res1
 
     def irk(self, current_state: CurrentState) -> ResultIrk:
@@ -78,10 +81,14 @@ class CompareForwardModel(rf.ForwardModel):
                 breakpoint()
         if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
             breakpoint()
+        else:
+            logger.debug("Compare forward model radiance successful")
         if not np.allclose(
             res1.spectral_range.data_ad.jacobian, res2.spectral_range.data_ad.jacobian
         ):
             breakpoint()
+        else:
+            logger.debug("Compare forward model jacobian successful")
         return res1
 
 
