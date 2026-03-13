@@ -204,9 +204,13 @@ def joint_tropomi_step_12(
     ifile_hlp,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval input", ifile_hlp, 
+        joint_tropomi_test_in_dir,
+        12,
+        "retrieval input",
+        ifile_hlp,
     )
     return rs, rstep, kwargs
+
 
 @pytest.fixture(scope="function")
 def joint_tropomi_step_4_no_run_dir(
@@ -215,7 +219,11 @@ def joint_tropomi_step_4_no_run_dir(
     ifile_hlp,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 4, "retrieval input", ifile_hlp, include_run_dir=False,
+        joint_tropomi_test_in_dir,
+        4,
+        "retrieval input",
+        ifile_hlp,
+        include_run_dir=False,
     )
     return rs, rstep, kwargs
 

@@ -42,7 +42,7 @@ class CompareForwardModel(rf.ForwardModel):
         # Add whatever comparison is wanted here
         if not np.allclose(res1.data, res2.data):
             logger.debug("Compare forward model spectral domain failed")
-            #breakpoint()
+            # breakpoint()
         else:
             logger.debug("Compare forward model spectral domain successful")
         return res1
@@ -93,7 +93,7 @@ class CompareForwardModel(rf.ForwardModel):
             # py-retrieve or refractor is the "right" one, we just get differences because
             # of round off, order of operation
             logger.debug("Compare forward model jacobian failed")
-            #breakpoint()
+            # breakpoint()
         else:
             logger.debug("Compare forward model jacobian successful")
         return res1

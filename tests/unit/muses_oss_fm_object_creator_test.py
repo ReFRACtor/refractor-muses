@@ -41,6 +41,7 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     npt.assert_allclose(rad, radcmp)
     npt.assert_allclose(jac, jaccmp)
 
+
 @require_muses_py_fm
 def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
     # Step 4 in the pan step. There is special handling for negative PAN VMR,
@@ -54,13 +55,27 @@ def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
     )
     # One of the steps with negative values we happened to encounter in a test run.
     # Not overly important the actual values, just that some of them are negative.
-    parm_with_neg = np.array([1.96855068e-11, -1.28673082e-11,  5.93128416e-12, -2.55182263e-12,
-                     -4.08883901e-11, -5.01950030e-11, -4.33600751e-11, -5.53636433e-11,
-                     -1.01035998e-10, -1.35665252e-10,  5.19130457e-11,  1.59050278e-11,
-                     7.56316404e-14,  7.66969517e-14,  8.82406249e-14])
+    parm_with_neg = np.array(
+        [
+            1.96855068e-11,
+            -1.28673082e-11,
+            5.93128416e-12,
+            -2.55182263e-12,
+            -4.08883901e-11,
+            -5.01950030e-11,
+            -4.33600751e-11,
+            -5.53636433e-11,
+            -1.01035998e-10,
+            -1.35665252e-10,
+            5.19130457e-11,
+            1.59050278e-11,
+            7.56316404e-14,
+            7.66969517e-14,
+            8.82406249e-14,
+        ]
+    )
     # Default forward model is MusesCrisForwardModelOss
     cfunc = rs.strategy_executor.create_cost_function()
-    t1 = cfunc.fm_sv.state
     cfunc.parameters = parm_with_neg
     print(cfunc.fm_sv)
     fm = cfunc.fm_list[0]
@@ -75,7 +90,7 @@ def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
     npt.assert_allclose(jac, jaccmp, 2e-7)
-    
+
 
 @require_muses_py_fm
 def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):

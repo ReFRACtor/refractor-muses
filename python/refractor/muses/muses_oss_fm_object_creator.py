@@ -75,12 +75,17 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def emissivity(self) -> EmisState:
+        # TODO We want to figure out this logic, but for now just
+        # leverage off the UIP to determine which part of the state vector
+        # is actually "active". This mimics what Refractor_uip.update_uip does,
+        # without including the logic of how the basis matrix set this
+        update_arr = self._rf_uip.species_basis_matrix(["EMIS"]).sum(axis=0) != 0
         selem = [
             StateElementIdentifier("EMIS"),
         ]
         semis, mp = self.current_state.object_state(selem)
         semis_sd = self.current_state.state_element(selem[0]).spectral_domain
-        emis = EmisState(semis, semis_sd, mp)
+        emis = EmisState(semis, semis_sd, update_arr, mp)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,
@@ -90,12 +95,17 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def cloud_ext(self) -> CloudExtState:
+        # TODO We want to figure out this logic, but for now just
+        # leverage off the UIP to determine which part of the state vector
+        # is actually "active". This mimics what Refractor_uip.update_uip does,
+        # without including the logic of how the basis matrix set this
+        update_arr = self._rf_uip.species_basis_matrix(["CLOUDEXT"]).sum(axis=0) != 0
         selem = [
             StateElementIdentifier("CLOUDEXT"),
         ]
         scloudext, mp = self.current_state.object_state(selem)
         scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
-        cext = CloudExtState(scloudext, scloudext_sd, mp)
+        cext = CloudExtState(scloudext, scloudext_sd, update_arr, mp)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,

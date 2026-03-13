@@ -11,10 +11,14 @@ class CloudExtState(rf.GenericStateImpBase):
         self,
         cloud_extv: np.ndarray,
         cloud_ext_sd: rf.SpectralDomain,
+        update_arr: np.ndarray,
         mp: rf.StateMapping = rf.StateMappingLinear,
     ):
         super().__init__()
         self.init(cloud_extv, mp)
+        # We want to get the logic used in determining update_arr into this class,
+        # but for now leverage off what we get passed in.
+        self.update_arr = update_arr
         self._cloud_ext_sd = cloud_ext_sd
         if cloud_extv.shape != cloud_ext_sd.data.shape:
             raise RuntimeError(

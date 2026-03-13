@@ -218,7 +218,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             )
         else:
             drad_dvmr = None
-        dlog_pcloud_dpcloud = 1/pcloudv.value
+        dlog_pcloud_dpcloud = 1 / pcloudv.value
         drad_dpcloud = drad_dlog_pcloud * dlog_pcloud_dpcloud
         rad = self.atmosphere.update_rt_radiance(
             rad, drad_dvmr, self.pressure, rf.Pressure.DECREASING_PRESSURE
@@ -255,7 +255,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             # axes = 2 because we have both vmr_index and gas_index to loop over.
             jac = self._add_jac(jac, np.tensordot(drad_dvmr, dvmr_dstate, axes=2))
         if not pcloudv.is_constant:
-            jac = self._add_jac(jac, drad_dpcloud[:, np.newaxis] @ pcloudv.gradient[np.newaxis, :])
+            jac = self._add_jac(
+                jac, drad_dpcloud[:, np.newaxis] @ pcloudv.gradient[np.newaxis, :]
+            )
         jac2 = self.pack_jacobian(
             uip_all,
             rad.shape[0],
@@ -314,13 +316,9 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
     ):
         o_jacobian = None
 
-        # AT_LINE 12 ELANOR/pack_jacobian.pro pack_jacobian
         num_par = 0
         num_atm = len(uip["atmosphere"][0, :])
 
-        num_det = 1
-
-        # AT_LINE 24 ELANOR/pack_jacobian.pro pack_jacobian
         for ii in range(len(uip["jacobians"])):
             jacob = uip["jacobians"][ii].upper()
 
@@ -352,9 +350,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
                 num_par = num_par + num_atm
 
         if num_par > 0:
-            o_jacobian = np.zeros(
-                shape=(num_par, num_rad), dtype=np.float64
-            )
+            o_jacobian = np.zeros(shape=(num_par, num_rad), dtype=np.float64)
 
             ii_par = 0
 
@@ -371,19 +367,17 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
                 if jacob == "EMIS" or jacob == "EMIS_LOG":
                     num_em = len(uip["emissivity"]["value"])
-                    o_jacobian[ii_par:ii_par+num_em, :num_rad] = (
+                    o_jacobian[ii_par : ii_par + num_em, :num_rad] = (
                         jacobian_emiss_ils_map["k"][:]
                     )
                     ii_par = ii_par + num_em
 
                 if jacob == "CLOUDEXT":
                     num_v = len(uip["cloud"]["frequency"])
-                    ii_ps = ii_par
-                    o_jacobian[ii_par:ii_par+num_v, :num_rad] = jacobian_cloud_map[
-                            "k_ext"
-                        ][:]
+                    o_jacobian[ii_par : ii_par + num_v, :num_rad] = jacobian_cloud_map[
+                        "k_ext"
+                    ][:]
                     ii_par = ii_par + num_v
-
 
         return o_jacobian
 
