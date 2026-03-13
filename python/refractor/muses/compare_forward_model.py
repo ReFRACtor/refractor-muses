@@ -41,7 +41,8 @@ class CompareForwardModel(rf.ForwardModel):
         res2 = self.fm2.spectral_domain(sensor_index)  # noqa:F841
         # Add whatever comparison is wanted here
         if not np.allclose(res1.data, res2.data):
-            breakpoint()
+            logger.debug("Compare forward model spectral domain failed")
+            #breakpoint()
         else:
             logger.debug("Compare forward model spectral domain successful")
         return res1
@@ -80,13 +81,19 @@ class CompareForwardModel(rf.ForwardModel):
             if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
                 breakpoint()
         if not np.allclose(res1.spectral_range.data, res2.spectral_range.data):
-            breakpoint()
+            logger.debug("Compare forward model radiance failed")
+            # breakpoint()
         else:
             logger.debug("Compare forward model radiance successful")
         if not np.allclose(
             res1.spectral_range.data_ad.jacobian, res2.spectral_range.data_ad.jacobian
         ):
-            breakpoint()
+            # Note that failure isn't necessarily a problem. In particular, pan
+            # is linear and we see differences that we carefully looked at. Neither
+            # py-retrieve or refractor is the "right" one, we just get differences because
+            # of round off, order of operation
+            logger.debug("Compare forward model jacobian failed")
+            #breakpoint()
         else:
             logger.debug("Compare forward model jacobian successful")
         return res1

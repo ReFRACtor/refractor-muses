@@ -375,9 +375,17 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
         )
         # TODO Remove this when no longer using UIP
         self._add_rf_uip_update_to_fm(fm1)
-        if True:
+        if False:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.
+            #
+            # NOTE - We have done some comparisons with larger difference
+            # between py-retrieve and refractor where we had failures in comparing.
+            # Looked into this, and this was for PAN only. I think this is the only
+            # linear vs log retrieval. In any case, after carefully looking I determined
+            # that neither refractor or py-retrieve is "right". They just give slightly
+            # different answers from round off/order of operation. So when looking
+            # at this, you may want to just ignore differences in PAN.
             from refractor.muses_py_fm import MusesCrisForwardModel
 
             fm2 = MusesCrisForwardModel(
