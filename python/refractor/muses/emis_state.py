@@ -11,7 +11,7 @@ class EmisState(rf.GenericStateImpBase):
         self,
         emisv: np.ndarray,
         emis_sd: rf.SpectralDomain,
-        update_arr: np.ndarray,
+        update_arr: np.ndarray | None,
         mp: rf.StateMapping = rf.StateMappingLinear,
     ):
         super().__init__()

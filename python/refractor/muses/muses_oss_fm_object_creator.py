@@ -79,7 +79,10 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         # leverage off the UIP to determine which part of the state vector
         # is actually "active". This mimics what Refractor_uip.update_uip does,
         # without including the logic of how the basis matrix set this
-        update_arr = self._rf_uip.species_basis_matrix(["EMIS"]).sum(axis=0) != 0
+        if self._rf_uip.basis_matrix is not None:
+            update_arr = self._rf_uip.species_basis_matrix(["EMIS"]).sum(axis=0) != 0
+        else:
+            update_arr = None
         selem = [
             StateElementIdentifier("EMIS"),
         ]
@@ -99,7 +102,10 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         # leverage off the UIP to determine which part of the state vector
         # is actually "active". This mimics what Refractor_uip.update_uip does,
         # without including the logic of how the basis matrix set this
-        update_arr = self._rf_uip.species_basis_matrix(["CLOUDEXT"]).sum(axis=0) != 0
+        if self._rf_uip.basis_matrix is not None:
+            update_arr = self._rf_uip.species_basis_matrix(["CLOUDEXT"]).sum(axis=0) != 0
+        else:
+            update_arr = None
         selem = [
             StateElementIdentifier("CLOUDEXT"),
         ]

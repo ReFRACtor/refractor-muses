@@ -11,7 +11,7 @@ class CloudExtState(rf.GenericStateImpBase):
         self,
         cloud_extv: np.ndarray,
         cloud_ext_sd: rf.SpectralDomain,
-        update_arr: np.ndarray,
+        update_arr: np.ndarray | None,
         mp: rf.StateMapping = rf.StateMappingLinear,
     ):
         super().__init__()
