@@ -139,12 +139,17 @@ class FakeRetrievalInfo:
         return self.current_state.updated_fm_flag
 
     def _map_type(self, sid: StateElementIdentifier) -> str | rf.StateMapping:
+        from refractor.muses import StateMappingUpdateArray
         smap = self.current_state.state_mapping(sid)
         if self.use_state_mapping:
             return smap
         if isinstance(smap, rf.StateMappingLinear):
             return "linear"
         elif isinstance(smap, rf.StateMappingLog):
+            return "log"
+        elif isinstance(smap, StateMappingUpdateArray):
+            return "linear"
+        elif smap.name == "state mapping, log":
             return "log"
         raise RuntimeError(f"Don't recognize state mapping {smap}")
 

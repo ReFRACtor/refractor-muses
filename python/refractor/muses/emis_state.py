@@ -24,6 +24,7 @@ class EmisState(rf.GenericStateImpBase):
             raise RuntimeError(
                 "emisivity and emisivity spectral domain need to be the same size"
             )
+        self.initial_value = emisv.copy()
 
     @property
     def emissivity(self) -> rf.ArrayAd_double_1:

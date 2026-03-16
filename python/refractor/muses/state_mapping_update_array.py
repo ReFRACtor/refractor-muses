@@ -37,25 +37,19 @@ class StateMappingUpdateArray(rf.StateMapping):
             raise RuntimeError("Full state has not yet been initialized")
         if self.full_state.rows != self.update_array.shape[0]:
             raise RuntimeError("full_state and update_array need to be the same size")
-        if retrieval_values.rows != np.count_nonzero(self.update_array):
-            raise RuntimeError("retrieval_values should match size of True values in update_array")
-        j = 0
+        if retrieval_values.rows != self.update_array.shape[0]:
+            raise RuntimeError("retrieval_values update_array need to be the same size")
+        if self.full_state.number_variable == 0 and retrieval_values.number_variable != 0:
+            self.full_state = rf.ArrayAd_double_1(self.full_state.value, np.zeros(retrieval_values.jacobian.shape))
         for i in range(self.update_array.shape[0]):
             if self.update_array[i]:
-                self.full_state[i] = retrieval_values[j]
-                j += 1
+                self.full_state[i] = retrieval_values[i]
         return self.full_state
 
     def retrieval_state(self, retrieval_values: rf.ArrayAd_double_1) -> rf.ArrayAd_double_1:
         self.full_state = retrieval_values.copy()
         if self.full_state.rows != self.update_array.shape[0]:
             raise RuntimeError("full_state and update_array need to be the same size")
-        res = rf.ArrayAd_double_1(int(np.count_nonzero(self.update_array)), self.full_state.number_variable)
-        j = 0
-        for i in range(self.update_array.shape[0]):
-            if self.update_array[i]:
-                res[j] = self.full_state[i]
-                j += 1
-        return res
+        return retrieval_values
   
 __all__ = ["StateMappingUpdateArray",]
