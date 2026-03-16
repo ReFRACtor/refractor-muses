@@ -5,6 +5,7 @@ from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
 )
+from .state_mapping_update_array import StateMappingUpdateArray
 from .retrieval_array import (
     FullGridMappedArray,
     RetrievalGridArray,
@@ -99,16 +100,34 @@ class StateElementFreqShared(StateElementOspFile):
         )
 
     def _fill_in_state_mapping(self) -> None:
+        if self._state_mapping is not None:
+            return
         super()._fill_in_state_mapping()
+        assert self.spectral_domain is not None
+        # TODO See about doing this directly
+        wflag = self.mw_frequency_needed(
+            self.microwindows,
+            self.spectral_domain.data,
+        )
+        # Doesn't work yet, we can perhaps come back to this
+        smap = StateMappingUpdateArray(wflag.astype(bool))
+        #if not isinstance(self._state_mapping, rf.StateMappingLinear):
+        #    self._state_mapping = rf.StateMappingComposite([smap, self._state_mapping])
+        #else:
+        #    self._state_mapping = smap
+
+    @property
+    def pressure_list_fm(self) -> FullGridMappedArray | None:
         # TODO Fix this
         # Note very confusingly this is actually the spectral domain wavelength
         # instead of pressure. We should fix this naming at some point, but for
         # now match what py-retrieve expects.
         if self._retrieved_this_step:
             assert self.spectral_domain is not None
-            self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
+            return self.spectral_domain.data.view(FullGridMappedArray)
         else:
-            self._pressure_list_fm = None
+            return None
+        
 
     # TODO This seems to be doing something pretty similar to rf.SpectralWindow.
     # we should replace this at some point, but for now leave this here since I'm

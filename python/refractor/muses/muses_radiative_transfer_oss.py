@@ -153,12 +153,14 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         oss_atmosphere, dvmr_dstate, dlog_vmr_dvmr = self.atmosphere.oss_atmosphere(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
-        emisv = self.emissivity.emissivity
-        cloudextv = self.cloud_ext.cloud_ext
+        emisv2 = self.emissivity.emissivity
+        cloudextv2 = self.cloud_ext.cloud_ext
         # These aren't working yet. Need to work through how these get updated
         emisv = rf.ArrayAd_double_1(uip_all["emissivity"]["value"])
         cloudextv = rf.ArrayAd_double_1(uip_all["cloud"]["extinction"])
-
+        if not np.allclose(emisv2.value, emisv.value):
+            breakpoint()
+        
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:
