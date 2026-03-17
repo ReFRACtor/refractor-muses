@@ -151,6 +151,8 @@ class FakeRetrievalInfo:
             return "linear"
         elif smap.name == "state mapping, log":
             return "log"
+        elif smap.name == "log, state mapping":
+            return "log"
         raise RuntimeError(f"Don't recognize state mapping {smap}")
 
     @property

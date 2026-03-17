@@ -28,28 +28,7 @@ class EmisState(rf.GenericStateImpBase):
 
     @property
     def emissivity(self) -> rf.ArrayAd_double_1:
-        # Would like to move this into a StateMapping if we can figure out
-        # the logic
-        ms = self.mapped_state
-        if self.update_arr is None or self.update_arr.shape[0] == 0:
-            return ms
-        # Logic only needed when we have update_arr, which is only if we
-        # are retrieving this element
-        res = rf.ArrayAd_double_1(ms.rows, ms.number_variable)
-        for i in range(self.update_arr.shape[0]):
-            if self.update_arr[i]:
-                res[i] = ms[i]
-            else:
-                # TODO Look into this
-                # Note it actually seems wrong that we have a nonzero jacobian here,
-                # but this is what py-retrieve does.
-                #
-                # However, I did try removing this, and things changed a lot. It is
-                # possible the error analysis etc. depends on the jacobian (e.g. it is
-                # a bit like the systematic jacobians). Somebody smarter than me
-                # will need to look into this
-                res[i] = rf.AutoDerivativeDouble(self.initial_value[i], ms[i].gradient)
-        return res
+        return self.mapped_state
 
     @property
     def emissivity_spectral_domain(self) -> rf.SpectralDomain:
