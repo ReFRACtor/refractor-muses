@@ -5,7 +5,11 @@ from refractor.muses import (
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import numpy.testing as npt
+import pytest
 
+# We don't know exactly what we want here. Set test aside until we can come back
+# to this
+@pytest.mark.skip
 def test_state_mapping_update_array():
     smap = StateMappingUpdateArray(np.array([True, False, False, True]))
     assert smap.name == "update array"

@@ -1230,7 +1230,6 @@ class RefractorUip:
         # MAP THE RETRIEVAL VECTOR TO THE FULL STATE VECTOR
         # replace things in this in specific cases, e.g. exp()
         fm_vec = i_retrieval_vec @ ret_info.basis_matrix
-
         num_map = ret_info.basis_matrix.shape[1]  # Get the 2nd dimension of ((163,471).
         update_arr = np.zeros(shape=(num_map), dtype=int)
 

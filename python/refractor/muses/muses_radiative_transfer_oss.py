@@ -153,13 +153,13 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         oss_atmosphere, dvmr_dstate, dlog_vmr_dvmr = self.atmosphere.oss_atmosphere(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
-        emisv2 = self.emissivity.emissivity
+        emisv = self.emissivity.emissivity
         cloudextv2 = self.cloud_ext.cloud_ext
         # These aren't working yet. Need to work through how these get updated
-        emisv = rf.ArrayAd_double_1(uip_all["emissivity"]["value"])
+        #emisv = rf.ArrayAd_double_1(uip_all["emissivity"]["value"])
         cloudextv = rf.ArrayAd_double_1(uip_all["cloud"]["extinction"])
-        if not np.allclose(emisv2.value, emisv.value):
-            breakpoint()
+        #if not np.allclose(emisv2.value, emisv.value):
+        #    breakpoint()
         
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
@@ -247,6 +247,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         jacobian_emiss_ils_map = {"k": drad_demis}
 
         jac = None
+        if not emisv.is_constant:
+            jac = self._add_jac(jac, drad_demis.T @ emisv.jacobian)
         if not tsurv.is_constant:
             jac = self._add_jac(
                 jac, drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
@@ -369,9 +371,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
                 if jacob == "EMIS" or jacob == "EMIS_LOG":
                     num_em = len(uip["emissivity"]["value"])
-                    o_jacobian[ii_par : ii_par + num_em, :num_rad] = (
-                        jacobian_emiss_ils_map["k"][:]
-                    )
                     ii_par = ii_par + num_em
 
                 if jacob == "CLOUDEXT":

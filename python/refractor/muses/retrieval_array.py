@@ -233,7 +233,7 @@ class FullGridMappedArrayFromRetGrid(np.ndarray):
     So although FullGridMappedArray.to_ret == FullGridMappedArrayFromRetGrid.to_ret,
     in general FullGridMappedArray != FullGridMappedArrayFromRetGrid.
 
-    Do distinguish this, if we have FullGridMappedArray as fm we call
+    To distinguish this, if we have FullGridMappedArray as fm we call
     FullGridMappedArrayFromRetGrid fmprime.
 
     It isn't completely clear if muses-py *should* be using
