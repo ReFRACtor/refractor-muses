@@ -3,6 +3,7 @@ import refractor.framework as rf  # type: ignore
 from .muses_oss_handle import muses_oss_handle
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 import numpy as np
+import numpy.testing as npt
 import os
 import copy
 import typing
@@ -154,12 +155,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
         emisv = self.emissivity.emissivity
-        cloudextv2 = self.cloud_ext.cloud_ext
-        # These aren't working yet. Need to work through how these get updated
-        #emisv = rf.ArrayAd_double_1(uip_all["emissivity"]["value"])
-        cloudextv = rf.ArrayAd_double_1(uip_all["cloud"]["extinction"])
-        #if not np.allclose(emisv2.value, emisv.value):
-        #    breakpoint()
+        cloudextv = self.cloud_ext.cloud_ext.convert("km^-1").value
         
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
@@ -180,7 +176,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             drad_demis,
             drad_drefl,
             drad_dlog_pcloud,
-            drad_dcloudext,
+            drad_dlog_cloudext,
         ) = muses_oss_handle.oss_forward_model(
             tsurv.value,
             scale_cloudv.value,
@@ -212,7 +208,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         drad_demis *= rad_unit_f
         drad_drefl *= rad_unit_f
         drad_dlog_pcloud *= rad_unit_f
-        drad_dcloudext *= rad_unit_f
+        drad_dlog_cloudext *= rad_unit_f
         # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index.
         if dlog_vmr_dvmr is not None:
             drad_dvmr = (
@@ -222,6 +218,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             drad_dvmr = None
         dlog_pcloud_dpcloud = 1 / pcloudv.value
         drad_dpcloud = drad_dlog_pcloud * dlog_pcloud_dpcloud
+        dlog_cloudext_dcloudext = 1 / cloudextv.value
+        drad_dcloudext = drad_dlog_cloudext * dlog_cloudext_dcloudext[:, np.newaxis]
         rad = self.atmosphere.update_rt_radiance(
             rad, drad_dvmr, self.pressure, rf.Pressure.DECREASING_PRESSURE
         )
@@ -233,22 +231,18 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if drad_dvmr is not None and not np.all(np.isfinite(drad_dvmr)):
             raise RuntimeError("Non-finite jacobians")
 
-        # Prepare Jacobians for pack_jacobian function.
-        uip_all["num_atm_k"] = len(muses_oss_handle.atm_jac_spec)
-
         # AT_LINE 36 fm_oss_stack.pro
         # Make cloud Jac structure.
         jacobian_cloud_map = {
-            "k_height": drad_dlog_pcloud,
-            "k_ext": drad_dcloudext,
+            "k_ext": drad_dlog_cloudext,
         }
-
-        # Make emissivity Jac structure.
-        jacobian_emiss_ils_map = {"k": drad_demis}
 
         jac = None
         if not emisv.is_constant:
             jac = self._add_jac(jac, drad_demis.T @ emisv.jacobian)
+        if not cloudextv.is_constant:
+            jact2 = drad_dcloudext.T @ cloudextv.jacobian
+            jac = self._add_jac(jac, drad_dcloudext.T @ cloudextv.jacobian)
         if not tsurv.is_constant:
             jac = self._add_jac(
                 jac, drad_dtsur[:, np.newaxis] @ tsurv.gradient[np.newaxis, :]
@@ -265,7 +259,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         jac2 = self.pack_jacobian(
             uip_all,
             rad.shape[0],
-            jacobian_emiss_ils_map,
             jacobian_cloud_map,
         )
         try:
@@ -280,7 +273,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             and jac2.ndim > 0
             and len(self.retrieval_state_element_id) > 0
         ):
-            jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
+            jact = np.matmul(sub_basis_matrix, jac2).transpose()
+            #jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
+        #if not cloudextv.is_constant:
+        #    npt.assert_allclose(jact, jact2)
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
         else:
@@ -315,7 +311,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self,
         uip,
         num_rad,
-        jacobian_emiss_ils_map,
         jacobian_cloud_map,
     ):
         o_jacobian = None

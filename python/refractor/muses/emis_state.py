@@ -43,6 +43,11 @@ class EmisState(rf.GenericStateImpBase):
                 # TODO Look into this
                 # Note it actually seems wrong that we have a nonzero jacobian here,
                 # but this is what py-retrieve does.
+                #
+                # However, I did try removing this, and things changed a lot. It is
+                # possible the error analysis etc. depends on the jacobian (e.g. it is
+                # a bit like the systematic jacobians). Somebody smarter than me
+                # will need to look into this
                 res[i] = rf.AutoDerivativeDouble(self.initial_value[i], ms[i].gradient)
         return res
 

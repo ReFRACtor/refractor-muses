@@ -515,7 +515,7 @@ class MusesOssHandle:
         drad_demis = np.zeros((nemis, nrad), dtype=c_float, order="F")
         drad_drefl = np.zeros((nemis, nrad), dtype=c_float, order="F")
         drad_dlog_pcloud = np.zeros((nrad,), dtype=c_float, order="F")
-        drad_dcloudext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
+        drad_dlog_cloudext = np.zeros((ncloud, nrad), dtype=c_float, order="F")
         drad_dlog_vmr = np.zeros((nlevels, nrad, njac), dtype=c_float, order="F")
 
         self.liboss.cppfwdwrapper(
@@ -556,7 +556,7 @@ class MusesOssHandle:
             drad_demis.ctypes.data_as(POINTER(c_float)),
             drad_drefl.ctypes.data_as(POINTER(c_float)),
             drad_dlog_pcloud.ctypes.data_as(POINTER(c_float)),
-            drad_dcloudext.ctypes.data_as(POINTER(c_float)),
+            drad_dlog_cloudext.ctypes.data_as(POINTER(c_float)),
         )
         return (
             rad,
@@ -566,7 +566,7 @@ class MusesOssHandle:
             drad_demis,
             drad_drefl,
             drad_dlog_pcloud,
-            drad_dcloudext,
+            drad_dlog_cloudext,
         )
 
 
