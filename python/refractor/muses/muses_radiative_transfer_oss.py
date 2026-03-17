@@ -24,7 +24,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
 
     def __init__(
         self,
-        rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
         press: rf.Pressure,
         temperature: rf.Temperature,
         tsur: rf.SurfaceTemperature,
@@ -40,10 +39,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         ifile_hlp: InputFileHelper,
         retrieval_state_element_id: list[StateElementIdentifier],
         species_list: list[StateElementIdentifier],
-        nlevels: int,
-        nfreq: int,  # This seems to be the size of the emissivity. Perhaps verify,
-        # And if so change it name. This has nothing to do with the
-        # size of freq_oss that gets filled in
         sel_file: str | os.PathLike[str] | InputFilePath,
         od_file: str | os.PathLike[str] | InputFilePath,
         sol_file: str | os.PathLike[str] | InputFilePath,
@@ -63,7 +58,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         to the gases).
         """
         super().__init__()
-        self.rf_uip = rf_uip
         self.pressure = press
         self.temperature = temperature
         self.tsur = tsur
@@ -79,8 +73,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         self.ifile_hlp = ifile_hlp
         self.retrieval_state_element_id = retrieval_state_element_id
         self.species_list = species_list
-        self.nlevels = nlevels
-        self.nfreq = nfreq
         self.sel_file = sel_file
         self.od_file = od_file
         self.sol_file = sol_file
@@ -121,21 +113,14 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             self.ifile_hlp,
             self.retrieval_state_element_id,
             self.species_list,
-            self.nlevels,
-            self.nfreq,
+            self.pressure.number_level,
+            self.emissivity.emissivity_spectral_domain.rows,
             self.sel_file,
             self.od_file,
             self.sol_file,
             self.fix_file,
         )
         muses_oss_handle.oss_channel_select(sd)
-        try:
-            uip_all = self.rf_uip.uip_all(self.instrument_name)
-        except KeyError:
-            # Work around, since we use a fake tes for AIRS IRK. We could do something
-            # cleaner, but hopefully we'll be removing the uip stuff. So just have a
-            # fix that works for now.
-            uip_all = self.rf_uip.uip_all("AIRS")
         tsurv = self.tsur.surface_temperature(sensor_index).value
         scale_cloudv = self.scale_cloud.scale_cloud(sensor_index)
         pcloudv = self.pcloud.pressure_cloud(sensor_index).convert("mbar").value
@@ -231,17 +216,10 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if drad_dvmr is not None and not np.all(np.isfinite(drad_dvmr)):
             raise RuntimeError("Non-finite jacobians")
 
-        # AT_LINE 36 fm_oss_stack.pro
-        # Make cloud Jac structure.
-        jacobian_cloud_map = {
-            "k_ext": drad_dlog_cloudext,
-        }
-
         jac = None
         if not emisv.is_constant:
             jac = self._add_jac(jac, drad_demis.T @ emisv.jacobian)
         if not cloudextv.is_constant:
-            jact2 = drad_dcloudext.T @ cloudextv.jacobian
             jac = self._add_jac(jac, drad_dcloudext.T @ cloudextv.jacobian)
         if not tsurv.is_constant:
             jac = self._add_jac(
@@ -256,27 +234,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             jac = self._add_jac(
                 jac, drad_dpcloud[:, np.newaxis] @ pcloudv.gradient[np.newaxis, :]
             )
-        jac2 = self.pack_jacobian(
-            uip_all,
-            rad.shape[0],
-            jacobian_cloud_map,
-        )
-        try:
-            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
-                self.instrument_name
-            )
-        except KeyError:
-            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix("AIRS")
-        if (
-            jac2 is not None
-            and sub_basis_matrix.shape[0] > 0
-            and jac2.ndim > 0
-            and len(self.retrieval_state_element_id) > 0
-        ):
-            jact = np.matmul(sub_basis_matrix, jac2).transpose()
-            #jac = self._add_jac(jac, np.matmul(sub_basis_matrix, jac2).transpose())
-        #if not cloudextv.is_constant:
-        #    npt.assert_allclose(jact, jact2)
         if jac is not None:
             a = rf.ArrayAd_double_1(rad, jac)
         else:
@@ -306,77 +263,6 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if jac is None:
             return jacadd
         return jac + jacadd
-
-    def pack_jacobian(
-        self,
-        uip,
-        num_rad,
-        jacobian_cloud_map,
-    ):
-        o_jacobian = None
-
-        num_par = 0
-        num_atm = len(uip["atmosphere"][0, :])
-
-        for ii in range(len(uip["jacobians"])):
-            jacob = uip["jacobians"][ii].upper()
-
-            if jacob == "TSUR" or jacob == "PTGANG":
-                num_par = num_par + 1
-
-            if jacob == "EMIS" or jacob == "EMIS_LOG":
-                num_par = num_par + len(uip["emissivity"]["value"])
-
-            if jacob == "CLOUDEXT":
-                num_par = num_par + len(uip["cloud"]["frequency"])
-
-            if jacob == "PCLOUD":
-                num_par = num_par + 1
-
-            if jacob == "TATM":
-                num_par = num_par + num_atm
-
-            if jacob == "RESSCALE":
-                num_par = num_par + 1
-
-            if jacob == "CALSCALE":
-                num_par = num_par + len(uip["calibration"]["frequency"])
-
-            if jacob == "CALOFFSET":
-                num_par = num_par + len(uip["calibration"]["frequency"])
-
-            if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
-                num_par = num_par + num_atm
-
-        if num_par > 0:
-            o_jacobian = np.zeros(shape=(num_par, num_rad), dtype=np.float64)
-
-            ii_par = 0
-
-            for ii in range(len(uip["jacobians"])):
-                jacob = uip["jacobians"][ii]
-                if jacob == "TSUR":
-                    ii_par = ii_par + 1
-                if jacob == "TATM":
-                    ii_par = ii_par + num_atm
-                if jacob == "PCLOUD":
-                    ii_par = ii_par + 1
-                if jacob in [str(i) for i in muses_oss_handle.atm_jac_spec]:
-                    ii_par = ii_par + num_atm
-
-                if jacob == "EMIS" or jacob == "EMIS_LOG":
-                    num_em = len(uip["emissivity"]["value"])
-                    ii_par = ii_par + num_em
-
-                if jacob == "CLOUDEXT":
-                    num_v = len(uip["cloud"]["frequency"])
-                    o_jacobian[ii_par : ii_par + num_v, :num_rad] = jacobian_cloud_map[
-                        "k_ext"
-                    ][:]
-                    ii_par = ii_par + num_v
-
-        return o_jacobian
-
 
 __all__ = [
     "MusesRadiativeTransferOss",

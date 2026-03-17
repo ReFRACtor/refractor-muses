@@ -44,8 +44,6 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         self.dir_lut = dir_lut
         # Filled in by derived classes
         self.species_list: list[StateElementIdentifier] = []
-        self.nlevels = -1
-        self.nfreq = -1
         self.sel_file: str | os.PathLike[str] | InputFilePath = ""
         self.od_file: str | os.PathLike[str] | InputFilePath = ""
         self.sol_file: str | os.PathLike[str] | InputFilePath = ""
@@ -205,7 +203,6 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         return MusesRadiativeTransferOss(
-            self._rf_uip,
             self.pressure_fm,
             self.temperature,
             self.surface_temperature,
@@ -225,8 +222,6 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
             if self.current_state.use_systematic
             else self.current_state.retrieval_state_element_id,
             self.species_list,
-            self.nlevels,
-            self.nfreq,
             self.sel_file,
             self.od_file,
             self.sol_file,
@@ -372,9 +367,6 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        # We need to come up with a way to get these values
-        self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
-        self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
@@ -472,9 +464,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        # We need to come up with a way to get these values
-        self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
-        self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
     @cached_property
     def tes_pointing_angle_surface(self) -> PointingAngleSurface:
@@ -526,7 +515,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
         tes_fix_file = tes_dir_lut / "default.dat"
 
         return MusesRadiativeTransferOss(
-            self._rf_uip,
             self.pressure_fm,
             self.temperature,
             self.surface_temperature,
@@ -546,8 +534,6 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
             if self.current_state.use_systematic
             else self.current_state.retrieval_state_element_id,
             self.species_list,
-            self.nlevels,
-            self.nfreq,
             tes_sel_file,
             tes_od_file,
             tes_sol_file,
@@ -644,9 +630,6 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
                 "PAN",
             ]
         ]
-        # We need to come up with a way to get these values
-        self.nlevels = self._rf_uip.uip["atmosphere"].shape[1]
-        self.nfreq = self._rf_uip.uip["emissivity"]["frequency"].shape[0]
 
     @cached_property
     def forward_model(self) -> rf.ForwardModel:

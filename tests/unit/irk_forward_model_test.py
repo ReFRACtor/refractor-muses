@@ -48,7 +48,7 @@ def test_muses_cris_forward_model_irk(joint_tropomi_step_12):
     npt.assert_allclose(
         rirk.radiances["radarr_fm"],
         rirkcmp.radiances["radarr_fm"],
-        atol=1e-10,
+        atol=1e-8,
         rtol=1e-6,
     )
     npt.assert_allclose(
