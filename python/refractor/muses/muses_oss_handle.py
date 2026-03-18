@@ -568,7 +568,7 @@ class MusesOssHandle:
             drad_dtemp * rad_unit_f,
             drad_dtsur * rad_unit_f,
             drad_dlog_vmr * rad_unit_f,
-            drad_demis  * rad_unit_f,
+            drad_demis * rad_unit_f,
             drad_drefl * rad_unit_f,
             drad_dlog_pcloud * rad_unit_f,
             drad_dlog_cloudext * rad_unit_f,

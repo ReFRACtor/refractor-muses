@@ -9,11 +9,12 @@ import importlib.util
 import socket
 import subprocess
 import warnings
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from multiprocessing import Process
+from typing import Any
 
-version="1.0.0"
-usage="""Usage:
+version = "1.0.0"
+usage = """Usage:
   refractor-retrieve [options]
   refractor-retrieve -h | --help
   refractor-retrieve -v | --version
@@ -53,22 +54,21 @@ Options:
 
 """
 
-def main():
-    # Import other refractor package so we get any configuration/handles set up
-    import refractor.muses_py_fm
-    import refractor.omi
-    import refractor.tropomi
-    
+
+def main() -> None:
+    # Import other refractor package so we get any configuration/handles set up.
+    # Ignore ruff warnings, we are importing this for side effects, we don't directly
+    # use the imports
+    import refractor.muses_py_fm  # noqa: F401
+    import refractor.omi  # noqa: F401
+    import refractor.tropomi  # noqa: F401
+
     args = docopt_simple(usage, version=version)
 
-    # log to stdout instead of stderr, this works better with the mpi log capture
-    logger.remove()
-    logger.add(sys.stdout)
-
-    #warnings to logger
+    # warnings to logger
     showwarning_ = warnings.showwarning
 
-    def showwarning(message, *args, **kwargs):
+    def showwarning(message: Any, *args: Any, **kwargs: Any) -> None:
         logger.warning(message)
         if False:
             # Print warning as normal, if desired. Otherwise we just include
@@ -78,36 +78,44 @@ def main():
     warnings.showwarning = showwarning
 
     write_debug_output = False
+    log_level = "INFO"
     if args.trace:
-        # We will add tracing level with loguru
-        logger.setLevel(logging.DEBUG)
+        log_level = "DEBUG"
         write_debug_output = True
     elif args.debug:
-        logger.setLevel(logging.DEBUG)
+        log_level = "DEBUG"
         write_debug_output = True
+
+    # log to stdout instead of stderr, this works better with the mpi log capture
+    logger.remove()
+    logger.add(sys.stdout, level=log_level)
 
     logger.info("refractor-retrieve is running ...")
 
     if args.refractor_config:
         logger.info("Loading refractor configuration file: %s", args.refractor_config)
-        spec = importlib.util.spec_from_file_location("refractor_config",
-                                                      args.refractor_config)
+        spec = importlib.util.spec_from_file_location(
+            "refractor_config", args.refractor_config
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Problem importing {args.refractor_config}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         sys.modules["refractor_config"] = module
-        rs = module.rs
+        rs: RetrievalStrategy = module.rs
     else:
-        rs = RetrievalStrategy(filename=None,
-                               writeOutput=write_debug_output,
-                               writePlots=args.plots
-                               )
+        rs = RetrievalStrategy(
+            filename=None, writeOutput=write_debug_output, writePlots=args.plots
+        )
 
-    def retrieve_wrap(rs, target_dir, in_process=False):
-        '''Wrapper so we can run a sounding in a separate process, so any memory leaks
-        don't grow.'''
+    def retrieve_wrap(
+        rs: RetrievalStrategy, target_dir: str, in_process: bool = False
+    ) -> None:
+        """Wrapper so we can run a sounding in a separate process, so any memory leaks
+        don't grow."""
         try:
             # Move or add logging to local file
-            if(args.mpi):
+            if args.mpi:
                 # If we aren't using MPI, then presumably we are running a terminal
                 # where we want to see the output. So only remove stdout in mpi.
                 logger.remove()
@@ -116,16 +124,16 @@ def main():
                 # Forward C++ logging in framework to the python logger
                 rf.PythonFpLogger.turn_on_logger(logger)
                 rs.update_target(f"{target_dir}/Table.asc")
-                #if True:
+                # if True:
                 if False:
                     # Fake error, for use in testing handling of this
-                    if(mpi_rank == 4):
+                    if mpi_rank == 4:
                         raise RuntimeError("Fake retrieval error")
                 rs.retrieval_ms()
                 logger.info(f"Success: {os.path.basename(target_dir)}")
-        except:
+        except:  # noqa: E722
             logger.info(f"Failure: {os.path.basename(target_dir)}")
-            if(in_process):
+            if in_process:
                 # Reraising the exception causes a printout at the top level we want
                 # to avoid, so just exit
                 sys.exit(1)
@@ -145,14 +153,15 @@ def main():
             # to fix the seg fault issue.
             rf.PythonFpLogger.turn_off_logger()
             logger.remove(loghid)
-            if(args.mpi):
+            if args.mpi:
                 # Add back stdout, to capture any other logging not tied to target
                 logger.add(sys.stdout)
 
     # Set up for MPI run, if needed
     target_dir_full_list = glob.glob(os.path.expanduser(args.targets))
-    if(args.mpi):
+    if args.mpi:
         from mpi4py import MPI
+
         comm = MPI.COMM_WORLD
         hostname = socket.gethostname()
         mpi_rank = comm.Get_rank()
@@ -163,12 +172,14 @@ def main():
         count = (end - start) // mpi_size
         remainder = (end - start) % mpi_size
         i_start = start + mpi_rank * count + min([mpi_rank, remainder])
-        i_stop = start + (mpi_rank + 1 ) * count + min([mpi_rank + 1, remainder])
+        i_stop = start + (mpi_rank + 1) * count + min([mpi_rank + 1, remainder])
         target_dir_list = target_dir_full_list[i_start:i_stop]
 
         # For MPI, we use a few fixed directories. By convention, we
         # don't use these for the non-MPI case.
-        bpath = os.path.abspath(os.path.dirname(os.path.dirname(target_dir_full_list[0])))
+        bpath = os.path.abspath(
+            os.path.dirname(os.path.dirname(target_dir_full_list[0]))
+        )
         success_dir = f"{bpath}/success"
         error_dir = f"{bpath}/error"
         subprocess.run(["mkdir", "-p", success_dir])
@@ -177,9 +188,9 @@ def main():
         # We just process everything if we aren't using MPI.
         target_dir_list = target_dir_full_list
 
-    logger.info(f'Number of tasks: {len(target_dir_list)}')
+    logger.info(f"Number of tasks: {len(target_dir_list)}")
 
-    def onerror():
+    def onerror(err: BaseException) -> None:
         logger.info("refractor-retrieve is done ...")
         logger.info("Exiting with code 1")
         sys.exit(1)
@@ -189,24 +200,28 @@ def main():
             # For MPI, skip anything already run. Just by convention, this isn't
             # done without MPI (the assumption being that this is just a small number of
             # target that we want to run, e.g., for testing).
-            if(args.mpi):
-                indicator = f'{os.path.basename(target_dir)}-{hostname}_{mpi_rank}'
-                if(os.path.isfile(f"{success_dir}/{indicator}")):
-                    logger.info(f"node: {hostname}, rank: {mpi_rank}, already successfully processed. Skipping: {os.path.basename(target_dir)}")
+            if args.mpi:
+                indicator = f"{os.path.basename(target_dir)}-{hostname}_{mpi_rank}"
+                if os.path.isfile(f"{success_dir}/{indicator}"):
+                    logger.info(
+                        f"node: {hostname}, rank: {mpi_rank}, already successfully processed. Skipping: {os.path.basename(target_dir)}"
+                    )
                     continue
-                if(os.path.isfile(f"{error_dir}/{indicator}")):
-                    logger.info(f"node: {hostname}, rank: {mpi_rank}, errored out in a previous run. Skipping: {os.path.basename(target_dir)}")
+                if os.path.isfile(f"{error_dir}/{indicator}"):
+                    logger.info(
+                        f"node: {hostname}, rank: {mpi_rank}, errored out in a previous run. Skipping: {os.path.basename(target_dir)}"
+                    )
                     continue
             # Special case of 1 target, run directly. This makes debugging an issue
             # easier - so you run the sounding you are interested in and everything
             # happens in the same process space.
-            if(len(target_dir_list) == 1):
-            # For testing, force use of Process even with small test data set
-            #if False:
+            if len(target_dir_list) == 1:
+                # For testing, force use of Process even with small test data set
+                # if False:
                 try:
                     retrieve_wrap(rs, target_dir)
-                    run_exitcode = 0
-                except:
+                    run_exitcode: int | None = 0
+                except:  # noqa: E722
                     run_exitcode = 1
             else:
                 # Otherwise, run in a separate process space to avoid accumulation of
@@ -215,13 +230,13 @@ def main():
                 p.start()
                 p.join()
                 run_exitcode = p.exitcode
-            if(run_exitcode ==0):
+            if run_exitcode is not None and run_exitcode == 0:
                 logger.info(f"Success: {os.path.basename(target_dir)}")
-                if(args.mpi):
+                if args.mpi:
                     subprocess.run(["touch", f"{success_dir}/{indicator}"])
             else:
                 logger.info(f"Failure: {os.path.basename(target_dir)}")
-                if(args.mpi):
+                if args.mpi:
                     subprocess.run(["touch", f"{error_dir}/{indicator}"])
 
     logger.info("refractor-retrieve is done ...")
@@ -230,4 +245,4 @@ def main():
 
 # Don't export main, we might have other scripts with a main. We can
 # always explicitly import this if needed.
-__all__ = []    
+__all__ = []

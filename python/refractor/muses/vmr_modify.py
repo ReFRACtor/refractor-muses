@@ -16,7 +16,7 @@ class VmrModify:
     @property
     def gas_name(self) -> str:
         return self.underlying_absorber_vmr.gas_name
-    
+
     @property
     def underlying_absorber_vmr(self) -> rf.AbsorberVmr:
         return self._underlying_absorber_vmr
