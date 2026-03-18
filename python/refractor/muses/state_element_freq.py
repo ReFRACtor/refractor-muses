@@ -105,7 +105,7 @@ class StateElementFreqShared(StateElementOspFile):
         super()._fill_in_state_mapping()
         assert self.spectral_domain is not None
         # Skip updating state mapping for now, we'll come back to this.
-        self._state_mapping_new2 = self._state_mapping
+        self._state_mapping_update_array = self._state_mapping
         # TODO Clean this up
         # Note that mw_frequency_needed doesn't give us the update_arr. There
         # is additional logic in the basis_matrix. We extract out the update_arr
@@ -115,30 +115,17 @@ class StateElementFreqShared(StateElementOspFile):
             update_arr = self.basis_matrix.sum(axis=0) != 0
             smap = StateMappingUpdateArray(update_arr)
             if not isinstance(self._state_mapping, rf.StateMappingLinear):
-                self._state_mapping_new2 = rf.StateMappingComposite([self._state_mapping, smap])
+                self._state_mapping_update_array = rf.StateMappingComposite([self._state_mapping, smap])
             else:
-                self._state_mapping_new2 = smap
+                self._state_mapping_update_array = smap
 
     @property
-    def state_mapping_new(self) -> None:
-        # TODO See about doing this directly
-        wflag = self.mw_frequency_needed(
-            self.microwindows,
-            self.spectral_domain.data,
-        )
-        # TODO For some reason wflag isn't the same as the calculation we do
-        # with the basis matrix. Sort that out, but for now use the basis
-        # matrix to determine update_arr
-        if self._retrieved_this_step:
-            update_arr = self.basis_matrix.sum(axis=0) != 0
-            #smap = StateMappingUpdateArray(wflag.astype(bool))
-            smap = StateMappingUpdateArray(update_arr)
-            if not isinstance(self.state_mapping, rf.StateMappingLinear):
-                return rf.StateMappingComposite([self.state_mapping, smap])
-            else:
-                return smap
-        else:
-            return self.state_mapping
+    def state_mapping_update_array(self) -> None:
+        '''For classes like EmisState and CloudSTate we want to only update a portion
+        of the state as doing the retrieval. However, in other places we don't want this
+        limitation. So for these specific classes, we have *two* state mappings.
+        CurrentState.object_state sorts this out.'''
+        return self._state_mapping_update_array
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:

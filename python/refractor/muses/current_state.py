@@ -434,6 +434,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""
+        # See discussion in StateElementFreq about why we have
+        # state_mapping_update_array. This only applies to a few state elements
+        # I *think* we always want to expose that if available, we can see if this
+        # causes any issues
+        if hasattr(self.state_element(state_element_id), "state_mapping_update_array"):
+            return self.state_element(state_element_id).state_mapping_update_array
         return self.state_element(state_element_id).state_mapping
 
     # TODO Are these actually needed?

@@ -13,7 +13,6 @@ from .muses_altitude_pge import MusesAltitude
 from .muses_refractive_index import MusesRefractiveIndex
 from .muses_oss_atmosphere import MusesOssAtmosphere
 from .pointing_angle_surface import PointingAngleSurface
-from .state_mapping_update_array import StateMappingUpdateArray
 import os
 from pathlib import Path
 from loguru import logger
@@ -79,8 +78,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         ]
         semis, mp = self.current_state.object_state(selem)
         semis_sd = self.current_state.state_element(selem[0]).spectral_domain
-        smap = self.current_state.state_element(selem[0])._state_mapping_new2
-        emis = EmisState(semis, semis_sd, smap)
+        emis = EmisState(semis, semis_sd, mp)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,
@@ -95,8 +93,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         ]
         scloudext, mp = self.current_state.object_state(selem)
         scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
-        smap = self.current_state.state_element(selem[0]).state_mapping_new
-        cext = CloudExtState(scloudext, scloudext_sd, smap)
+        cext = CloudExtState(scloudext, scloudext_sd, mp)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,
