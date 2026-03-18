@@ -87,7 +87,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         ]
         semis, mp = self.current_state.object_state(selem)
         semis_sd = self.current_state.state_element(selem[0]).spectral_domain
-        smap = StateMappingUpdateArray(update_arr)
+        smap = self.current_state.state_element(selem[0]).state_mapping_new
         emis = EmisState(semis, semis_sd, smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
@@ -111,9 +111,8 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         ]
         scloudext, mp = self.current_state.object_state(selem)
         scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
-        smap = StateMappingUpdateArray(update_arr)
-        #cext = CloudExtState(scloudext, scloudext_sd, update_arr, rf.StateMappingComposite([mp, smap]))
-        cext = CloudExtState(scloudext, scloudext_sd, update_arr, mp)
+        smap = self.current_state.state_element(selem[0]).state_mapping_new
+        cext = CloudExtState(scloudext, scloudext_sd, update_arr, smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,

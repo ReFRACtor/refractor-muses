@@ -1,7 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import numpy as np
-
+from .state_mapping_update_array import StateMappingUpdateArray
 
 class CloudExtState(rf.GenericStateImpBase):
     """We don't have a CloudExt class at the C++ level. We may add that, but
@@ -25,12 +25,14 @@ class CloudExtState(rf.GenericStateImpBase):
                 "cloudext and cloudext spectral domain need to be the same size"
             )
         self.initial_value = cloud_extv.copy()
+        self.smap = StateMappingUpdateArray(self.update_arr)
+        self.smap.retrieval_state(rf.ArrayAd_double_1(self.initial_value))
 
     @property
     def cloud_ext(self) -> rf.ArrayAdWithUnit_double_1:
-        # Would like to move this into a StateMapping if we can figure out
-        # the logic
         ms = self.mapped_state
+        return rf.ArrayAdWithUnit_double_1(ms, "km^-1")
+        return rf.ArrayAdWithUnit_double_1(self.smap.mapped_state(ms), "km^-1")
         if self.update_arr is None or self.update_arr.shape[0] == 0:
             return rf.ArrayAdWithUnit_double_1(ms, "km^-1")
         # Logic only needed when we have update_arr, which is only if we

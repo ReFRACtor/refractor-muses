@@ -107,6 +107,7 @@ class StateElementFreqShared(StateElementOspFile):
         # Skip
         return
 
+    @property
     def state_mapping_new(self) -> None:
         # TODO See about doing this directly
         wflag = self.mw_frequency_needed(
@@ -121,7 +122,7 @@ class StateElementFreqShared(StateElementOspFile):
             #smap = StateMappingUpdateArray(wflag.astype(bool))
             smap = StateMappingUpdateArray(update_arr)
             if not isinstance(self.state_mapping, rf.StateMappingLinear):
-                return rf.StateMappingComposite([smap, self.state_mapping])
+                return rf.StateMappingComposite([self.state_mapping, smap])
             else:
                 return smap
         else:
