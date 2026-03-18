@@ -99,35 +99,30 @@ class StateElementFreqShared(StateElementOspFile):
             np.float64
         )
 
-    def _fill_in_state_mapping(self) -> None:
-        if self._state_mapping is not None:
-            return
-        super()._fill_in_state_mapping()
-        assert self.spectral_domain is not None
-        # Skip updating state mapping for now, we'll come back to this.
-        self._state_mapping_update_array = self._state_mapping
+    def state_mapping(self, include_subset: bool) -> rf.StateMapping:
+        # Note we create this each time we return this. This is because
+        # StateMappingUpdateArray has state in it (the initial_value). We don't
+        # want users of this map to change the mapping in this class.
+        self._fill_in_state_mapping()
+
         # TODO Clean this up
         # Note that mw_frequency_needed doesn't give us the update_arr. There
         # is additional logic in the basis_matrix. We extract out the update_arr
         # from this. Might be good to pull out this logic, it is a bit obscure how
         # this is done.
-        if self._retrieved_this_step:
+
+        # Subsetting only applies if we are retrieving this step (so attaching
+        # to a StateVector). Otherwise, or if not requested, just go back to
+        # the normal StateMapping (e.g., rf.StateMappingLinear or rf.StateMappingLog)
+        if include_subset and self._retrieved_this_step:
             update_arr = self.basis_matrix.sum(axis=0) != 0
             smap = StateMappingUpdateArray(update_arr)
             if not isinstance(self._state_mapping, rf.StateMappingLinear):
-                self._state_mapping_update_array = rf.StateMappingComposite(
-                    [self._state_mapping, smap]
-                )
+                return rf.StateMappingComposite([self._state_mapping, smap])
             else:
-                self._state_mapping_update_array = smap
-
-    @property
-    def state_mapping_update_array(self) -> rf.StateMapping:
-        """For classes like EmisState and CloudSTate we want to only update a portion
-        of the state as doing the retrieval. However, in other places we don't want this
-        limitation. So for these specific classes, we have *two* state mappings.
-        CurrentState.object_state sorts this out."""
-        return self._state_mapping_update_array
+                return smap
+        else:
+            return self._state_mapping
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
@@ -356,7 +351,10 @@ class StateElementEmis(StateElementFreqShared):
             res = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
-                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+                .to_fmprime(
+                    self.state_mapping_retrieval_to_fm(),
+                    self.state_mapping(include_subset=False),
+                )
                 .view(FullGridMappedArray)
             )
             if self._value_fm is None:
@@ -386,7 +384,8 @@ class StateElementEmis(StateElementFreqShared):
         if self._retrieved_this_step:
             # muses-py maps value_fm to fmprime when we are doing a retrieval step
             self._value_fm[self.fm_update_flag] = self._value_fm.to_fmprime(
-                self.state_mapping_retrieval_to_fm, self.state_mapping
+                self.state_mapping_retrieval_to_fm(),
+                self.state_mapping(include_subset=False),
             )[self.fm_update_flag]
 
     @property
@@ -539,7 +538,10 @@ class StateElementCloudExt(StateElementFreqShared):
         res = (
             xsol[retrieval_slice]
             .view(RetrievalGridArray)
-            .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            .to_fmprime(
+                self.state_mapping_retrieval_to_fm(),
+                self.state_mapping(include_subset=False),
+            )
             .view(FullGridMappedArray)
         )
         # Set of values actually updated

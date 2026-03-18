@@ -430,18 +430,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""
-        # See discussion in StateElementFreq about why we have
-        # state_mapping_update_array. This only applies to a few state elements
-        # I *think* we always want to expose that if available, we can see if this
-        # causes any issues
         selem = self.state_element(state_element_id)
-        if hasattr(selem, "state_mapping_update_array"):
-            return selem.state_mapping_update_array
-        return selem.state_mapping
+        return selem.state_mapping(include_subset=include_subset)
 
     # TODO Are these actually needed?
     def pressure_list(
@@ -570,7 +564,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             mp = None
         mp2 = None
         for nm in state_element_id_list:
-            t = self.state_mapping(nm)
+            t = self.state_mapping(nm, include_subset=True)
             if mp2 is None:
                 mp2 = t
             # We currently don't have the logic for mixing mapping types (e.g., an
@@ -666,7 +660,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def _sv_name(self, selem: StateElementIdentifier, i: int) -> str:
         """Pull out the sv_name, just because it is a little long of an expression"""
-        smap = self.state_mapping(selem)
+        smap = self.state_mapping(selem, include_subset=True)
         if smap.name == "linear":
             return f"{str(selem)} {i + 1}"
         return f"{smap.name} {str(selem)} {i + 1}"
@@ -768,7 +762,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         value, just make a copy of the array and edit that.
         """
         return self.state_value(state_element_id).to_full(
-            self.state_mapping(state_element_id)
+            self.state_mapping(state_element_id, include_subset=False)
         )
 
     @abc.abstractmethod
@@ -1144,7 +1138,7 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         # I think we can just always use a placeholder here. We can come up
         # with more complicated logic if needed (e.g., pass the state mapping in

@@ -429,7 +429,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return self._retrieval_sv_loc
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         selem = self.state_element_old(state_element_id, other_name=False)
         mtype = selem.map_type

@@ -221,7 +221,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""

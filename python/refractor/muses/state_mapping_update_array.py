@@ -30,7 +30,9 @@ class StateMappingUpdateArray(rf.StateMapping):
         self.initial_value: None | np.ndarray = None
 
     def clone(self) -> Self:
-        return StateMappingUpdateArray(self.update_array.copy() if self.update_array is not None else None)
+        return StateMappingUpdateArray(
+            self.update_array.copy() if self.update_array is not None else None
+        )
 
     def _v_name(self) -> str:
         return "update array"

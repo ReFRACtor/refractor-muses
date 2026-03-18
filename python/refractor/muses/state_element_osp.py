@@ -262,12 +262,10 @@ class StateElementOspFile(StateElementWithCreate):
         self._check_result(res, "apriori_cov_fm")
         return res
 
-    @property
-    def state_mapping(self) -> rf.StateMapping:
+    def state_mapping(self, include_subset: bool) -> rf.StateMapping:
         self._fill_in_state_mapping()
         return self._state_mapping
 
-    @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         self._fill_in_state_mapping_retrieval_to_fm()
         return self._state_mapping_retrieval_to_fm

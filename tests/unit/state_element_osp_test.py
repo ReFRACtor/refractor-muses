@@ -57,8 +57,8 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
     npt.assert_allclose(selem.step_initial_fm, [0.0])
     assert selem.true_value_fm is None
-    assert isinstance(selem.state_mapping, rf.StateMappingLinear)
-    assert isinstance(selem.state_mapping_retrieval_to_fm, rf.StateMappingLinear)
+    assert isinstance(selem.state_mapping(include_subset=False), rf.StateMappingLinear)
+    assert isinstance(selem.state_mapping_retrieval_to_fm(), rf.StateMappingLinear)
     # Perhaps basis can go away? Replaced with state_mapping_retrieval_to_fm?
     npt.assert_allclose(selem.basis_matrix, np.eye(1))
     npt.assert_allclose(selem.map_to_parameter_matrix, np.eye(1))

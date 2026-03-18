@@ -213,23 +213,25 @@ class StateElement(object, metaclass=abc.ABCMeta):
         if self.pressure_list_fm is None:
             return None
         return self.pressure_list_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, rf.StateMappingLinear()
+            self.state_mapping_retrieval_to_fm(), rf.StateMappingLinear()
         )
 
     @property
     def value_ret(self) -> RetrievalGridArray:
         return self.value_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
     def value_full(self) -> FullGridArray:
-        return self.value_fm.to_full(self.state_mapping)
+        return self.value_fm.to_full(self.state_mapping(include_subset=False))
 
     @property
     def step_initial_ret(self) -> RetrievalGridArray:
         return self.step_initial_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
@@ -240,27 +242,32 @@ class StateElement(object, metaclass=abc.ABCMeta):
         I'm not sure how much it matters, but various calculations in muses-py
         uses this second version. Supply this."""
         return self.step_initial_ret.to_fmprime(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
     def step_initial_full(self) -> FullGridArray:
-        return self.step_initial_fm.to_full(self.state_mapping)
+        return self.step_initial_fm.to_full(self.state_mapping(include_subset=False))
 
     @property
     def retrieval_initial_ret(self) -> RetrievalGridArray:
         return self.retrieval_initial_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
     def retrieval_initial_full(self) -> FullGridArray:
-        return self.retrieval_initial_fm.to_full(self.state_mapping)
+        return self.retrieval_initial_fm.to_full(
+            self.state_mapping(include_subset=False)
+        )
 
     @property
     def constraint_vector_ret(self) -> RetrievalGridArray:
         return self.constraint_vector_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
@@ -271,26 +278,30 @@ class StateElement(object, metaclass=abc.ABCMeta):
         I'm not sure how much it matters, but various calculations in muses-py
         uses this second version. Supply this."""
         return self.constraint_vector_fm.to_fmprime(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
     def constraint_vector_full(self) -> FullGridArray:
-        return self.constraint_vector_fm.to_full(self.state_mapping)
+        return self.constraint_vector_fm.to_full(
+            self.state_mapping(include_subset=False)
+        )
 
     @property
     def true_value_ret(self) -> RetrievalGridArray | None:
         if self.true_value_fm is None:
             return None
         return self.true_value_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm(),
+            self.state_mapping(include_subset=False),
         )
 
     @property
     def true_value_full(self) -> FullGridArray | None:
         if self.true_value_fm is None:
             return None
-        return self.true_value_fm.to_full(self.state_mapping)
+        return self.true_value_fm.to_full(self.state_mapping(include_subset=False))
 
     @abc.abstractproperty
     def value_fm(self) -> FullGridMappedArray:
@@ -340,16 +351,27 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """Value StateElement had at the start of the retrieval."""
         raise NotImplementedError()
 
-    @abc.abstractproperty
-    def state_mapping(self) -> rf.StateMapping:
+    @abc.abstractmethod
+    def state_mapping(self, include_subset: bool) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
-        and mapping to the internal object state)"""
+        and mapping to the internal object state)
+
+        Note that a handful of state elements only have a subset of the data updated
+        during a retrieval. This currently just applies to EMIS and CLOUDEXT, see
+        StateElementFreq for a description of this.
+
+        Depending on the context, you may or may not want this subsetting. Rather than
+        doing something clever, we just take a flag indicating which behavior you want.
+
+        For most StateElement, this flag has no effect, but for
+        StateElementEmis and StateElementCloudExt (currently), this
+        changes the state mapping returned.
+
+        """
         raise NotImplementedError()
 
-    @abc.abstractproperty
+    @abc.abstractmethod
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
-        """StateMapping used to go between the RetrievalGridArray and
-        FullGridArray (e.g., the basis matrix in muses-py)"""
         raise NotImplementedError()
 
     @property
@@ -582,7 +604,8 @@ class StateElementImplementation(StateElement):
         # Short term skip so we can compare to old state element
         if False:
             self._value_fm = param_subset.view(RetrievalGridArray).to_fm(
-                self.state_mapping_retrieval_to_fm, self.state_mapping
+                self.state_mapping_retrieval_to_fm(),
+                self.state_mapping(include_subset=False),
             )
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
@@ -641,7 +664,7 @@ class StateElementImplementation(StateElement):
         # This is probably too simple in general, but this should be at least a reasonable
         # stand in here until/unless we need something more sophisticated
         if (
-            isinstance(self.state_mapping, rf.StateMappingLinear)
+            isinstance(self.state_mapping(include_subset=False), rf.StateMappingLinear)
             and self._pressure_list_fm is not None
         ):
             return True
@@ -650,8 +673,8 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray:
-        if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
-            res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose().view()
+        if isinstance(self.state_mapping_retrieval_to_fm(), rf.StateMappingBasisMatrix):
+            res = self.state_mapping_retrieval_to_fm().basis_matrix.transpose().view()
         else:
             res = np.eye(self.value_fm.shape[0])
         res.flags.writeable = False
@@ -663,8 +686,12 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def map_to_parameter_matrix(self) -> np.ndarray:
-        if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
-            res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose().view()
+        if isinstance(self.state_mapping_retrieval_to_fm(), rf.StateMappingBasisMatrix):
+            res = (
+                self.state_mapping_retrieval_to_fm()
+                .inverse_basis_matrix.transpose()
+                .view()
+            )
         else:
             res = np.eye(self.value_fm.shape[0])
         res.flags.writeable = False
@@ -770,11 +797,9 @@ class StateElementImplementation(StateElement):
             res = None
         return res
 
-    @property
-    def state_mapping(self) -> rf.StateMapping:
+    def state_mapping(self, include_subset: bool) -> rf.StateMapping:
         return self._state_mapping
 
-    @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         return self._state_mapping_retrieval_to_fm
 
@@ -967,7 +992,10 @@ class StateElementImplementation(StateElement):
             res = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
-                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+                .to_fmprime(
+                    self.state_mapping_retrieval_to_fm(),
+                    self.state_mapping(include_subset=False),
+                )
                 .view(FullGridMappedArray)
             )
             self._value_fm = res
