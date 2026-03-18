@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .docopt_simple import docopt_simple
 from .retrieval_strategy import RetrievalStrategy
+from .input_file_helper import InputFileHelper
 from loguru import logger
 import sys
 import glob
@@ -32,8 +33,23 @@ Options:
       Set logger level to TRACE, which provides both debugging and tracing log
       messages.
 
+  --gmao-dir=f
+      Given the location of the GMAO path to use. If not specified, we default
+      to the environment variable MUSES_GMAO_PATH, or the hardcoded path "../GMAO" if
+      the environment variable isn't set.
+
   --mpi
       Process multiple targets in parallel using MPI.
+
+  --osp-delta-dir=f
+      Give the location of the OSP delta directory to use with the osp directory.
+      If not given, we default to the environment variable MUSES_OSP_DELTA_PATH,
+      or if the environment variable isn't set to not using any delta path.
+
+  --osp-dir=f
+      Give the location of the osp directory to used. If not specified, we default
+      to the environment variable MUSES_OSP_PATH, or the hardcoded path "../OSP" if
+      the environment variable isn't set.
 
   --refractor
       Ignored, we take this argument for backwards compatibility with py-retrieve.
@@ -107,6 +123,9 @@ def main() -> None:
         rs = RetrievalStrategy(
             filename=None, writeOutput=write_debug_output, writePlots=args.plots
         )
+    rs.input_file_helper = InputFileHelper(
+        osp_dir=args.osp_dir, osp_delta_dir=args.osp_delta_dir, gmao_dir=args.gmao_dir
+    )
 
     def retrieve_wrap(
         rs: RetrievalStrategy, target_dir: str, in_process: bool = False
