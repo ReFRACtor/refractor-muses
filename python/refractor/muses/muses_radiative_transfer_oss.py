@@ -150,8 +150,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         # py-retrieve has sunang always 90. Not sure of the significance of that,
         # but do that for now
         sunang = 90.0
-        # Make the call to the FORTRAN code passing in addresses of anything that are pointers.
-        # The units of rad are "W  m^-2 sr^-1 cm^-1"
+        # Units that we want
+        rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
         (
             rad,
             drad_dtemp,
@@ -179,20 +179,8 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
             emisv.value,
             self.cloud_ext.cloud_ext_spectral_domain.convert_wave("cm^-1"),
             cloudextv.value,
+            rad_units,
         )
-        # This comes from the OSS documentation in muses_oss
-        rad_in_units = rf.Unit("W / (m^2 sr cm^-1)")
-        # Units that we want
-        rad_units = rf.Unit("W / (cm^2 sr cm^-1)")
-        rad_unit_f = rf.conversion(rad_in_units, rad_units)
-        rad *= rad_unit_f
-        drad_dtemp *= rad_unit_f
-        drad_dtsur *= rad_unit_f
-        drad_dlog_vmr *= rad_unit_f
-        drad_demis *= rad_unit_f
-        drad_drefl *= rad_unit_f
-        drad_dlog_pcloud *= rad_unit_f
-        drad_dlog_cloudext *= rad_unit_f
         # Convert to drad_dvmr, and shuffle axis so this is rad_index, gas_index, vmr_index.
         if dlog_vmr_dvmr is not None:
             drad_dvmr = (

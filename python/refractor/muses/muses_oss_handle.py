@@ -458,6 +458,7 @@ class MusesOssHandle:
         emis: np.ndarray,
         cloud_freq: np.ndarray,
         cloudext: np.ndarray,
+        desired_units: rf.Unit,
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -485,7 +486,7 @@ class MusesOssHandle:
             diffusion approximation is used to calculate downwelling ir
             reflection from the surface
 
-        returns radiance in W / (m^2 sr cm^-1)
+        returns radiance in passed in units.
         """
 
         self.check_have_library()
@@ -558,15 +559,19 @@ class MusesOssHandle:
             drad_dlog_pcloud.ctypes.data_as(POINTER(c_float)),
             drad_dlog_cloudext.ctypes.data_as(POINTER(c_float)),
         )
+        # This comes from the OSS documentation in muses_oss
+        rad_oss_units = rf.Unit("W / (m^2 sr cm^-1)")
+        # Convert to requested units
+        rad_unit_f = rf.conversion(rad_oss_units, desired_units)
         return (
-            rad,
-            drad_dtemp,
-            drad_dtsur,
-            drad_dlog_vmr,
-            drad_demis,
-            drad_drefl,
-            drad_dlog_pcloud,
-            drad_dlog_cloudext,
+            rad * rad_unit_f,
+            drad_dtemp * rad_unit_f,
+            drad_dtsur * rad_unit_f,
+            drad_dlog_vmr * rad_unit_f,
+            drad_demis  * rad_unit_f,
+            drad_drefl * rad_unit_f,
+            drad_dlog_pcloud * rad_unit_f,
+            drad_dlog_cloudext * rad_unit_f,
         )
 
 
