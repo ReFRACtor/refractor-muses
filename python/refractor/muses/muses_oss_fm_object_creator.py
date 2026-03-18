@@ -74,20 +74,12 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def emissivity(self) -> EmisState:
-        # TODO We want to figure out this logic, but for now just
-        # leverage off the UIP to determine which part of the state vector
-        # is actually "active". This mimics what Refractor_uip.update_uip does,
-        # without including the logic of how the basis matrix set this
-        if self._rf_uip.basis_matrix is not None:
-            update_arr = self._rf_uip.species_basis_matrix(["EMIS"]).sum(axis=0) != 0
-        else:
-            update_arr = None
         selem = [
             StateElementIdentifier("EMIS"),
         ]
         semis, mp = self.current_state.object_state(selem)
         semis_sd = self.current_state.state_element(selem[0]).spectral_domain
-        smap = self.current_state.state_element(selem[0]).state_mapping_new
+        smap = self.current_state.state_element(selem[0])._state_mapping_new2
         emis = EmisState(semis, semis_sd, smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
@@ -98,21 +90,13 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def cloud_ext(self) -> CloudExtState:
-        # TODO We want to figure out this logic, but for now just
-        # leverage off the UIP to determine which part of the state vector
-        # is actually "active". This mimics what Refractor_uip.update_uip does,
-        # without including the logic of how the basis matrix set this
-        if self._rf_uip.basis_matrix is not None:
-            update_arr = self._rf_uip.species_basis_matrix(["CLOUDEXT"]).sum(axis=0) != 0
-        else:
-            update_arr = None
         selem = [
             StateElementIdentifier("CLOUDEXT"),
         ]
         scloudext, mp = self.current_state.object_state(selem)
         scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
         smap = self.current_state.state_element(selem[0]).state_mapping_new
-        cext = CloudExtState(scloudext, scloudext_sd, update_arr, smap)
+        cext = CloudExtState(scloudext, scloudext_sd, smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,
