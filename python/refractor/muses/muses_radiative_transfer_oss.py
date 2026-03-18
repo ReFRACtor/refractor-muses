@@ -3,7 +3,6 @@ import refractor.framework as rf  # type: ignore
 from .muses_oss_handle import muses_oss_handle
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 import numpy as np
-import numpy.testing as npt
 import os
 import copy
 import typing
@@ -141,7 +140,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         )
         emisv = self.emissivity.emissivity
         cloudextv = self.cloud_ext.cloud_ext.convert("km^-1").value
-        
+
         salt = self.surface_altitude.convert("m").value
         # TODO Not sure if the logic of this here, but this is what py-retrieve does
         if salt < 1e-5:
@@ -263,6 +262,7 @@ class MusesRadiativeTransferOss(rf.RadiativeTransferImpBase):
         if jac is None:
             return jacadd
         return jac + jacadd
+
 
 __all__ = [
     "MusesRadiativeTransferOss",

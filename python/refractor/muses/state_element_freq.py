@@ -115,16 +115,18 @@ class StateElementFreqShared(StateElementOspFile):
             update_arr = self.basis_matrix.sum(axis=0) != 0
             smap = StateMappingUpdateArray(update_arr)
             if not isinstance(self._state_mapping, rf.StateMappingLinear):
-                self._state_mapping_update_array = rf.StateMappingComposite([self._state_mapping, smap])
+                self._state_mapping_update_array = rf.StateMappingComposite(
+                    [self._state_mapping, smap]
+                )
             else:
                 self._state_mapping_update_array = smap
 
     @property
-    def state_mapping_update_array(self) -> None:
-        '''For classes like EmisState and CloudSTate we want to only update a portion
+    def state_mapping_update_array(self) -> rf.StateMapping:
+        """For classes like EmisState and CloudSTate we want to only update a portion
         of the state as doing the retrieval. However, in other places we don't want this
         limitation. So for these specific classes, we have *two* state mappings.
-        CurrentState.object_state sorts this out.'''
+        CurrentState.object_state sorts this out."""
         return self._state_mapping_update_array
 
     @property
@@ -138,7 +140,6 @@ class StateElementFreqShared(StateElementOspFile):
             return self.spectral_domain.data.view(FullGridMappedArray)
         else:
             return None
-        
 
     # TODO This seems to be doing something pretty similar to rf.SpectralWindow.
     # we should replace this at some point, but for now leave this here since I'm

@@ -438,9 +438,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # state_mapping_update_array. This only applies to a few state elements
         # I *think* we always want to expose that if available, we can see if this
         # causes any issues
-        if hasattr(self.state_element(state_element_id), "state_mapping_update_array"):
-            return self.state_element(state_element_id).state_mapping_update_array
-        return self.state_element(state_element_id).state_mapping
+        selem = self.state_element(state_element_id)
+        if hasattr(selem, "state_mapping_update_array"):
+            return selem.state_mapping_update_array
+        return selem.state_mapping
 
     # TODO Are these actually needed?
     def pressure_list(

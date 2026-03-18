@@ -3,7 +3,6 @@ from refractor.muses import (
     StateElementIdentifier,
     CrisFmObjectCreator,
     AirsFmObjectCreator,
-    FullGridMappedArray,
 )
 from refractor.muses_py_fm import (
     MusesCrisForwardModel,
@@ -34,7 +33,11 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     # Match fm state used by the UIP. This is just needed because we aren't going through
     # the cost function that normal set this up for us.
     fm_sv = ocreator.fm_sv
-    fm_sv.update_state(ocreator.current_state.initial_guess.to_full(ocreator.current_state.state_mapping_retrieval_to_fm))
+    fm_sv.update_state(
+        ocreator.current_state.initial_guess.to_full(
+            ocreator.current_state.state_mapping_retrieval_to_fm
+        )
+    )
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -112,7 +115,11 @@ def test_muses_airs_forward_model_oss(joint_omi_step_8_no_run_dir):
     # Match fm state used by the UIP. This is just needed because we aren't going through
     # the cost function that normal set this up for us.
     fm_sv = ocreator.fm_sv
-    fm_sv.update_state(ocreator.current_state.initial_guess.to_full(ocreator.current_state.state_mapping_retrieval_to_fm))
+    fm_sv.update_state(
+        ocreator.current_state.initial_guess.to_full(
+            ocreator.current_state.state_mapping_retrieval_to_fm
+        )
+    )
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

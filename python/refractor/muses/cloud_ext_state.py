@@ -1,7 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import numpy as np
-from .state_mapping_update_array import StateMappingUpdateArray
+
 
 class CloudExtState(rf.GenericStateImpBase):
     """We don't have a CloudExt class at the C++ level. We may add that, but

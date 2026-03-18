@@ -140,6 +140,7 @@ class FakeRetrievalInfo:
 
     def _map_type(self, sid: StateElementIdentifier) -> str | rf.StateMapping:
         from refractor.muses import StateMappingUpdateArray
+
         smap = self.current_state.state_mapping(sid)
         if self.use_state_mapping:
             return smap
