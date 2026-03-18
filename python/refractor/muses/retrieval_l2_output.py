@@ -427,7 +427,7 @@ class RetrievalL2Output(RetrievalOutput):
             ],
         }
 
-        if self.state_sd_wavelength("EMIS").shape[0] == 0:
+        if self.state_sd_wavenumber("EMIS").shape[0] == 0:
             del species_datad["EMISSIVITY_CONSTRAINT"]
             del species_datad["EMISSIVITY_ERROR"]
             del species_datad["EMISSIVITY_INITIAL"]
@@ -741,7 +741,9 @@ class RetrievalL2Output(RetrievalOutput):
 
         species_data.RETRIEVEINLOG = np.int32(0)
         if isinstance(
-            self.current_state.state_mapping(StateElementIdentifier(self.spcname)),
+            self.current_state.state_mapping(
+                StateElementIdentifier(self.spcname), include_subset=False
+            ),
             rf.StateMappingLog,
         ):
             species_data.RETRIEVEINLOG = np.int32(1)
@@ -799,7 +801,7 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         # AT_LINE 355 write_products_one.pro
-        if self.state_sd_wavelength("CLOUDEXT").shape[0] > 0:
+        if self.state_sd_wavenumber("CLOUDEXT").shape[0] > 0:
             species_data.CLOUDFREQUENCY = [
                 600,
                 650,
@@ -964,13 +966,13 @@ class RetrievalL2Output(RetrievalOutput):
                 np.diagonal(self.results.Sx[array_2d_indices])
             )
 
-        if self.state_sd_wavelength("EMIS").shape[0] > 0:
+        if self.state_sd_wavenumber("EMIS").shape[0] > 0:
             species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec_fm("EMIS")
             species_data.EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec(
                 "EMIS"
             )
             species_data.EMISSIVITY = self.state_value_vec("EMIS")
-            species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavelength("EMIS")
+            species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavenumber("EMIS")
 
             # This test doesn't work, since nothing has accessed this yet. I believe this
             # is always in the state, get_state_initial.py in py-retrieve always fills this
@@ -981,7 +983,7 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.NATIVE_HSR_EMISSIVITY_INITIAL = (
                     self.state_retrieval_initial_value_vec("native_emissivity")
                 )
-                species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_sd_wavelength(
+                species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_sd_wavenumber(
                     "native_emissivity"
                 )
 

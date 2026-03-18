@@ -361,6 +361,7 @@ class InputFileHelper:
     def __init__(
         self,
         osp_dir: str | os.PathLike[str] | InputFilePath | None = None,
+        osp_delta_dir: str | os.PathLike[str] | InputFilePath | None = None,
         gmao_dir: str | os.PathLike[str] | InputFilePath | None = None,
     ) -> None:
         if isinstance(osp_dir, InputFilePath):
@@ -371,6 +372,10 @@ class InputFileHelper:
                 if osp_dir is not None
                 else os.environ.get("MUSES_OSP_PATH", "../OSP")
             )
+        if osp_delta_dir is None:
+            osp_delta_dir = os.environ.get("MUSES_OSP_DELTA_PATH", None)
+        if osp_delta_dir is not None:
+            self.osp_dir = InputFilePathDelta(self.osp_dir, osp_delta_dir)
         if isinstance(gmao_dir, InputFilePath):
             self.gmao_dir = gmao_dir
         else:

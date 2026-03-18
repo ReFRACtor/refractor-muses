@@ -167,10 +167,10 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.scanDirection = np.int16(0)
 
         my_data.emis = self.state_value_vec("EMIS").astype(np.float32)
-        my_data.emisFreq = self.state_sd_wavelength("EMIS").astype(np.float32)
+        my_data.emisFreq = self.state_sd_wavenumber("EMIS").astype(np.float32)
 
         my_data.cloud = self.state_value_vec("CLOUDEXT").astype(np.float32)
-        my_data.cloudFreq = self.state_sd_wavelength("CLOUDEXT").astype(np.float32)
+        my_data.cloudFreq = self.state_sd_wavenumber("CLOUDEXT").astype(np.float32)
 
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])

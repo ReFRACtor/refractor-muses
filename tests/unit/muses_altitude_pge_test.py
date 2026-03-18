@@ -1,0 +1,97 @@
+from refractor.muses import (
+    InstrumentIdentifier,
+    AirsFmObjectCreator,
+    MusesAltitude,
+)
+import numpy.testing as npt
+
+
+def test_muses_altitude(joint_omi_step_8_no_run_dir):
+    rs, rstep, _ = joint_omi_step_8_no_run_dir
+    obs_airs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("AIRS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
+        None,
+    )
+    ocreator = AirsFmObjectCreator(rs.current_state, rs.retrieval_config, obs_airs)
+    alt = MusesAltitude(
+        ocreator.pressure_fm,
+        ocreator.temperature,
+        ocreator.h2o_vmr,
+        rs.current_state.sounding_metadata.latitude,
+        rs.current_state.sounding_metadata.surface_altitude,
+    )
+    agrid = alt.altitude_grid(ocreator.pressure_fm)
+    assert agrid.units.name == "m"
+    # Verified against old py-retrieve code
+    npt.assert_allclose(
+        agrid.value.value,
+        [
+            6.48440293e04,
+            5.93412385e04,
+            5.50663314e04,
+            5.06585916e04,
+            4.76417401e04,
+            4.53745990e04,
+            4.38840765e04,
+            4.16916063e04,
+            4.02634526e04,
+            3.88623946e04,
+            3.61421533e04,
+            3.54788211e04,
+            3.35269690e04,
+            3.22528901e04,
+            3.16223340e04,
+            3.09959004e04,
+            3.03721289e04,
+            2.97495983e04,
+            2.91282494e04,
+            2.85080216e04,
+            2.78889159e04,
+            2.72709356e04,
+            2.66537358e04,
+            2.60369765e04,
+            2.54206731e04,
+            2.48043931e04,
+            2.41879914e04,
+            2.35713477e04,
+            2.29542780e04,
+            2.23365293e04,
+            2.17180990e04,
+            2.10989047e04,
+            2.04788769e04,
+            1.98580367e04,
+            1.92361561e04,
+            1.86129851e04,
+            1.79886555e04,
+            1.73633054e04,
+            1.67371768e04,
+            1.61102520e04,
+            1.54822177e04,
+            1.48526988e04,
+            1.42216560e04,
+            1.35892174e04,
+            1.29552011e04,
+            1.23198329e04,
+            1.16855057e04,
+            1.10547065e04,
+            1.04274505e04,
+            9.80451114e03,
+            9.18679846e03,
+            8.56856539e03,
+            7.94412598e03,
+            7.30762978e03,
+            6.65315550e03,
+            5.98136879e03,
+            5.29274589e03,
+            4.58816372e03,
+            3.86842599e03,
+            3.13387173e03,
+            2.38382290e03,
+            1.61806336e03,
+            8.40594766e02,
+            5.56733540e01,
+            0.00000000e00,
+        ],
+    )

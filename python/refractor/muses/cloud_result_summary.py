@@ -9,7 +9,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .error_analysis import ErrorAnalysis
     from .current_state import CurrentState
-    from refactor.muses_py_fm import FakeRetrievalInfo
+    from refractor.muses_py_fm import FakeRetrievalInfo
 
 
 # Needs a lot of cleanup, we are just shoving stuff into place
@@ -227,7 +227,7 @@ class CloudResultSummary:
 
     @property
     def cloudODAve(self) -> float:
-        freq = self.current_state.state_spectral_domain_wavelength(
+        freq = self.current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier("CLOUDEXT")
         )
         if freq is None:

@@ -68,6 +68,7 @@ def test_create_muses_tropomi_observation(
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     print(obs.surface_altitude)
+    print(obs.spacecraft_altitude)
 
 
 def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
@@ -125,6 +126,7 @@ def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     print(obs.surface_altitude)
+    print(obs.spacecraft_altitude)
 
 
 def test_omi_bad_sample(isolated_dir, ifile_hlp, joint_omi_test_in_dir):

@@ -37,13 +37,6 @@ def test_ground_albedo(tropomi_fm_object_creator_step_0):
     expected = [0.896, 0, 0]
     assert np.allclose(obj_albedo_coeffs, expected)
 
-    # Now check the state mapping indices. Since none of the albedo terms are in step 1 of this UIP,
-    # this should be an empty array.
-    obj_state_map = (
-        tropomi_fm_object_creator_step_0.ground_clear.state_mapping.retrieval_indexes
-    )
-    assert np.array_equal(obj_state_map, [])
-
 
 def test_absorber(tropomi_fm_object_creator_step_0):
     assert "O3" == tropomi_fm_object_creator_step_0.absorber.gas_name(0)

@@ -47,7 +47,9 @@ from .mpy import (
 from .muses_forward_model import (
     MusesAirsForwardModel,
     MusesCrisForwardModel,
+    MusesForwardModelHandle,
     MusesOmiForwardModel,
+    MusesOssForwardModelBase,
     MusesTesForwardModel,
     MusesTropomiForwardModel,
     ResultIrk,
@@ -76,7 +78,9 @@ __all__ = [
     "MaxAPosterioriSqrtConstraintUpdateUip",
     "MusesAirsForwardModel",
     "MusesCrisForwardModel",
+    "MusesForwardModelHandle",
     "MusesOmiForwardModel",
+    "MusesOssForwardModelBase",
     "MusesTesForwardModel",
     "MusesTropomiForwardModel",
     "RefractorUip",
@@ -117,5 +121,4 @@ __all__ = [
     "ring_cli_from_path",
     "vlidort_cli_from_path",
 ]
-
 # </AUTOGEN_INIT>

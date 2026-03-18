@@ -83,6 +83,11 @@ if have_muses_py:
     from py_retrieve.app.omi_setup import *  # type: ignore
     from py_retrieve.app.fm_oss.fm_oss_init import *  # type: ignore
     from py_retrieve.app.fm_oss.fm_oss_windows import *  # type: ignore
+    import py_retrieve.app.tropomi.rev_and_fm_map as tropomi_rev_and_fm_map  # type: ignore
+    import py_retrieve.app.tropomi.print_ring_input as tropomi_print_ring_input  # type: ignore
+    from py_retrieve.app.elanor.pack_jacobian import *  # type: ignore
+    from py_retrieve.app.elanor.makemap_ll import *  # type: ignore
+    from py_retrieve.app.elanor.ref_index import *  # type: ignore
 
 del _broken
 del _i

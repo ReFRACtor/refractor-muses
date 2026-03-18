@@ -5,6 +5,7 @@ from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
 )
+from .state_mapping_update_array import StateMappingUpdateArray
 from .retrieval_array import (
     FullGridMappedArray,
     RetrievalGridArray,
@@ -98,17 +99,42 @@ class StateElementFreqShared(StateElementOspFile):
             np.float64
         )
 
-    def _fill_in_state_mapping(self) -> None:
-        super()._fill_in_state_mapping()
+    def state_mapping(self, include_subset: bool) -> rf.StateMapping:
+        # Note we create this each time we return this. This is because
+        # StateMappingUpdateArray has state in it (the initial_value). We don't
+        # want users of this map to change the mapping in this class.
+        self._fill_in_state_mapping()
+
+        # TODO Clean this up
+        # Note that mw_frequency_needed doesn't give us the update_arr. There
+        # is additional logic in the basis_matrix. We extract out the update_arr
+        # from this. Might be good to pull out this logic, it is a bit obscure how
+        # this is done.
+
+        # Subsetting only applies if we are retrieving this step (so attaching
+        # to a StateVector). Otherwise, or if not requested, just go back to
+        # the normal StateMapping (e.g., rf.StateMappingLinear or rf.StateMappingLog)
+        if include_subset and self._retrieved_this_step:
+            update_arr = self.basis_matrix.sum(axis=0) != 0
+            smap = StateMappingUpdateArray(update_arr)
+            if not isinstance(self._state_mapping, rf.StateMappingLinear):
+                return rf.StateMappingComposite([self._state_mapping, smap])
+            else:
+                return smap
+        else:
+            return self._state_mapping
+
+    @property
+    def pressure_list_fm(self) -> FullGridMappedArray | None:
         # TODO Fix this
         # Note very confusingly this is actually the spectral domain wavelength
         # instead of pressure. We should fix this naming at some point, but for
         # now match what py-retrieve expects.
         if self._retrieved_this_step:
             assert self.spectral_domain is not None
-            self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
+            return self.spectral_domain.data.view(FullGridMappedArray)
         else:
-            self._pressure_list_fm = None
+            return None
 
     # TODO This seems to be doing something pretty similar to rf.SpectralWindow.
     # we should replace this at some point, but for now leave this here since I'm
@@ -245,7 +271,9 @@ class StateElementEmis(StateElementFreqShared):
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
-        spectral_domain = rf.SpectralDomain(f.checked_table["Frequency"], rf.Unit("nm"))
+        spectral_domain = rf.SpectralDomain(
+            f.checked_table["Frequency"], rf.Unit("cm^-1")
+        )
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
@@ -284,7 +312,6 @@ class StateElementEmis(StateElementFreqShared):
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
-        self._fill_in_state_mapping()
         assert self.spectral_domain is not None
         # TODO See about doing this directly
         wflag = self.mw_frequency_needed(
@@ -300,8 +327,7 @@ class StateElementEmis(StateElementFreqShared):
                 gap_threshold=50.0,
             )
         )
-        # Line 1240 state_element_old for emis
-        # Line 1366 state_element_old for cloud
+        self._fill_in_state_mapping()
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
@@ -325,7 +351,10 @@ class StateElementEmis(StateElementFreqShared):
             res = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
-                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+                .to_fmprime(
+                    self.state_mapping_retrieval_to_fm(),
+                    self.state_mapping(include_subset=False),
+                )
                 .view(FullGridMappedArray)
             )
             if self._value_fm is None:
@@ -355,7 +384,8 @@ class StateElementEmis(StateElementFreqShared):
         if self._retrieved_this_step:
             # muses-py maps value_fm to fmprime when we are doing a retrieval step
             self._value_fm[self.fm_update_flag] = self._value_fm.to_fmprime(
-                self.state_mapping_retrieval_to_fm, self.state_mapping
+                self.state_mapping_retrieval_to_fm(),
+                self.state_mapping(include_subset=False),
             )[self.fm_update_flag]
 
     @property
@@ -384,7 +414,7 @@ class StateElementNativeEmis(StateElementFreqShared):
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
         spectral_domain_in = rf.SpectralDomain(
-            f.checked_table["Frequency"], rf.Unit("nm")
+            f.checked_table["Frequency"], rf.Unit("cm^-1")
         )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
@@ -406,7 +436,7 @@ class StateElementNativeEmis(StateElementFreqShared):
             retrieval_config.get("CAMEL_Lab_Directory"),
         )
         spectral_domain = rf.SpectralDomain(
-            uwis_data["native_wavenumber"], rf.Unit("nm")
+            uwis_data["native_wavenumber"], rf.Unit("cm^-1")
         )
         value_fm = uwis_data["native_emis"].view(FullGridMappedArray)
         create_kwargs = {
@@ -431,7 +461,7 @@ class StateElementCloudExt(StateElementFreqShared):
         )
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(
-            f.checked_table["Frequencies"], rf.Unit("nm")
+            f.checked_table["Frequencies"], rf.Unit("cm^-1")
         )
         value_fm = np.array(f.checked_table["verticalEXT"]).view(FullGridMappedArray)
         create_kwargs = {"spectral_domain": spectral_domain}
@@ -508,7 +538,10 @@ class StateElementCloudExt(StateElementFreqShared):
         res = (
             xsol[retrieval_slice]
             .view(RetrievalGridArray)
-            .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            .to_fmprime(
+                self.state_mapping_retrieval_to_fm(),
+                self.state_mapping(include_subset=False),
+            )
             .view(FullGridMappedArray)
         )
         # Set of values actually updated

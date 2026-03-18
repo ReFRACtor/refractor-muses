@@ -340,11 +340,11 @@ class CurrentStateStateInfoOld(CurrentState):
             sid = StateElementIdentifier("emissivity")
         return self.state_info.state_element(sid, step)
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         selem = self.state_element_old(state_element_id)
-        return selem.spectral_domain_wavelength
+        return selem.spectral_domain_wavenumber
 
     def state_value(
         self, state_element_id: StateElementIdentifier | str
@@ -429,7 +429,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return self._retrieval_sv_loc
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         selem = self.state_element_old(state_element_id, other_name=False)
         mtype = selem.map_type

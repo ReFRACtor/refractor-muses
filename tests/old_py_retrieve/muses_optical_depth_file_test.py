@@ -38,6 +38,8 @@ class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
 @require_muses_py_fm
 def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1):
     obj_creator = tropomi_fm_object_creator_step_1
+    # Need access to the O3XSec file, so don't use temporary directory here
+    obj_creator.use_vlidort_temp_dir = False
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
@@ -119,6 +121,6 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1):
         fdjac[:, :, i] = (od - odinitial) / delta
         od2 = mod2.optical_depth_each_layer(wn, spec_index).value
         fdjac2[:, :, i] = (od2 - od2initial) / delta
-    npt.assert_allclose(jac, fdjac, atol=4e-6)
+    npt.assert_allclose(jac, fdjac, atol=2e-9)
     # Refractor is a more accurate jacobian
     npt.assert_allclose(jac2, fdjac2, atol=2e-9)

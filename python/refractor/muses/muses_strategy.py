@@ -514,8 +514,8 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 # a special case.
                 if selem.retrieved_this_step and not selem.spectral_domain:
                     value_fm = selem.value_fm.to_fmprime(
-                        selem.state_mapping_retrieval_to_fm,
-                        selem.state_mapping,
+                        selem.state_mapping_retrieval_to_fm(),
+                        selem.state_mapping(include_subset=False),
                         selem.should_fix_negative,
                     ).view(FullGridMappedArray)
                     selem.update_state_element(value_fm=value_fm)

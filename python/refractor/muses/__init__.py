@@ -2,11 +2,17 @@
 #   mkinit . -w
 
 # <AUTOGEN_INIT>
+from .cloud_ext_state import (
+    CloudExtState,
+)
 from .cloud_result_summary import (
     CloudResultSummary,
 )
 from .column_result_summary import (
     ColumnResultSummary,
+)
+from .compare_forward_model import (
+    CompareForwardModel,
 )
 from .cost_function import (
     CostFunction,
@@ -36,6 +42,9 @@ from .current_state_state_info import (
 )
 from .docopt_simple import (
     docopt_simple,
+)
+from .emis_state import (
+    EmisState,
 )
 from .eof_state_element import (
     OmiEofStateElement,
@@ -87,6 +96,9 @@ from .input_file_helper import (
     InputFileRecord,
     InputFileSave,
 )
+from .irk_forward_model import (
+    IrkForwardModel,
+)
 from .misc import (
     AttrDictAdapter,
     ResultIrk,
@@ -96,6 +108,7 @@ from .muses_airs_observation import (
     MusesAirsObservation,
 )
 from .muses_altitude_pge import (
+    MusesAltitude,
     MusesAltitudePge,
 )
 from .muses_cris_observation import (
@@ -120,6 +133,27 @@ from .muses_observation import (
 from .muses_optical_depth import (
     MusesOpticalDepth,
 )
+from .muses_oss_atmosphere import (
+    MusesOssAtmosphere,
+)
+from .muses_oss_fm_object_creator import (
+    AirsFmObjectCreator,
+    AirsForwardModelHandle,
+    CrisFmObjectCreator,
+    CrisForwardModelHandle,
+    MusesOssFmObjectCreator,
+    TesFmObjectCreator,
+    TesForwardModelHandle,
+)
+from .muses_oss_handle import (
+    muses_oss_handle,
+)
+from .muses_radiative_transfer_oss import (
+    MusesRadiativeTransferOss,
+)
+from .muses_radiative_transfer_vlidort import (
+    MusesRadiativeTransferVlidort,
+)
 from .muses_raman import (
     MusesRaman,
     SurfaceAlbedo,
@@ -128,6 +162,9 @@ from .muses_reflectance_observation import (
     MusesOmiObservation,
     MusesReflectanceObservation,
     MusesTropomiObservation,
+)
+from .muses_refractive_index import (
+    MusesRefractiveIndex,
 )
 from .muses_run_dir import (
     MusesRunDir,
@@ -175,6 +212,9 @@ from .osp_reader import (
     OspL2SetupControlInitial,
     OspSpeciesReader,
     RangeFind,
+)
+from .pointing_angle_surface import (
+    PointingAngleSurface,
 )
 from .priority_handle_set import (
     NoHandleFound,
@@ -314,22 +354,36 @@ from .state_element_single import (
 from .state_info import (
     StateInfo,
 )
+from .state_mapping_update_array import (
+    StateMappingUpdateArray,
+)
 from .tes_file import (
     TesFile,
+)
+from .vmr_modify import (
+    VmrHandleNeg,
+    VmrModify,
+    VmrModifySmallToFixed,
 )
 
 __all__ = [
     "AdapterRetrievalConfiguration",
+    "AirsFmObjectCreator",
+    "AirsForwardModelHandle",
     "AttrDictAdapter",
     "CdfWriteLiteTes",
     "CdfWriteTes",
+    "CloudExtState",
     "CloudResultSummary",
     "ColumnResultSummary",
+    "CompareForwardModel",
     "CostFunction",
     "CostFunctionCreator",
     "CostFunctionStateElementNotify",
     "CreatorHandle",
     "CreatorHandleSet",
+    "CrisFmObjectCreator",
+    "CrisForwardModelHandle",
     "CrossStateElement",
     "CrossStateElementDefaultHandle",
     "CrossStateElementHandle",
@@ -342,6 +396,7 @@ __all__ = [
     "CurrentStrategyStep",
     "CurrentStrategyStepDict",
     "DictFilterMetadata",
+    "EmisState",
     "ErrorAnalysis",
     "FileFilterMetadata",
     "FilterIdentifier",
@@ -366,10 +421,12 @@ __all__ = [
     "InputFileRecord",
     "InputFileSave",
     "InstrumentIdentifier",
+    "IrkForwardModel",
     "MeasurementId",
     "MeasurementIdDict",
     "MeasurementIdFile",
     "MusesAirsObservation",
+    "MusesAltitude",
     "MusesAltitudePge",
     "MusesCrisObservation",
     "MusesLevmarSolver",
@@ -378,10 +435,15 @@ __all__ = [
     "MusesObservationHandlePickleSave",
     "MusesOmiObservation",
     "MusesOpticalDepth",
+    "MusesOssAtmosphere",
+    "MusesOssFmObjectCreator",
     "MusesPyQaDataHandle",
     "MusesPySpectralWindowHandle",
+    "MusesRadiativeTransferOss",
+    "MusesRadiativeTransferVlidort",
     "MusesRaman",
     "MusesReflectanceObservation",
+    "MusesRefractiveIndex",
     "MusesRunDir",
     "MusesSpectralWindow",
     "MusesSpectrumSampling",
@@ -407,6 +469,7 @@ __all__ = [
     "OspL2SetupControlInitial",
     "OspSetupReturn",
     "OspSpeciesReader",
+    "PointingAngleSurface",
     "PriorityHandleSet",
     "ProcessLocation",
     "PropagatedQA",
@@ -482,12 +545,18 @@ __all__ = [
     "StateElementWithCreate",
     "StateElementWithCreateHandle",
     "StateInfo",
+    "StateMappingUpdateArray",
     "StrategyStepIdentifier",
     "SurfaceAlbedo",
     "TesFile",
+    "TesFmObjectCreator",
+    "TesForwardModelHandle",
     "TesSpectralWindow",
     "UwisCamelOptions",
     "VerboseSolverLogging",
+    "VmrHandleNeg",
+    "VmrModify",
+    "VmrModifySmallToFixed",
     "compare_species",
     "docopt_simple",
     "extra_l2_output",
@@ -496,8 +565,8 @@ __all__ = [
     "is_atmospheric_species",
     "modify_strategy_table",
     "mpy_radiance_from_observation_list",
+    "muses_oss_handle",
     "order_species",
     "species_type",
 ]
-
 # </AUTOGEN_INIT>

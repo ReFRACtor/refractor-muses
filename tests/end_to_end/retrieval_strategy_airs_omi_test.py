@@ -19,10 +19,12 @@ from refractor.muses import (
 )
 import sys
 
-# Use refractor forward model, or use py-retrieve.
+# Use refractor vlidort, lidort forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-# run_refractor = False
-run_refractor = True
+run_lidort = False
+# run_lidort = True
+# run_pyretrieve = True
+run_pyretrieve = False
 
 # Can use the older py_retrieve matching objects
 match_py_retrieve = False
@@ -36,7 +38,8 @@ def test_retrieval_strategy_airs_omi(
     python_fp_logger,
     end_to_end_run_dir,
     joint_omi_test_in_dir,
-    joint_omi_test_refractor_expected_dir,
+    joint_omi_test_refractor_lidort_expected_dir,
+    joint_omi_test_refractor_vlidort_expected_dir,
     joint_omi_test_expected_dir,
 ):
     """Full run, that we then compare the output files to expected results.
@@ -63,14 +66,17 @@ def test_retrieval_strategy_airs_omi(
         # Record input file, just for our information
         rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver(
-            "retrieval_strategy_retrieval_step", "starting run_step"
-        )
-        rs.add_observer(rscap)
-        rscap2 = RetrievalStrategyCaptureObserver("retrieval_result", "retrieval step")
-        rs.add_observer(rscap2)
-        compare_dir = joint_omi_test_expected_dir
-        if run_refractor:
+        # Temp, as we are working on MusesRadiativeTransferOss, we can't pickle this
+        if False:
+            rscap = RetrievalStrategyCaptureObserver(
+                "retrieval_strategy_retrieval_step", "starting run_step"
+            )
+            rs.add_observer(rscap)
+            rscap2 = RetrievalStrategyCaptureObserver(
+                "retrieval_result", "retrieval step"
+            )
+            rs.add_observer(rscap2)
+        if run_lidort:
             # Use refractor forward model.
             ihandle = OmiForwardModelHandle(
                 use_pca=True,
@@ -80,8 +86,23 @@ def test_retrieval_strategy_airs_omi(
             )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
-            compare_dir = joint_omi_test_refractor_expected_dir
+            compare_dir = joint_omi_test_refractor_lidort_expected_dir
             rs.update_target(f"{r.run_dir}/Table.asc")
+        elif run_pyretrieve:
+            from refractor.muses_py_fm import (
+                MusesForwardModelHandle,
+                MusesOmiForwardModel,
+            )
+
+            ihandle = MusesForwardModelHandle(
+                InstrumentIdentifier("OMI"), MusesOmiForwardModel
+            )
+            rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+            compare_dir = joint_omi_test_expected_dir
+            rs.update_target(f"{r.run_dir}/Table.asc")
+        else:
+            # Default handles for for refractor vlidoirt
+            compare_dir = joint_omi_test_refractor_vlidort_expected_dir
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

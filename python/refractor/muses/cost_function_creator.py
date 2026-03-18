@@ -191,6 +191,8 @@ class CostFunctionCreator:
         smap = current_state.state_mapping_retrieval_to_fm
         retrieval_sv_apriori = current_state.constraint_vector(fix_negative=True)
         retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
+        # Initialize jacobians
+        fm_sv.update_state(fm_sv.state)
         return (
             instrument_name_list,
             self.fm_list,

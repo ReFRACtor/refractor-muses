@@ -187,7 +187,15 @@ class OssHandle:
         nfreq: int,
         cris_l1b_type: str,
     ) -> None:
-        from refractor.muses import AttrDictAdapter
+        from refractor.muses import AttrDictAdapter, muses_oss_handle
+
+        # Coordinate with MusesOssHandle. Normally we don't have both in the
+        # same environment, but this occurs during unit tests when we compare
+        # refractor with py-retrieve data. Since OSS is
+        # a global resource, we need to coordinate with this
+        if muses_oss_handle.have_oss:
+            self.have_oss = False
+            muses_oss_handle.oss_cleanup()
 
         # Check if we already have oss, and if all the arguments are the same as
         # the last time we were called. If so, we can skip actually doing the
@@ -242,7 +250,8 @@ class OssHandle:
         # terminal because we have suppressed stdout
         # **********************************************************************
 
-        with suppress_replacement("fm_oss_init"), suppress_stdout():
+        # with suppress_replacement("fm_oss_init"), suppress_stdout():
+        with suppress_replacement("fm_oss_init"):
             (_, self.oss_frequency_list_full, self.oss_jacobian_list) = mpy_fm_oss_init(
                 AttrDictAdapter(t),
                 str(inst),

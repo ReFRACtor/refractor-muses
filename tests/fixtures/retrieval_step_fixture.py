@@ -204,7 +204,26 @@ def joint_tropomi_step_12(
     ifile_hlp,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval input", ifile_hlp
+        joint_tropomi_test_in_dir,
+        12,
+        "retrieval input",
+        ifile_hlp,
+    )
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
+def joint_tropomi_step_4_no_run_dir(
+    isolated_dir,
+    joint_tropomi_test_in_dir,
+    ifile_hlp,
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_tropomi_test_in_dir,
+        4,
+        "retrieval input",
+        ifile_hlp,
+        include_run_dir=False,
     )
     return rs, rstep, kwargs
 
@@ -277,7 +296,6 @@ def tropomi_fm_object_creator_step_0(
     )
     res = TropomiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs,
         use_oss=use_oss,
@@ -323,7 +341,6 @@ def tropomi_fm_object_creator_swir_step(
     )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs,
         use_oss=use_oss,
@@ -356,7 +373,6 @@ def tropomi_fm_object_creator_step_1(isolated_dir, ifile_hlp, tropomi_test_in_di
 
     res = TropomiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs,
     )
@@ -387,7 +403,6 @@ def omi_fm_object_creator_step_0(isolated_dir, ifile_hlp, omi_test_in_dir):
 
     res = OmiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs,
     )
@@ -417,7 +432,6 @@ def omi_fm_object_creator_step_1(isolated_dir, ifile_hlp, omi_test_in_dir):
     )
     res = OmiFmObjectCreator(
         rs.current_state,
-        rs.measurement_id,
         rs.retrieval_config,
         obs,
     )

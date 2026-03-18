@@ -41,7 +41,9 @@ class CdfWriteLiteTes:
             # Special case, relative humidity isn't something we retrieve
             linear = True
         else:
-            smap = current_state.state_mapping(StateElementIdentifier(species_name))
+            smap = current_state.state_mapping(
+                StateElementIdentifier(species_name), include_subset=False
+            )
             linear = isinstance(smap, rf.StateMappingLinear)
 
         nci = ifile_hlp.open_ncdf(lite_directory / "pan_mask-margin2.-cutoff0.004.nc")

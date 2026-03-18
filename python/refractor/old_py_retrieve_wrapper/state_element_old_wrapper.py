@@ -148,7 +148,9 @@ class StateElementOldWrapper(StateElement):
 
     @property
     def state_mapping(self) -> rf.StateMapping:
-        return self._current_state_old.state_mapping(self.state_element_id)
+        return self._current_state_old.state_mapping(
+            self.state_element_id, include_subset=False
+        )
 
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:

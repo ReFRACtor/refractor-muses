@@ -57,7 +57,7 @@ class MusesTesObservation(MusesObservationImp):
             freq = o_tes["radianceStruct"]["frequency"][sindex:eindex]
             mw_range[i, 0, :] = min(freq), max(freq)
             sindex = eindex
-        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("cm^-1"))
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
@@ -273,6 +273,10 @@ class MusesTesObservation(MusesObservationImp):
     @property
     def boresight_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self._muses_py_dict["boresightNadirRadians"], "rad")
+
+    @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        return self.boresight_angle
 
     @property
     def spacecraft_altitude(self) -> rf.DoubleWithUnit:
@@ -537,6 +541,23 @@ class MusesTesObservation(MusesObservationImp):
             )
         return obs
 
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
+        """The full list of radiance, before we have removed bad
+        samples or applied the microwindows.
+
+        """
+        if sensor_index < 0 or sensor_index >= self.num_channels:
+            raise RuntimeError("sensor_index out of range")
+        sd = self.spectral_domain_full(sensor_index)
+        sr = rf.SpectralRange(
+            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
+            rf.Unit("W / (cm^2 sr cm^-1)"),
+            self.nesr_full(sensor_index),
+        )
+        return rf.Spectrum(sd, sr)
+
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
     ) -> np.ndarray:
@@ -547,6 +568,16 @@ class MusesTesObservation(MusesObservationImp):
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
         return self._muses_py_dict["radianceStruct"]["radiance"]
+
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        """Spectral domain before we have removed bad samples or
+        applied the microwindows."""
+        # By convention, sample index starts with 1. This was from OCO-2, I'm not
+        # sure if that necessarily makes sense here or not. But I think we have code
+        # that depends on the 1 base.
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        return rf.SpectralDomain(freq, sindex, rf.Unit("cm^-1"))
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad

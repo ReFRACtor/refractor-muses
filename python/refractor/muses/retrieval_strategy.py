@@ -319,6 +319,10 @@ class RetrievalStrategy:
         """The InputFileHelper used to read input data."""
         return self._ifile_hlp
 
+    @input_file_helper.setter
+    def input_file_helper(self, val: InputFileHelper) -> None:
+        self._ifile_hlp = val
+
     @property
     def run_dir(self) -> Path:
         """Directory we are running in (e.g. where the strategy table and measurement id files

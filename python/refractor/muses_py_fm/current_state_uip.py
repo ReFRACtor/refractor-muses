@@ -203,23 +203,30 @@ class CurrentStateUip(CurrentState):
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
-        raise NotImplementedError()
+        otable = self.rf_uip.uip_all(self.rf_uip.uip["instrumentList"][0])["obs_table"]
+        return SoundingMetadata(
+            rf.DoubleWithUnit(otable["target_latitude"], "deg"),
+            rf.DoubleWithUnit(0, "deg"),
+            rf.DoubleWithUnit(otable["surfaceAltitude"], "km"),
+        )
 
     def state_element(
         self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         raise NotImplementedError()
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""
+        if str(state_element_id) not in np.array(self.rf_uip.uip["speciesListFM"]):
+            return rf.StateMappingLinear()
         mtype = str(
             np.array(self.rf_uip.uip["mapTypeListFM"])[
                 np.array(self.rf_uip.uip["speciesListFM"]) == str(state_element_id)
@@ -364,6 +371,8 @@ class CurrentStateUip(CurrentState):
             res = np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
         elif str(state_element_id) == "TROPOMICLOUDSURFACEALBEDO":
             res = np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
+        elif str(state_element_id) == "scalePressure":
+            res = np.array([o_uip["cloud"]["scale_pressure"]])
         if res is not None:
             return res.view(FullGridMappedArray)
         # Check if it is a column

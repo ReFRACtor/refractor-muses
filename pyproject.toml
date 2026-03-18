@@ -1,14 +1,41 @@
-# Newer versions of pip prefer a pyproject.toml file. All this does is say
-# we are using setup tools. Note that this also triggers "build isolation"
-# We don't actually need or want this, instead we want to use the packages we
-# have already installed with conda. So we use --no-build-isolation when
-# we install this with pip:
-#
-# NO_FIXED_VERSION=t pip install . --no-build-isolation
-
 [build-system]
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name='refractor-muses'
+dynamic = ["version"]
+description='ReFRACtor MUSE integration'
+authors= [
+{name = 'James McDuffie', email = 'James.McDuffie@jpl.nasa.gov'}
+]
+dependencies=[
+ 'numpy', 'docopt-ng', 'loguru', 'refractor-framework', "mpi4py", "scipy"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "pytest-loguru", "pytest-profiling", "pytest-sugar",
+       "pytest-xdist", "ruff", "mypy"]
+# Frank's ML
+ml = ["scipy", "matplotlib", "cartopy", "tensorflow", "netcdf4", "juypterlab",
+      "scikit-learn"]
+# py_retrieve for backwards testing, and existing OSS and vlidort code
+py_retrieve= ["py-retrieve", "muses-oss", "muses-vlidort"]
+
+[tool.setuptools.packages.find]
+where = ["python"] 
+include = ["refractor.*"]
+namespaces = true
+
+[tool.setuptools.dynamic]
+version = { attr = "refractor.muses.version.__version__" }
+
+[tools.setuptools]
+package_dir={"" =  "python"}
+package_data={"*" = ["py.typed", "*.pyi"], "refractor.muses" = ["retrieval_output.json"]}
+
+[project.scripts]
+refractor-retrieve = "refractor.muses.refractor_retrieve:main"
 
 [tool.ruff.lint.per-file-ignores]
 
@@ -24,6 +51,7 @@ build-backend = "setuptools.build_meta"
 "tropomi_radiance.py" = ["E712"]
 "muses_observation_py_retrieve_test.py" = ["E712"]
 "muses_forward_model.py" = ["E712"]
+"muses_forward_model_vlidort.py" = ["E712"]
 "muses_reflectance_observation.py" = ["E712"]
 "muses_spectral_window.py" = ["E712"]
 "refractor_uip.py" = ["E712"]

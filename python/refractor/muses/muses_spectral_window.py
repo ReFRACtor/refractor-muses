@@ -5,6 +5,7 @@ import copy
 import numpy as np
 import os
 from typing import Any, Self
+import itertools
 import typing
 from .identifier import (
     InstrumentIdentifier,
@@ -65,6 +66,22 @@ class MusesSpectralWindow(rf.SpectralWindow):
     need for ForwardModels that use the old muses-py UIP structure. At
     least currently none of the metadata is used by refractor code,
     this really is only needed to generate the UIP.
+
+    Note, somewhat confusingly the OSS instruments (CRIS, AIRS, TES)
+    use wavenumber (cm^-1), while the lidort instruments (TROPOMI,
+    OMI) use wavelength (nm). This isn't wrong, but the old
+    py-retrieve code isn't at all clear about that.
+
+    The units listed in files are often cm^-1, however you just need
+    to "know" that for TROPOMI and OMI this is really nm. If you are
+    reading old py-retrieve code these tend to get mixed. As far as I
+    know, everything is actually correctly done in the old py-retrieve
+    code. It just isn't clear when things are wavenumber vs
+    wavelength.
+
+    Since we generally carry units around in refractor, we don't have
+    the same confusion. But you should be aware that different
+    instruments use different units for the spectral domain.
 
     """
 
@@ -198,6 +215,26 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 res.append((FilterIdentifier(self.filter_name[i, j]), d[i, j, 0]))
         return res
 
+    @property
+    def species_list_all(self) -> list[StateElementIdentifier]:
+        """This is a combined list of all the species_list found in
+        our metadata. This is information about what species are
+        covered by each microwindow (found in the microwindow
+        files). This information is used to determine what species to
+        include in our OSS forward model.
+        """
+        if self.species_list is None:
+            return []
+        ress = set()
+        # Split species_list strings (which are like 'H2O,HDO,NH3,O3,CO2').
+        # Get a union of all these values, and sort in our standard order
+        for sv in [set(sl.split(",")) for sl in self.species_list.flatten()]:
+            ress |= sv
+        res = StateElementIdentifier.sort_identifier(
+            [StateElementIdentifier(sv) for sv in ress]
+        )
+        return res
+
     def grid_indexes(self, grid: rf.SpectralDomain, spec_index: int) -> list[int]:
         if self._spec_win is None or self.full_band:
             return list(range(grid.data.shape[0]))
@@ -264,7 +301,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "THROW_AWAY_WINDOW_INDEX": -1,
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
-                        "instrument": str(self.instrument_name),
+                        "instrument": self.instrument_name.base_name
+                        if self.instrument_name is not None
+                        else "",
                         "RT": self.rt[i, j]
                         if self.rt is not None and self.rt[i, j] is not None
                         else "None",
@@ -300,7 +339,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                     # In a truly kludgy way, mw_augment_default in py-retrieve
                     # overrides these values, for AIRS only. Duplicate this
                     # functionality.
-                    if str(self.instrument_name) == "AIRS":
+                    if self.instrument_name == InstrumentIdentifier("AIRS"):
                         v2["maxopd"] = 0
                         v2["spacing"] = 0
                         freqs = np.array(
@@ -346,7 +385,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 FilterIdentifier(i)
                 for i in dict.fromkeys(
                     fspec.checked_table[
-                        fspec.checked_table["Instrument"] == str(iname)
+                        fspec.checked_table["Instrument"] == iname.base_name
                     ]["Filter"].to_list()
                 )
             ]
@@ -375,7 +414,11 @@ class MusesSpectralWindow(rf.SpectralWindow):
             # special handling here.
             # Temp, until we get this to work for AIRS and CRIS
             different_filter_different_sensor_index = True
-            if str(iname) in ("AIRS", "CRIS", "TES"):
+            if iname in (
+                InstrumentIdentifier("AIRS"),
+                InstrumentIdentifier("CRIS"),
+                InstrumentIdentifier("TES"),
+            ):
                 different_filter_different_sensor_index = False
             res[iname] = cls.create_from_file(
                 spec_fname,
@@ -421,7 +464,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """
         fspec = ifile_hlp.open_tes(spec_fname)
         rowlist = fspec.checked_table[
-            fspec.checked_table["Instrument"] == str(instrument_name)
+            fspec.checked_table["Instrument"] == instrument_name.s
         ]
 
         flist = list(dict.fromkeys(rowlist["Filter"].to_list()))
@@ -464,9 +507,22 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 mw_range[ind, j, 0] = mw["WindowStart"]
                 mw_range[ind, j, 1] = mw["WindowEnd"]
                 filter_name[ind, j] = mw["Filter"]
-                rt[ind, j] = mw["RT"]
+                rt[ind, j] = mw["RT"].upper()
                 species_list[ind, j] = mw["Species"]
-        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        # Somewhat confusingly, the units depend on the instrument type. We
+        # leverage off of the RT type for this, VLIDORT is in nm, OSS
+        # is in wavenumber cm^-1. The file actually has units listed in it
+        # for each of the columns, but this is just wrong for the VLIDORT
+        # instruments. We look for the RT value in our microwindows, making
+        # sure they are consistent
+        t = np.array([i for i in rt.flatten() if i is not None])
+        if t.shape[0] > 0 and np.all(t == "VLIDORT"):
+            units = rf.Unit("nm")
+        elif t.shape[0] > 0 and np.all(t == "OSS"):
+            units = rf.Unit("cm^-1")
+        else:
+            raise RuntimeError("Don't know how to determine microwindow units")
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, units)
         return cls(
             spec_win=rf.SpectralWindowRange(mw_range),
             obs=None,
@@ -652,7 +708,6 @@ class TesSpectralWindow(MusesSpectralWindow):
         # or include_bad_sample. So just return results otherwise
         if self._spec_win is None or self.full_band or self.do_raman_ext:
             return super().grid_indexes(grid, spec_index)
-        from refractor.old_py_retrieve_wrapper import muses_py_radiance_get_indices
 
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
@@ -660,21 +715,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         # Pull out pieces that we depend on, just to make clear what the dependency is
         with self._obs.modify_spectral_window(full_band=True):
             sd = self._obs.spectral_domain_all()
-        d = {
-            "frequency": sd.data,
-            "filterNames": [str(fid) for fid, _ in self._obs.filter_data_full],
-            "filterSizes": [sz for _, sz in self._obs.filter_data_full],
-            "instrumentNames": [
-                str(self._obs.instrument_name),
-            ],
-            "instrumentSizes": [
-                sd.size,
-            ],
-            # This values get grabbed, but nothing happens with it. Pass as nan to
-            # make clear we aren't filling this in
-            "NESR": np.nan,
-        }
-        muses_gindex = muses_py_radiance_get_indices(d, self.muses_microwindows())
+        muses_gindex = self._radiance_get_indices(sd, self.muses_microwindows())
 
         if self.include_bad_sample:
             return [int(i) for i in muses_gindex]
@@ -683,6 +724,38 @@ class TesSpectralWindow(MusesSpectralWindow):
             i for i in (self._obs.bad_sample_mask(spec_index) == False).nonzero()[0]
         )
         return [int(i) for i in muses_gindex if i in good_gindex]
+
+    def _radiance_get_indices(
+        self, sd: np.ndarray, mw: list[dict[str, Any]]
+    ) -> list[int]:
+        frequency = sd.data
+        filterArray = list(
+            itertools.chain.from_iterable(
+                [
+                    [
+                        str(fid),
+                    ]
+                    * sz
+                    for fid, sz in self._obs.filter_data_full
+                ]
+            )
+        )
+        # Note logic of calling this ensures that instrument is always tes, so we
+        # don't need to check that
+        indexOut = []
+        tolerance = 0.01
+        for mwv in mw:
+            my_index = [
+                i
+                for (i, frq), filtname in zip(enumerate(frequency), filterArray)
+                if (
+                    (mwv["start"] - tolerance) <= frq
+                    and (mwv["endd"] + tolerance) >= frq
+                    and filtname == mwv["filter"]
+                )
+            ]
+            indexOut.extend(my_index)
+        return indexOut
 
 
 __all__ = ["MusesSpectralWindow", "TesSpectralWindow"]

@@ -2,6 +2,7 @@ from __future__ import annotations
 from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
+from .muses_radiative_transfer_vlidort import MusesRadiativeTransferVlidort
 from .identifier import StateElementIdentifier
 from .input_file_helper import InputFilePath
 import refractor.framework as rf  # type: ignore
@@ -9,15 +10,18 @@ from loguru import logger
 import numpy as np
 import abc
 import copy
+import tempfile
+from pathlib import Path
+import types
 from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import MusesRayInfo
+    from refractor.muses_py_fm import RefractorUip
     from .muses_spectral_window import MusesSpectralWindow
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .current_state import CurrentState
-    from .identifier import InstrumentIdentifier
     from .retrieval_configuration import RetrievalConfiguration
 
 
@@ -51,9 +55,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def __init__(
         self,
         current_state: CurrentState,
-        measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
-        instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
         fm_sv: rf.StateVector | None = None,
         # Values, so we can flip between using pca and not
@@ -67,6 +69,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             "O3",
         ],
         primary_absorber: str = "O3",
+        use_vlidort: bool = False,
+        vlidort_nstokes: int = 2,
+        vlidort_nstreams: int = 4,
+        use_vlidort_temp_dir: bool = True,
+        skip_adding_uip_to_fm_sv: bool = False,
     ):
         """Constructor. The StateVector to add things to can be passed
         in, or if this isn't then we create a new StateVector.
@@ -83,26 +90,34 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
              difference. Normally you want to the default False value,
              but for testing purposes you might want to turn this on.
 
+        use_vlidort - Use VLIDORT rather than lidort for the forward
+             model.  This matches the existing py-retrieve. Note that
+             the version of VLIDORT is older than the LIDORT version
+             we use. Also, the code is hardcoded to using O3 only as
+             an absorber. We could modify this, but it would require
+             changing the package muses-vlidort. Also we use a
+             different version of the Raman Scattering calculation
+             (ring). This uses the stand alone executable (from the
+             the package muses-rrs).
         """
         self.use_pca = use_pca
         self.use_lrad = use_lrad
         self.use_raman = use_raman
-        self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.match_py_retrieve = match_py_retrieve
         self.observation = observation
-        # TODO This is needed by MusesOpticalDepthFile, it is
-        # otherwise unused. This is uses in make_uip_tropomi to write
-        # out the file, which we then read
-        self.step_directory = current_state.step_directory
         if fm_sv:
             self.fm_sv = fm_sv
         else:
             self.fm_sv = current_state.setup_fm_state_vector()
         self.current_state = current_state
-        self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
         self.ifile_hlp = retrieval_config.input_file_helper
+        self.use_vlidort = use_vlidort
+        self.skip_adding_uip_to_fm_sv = skip_adding_uip_to_fm_sv
+        self.vlidort_nstokes = vlidort_nstokes
+        self.vlidort_nstreams = vlidort_nstreams
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
 
         # Depending on when the StateVector is created, the
         # observation may or may not have been added. Note it is safe
@@ -125,17 +140,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 ],
             )
 
-        self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels
-
-        self.sza = self.observation.solar_zenith
-        self.oza = self.observation.observation_zenith
-        self.raz = self.observation.relative_azimuth
 
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
-        self.absorption_gases = copy.copy(absorption_gases)
+        self._absorption_gases = copy.copy(absorption_gases)
         self.primary_absorber = primary_absorber
 
     def solar_model(self, sensor_index: int) -> rf.SolarModel:
@@ -143,22 +153,86 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             sol_rad = self.observation.solar_spectrum(sensor_index)
         return rf.SolarReferenceSpectrum(sol_rad, None)
 
+    def _add_rf_uip_update_to_fm(self, fm: rf.ForwardModel) -> None:
+        """The logic is a little tricky to add _rf_uip to get updated, if you aren't
+        going through ray_info which already handles this. Tuck this away in this
+        function in case it is needed in the future.
+
+        Note normally you don't call this, just like normally you don't use _rf_uip.
+        But this can be useful in testing when we are comparing against old py-retrieve
+        code"""
+        from .cost_function import CostFunction
+
+        class FmUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
+            def __init__(self, ocreator: RefractorFmObjectCreator) -> None:
+                super().__init__()
+                self.ocreator = ocreator
+
+            def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
+                self.ocreator._rf_uip.update_uip(mstand.parameters)  # noqa:SLF001
+
+        def t(slf: rf.ForwardModel, cfunc: CostFunction) -> None:
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
+
+        # This function gets called when the CostFunction is created. It then turns around
+        # and adds an observer to the cost function, that in turn around and update the
+        # uip. We need this indirection because the RefractorUip get updated with the
+        # RetrievalGridArray parameters to the cost function, not the FullGridMappedArray
+        # used by the rf.StateVector
+        fm.notify_cost_function = types.MethodType(t, fm)
+
     @cached_property
-    def ray_info(self) -> MusesRayInfo:
-        """Return MusesRayInfo."""
-        from refractor.old_py_retrieve_wrapper import MusesRayInfo
+    def _rf_uip(self) -> RefractorUip:
+        """We have this as private, because things in general shouldn't be using
+        RefractorUip (we have purposely removed this most everywhere because of the
+        tight coupling it gives). However, if you have some special case testing or
+        something like that, there isn't anything wrong in using this. Just think
+        if you *really* want to use this instead of more standard refractor.muses
+        objects
+
+        Note that this is *not* attached to the StateVector. ray_info is, but this
+        lower level function isn't. Depending on what you are using this for, you
+        may need to attach this yourself to the StateVector. You can use
+        _add_rf_uip_update_to_fm for this if desired.
+        """
         from refractor.muses_py_fm import RefractorUip
 
-        rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        return RefractorUip.create_uip_from_refractor_objects(
             [self.observation],
             self.current_state,  # type: ignore[arg-type]
             self.retrieval_config,  # type: ignore[arg-type]
+            vlidort_dir=self.vlidort_dir,
         )
-        return MusesRayInfo(
-            rf_uip,
-            str(self.instrument_name),
+
+    @cached_property
+    def vlidort_dir(self) -> Path:
+        """When we generate a RefractorUip, or call VLIDORT there are a number
+        of files used to communicate between things. We put these into a
+        temporary directory normally"""
+        if self.use_vlidort_temp_dir:
+            self._vlidort_tempdir = tempfile.TemporaryDirectory()
+            return Path(self._vlidort_tempdir.name)
+        # Use run dir if we aren't using a temporary directory. Can be useful
+        # for debugging, where we want to see the files passed to and from VLIDORT
+        return self.current_state.step_directory / "vlidort"
+
+    @cached_property
+    def ray_info(self) -> MusesRayInfo:
+        """Return MusesRayInfo."""
+        from refractor.old_py_retrieve_wrapper import (
+            MusesRayInfo,
+            FmMusesRayInfoUpdateUip,
+        )
+
+        rinfo = MusesRayInfo(
+            self._rf_uip,
+            self.observation.instrument_name.base_name,
             self.pressure,
         )
+        # Skipping needed by some old unit tests, not something you would normally do
+        if not self.skip_adding_uip_to_fm_sv:
+            self.fm_sv.add_observer_and_keep_reference(FmMusesRayInfoUpdateUip(rinfo))
+        return rinfo
 
     @property
     def spec_win(self) -> MusesSpectralWindow:
@@ -246,7 +320,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         for i in range(self.num_channels):
             sg = rf.SampleGridSpectralDomain(
                 self.observation.spectral_domain_full(i),
-                str(self.observation.filter_list[i]),
+                str(self.observation.channel_list[i]),
             )
             if self.ils_method(i) == "FASTCONV":
                 iparms = self.ils_params(i)
@@ -261,8 +335,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     iparms["where_extract"],
                     sg,
                     high_res_ext,
-                    str(self.filter_list[i]),
-                    str(self.filter_list[i]),
+                    str(self.observation.channel_list[i]),
+                    str(self.observation.channel_list[i]),
                 )
             elif self.ils_method(i) == "POSTCONV":
                 iparms = self.ils_params(i)
@@ -274,8 +348,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     sample_grid_spectral_domain=self.observation.spectral_domain_full(
                         i
                     ),
-                    band_name=str(self.filter_list[i]),
-                    obs_band_name=str(self.observation.filter_list[i]),
+                    band_name=str(self.observation.channel_list[i]),
+                    obs_band_name=str(self.observation.channel_list[i]),
                 )
             else:
                 ils_obj = rf.IdentityIls(sg)
@@ -416,17 +490,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if self.match_py_retrieve:
             from refractor.old_py_retrieve_wrapper import MusesRayInfo
-            from refractor.muses_py_fm import RefractorUip
 
-            rf_uip = RefractorUip.create_uip_from_refractor_objects(
-                [self.observation],
-                self.current_state,  # type: ignore[arg-type]
-                self.retrieval_config,  # type: ignore[arg-type]
-            )
-
+            # Note we can't just use self.ray_info, because this depends on
+            # self.pressure. So we really do need a separate object here that
+            # just uses pressure_fm.
             rinfo = MusesRayInfo(
-                rf_uip,
-                str(self.instrument_name),
+                self._rf_uip,
+                self.observation.instrument_name.base_name,
                 self.pressure_fm,
             )
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
@@ -456,6 +526,15 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             ]
         )
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            [
+                StateElementIdentifier("TATM"),
+            ],
+            [
+                tlevel,
+            ],
+        )
         return tlevel
 
     @cached_property
@@ -467,20 +546,25 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.RayleighBodhaine(self.pressure, self.altitude, self.constants)
 
     @cached_property
+    def absorption_gases(self) -> list[StateElementIdentifier]:
+        """List of absorption gases to read in absorber_vmr."""
+        return [StateElementIdentifier(i) for i in self._absorption_gases]
+
+    @cached_property
     def absorber_vmr(self) -> list[rf.AbsorberVmr]:
         vmrs = []
         for gas in self.absorption_gases:
-            selem = [
-                StateElementIdentifier(gas),
-            ]
-            coeff, mp = self.current_state.object_state(selem)
-            # Need to get mp to be the log mapping in current_state, but for
-            # now just work around this
-            mp = rf.StateMappingLog()
-            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
+            coeff, mp = self.current_state.object_state(
+                [
+                    gas,
+                ]
+            )
+            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, str(gas), mp)
             self.current_state.add_fm_state_vector_if_needed(
                 self.fm_sv,
-                selem,
+                [
+                    gas,
+                ],
                 [
                     vmr,
                 ],
@@ -508,7 +592,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.altitude,
             self.absorber_vmr,
             self.num_channels,
-            self.step_directory / "vlidort/input",
+            Path(self.vlidort_dir) / "input",
         )
 
     @cached_property
@@ -578,14 +662,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         absorptions = []
         skipped_gases = []
         for gas in self.absorption_gases:
-            fname = self.absco_filename(gas)
+            fname = self.absco_filename(str(gas))
             if fname is not None:
                 self.ifile_hlp.notify_file_input(fname)
                 absorptions.append(
                     rf.AbscoAer(str(fname), 1.0, 5000, rf.AbscoAer.NEAREST_NEIGHBOR_WN)
                 )
             else:
-                skipped_gases.append(gas)
+                skipped_gases.append(str(gas))
         if len(skipped_gases) > 0:
             logger.info(
                 f"One or absorption_gases does not have a ABSCO file, so won't be include. Skipped gases: {', '.join(skipped_gases)}"
@@ -638,11 +722,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude_muses(self) -> list[rf.Altitude]:
-        from refractor.old_py_retrieve_wrapper import MusesAltitude
+        from refractor.old_py_retrieve_wrapper import OldMusesAltitude
 
         res = []
         for i in range(self.num_channels):
-            chan_alt = MusesAltitude(
+            chan_alt = OldMusesAltitude(
                 self.ray_info, self.pressure, self.observation.latitude[i]
             )
             res.append(chan_alt)
@@ -690,12 +774,28 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def radiative_transfer(self) -> rf.RadiativeTransfer:
         """RT to use. This just gives us a simple place to switch
         between Lidort and PCA."""
+        if self.use_vlidort:
+            return self.radiative_transfer_vlidort
         # Not sure that PCA is working, right now we'll only run this if
         # use_pca is set to true
-        if self.use_pca:
+        elif self.use_pca:
             return self.radiative_transfer_pca
         else:
             return self.radiative_transfer_lidort
+
+    @cached_property
+    def radiative_transfer_vlidort(self) -> rf.RadiativeTransfer:
+        return MusesRadiativeTransferVlidort(
+            self.ground,
+            self.absorber,
+            self.pressure,
+            self.temperature,
+            self.altitude,
+            self.observation,
+            self.vlidort_dir,
+            self.vlidort_nstokes,
+            self.vlidort_nstreams,
+        )
 
     @cached_property
     def radiative_transfer_pca(self) -> rf.RadiativeTransfer:
@@ -725,9 +825,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 stokes,
                 self.atmosphere,
                 self.spec_win.spectral_bound,
-                self.sza,
-                self.oza,
-                self.raz,
+                self.observation.solar_zenith,
+                self.observation.observation_zenith,
+                self.observation.relative_azimuth,
                 pure_nadir,
                 num_stokes,
                 self.lrad_second_order,
@@ -741,9 +841,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             num_bins,
             num_eofs,
             stokes,
-            self.sza,
-            self.oza,
-            self.raz,
+            self.observation.solar_zenith,
+            self.observation.observation_zenith,
+            self.observation.relative_azimuth,
             num_streams,
             num_mom,
             use_solar_sources,
@@ -790,9 +890,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         rt = rf.LidortRt(
             self.atmosphere,
             stokes,
-            self.sza,
-            self.oza,
-            self.raz,
+            self.observation.solar_zenith,
+            self.observation.observation_zenith,
+            self.observation.relative_azimuth,
             pure_nadir,
             num_streams,
             num_mom,
@@ -824,9 +924,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             rt = rf.LRadRt(
                 rt,
                 self.spec_win.spectral_bound,
-                self.sza,
-                self.oza,
-                self.raz,
+                self.observation.solar_zenith,
+                self.observation.observation_zenith,
+                self.observation.relative_azimuth,
                 pure_nadir,
                 use_first_order_results,
                 self.lrad_second_order,
@@ -835,7 +935,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rt
 
     @cached_property
-    def spectrum_effect(self) -> list[rf.SpectrumEffect]:
+    def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
         res = []
         for i in range(self.num_channels):
             per_channel_eff = []
@@ -860,11 +960,21 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     @cached_property
-    def cloud_fraction(self) -> float:
+    def cloud_fraction(self) -> rf.CloudFraction:
         raise NotImplementedError
 
     @cached_property
-    def forward_model(self) -> rf.ForwardModelWithCloudHandling:
+    def forward_model(self) -> rf.ForwardModel:
+        # Right now, always use ForwardModelWithCloudHandling.
+        res = self.forward_model_ch
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if self.fm_sv.state.shape[0] > 0:
+            self.fm_sv.update_state(self.fm_sv.state)
+        return res
+
+    @cached_property
+    def forward_model_ch(self) -> rf.ForwardModelWithCloudHandling:
         logger.debug(f"Creating forward model using {self.__class__.__name__}")
         res = rf.ForwardModelWithCloudHandling(
             self.underlying_forward_model, self.cloud_fraction

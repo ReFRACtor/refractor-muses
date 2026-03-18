@@ -430,11 +430,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
     ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
         to FullGridMappedArray)"""
-        return self.state_element(state_element_id).state_mapping
+        selem = self.state_element(state_element_id)
+        return selem.state_mapping(include_subset=include_subset)
 
     # TODO Are these actually needed?
     def pressure_list(
@@ -533,7 +534,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return self._retrieval_state_vector_size
 
     def object_state(
-        self, state_element_id_list: list[StateElementIdentifier]
+        self,
+        state_element_id_list: list[StateElementIdentifier],
+        always_have_state_mapping_at_indices: bool = False,
     ) -> tuple[FullGridArray, rf.StateMapping]:
         """Return a set of coefficients and a rf.StateMapping to get
         the full state values used by an object. The object passes in
@@ -547,13 +550,42 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # TODO put in handling of log/linear
         coeff = np.concatenate([self.state_value(nm) for nm in state_element_id_list])
         rlist = self.retrieval_state_element_id
-        rflag = np.concatenate(
-            [
-                np.full((len(self.state_value(nm)),), nm in rlist, dtype=bool)
-                for nm in state_element_id_list
-            ]
-        )
-        mp = rf.StateMappingAtIndexes(rflag)
+        # Very common for state_element_id_list to just have one entry, in which
+        # case we can skip the mp
+        if len(state_element_id_list) > 1 or always_have_state_mapping_at_indices:
+            rflag = np.concatenate(
+                [
+                    np.full((len(self.state_value(nm)),), nm in rlist, dtype=bool)
+                    for nm in state_element_id_list
+                ]
+            )
+            mp = rf.StateMappingAtIndexes(rflag)
+        else:
+            mp = None
+        mp2 = None
+        for nm in state_element_id_list:
+            t = self.state_mapping(nm, include_subset=True)
+            if mp2 is None:
+                mp2 = t
+            # We currently don't have the logic for mixing mapping types (e.g., an
+            # object with some state element log and some linear. We could put something
+            # together for this if it becomes important (probably some new class like
+            # StateMappingComposite, but which strings together mapping in parallel).
+            # But until we have an example of this, and something we can test to make
+            # sure we get it right just treat this as an error.
+            if mp2.name != t.name:
+                raise RuntimeError(
+                    f"Don't currently handle mixing state elements with mixes mapping types. Got {mp2.name} and {t.name}"
+                )
+        assert mp2 is not None
+        if mp is None:
+            mp = mp2
+        elif mp2.name == "linear":
+            # Skip adding a rf.StateMappingLinear if we already have a rf.StateMappingAtIndexes
+            pass
+        else:
+            # Otherwise, we need to combine
+            mp = rf.StateMappingComposite([mp, mp2])
         return (coeff.view(FullGridArray), mp)
 
     def add_fm_state_vector_if_needed(
@@ -628,7 +660,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def _sv_name(self, selem: StateElementIdentifier, i: int) -> str:
         """Pull out the sv_name, just because it is a little long of an expression"""
-        smap = self.state_mapping(selem)
+        smap = self.state_mapping(selem, include_subset=True)
         if smap.name == "linear":
             return f"{str(selem)} {i + 1}"
         return f"{smap.name} {str(selem)} {i + 1}"
@@ -682,10 +714,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
-        """Return the spectral domain (as nm) for the given state_element_id, or None if
+        """Return the spectral domain (as cm^-1) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
@@ -730,7 +762,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         value, just make a copy of the array and edit that.
         """
         return self.state_value(state_element_id).to_full(
-            self.state_mapping(state_element_id)
+            self.state_mapping(state_element_id, include_subset=False)
         )
 
     @abc.abstractmethod
@@ -1105,7 +1137,15 @@ class CurrentStateDict(CurrentState):
     ) -> StateElement:
         raise NotImplementedError()
 
-    def state_spectral_domain_wavelength(
+    def state_mapping(
+        self, state_element_id: StateElementIdentifier | str, include_subset: bool
+    ) -> rf.StateMapping:
+        # I think we can just always use a placeholder here. We can come up
+        # with more complicated logic if needed (e.g., pass the state mapping in
+        # the constructor or something).
+        return rf.StateMappingLinear()
+
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()

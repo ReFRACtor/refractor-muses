@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from refractor.muses import (
     RefractorFmObjectCreator,
     ForwardModelHandle,
+    ForwardModelHandleSet,
     MusesRaman,
     SurfaceAlbedo,
     InstrumentIdentifier,
@@ -53,7 +54,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(
         self,
         current_state: CurrentState,
-        measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         observation: MusesObservation,
         use_eof: bool = False,
@@ -62,9 +62,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     ) -> None:
         super().__init__(
             current_state,
-            measurement_id,
             retrieval_config,
-            InstrumentIdentifier("OMI"),
             observation,
             **kwargs,
         )
@@ -153,8 +151,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         for i in range(self.num_channels):
             v: list[rf.InstrumentCorrection] = []
             if self.use_eof:
-                if self.observation.filter_list[i] in self.eof:
-                    for e in self.eof[self.observation.filter_list[i]]:
+                if self.observation.channel_list[i] in self.eof:
+                    for e in self.eof[self.observation.channel_list[i]]:
                         v.append(e)
             res.append(v)
         return res
@@ -163,7 +161,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     def eof(self) -> dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]]:
         res: dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]] = {}
         for i in range(self.num_channels):
-            filter_name = self.observation.filter_list[i]
+            filter_name = self.observation.channel_list[i]
             if str(filter_name) not in ("UV1", "UV2"):
                 continue
             selem = [
@@ -259,8 +257,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         res = []
         for i in range(self.num_channels):
             ind = self.observation.across_track[i]
-            wav_vals = f[f"WAV_{self.filter_list[i]}"][:, ind]
-            irad_vals = f[f"SOL_{self.filter_list[i]}"][:, ind]
+            wav_vals = f[f"WAV_{self.observation.channel_list[i]}"][:, ind]
+            irad_vals = f[f"SOL_{self.observation.channel_list[i]}"][:, ind]
             one_au = 149597870691
             irad_vals *= (one_au / self.observation.earth_sun_distance) ** 2
             # File does not have units contained within it
@@ -273,7 +271,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
-        filter_name = self.observation.filter_list[sensor_index]
+        filter_name = self.observation.channel_list[sensor_index]
         raise NotImplementedError(f"HWHM for band {filter_name} not defined")
 
     @cached_property
@@ -283,23 +281,27 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         band_reference = np.zeros(self.num_channels)
         selem_all = []
         for i in range(self.num_channels):
-            if self.filter_list[i] == FilterIdentifier("UV1"):
+            if self.observation.channel_list[i] == FilterIdentifier("UV1"):
                 band_reference[i] = (315 + 262) / 2.0
                 selem = [
                     StateElementIdentifier("OMISURFACEALBEDOUV1"),
                 ]
-                coeff, mp = self.current_state.object_state(selem)
+                coeff, mp = self.current_state.object_state(
+                    selem, always_have_state_mapping_at_indices=True
+                )
                 albedo[i, 0:1] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
-            elif self.filter_list[i] == FilterIdentifier("UV2"):
+            elif self.observation.channel_list[i] == FilterIdentifier("UV2"):
                 # Note this value is hardcoded in print_omi_surface_albedo
                 band_reference[i] = 320.0
                 selem = [
                     StateElementIdentifier("OMISURFACEALBEDOUV2"),
                     StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
                 ]
-                coeff, mp = self.current_state.object_state(selem)
+                coeff, mp = self.current_state.object_state(
+                    selem, always_have_state_mapping_at_indices=True
+                )
                 albedo[i, 0:2] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
@@ -309,7 +311,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             albedo,
             rf.ArrayWithUnit(band_reference, "nm"),
             rf.Unit("nm"),
-            [str(i) for i in self.filter_list],
+            [str(i) for i in self.observation.channel_list],
             rf.StateMappingAtIndexes(np.ravel(which_retrieved)),
         )
         self.current_state.add_fm_state_vector_if_needed(
@@ -343,7 +345,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         )
 
     @cached_property
-    def cloud_fraction(self) -> float:
+    def cloud_fraction(self) -> rf.CloudFraction:
         selem = [
             StateElementIdentifier("OMICLOUDFRACTION"),
         ]
@@ -388,9 +390,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             wlen,
             float(scale_factor),
             i,
-            rf.DoubleWithUnit(self.sza[i], "deg"),
-            rf.DoubleWithUnit(self.oza[i], "deg"),
-            rf.DoubleWithUnit(self.raz[i], "deg"),
+            rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
             self.atmosphere,
             self.solar_model(i),
             rf.StateMappingLinear(),
@@ -408,9 +410,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             wlen,
             scale_factor,
             i,
-            rf.DoubleWithUnit(self.sza[i], "deg"),
-            rf.DoubleWithUnit(self.oza[i], "deg"),
-            rf.DoubleWithUnit(self.raz[i], "deg"),
+            rf.DoubleWithUnit(self.observation.solar_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.observation_zenith[i], "deg"),
+            rf.DoubleWithUnit(self.observation.relative_azimuth[i], "deg"),
             self.atmosphere,
             self.solar_model(i),
             rf.StateMappingLinear(),
@@ -936,7 +938,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id: None | MeasurementId = None
         self.retrieval_config: None | RetrievalConfiguration = None
 
     def notify_update_target(
@@ -945,7 +946,6 @@ class OmiForwardModelHandle(ForwardModelHandle):
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
 
     def forward_model(
@@ -958,12 +958,11 @@ class OmiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
             return None
-        if self.measurement_id is None or self.retrieval_config is None:
+        if self.retrieval_config is None:
             raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating forward model using using OmiFmObjectCreator")
         obj_creator = OmiFmObjectCreator(
             current_state,
-            self.measurement_id,
             self.retrieval_config,
             obs,
             fm_sv=fm_sv,
@@ -979,5 +978,13 @@ def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray
     with h5py.File(str(i_filename)) as f:
         return f[i_variable_name][:]
 
+
+# Default forward model is the VLIDORT one, so we are as close to
+# py-retrieve results as possible. Should look into changing to LIDORT,
+# which is faster
+ForwardModelHandleSet.add_default_handle(
+    OmiForwardModelHandle(use_vlidort=True),
+    priority_order=-1,
+)
 
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]

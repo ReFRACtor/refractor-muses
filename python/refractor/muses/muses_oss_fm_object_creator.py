@@ -1,0 +1,824 @@
+from __future__ import annotations
+from .refractor_fm_object_creator import RefractorFmObjectCreator
+import refractor.framework as rf  # type: ignore
+from .identifier import InstrumentIdentifier, StateElementIdentifier
+from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
+from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
+from .compare_forward_model import CompareForwardModel
+from .irk_forward_model import IrkForwardModel
+from .muses_tes_observation import MusesTesObservation
+from .emis_state import EmisState
+from .cloud_ext_state import CloudExtState
+from .muses_altitude_pge import MusesAltitude
+from .muses_refractive_index import MusesRefractiveIndex
+from .muses_oss_atmosphere import MusesOssAtmosphere
+from .pointing_angle_surface import PointingAngleSurface
+from .vmr_modify import VmrModifySmallToFixed, VmrHandleNeg
+import os
+from pathlib import Path
+from loguru import logger
+from functools import cached_property, cache
+import typing
+from typing import Any
+
+if typing.TYPE_CHECKING:
+    from .input_file_helper import InputFilePath
+    from .current_state import CurrentState
+    from .muses_observation import MusesObservation, MeasurementId
+    from .retrieval_configuration import RetrievalConfiguration
+
+
+# Leverage off RefractorFmObjectCreator. We probably want to
+# rework this, either make MusesOssFmObjectCreator stand alone
+# or extract out a common base class. Right now RefractorFmObjectCreator
+# has a lot of stuff in it that we don't need for OSS.
+class MusesOssFmObjectCreator(RefractorFmObjectCreator):
+    def __init__(
+        self,
+        current_state: CurrentState,
+        retrieval_config: RetrievalConfiguration,
+        observation: MusesObservation,
+        fm_sv: rf.StateVector | None = None,
+        dir_lut: Path | InputFilePath | None = None,
+    ):
+        super().__init__(current_state, retrieval_config, observation, fm_sv)
+        self.dir_lut = dir_lut
+        # Filled in by derived classes
+        self.species_list: list[StateElementIdentifier] = []
+        self.sel_file: str | os.PathLike[str] | InputFilePath = ""
+        self.od_file: str | os.PathLike[str] | InputFilePath = ""
+        self.sol_file: str | os.PathLike[str] | InputFilePath = ""
+        self.fix_file: str | os.PathLike[str] | InputFilePath = ""
+
+    def ils_method(self, sensor_index: int) -> str:
+        """Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV."""
+        # We don't do ILS with OSS. I suppose it is possible we might at some
+        # point, but for now just have this always be APPLY
+        return "APPLY"
+
+    @cached_property
+    def surface_temperature(self) -> rf.SurfaceTemperature:
+        selem = [
+            StateElementIdentifier("TSUR"),
+        ]
+        stemp, mp = self.current_state.object_state(selem)
+        tsur = rf.SurfaceTemperatureDirect(
+            rf.ArrayWithUnit_double_1(stemp, rf.Unit("K")), mp
+        )
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [tsur],
+        )
+        return tsur
+
+    @cached_property
+    def emissivity(self) -> EmisState:
+        selem = [
+            StateElementIdentifier("EMIS"),
+        ]
+        semis, mp = self.current_state.object_state(selem)
+        semis_sd = self.current_state.state_element(selem[0]).spectral_domain
+        emis = EmisState(semis, semis_sd, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [emis],
+        )
+        return emis
+
+    @cached_property
+    def cloud_ext(self) -> CloudExtState:
+        selem = [
+            StateElementIdentifier("CLOUDEXT"),
+        ]
+        scloudext, mp = self.current_state.object_state(selem)
+        scloudext_sd = self.current_state.state_element(selem[0]).spectral_domain
+        cext = CloudExtState(scloudext, scloudext_sd, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [cext],
+        )
+        return cext
+
+    @cached_property
+    def pcloud(self) -> rf.Pcloud:
+        selem = [
+            StateElementIdentifier("PCLOUD"),
+        ]
+        spcloud, mp = self.current_state.object_state(selem)
+        pcloud = rf.PcloudDirect(rf.ArrayWithUnit_double_1(spcloud, rf.Unit("hPa")), mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [pcloud],
+        )
+        return pcloud
+
+    @cached_property
+    def scale_cloud(self) -> rf.ScalePressure:
+        # Not sure why this is called scalePressure, that is just the name used
+        # in py-retrieve. But this is used by the OSS code to give the
+        # scale of cloud log thickness (see oss_ir_module.f90 in muses-oss).
+        # So we cal this scale_cloud, since that is what this is.
+        selem = [
+            StateElementIdentifier("scalePressure"),
+        ]
+        ssclp, mp = self.current_state.object_state(selem)
+        sclp = rf.ScaleCloudDirect(ssclp, mp)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv,
+            selem,
+            [sclp],
+        )
+        return sclp
+
+    @cached_property
+    def spectrum_effect(self) -> list[list[rf.SpectrumEffect]]:
+        # No spectrum effects currently, although it is possible something
+        # like radiance scaling might be a useful option.
+        res = []
+        for i in range(self.num_channels):
+            per_channel_eff: rf.SpectrumEffect = []
+            res.append(per_channel_eff)
+        return res
+
+    @cached_property
+    def absorption_gases(self) -> list[StateElementIdentifier]:
+        # Use list found in the microwindow file for our MusesSpectralWindow
+        return self.observation.spectral_window.species_list_all
+
+    @cached_property
+    def absorber_vmr(self) -> list[rf.AbsorberVmr]:
+        # For a few VMRs, we have special handling for things like negative
+        # VMR. py-retrieve has then behavior hardcoded, so for we now we
+        # do the same thing.
+        special_to_threshold = {
+            StateElementIdentifier("HCN"): 1e-12,
+            StateElementIdentifier("NH3"): 5e-11,
+            StateElementIdentifier("ACET"): 1e-12,
+        }
+        special_neg_to_threshold = {
+            StateElementIdentifier("PAN"): 1e-11,
+        }
+
+        vmrs = []
+        for gas in self.absorption_gases:
+            coeff, mp = self.current_state.object_state(
+                [
+                    gas,
+                ]
+            )
+            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, str(gas), mp)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv,
+                [
+                    gas,
+                ],
+                [
+                    vmr,
+                ],
+            )
+            if gas in special_to_threshold:
+                vmr = VmrModifySmallToFixed(vmr, special_to_threshold[gas])
+            elif gas in special_neg_to_threshold:
+                vmr = VmrHandleNeg(vmr, special_neg_to_threshold[gas])
+            vmrs.append(vmr)
+        return vmrs
+
+    @cached_property
+    def h2o_vmr(self) -> rf.AbsorberVmr:
+        return self.absorber_vmr[
+            self.absorption_gases.index(StateElementIdentifier("H2O"))
+        ]
+
+    @cached_property
+    def muses_oss_atmosphere(self) -> MusesOssAtmosphere:
+        return MusesOssAtmosphere(self.absorber_vmr)
+
+    @cached_property
+    def muses_altitude(self) -> MusesAltitude:
+        return MusesAltitude(
+            self.pressure_fm,
+            self.temperature,
+            self.h2o_vmr,
+            self.current_state.sounding_metadata.latitude,
+            self.current_state.sounding_metadata.surface_altitude,
+        )
+
+    @cached_property
+    def refractive_index(self) -> MusesRefractiveIndex:
+        return MusesRefractiveIndex(
+            self.pressure_fm, self.temperature, self.h2o_vmr, self.muses_altitude
+        )
+
+    @cached_property
+    def pointing_angle_surface(self) -> PointingAngleSurface:
+        return PointingAngleSurface(
+            self.observation.spacecraft_altitude,
+            self.muses_altitude.earth_radius(),
+            self.pressure_fm,
+            self.muses_altitude,
+            self.refractive_index,
+        )
+
+    @cached_property
+    def radiative_transfer(self) -> rf.RadiativeTransfer:
+        return MusesRadiativeTransferOss(
+            self.pressure_fm,
+            self.temperature,
+            self.surface_temperature,
+            self.pcloud,
+            self.scale_cloud,
+            self.emissivity,
+            self.cloud_ext,
+            self.muses_oss_atmosphere,
+            self.observation.surface_altitude,
+            self.current_state.sounding_metadata.latitude,
+            self.pointing_angle_surface.pointing_angle_surface(
+                self.observation.pointing_angle
+            ),
+            self.observation.instrument_name,
+            self.ifile_hlp,
+            self.current_state.systematic_state_element_id
+            if self.current_state.use_systematic
+            else self.current_state.retrieval_state_element_id,
+            self.species_list,
+            self.sel_file,
+            self.od_file,
+            self.sol_file,
+            self.fix_file,
+        )
+
+    # These should probably be pushed down to a lidort FmObjectCreator
+    @cached_property
+    def cloud_fraction(self) -> rf.CloudFraction:
+        raise NotImplementedError
+
+    @cached_property
+    def ground_clear(self) -> rf.Ground:
+        raise NotImplementedError
+
+    @cached_property
+    def ground_cloud(self) -> rf.Ground:
+        raise NotImplementedError
+
+    def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
+        """Grating spectrometers like OMI and TROPOMI require a fixed
+        half width at half max for the IlsGrating object. This can
+        vary from band to band. This function must return the HWHM in
+        wavenumbers for the band indicated by `sensor_index`<`, which
+        will be the index from `self.channel_list()` for the current
+        band.
+        """
+        raise NotImplementedError
+
+
+class MusesCrisForwardModelOss(IrkForwardModel):
+    """IRK specialization for CRIS"""
+
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
+
+
+class MusesAirsForwardModelOss(IrkForwardModel):
+    """IRK specialization for AIRS"""
+
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+
+    @cache
+    def irk_spectral_domain(self, spec_index: int) -> rf.SpectralDomain:
+        # TODO Clean this up. Going through an entire fake observation just
+        # to get a spectral_domain seems unnecessarily complicated. This
+        # also depends on TesSpectralWindow, which in turn depends on
+        # py-retrieve. We should be able to clean this up.
+        tes_frequency_fname = (
+            self.rconf["spectralWindowDirectory"].parent.parent / "tes_frequency.nc"
+        )
+        tes_obs = MusesTesObservation.create_fake_for_irk(
+            tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
+        )
+        with tes_obs.modify_spectral_window(include_bad_sample=True):
+            return tes_obs.spectral_domain(spec_index)
+
+
+class MusesTesForwardModelOss(IrkForwardModel):
+    """IRK specialization for TES"""
+
+    def irk_angle(self) -> list[float]:
+        """List of angles in degrees that run forward model for the IRK."""
+        return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+
+
+class CrisFmObjectCreator(MusesOssFmObjectCreator):
+    def __init__(
+        self,
+        current_state: CurrentState,
+        retrieval_config: RetrievalConfiguration,
+        observation: MusesObservation,
+        fm_sv: rf.StateVector | None = None,
+        dir_lut: Path | InputFilePath | None = None,
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
+        # Different files depends on l1b_type
+        if self.observation.instrument_name == InstrumentIdentifier(
+            "CRIS", "suomi_nasa_nsr"
+        ):
+            if self.dir_lut is None:
+                self.dir_lut = (
+                    self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2023-01-nsr"
+                )
+            self.sel_file = (
+                self.dir_lut
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.sel"
+            )
+            self.od_file = (
+                self.dir_lut
+                / "suomi-cris-B1B2B3-unapod-loc-clear-19V-M12.4-v1.0.train.lut"
+            )
+            self.sol_file = self.dir_lut / "newkur.dat"
+            self.fix_file = self.dir_lut / "default.dat"
+        else:
+            if self.dir_lut is None:
+                self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "CRIS" / "2017-08"
+            self.sel_file = (
+                self.dir_lut
+                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.sel"
+            )
+
+            self.od_file = (
+                self.dir_lut
+                / "suomi-cris-fsr-B1B2B3-unapod-loc-cloudy-23V-M12.4-v1.0.train.lut"
+            )
+
+            self.sol_file = self.dir_lut / "newkur.dat"
+            self.fix_file = self.dir_lut / "default.dat"
+        # The species list seem to be hardcoded. I think this
+        # corresponds to what is available in the various input files
+        self.species_list = [
+            StateElementIdentifier(i)
+            for i in [
+                "PRESSURE",
+                "TATM",
+                "H2O",
+                "CO2",
+                "O3",
+                "N2O",
+                "CO",
+                "CH4",
+                "SO2",
+                "NH3",
+                "HNO3",
+                "OCS",
+                "N2",
+                "HCN",
+                "SF6",
+                "HCOOH",
+                "CCL4",
+                "CFC11",
+                "CFC12",
+                "CFC22",
+                "HDO",
+                "CH3OH",
+                "C2H4",
+                "PAN",
+            ]
+        ]
+
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        fm1 = MusesCrisForwardModelOss(
+            self._rf_uip,
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+            self.pointing_angle_surface,
+        )
+        # TODO Remove this when no longer using UIP
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
+            #
+            # NOTE - We have done some comparisons with larger difference
+            # between py-retrieve and refractor where we had failures in comparing.
+            # Looked into this, and this was for PAN only. I think this is the only
+            # linear vs log retrieval. In any case, after carefully looking I determined
+            # that neither refractor or py-retrieve is "right". They just give slightly
+            # different answers from round off/order of operation. So when looking
+            # at this, you may want to just ignore differences in PAN.
+            from refractor.muses_py_fm import MusesCrisForwardModel
+
+            fm2 = MusesCrisForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm1, fm2)
+        else:
+            res = fm1
+        res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if self.fm_sv.state.shape[0] > 0:
+            self.fm_sv.update_state(self.fm_sv.state)
+        return res
+
+
+class AirsFmObjectCreator(MusesOssFmObjectCreator):
+    def __init__(
+        self,
+        current_state: CurrentState,
+        retrieval_config: RetrievalConfiguration,
+        observation: MusesObservation,
+        fm_sv: rf.StateVector | None = None,
+        dir_lut: Path | InputFilePath | None = None,
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
+        if self.dir_lut is None:
+            self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "AIRS" / "2017-07"
+        self.sel_file = (
+            self.dir_lut / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.sel"
+        )
+        self.od_file = (
+            self.dir_lut / "aqua-airs-B1B2B3-unapod-loc-clear-23V-M12.4-v1.0.train.lut"
+        )
+        self.sol_file = self.dir_lut / "newkur.dat"
+        self.fix_file = self.dir_lut / "default.dat"
+
+        # The species list seem to be hardcoded. I think this
+        # corresponds to what is available in the various input files
+        self.species_list = [
+            StateElementIdentifier(i)
+            for i in [
+                "PRESSURE",
+                "TATM",
+                "H2O",
+                "CO2",
+                "O3",
+                "N2O",
+                "CO",
+                "CH4",
+                "SO2",
+                "NH3",
+                "HNO3",
+                "OCS",
+                "N2",
+                "HCN",
+                "SF6",
+                "HCOOH",
+                "CCL4",
+                "CFC11",
+                "CFC12",
+                "CFC22",
+                "HDO",
+                "CH3OH",
+                "C2H4",
+                "PAN",
+            ]
+        ]
+
+    @cached_property
+    def tes_pointing_angle_surface(self) -> PointingAngleSurface:
+        # TODO Determine if this is actually correct.  py-retrieve
+        # replaces AIRS with TES for the IRK calculation. A side
+        # effect of that is to replace the altitude used in the
+        # PointingAngleSurface calculation with a height of 0. This
+        # has the effect of significantly changing the surface
+        # pointing angle. It isn't clear if this was intended or
+        # not. It isn't super clear in the old py-retrieve code that
+        # this is what is being done, it is possible that this was an
+        # accident. This also has the effect of making the
+        # pointing_angle_surface almost the same as the passed in
+        # pointing angle. It is possible that this was the intent,
+        # that the IRK integration should be in terms of the surface
+        # pointing angle and the spacecraft pointing angle was used
+        # just because that is how the fm_oss code in py-retrieve was
+        # set up. In any case, somebody knowledgeable should look into
+        # this.
+        #
+        # For now, we duplicate the py-retrieve behavior. Note this
+        # this *not* done for CRIS or TES IRK calculation, although we
+        # also don't seem to ever actually do the IRK for CRIS or TES
+        # (the code is in py-retrieve, but it isn't clear if it ever
+        # gets executed.
+
+        return PointingAngleSurface(
+            rf.DoubleWithUnit(0.0, "m"),
+            self.muses_altitude.earth_radius(),
+            self.pressure_fm,
+            self.muses_altitude,
+            self.refractive_index,
+        )
+
+    @cached_property
+    def tes_radiative_transfer(self) -> rf.RadiativeTransfer:
+        # For the IRK, we want to use the more full tes frequencies. So create
+        # a RT set up for this.
+        tes_dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "TES" / "2018-03-14"
+        tes_sel_file = (
+            tes_dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
+        )
+        tes_od_file = (
+            tes_dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
+        )
+        tes_sol_file = tes_dir_lut / "newkur.dat"
+        tes_fix_file = tes_dir_lut / "default.dat"
+
+        return MusesRadiativeTransferOss(
+            self.pressure_fm,
+            self.temperature,
+            self.surface_temperature,
+            self.pcloud,
+            self.scale_cloud,
+            self.emissivity,
+            self.cloud_ext,
+            self.muses_oss_atmosphere,
+            self.observation.surface_altitude,
+            self.current_state.sounding_metadata.latitude,
+            self.tes_pointing_angle_surface.pointing_angle_surface(
+                self.observation.pointing_angle
+            ),
+            InstrumentIdentifier("TES"),
+            self.ifile_hlp,
+            self.current_state.systematic_state_element_id
+            if self.current_state.use_systematic
+            else self.current_state.retrieval_state_element_id,
+            self.species_list,
+            tes_sel_file,
+            tes_od_file,
+            tes_sol_file,
+            tes_fix_file,
+        )
+
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        fm1 = MusesAirsForwardModelOss(
+            self._rf_uip,
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+            self.tes_pointing_angle_surface,
+            irk_radiative_transfer=self.tes_radiative_transfer,
+        )
+        # TODO Remove this when no longer using UIP
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
+            from refractor.muses_py_fm import MusesAirsForwardModel
+
+            fm2 = MusesAirsForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm1, fm2)
+        else:
+            res = fm1
+        res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if self.fm_sv.state.shape[0] > 0:
+            self.fm_sv.update_state(self.fm_sv.state)
+        return res
+
+
+class TesFmObjectCreator(MusesOssFmObjectCreator):
+    def __init__(
+        self,
+        current_state: CurrentState,
+        retrieval_config: RetrievalConfiguration,
+        observation: MusesObservation,
+        fm_sv: rf.StateVector | None = None,
+        dir_lut: Path | InputFilePath | None = None,
+    ):
+        super().__init__(
+            current_state, retrieval_config, observation, fm_sv=fm_sv, dir_lut=dir_lut
+        )
+        if self.dir_lut is None:
+            self.dir_lut = self.ifile_hlp.osp_dir / "OSS_FM" / "TES" / "2018-03-14"
+        self.sel_file = (
+            self.dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.sel"
+        )
+        self.od_file = (
+            self.dir_lut
+            / "aqua-tes-B2B11B22A11A1-unapod-loc-clear-23V-M12.4-v1.2.train.lut"
+        )
+        self.sol_file = self.dir_lut / "newkur.dat"
+        self.fix_file = self.dir_lut / "default.dat"
+        # The species list seem to be hardcoded. I think this
+        # corresponds to what is available in the various input files
+        self.species_list = [
+            StateElementIdentifier(i)
+            for i in [
+                "PRESSURE",
+                "TATM",
+                "H2O",
+                "CO2",
+                "O3",
+                "N2O",
+                "CO",
+                "CH4",
+                "SO2",
+                "NH3",
+                "HNO3",
+                "OCS",
+                "N2",
+                "HCN",
+                "SF6",
+                "HCOOH",
+                "CCL4",
+                "CFC11",
+                "CFC12",
+                "CFC22",
+                "HDO",
+                "CH3OH",
+                "C2H4",
+                "PAN",
+            ]
+        ]
+
+    @cached_property
+    def forward_model(self) -> rf.ForwardModel:
+        fm1 = MusesTesForwardModelOss(
+            self._rf_uip,
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+            self.observation,
+            self.retrieval_config,
+            self.pointing_angle_surface,
+        )
+        # TODO Remove this when no longer using UIP
+        self._add_rf_uip_update_to_fm(fm1)
+        if False:
+            # While developing, can directly compare with py-retrieve
+            # forward model at each steo.
+            from refractor.muses_py_fm import MusesTesForwardModel
+
+            # If we need to diagnose an issue
+            fm2 = MusesTesForwardModel(
+                self.current_state, self.observation, self.retrieval_config
+            )
+            res = CompareForwardModel(fm1, fm2)
+        else:
+            res = fm1
+        res.setup_grid()
+        # Set up jacobians (happens already for CostFunction, but not
+        # we are using the bare ForwardModel
+        if self.fm_sv.state.shape[0] > 0:
+            self.fm_sv.update_state(self.fm_sv.state)
+        return res
+
+
+class CrisForwardModelHandle(ForwardModelHandle):
+    def __init__(self, **creator_kwargs: Any) -> None:
+        self.creator_kwargs = creator_kwargs
+        self.retrieval_config: None | RetrievalConfiguration = None
+
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.retrieval_config = retrieval_config
+
+    def forward_model(
+        self,
+        instrument_name: InstrumentIdentifier,
+        current_state: CurrentState,
+        obs: MusesObservation,
+        fm_sv: rf.StateVector,
+        **kwargs: Any,
+    ) -> rf.ForwardModel:
+        if instrument_name != InstrumentIdentifier("CRIS"):
+            return None
+        if self.retrieval_config is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating OSS forward model using using CrisFmObjectCreator")
+        obj_creator = CrisFmObjectCreator(
+            current_state,
+            self.retrieval_config,
+            obs,
+            fm_sv=fm_sv,
+            **self.creator_kwargs,
+        )
+        fm = obj_creator.forward_model
+        logger.info(f"Cris Forward model\n{fm}")
+        return fm
+
+
+class AirsForwardModelHandle(ForwardModelHandle):
+    def __init__(self, **creator_kwargs: Any) -> None:
+        self.creator_kwargs = creator_kwargs
+        self.retrieval_config: None | RetrievalConfiguration = None
+
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.retrieval_config = retrieval_config
+
+    def forward_model(
+        self,
+        instrument_name: InstrumentIdentifier,
+        current_state: CurrentState,
+        obs: MusesObservation,
+        fm_sv: rf.StateVector,
+        **kwargs: Any,
+    ) -> rf.ForwardModel:
+        if instrument_name != InstrumentIdentifier("AIRS"):
+            return None
+        if self.retrieval_config is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating OSS forward model using using AirsFmObjectCreator")
+        obj_creator = AirsFmObjectCreator(
+            current_state,
+            self.retrieval_config,
+            obs,
+            fm_sv=fm_sv,
+            **self.creator_kwargs,
+        )
+        fm = obj_creator.forward_model
+        logger.info(f"Airs Forward model\n{fm}")
+        return fm
+
+
+class TesForwardModelHandle(ForwardModelHandle):
+    def __init__(self, **creator_kwargs: Any) -> None:
+        self.creator_kwargs = creator_kwargs
+        self.retrieval_config: None | RetrievalConfiguration = None
+
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.retrieval_config = retrieval_config
+
+    def forward_model(
+        self,
+        instrument_name: InstrumentIdentifier,
+        current_state: CurrentState,
+        obs: MusesObservation,
+        fm_sv: rf.StateVector,
+        **kwargs: Any,
+    ) -> rf.ForwardModel:
+        if instrument_name != InstrumentIdentifier("TES"):
+            return None
+        if self.retrieval_config is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating OSS forward model using using TesFmObjectCreator")
+        obj_creator = TesFmObjectCreator(
+            current_state,
+            self.retrieval_config,
+            obs,
+            fm_sv=fm_sv,
+            **self.creator_kwargs,
+        )
+        fm = obj_creator.forward_model
+        logger.info(f"Tes Forward model\n{fm}")
+        return fm
+
+
+ForwardModelHandleSet.add_default_handle(
+    CrisForwardModelHandle(),
+    priority_order=-1,
+)
+ForwardModelHandleSet.add_default_handle(
+    AirsForwardModelHandle(),
+    priority_order=-1,
+)
+ForwardModelHandleSet.add_default_handle(
+    TesForwardModelHandle(),
+    priority_order=-1,
+)
+
+__all__ = [
+    "MusesOssFmObjectCreator",
+    "CrisFmObjectCreator",
+    "AirsFmObjectCreator",
+    "TesFmObjectCreator",
+    "CrisForwardModelHandle",
+    "AirsForwardModelHandle",
+    "TesForwardModelHandle",
+]

@@ -183,6 +183,9 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     instrument_name - the name of the instrument the MusesObservation
         is for
 
+    channel_list - metadata about the band/channels covered by the
+        MusesObservation.
+
     filter_data - metadata about the filters covered the
         MusesObservation
 
@@ -219,6 +222,21 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     We have all the normal rf.Observation stuff, plus what is found in
     this class.
 
+    Note, somewhat confusingly the OSS instruments (CRIS, AIRS, TES)
+    use wavenumber (cm^-1), while the lidort instruments (TROPOMI,
+    OMI) use wavelength (nm). This isn't wrong, but the old
+    py-retrieve code isn't at all clear about that.
+
+    The units listed in files are often cm^-1, however you just need
+    to "know" that for TROPOMI and OMI this is really nm. If you are
+    reading old py-retrieve code these tend to get mixed. As far as I
+    know, everything is actually correctly done in the old py-retrieve
+    code. It just isn't clear when things are wavenumber vs
+    wavelength.
+
+    Since we generally carry units around in refractor, we don't have
+    the same confusion. But you should be aware that different
+    instruments use different units for the spectral domain.
     """
 
     def __init__(
@@ -232,6 +250,14 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def instrument_name(self) -> InstrumentIdentifier:
         """Name of instrument observation is for."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def channel_list(self) -> list[FilterIdentifier]:
+        """This returns a list of channel/band names. This is used as
+        metadata to describe a band, and for some instruments used to
+        determine what exactly is read from a file (e.g., BAND3 for
+        TROPOMI)"""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -383,6 +409,14 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        raise NotImplementedError()
+
 
 class MusesObservationImp(MusesObservation):
     """Common behavior for each of the MusesObservation classes we
@@ -480,7 +514,7 @@ class MusesObservationImp(MusesObservation):
             "filterSizes": [sz for _, sz in self.filter_data_full],
             # Only have one instrument
             "instrumentNames": [
-                str(self.instrument_name),
+                self.instrument_name.s,
             ],
             "instrumentSizes": [
                 sd.size,
@@ -499,7 +533,7 @@ class MusesObservationImp(MusesObservation):
     def across_track(self) -> list[int]:
         res = []
         for i in range(self.num_channels):
-            fname = self.filter_list[i]
+            fname = self.channel_list[i]
             res.append(
                 np.asarray(self.observation_table["XTRACK"])[
                     np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
@@ -519,7 +553,7 @@ class MusesObservationImp(MusesObservation):
         """
         # Note this is defined in MusesObservationReflectance. If we need to generalize
         # this, we can try to come up with a more general way to handle this
-        fname = self.filter_list[sensor_index]
+        fname = self.channel_list[sensor_index]
         return np.mean(
             np.asarray(self.observation_table[nm])[
                 np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
@@ -623,6 +657,17 @@ class MusesObservationImp(MusesObservation):
     def _v_num_channels(self) -> int:
         return self._num_channels
 
+    @property
+    def channel_list(self) -> list[FilterIdentifier]:
+        # Historically, the OSS instruments didn't have a overall "Band name" for
+        # the instrument - there was just one channel. Rather than coming up with
+        # a clever name, we just fill this in as "Dummy". This is only used as
+        # metadata, so this is fine. OMI and TROPOMI did have band names ("UV1", "BAND3"),
+        # those class overrides this
+        return [
+            FilterIdentifier(f"Dummy Band {i + 1}") for i in range(self.num_channels)
+        ]
+
     def notify_update(self, sv: rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         super().notify_update(sv)
@@ -654,15 +699,7 @@ class MusesObservationImp(MusesObservation):
         samples or applied the microwindows.
 
         """
-        if sensor_index < 0 or sensor_index >= self.num_channels:
-            raise RuntimeError("sensor_index out of range")
-        sd = self.spectral_domain_full(sensor_index)
-        sr = rf.SpectralRange(
-            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
-            rf.Unit("sr^-1"),
-            self.nesr_full(sensor_index),
-        )
-        return rf.Spectrum(sd, sr)
+        raise NotImplementedError()
 
     def radiance_full(
         self, sensor_index: int, skip_jacobian: bool = False
@@ -676,17 +713,14 @@ class MusesObservationImp(MusesObservation):
     def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         """Spectral domain before we have removed bad samples or
         applied the microwindows."""
-        # By convention, sample index starts with 1. This was from OCO-2, I'm not
-        # sure if that necessarily makes sense here or not. But I think we have code
-        # that depends on the 1 base.
-        freq = self.frequency_full(sensor_index)
-        sindex = np.array(list(range(len(freq)))) + 1
-        return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        raise NotImplementedError
 
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
+        Note that some instruments use  wavenumber (cm^-1) and some use
+        wavelength (nm). spectral_domain_full puts in the right units.
         """
         raise NotImplementedError
 
@@ -750,8 +784,8 @@ class SimulatedObservation(MusesObservationImp):
         self.spectral_window.add_bad_sample_mask(self)
 
     @property
-    def filter_list(self) -> list[FilterIdentifier]:
-        return self._obs.filter_list
+    def channel_list(self) -> list[FilterIdentifier]:
+        return self._obs.channel_list
 
     @property
     def instrument_name(self) -> InstrumentIdentifier:
@@ -764,6 +798,10 @@ class SimulatedObservation(MusesObservationImp):
     @property
     def observation_table(self) -> dict[str, Any]:
         return self._obs.observation_table
+
+    @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        return self._obs.pointing_angle
 
     @property
     def across_track(self) -> list[int]:
@@ -822,6 +860,26 @@ class SimulatedObservation(MusesObservationImp):
         """
         return self._rad_full[sensor_index]
 
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        return self._obs.spectral_domain_full(sensor_index)
+
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
+        """The full list of radiance, before we have removed bad
+        samples or applied the microwindows.
+
+        """
+        if sensor_index < 0 or sensor_index >= self.num_channels:
+            raise RuntimeError("sensor_index out of range")
+        sd = self.spectral_domain_full(sensor_index)
+        sr = rf.SpectralRange(
+            self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
+            self._obs.spectrum_full(sensor_index).units,
+            self.nesr_full(sensor_index),
+        )
+        return rf.Spectrum(sd, sr)
+
     def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
@@ -839,6 +897,10 @@ class SimulatedObservation(MusesObservationImp):
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._obs.surface_altitude
+
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return self._obs.spacecraft_altitude
 
     def monthly_minimum_surface_reflectance(self, band: int) -> float:
         return self._obs.monthly_minimum_surface_reflectance(band)

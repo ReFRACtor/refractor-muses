@@ -121,7 +121,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         # return that. So look for this condition and mark it, we'll then handle this
         # in the radiance call.
 
-        uip_all = res.uip_all(str(self.instrument_name))
+        uip_all = res.uip_all(self.instrument_name)
         if (
             uip_all["rts"] == ["OSS"]
             and "H2O" in [str(i) for i in uip_all["jacobians"]]
@@ -247,7 +247,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                 a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
             else:
                 a = rf.ArrayAd_double_1(rad[gmask])
-            sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+            sr = rf.SpectralRange(a, rf.Unit("W / (cm^2 sr cm^-1)"))
         return rf.Spectrum(sd, sr)
 
 
@@ -306,6 +306,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             cstate,
             self.rconf,
             pointing_angle=pointing_angle,
+            fake_tes_for_irk=True,
         )
         rf_uip_original = self.rf_uip
         try:
@@ -344,7 +345,6 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
                 )
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
-
         freq_step = frequency[1:] - frequency[:-1]
         freq_step = np.array([freq_step[0], *freq_step])
         n_l1b = len(frq_l1b)
@@ -488,7 +488,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             jj = pstart + plen
             vmr = current_state.initial_guess_full[ii:jj]
             vmr = (
-                current_state.state_mapping(selem_id)
+                current_state.state_mapping(selem_id, include_subset=False)
                 .mapped_state(rf.ArrayAd_double_1(vmr))
                 .value
             )
@@ -813,7 +813,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         # Replace with a fake TES observation. This is done to get the
         # full TES frequency range.
         tes_frequency_fname = (
-            f"{self.rconf['spectralWindowDirectory']}/../../tes_frequency.nc"
+            self.rconf["spectralWindowDirectory"].parent.parent / "tes_frequency.nc"
         )
         return MusesTesObservation.create_fake_for_irk(
             tes_frequency_fname, self.obs.spectral_window, self.rconf.input_file_helper
@@ -898,7 +898,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # The UIP takes in parameters on the RetrievalGridArray, *not*
         # FullGridMappedArray like the ReFRACtor. This is handled in notify_cost_function
         # (see MusesForwardModelBase), which gets called when the CostFunction is created.
-
         if instrument_name != self.instrument_name:
             return None
         if self.rconf is None:
@@ -913,32 +912,37 @@ class MusesForwardModelHandle(ForwardModelHandle):
 
 
 # The Muses code is the fallback, so add with the lowest priority
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel),
-    priority_order=-1,
-)
-ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
-    priority_order=-1,
-)
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(
+            InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel
+        ),
+        priority_order=-1,
+    )
+    ForwardModelHandleSet.add_default_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=-1,
+    )
 
 __all__ = [
+    "MusesOssForwardModelBase",
     "MusesCrisForwardModel",
     "MusesAirsForwardModel",
     "MusesTesForwardModel",
     "MusesTropomiForwardModel",
     "MusesOmiForwardModel",
+    "MusesForwardModelHandle",
     "ResultIrk",
 ]

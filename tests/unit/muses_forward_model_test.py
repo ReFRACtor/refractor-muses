@@ -31,7 +31,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir):
     # if the results are correct or not.
     assert rad.shape[0] == 216
     assert jac.shape[0] == 216
-    assert jac.shape[1] == 285
+    assert jac.shape[1] == 284
     if False:
         print(rad)
         print(jac)
@@ -71,7 +71,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir):
     # if the results are correct or not.
     assert rad.shape[0] == 53
     assert jac.shape[0] == 53
-    assert jac.shape[1] == 285
+    assert jac.shape[1] == 284
     if False:
         print(rad)
         print(jac)

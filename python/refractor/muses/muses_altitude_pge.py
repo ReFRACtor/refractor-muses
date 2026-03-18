@@ -1,9 +1,285 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 import numpy as np
 import math
 import sys
 import scipy
-from typing import Any
+from typing import Any, Self
+
+# Multiple inheritance works fine with swig, however our serialization currently
+# doesn't handle this. We should fix this at some point, but meanwhile we can
+# easily work around this by using composition instead of inheritance.
+# class MusesAltitude(rf.Altitude, rf.CacheInvalidatedObserver):
+
+
+class MusesAltitude(rf.Altitude):
+    """We already have height objects in our ReFRACtor forward model, but py-retrieval
+    had it own calculation of this. So we can match old data, we duplicate this
+    calculation.
+
+    Note this is similar but distinct from the MusesAltitude found in old_py_retrieve_wrapper.
+    This isn't actually a rf.Altitude object, although it wouldn't take much to make
+    this into one. Instead, this calculates a few altitude related things.
+
+    This was the function mpy.compute_altitude_pge, and uses slightly different values
+    based on the flag tes_pge flag.
+
+    This is pretty much just MusesAltitudePge, make into a actual rf.Altitude class.
+    We should marry those two classes, but right now leave separate just so everything
+    is working. We'll want to clean this up, but that isn't a huge priority right now.
+    """
+
+    def __init__(
+        self,
+        pressure: rf.Pressure,
+        temperature: rf.Temperature,
+        h2o_vmr: rf.AbsorberVmr,
+        latitude: rf.DoubleWithUnit,
+        surface_height: rf.DoubleWithUnit,
+        tes_pge: bool = False,
+        h2o_type: int = 1,
+    ):
+        """
+        h2o_type = 0    h2o is fractional mixing ratio (nh2o/airDensity) relative to total air
+        h2o_type = 1    h2o is fractional mixing ratio relative to dry air
+        h2o_type = 2    h2o is in g/kg with respect to dry air
+        Use either or.. makes a negligble difference (i.e., 1 cm difference)
+        """
+        super().__init__()
+        self.pressure = pressure
+        self.temperature = temperature
+        self.h2o_vmr = h2o_vmr
+        self.latitude = latitude
+        self.surface_height = surface_height
+        self.tes_pge = tes_pge
+        self.h2o_type = h2o_type
+        self.cache_observer = rf.CacheInvalidatedObserver()
+        self.pressure.add_cache_invalidated_observer(self.cache_observer)
+        self.temperature.add_cache_invalidated_observer(self.cache_observer)
+        self.h2o_vmr.add_cache_invalidated_observer(self.cache_observer)
+
+    def _fill_in_cache(self) -> None:
+        if self.cache_observer.cache_valid_flag:
+            return
+        # Skip jacobians for now. We can put this in, but I'm not sure if we
+        # actually used them anywhere
+        self._pgrid = (
+            self.pressure.pressure_grid(rf.Pressure.DECREASING_PRESSURE)
+            .convert("hPa")
+            .value.value
+        )
+        self._tatm = (
+            self.temperature.temperature_grid(
+                self.pressure, rf.Pressure.DECREASING_PRESSURE
+            )
+            .convert("K")
+            .value.value
+        )
+        self._h2ogrid = self.h2o_vmr.vmr_grid(
+            self.pressure, rf.Pressure.DECREASING_PRESSURE
+        ).value
+        Avo = 6.0225e23
+        kb = 1.380622e-23
+
+        self._air_density = self._pgrid * 1e-4 / (kb * self._tatm)
+
+        if self.h2o_type == 0:
+            chi = self._h2ogrid
+            self._air_density_dry = (
+                self._air_density - self._air_density * self._h2ogrid
+            )  # dry air number density
+            chid = (
+                chi * self._air_density / self._air_density_dry
+            )  # mixing ratio of h2o relative to dry air
+        elif self.h2o_type == 1:
+            chid = self._h2ogrid
+            self._air_density_dry = self._air_density / (1 + chid)
+            chi = chid * self._air_density_dry / self._air_density
+        elif self.h2o_type == 2:
+            chid = (
+                self._h2ogrid / 1000.0 / 0.6220
+            )  # .6220 is the ratio of dry air mass to h2o mass.
+            self._air_density_dry = self._air_density / (1 + chid)
+            chi = chid * self._air_density_dry / self._air_density
+        else:
+            raise RuntimeError("h2o_type needs to be between 0 and 2")
+
+        mh2o = 0.018015  # molar mass of h2o
+        mdry = 0.0289654  # molar mass of dry air
+        mr = mh2o / mdry  # mass ratio
+
+        # Set up the altitude grid.
+
+        self._altitude = np.ndarray(shape=self._pgrid.shape, dtype=np.float64)
+        self._altitude[0] = self.surface_height.convert("m").value
+
+        # compression factor, deviation from ideal gas
+        # see PGE L2_C_Atmosphere.cpp
+        a0 = 1.58123e-6
+        a1 = -2.9331e-8
+        a2 = 1.1043e-10
+        b0 = 5.707e-6
+        b1 = -2.051e-8
+        c0 = 1.9898e-4
+        c1 = -2.376e-6
+        d = 1.83e-11
+        e = -0.0765e-8
+        dt = self._tatm - 273.15
+        chim = 0.6223 * chid
+        ratio = self._pgrid * 100 / self._tatm
+
+        # TODO - Do we really want to do rounding?
+        # We need to do some rounding to match IDL.
+        ratio = np.round(ratio, 9)
+        comp_factor = (
+            1.0
+            - ratio
+            * (
+                a0
+                + a1 * dt
+                + a2 * np.square(dt)
+                + (b0 + b1 * dt) * chim
+                + (c0 + c1 * dt) * np.square(chim)
+            )
+            + (d + e * np.square(chim)) * (np.square(ratio))
+        )
+
+        # We need to do some rounding to match IDL.
+        comp_factor = np.round(comp_factor, 8)
+
+        self._air_density = 1e6 * self._air_density / comp_factor
+        self._air_density_dry = 1e6 * self._air_density_dry / comp_factor
+        lnp = np.log(self._pgrid)
+        rho = mdry * self._air_density_dry * (1 + mr * chid) / Avo
+
+        # We need to do some rounding to match IDL.
+        lnp = np.round(lnp, 7)
+        rho = np.round(rho, 10)
+
+        nump = len(self._pgrid)
+        self._layer_pressure = np.ndarray(shape=(nump - 1), dtype=np.float64)
+        self._layer_temperature = np.ndarray(shape=(nump - 1), dtype=np.float64)
+
+        # Go through each pressure/temperature level and calculate F/cm2 of the air
+        # Note that we start the for loop with 1.
+        for ii in range(1, nump):
+            dlnp = lnp[ii] - lnp[ii - 1]
+            gravity = self._gravity_calc(self._altitude[ii - 1])
+            self._altitude[ii] = (
+                self._altitude[ii - 1]
+                - 0.5
+                * (
+                    self._pgrid[ii] / (rho[ii] * gravity)
+                    + self._pgrid[ii - 1] / (rho[ii - 1] * gravity)
+                )
+                * 100.0
+                * dlnp
+            )
+
+            # Get layer Pressure ssk 2008
+            self._layer_pressure[ii - 1] = (
+                1.0
+                / (
+                    1.0
+                    + math.log(self._pgrid[ii] / self._pgrid[ii - 1])
+                    / math.log(rho[ii] / rho[ii - 1])
+                )
+                * (self._pgrid[ii - 1] * rho[ii - 1] - self._pgrid[ii] * rho[ii])
+                / (rho[ii - 1] - rho[ii])
+            )
+
+            # Get layer temperature ssk 2008
+            t2 = self._tatm[ii]
+            t1 = self._tatm[ii - 1]
+            if t1 == t2:
+                self._layer_temperature[ii - 1] = t1
+            else:
+                self._layer_temperature[ii - 1] = (
+                    1.0
+                    / (1.0 + math.log(t2 / t1) / math.log(rho[ii] / rho[ii - 1]))
+                    * (t1 * rho[ii - 1] - t2 * rho[ii])
+                    / (rho[ii - 1] - rho[ii])
+                )
+        # end for ii in range(1,num):
+
+        self._air_density = self._air_density / 1000000.0  # convert to molecules/cm3
+        self._air_density_dry = (
+            self._air_density_dry / 1000000.0
+        )  # convert to molecules/cm3
+        # This takes pressure in hPa and returns the altitude in meters
+        self._alt_inter = scipy.interpolate.interp1d(
+            self._pgrid, self._altitude, fill_value="extrapolate"
+        )
+        self.cache_observer.cache_valid_flag = True
+
+    def _gravity_calc(self, altitude: float) -> float:
+        rad_earth = self.earth_radius().convert("m").value
+        if not self.tes_pge:
+            g0 = 9.80612 - 0.02586 * math.cos(2 * math.pi * 45 / 180.0)  # gravity
+            res = g0 * np.square(rad_earth / (rad_earth + altitude))
+        else:
+            cosine = math.cos(2.0 * self.latitude.convert("rad").value)
+            gravity_at_surface = (
+                980.612 - (2.5865 * cosine) + (0.0058 * cosine * cosine)
+            ) / 100.0
+            res = (
+                gravity_at_surface
+                * (rad_earth / (rad_earth + altitude))
+                * (rad_earth / (rad_earth + altitude))
+            )
+        return res
+
+    def earth_radius(self) -> rf.DoubleWithUnit:
+        """The earth radius for self.latitude"""
+        if self.tes_pge:
+            # TES pge (note TES PGE in km, however these numbers are meters).
+            polar_radius = 6.356779e06
+            equatorial_radius = 6.378160e06
+
+            ratio = (
+                polar_radius * polar_radius / (equatorial_radius * equatorial_radius)
+            )
+            sine = math.sin(self.latitude.convert("rad").value)
+
+            res = equatorial_radius * math.sqrt(
+                (1.0 + (ratio * ratio - 1.0) * sine * sine)
+                / (1.0 + (ratio - 1.0) * sine * sine)
+            )
+        else:
+            res = 6.356779e06 + (6.37816e6 - 6.356779e06) * math.cos(
+                self.latitude.convert("rad").value
+            )
+        return rf.DoubleWithUnit(res, "m")
+
+    def desc(self) -> str:
+        return "MusesAltitude"
+
+    def altitude(
+        self, p: rf.AutoDerivativeWithUnit_double
+    ) -> rf.AutoDerivativeWithUnitDouble:
+        self._fill_in_cache()
+        return rf.AutoDerivativeWithUnitDouble(
+            rf.AutoDerivativeDouble(self._alt_inter(p.convert("hPa").value.value)[()]),
+            "m",
+        )
+
+    def gravity(
+        self, p: rf.AutoDerivativeWithUnit_double
+    ) -> rf.AutoDerivativeWithUnitDouble:
+        return rf.AutoDerivativeWithUnitDouble(
+            rf.AutoDerivativeDouble(self._gravity_calc(self.altitude(p))), "m/s^2"
+        )
+
+    def clone(self) -> Self:
+        return MusesAltitude(
+            self.pressure,
+            self.temperature,
+            self.h2o_vmr,
+            self.latitude,
+            self.surface_height,
+            self.tes_pge,
+            self.h2o_type,
+        )
 
 
 class MusesAltitudePge:
@@ -43,6 +319,9 @@ class MusesAltitudePge:
 
         self.air_density = pressure * 1e-4 / (kb * tatm)
         self.pressure = pressure
+        self.tatm = tatm
+        self.h2o = h2o
+        self.latitude = latitude
 
         # h2o_type = 0    h2o is fractional mixing ratio (nh2o/airDensity) relative to total air
         # h2o_type = 1    h2o is fractional mixing ratio relative to dry air
@@ -172,6 +451,7 @@ class MusesAltitudePge:
         self.air_density_dry = (
             self.air_density_dry / 1000000.0
         )  # convert to molecules/cm3
+        self.radius = self.altitude + self.earth_radius(latitude)
 
     def cloud_factor(self, pcloud: float, scale_pressure: float) -> float:
         """This is compute_cloud_factor from muses_py"""
@@ -489,4 +769,4 @@ def idl_interpol_1d(
     )(i_abscissaResult)
 
 
-__all__ = ["MusesAltitudePge"]
+__all__ = ["MusesAltitudePge", "MusesAltitude"]

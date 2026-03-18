@@ -211,14 +211,14 @@ class RetrievalOutput:
             StateElementIdentifier(state_name)
         )[0]
 
-    def state_sd_wavelength(self, state_name: str) -> np.ndarray:
-        """Get the spectral domain wavelength in nm for state element"""
-        t = self.current_state.state_spectral_domain_wavelength(
+    def state_sd_wavenumber(self, state_name: str) -> np.ndarray:
+        """Get the spectral domain wavenumber in cm^-1 for state element"""
+        t = self.current_state.state_spectral_domain_wavenumber(
             StateElementIdentifier(state_name)
         )
         if t is None:
             raise RuntimeError(
-                f"{state_name} doesn't have state_spectral_domain_wavelength"
+                f"{state_name} doesn't have state_spectral_domain_wavenumber"
             )
         return t
 
@@ -1017,7 +1017,7 @@ class CdfWriteTes:
         data, pressuresMax = CdfWriteLiteTes().make_one_lite(
             species_name,
             current_state,
-            [str(i) for i in instrument],
+            [i.base_name for i in instrument],
             lite_directory,
             data1,
             data2,

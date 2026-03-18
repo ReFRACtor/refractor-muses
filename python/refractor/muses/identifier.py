@@ -68,7 +68,50 @@ class IdentifierStr(Identifier):
 class InstrumentIdentifier(IdentifierStr):
     '''Identify an instrument, e.g., "AIRS"'''
 
-    pass
+    def __init__(self, s: str, l1b_type: None | str = None) -> None:
+        """Instrument type.
+
+        The l1b_type is a subtype of the instrument. Right now, this
+        only applies to CrIS, see l1b_type_from_filename in MusesCrisObservation.
+
+        Note for many purposes we want to treat all the subtypes as the same,
+        so CRIS has the same forward model for all the l1b_type for example.
+
+        We currently ignore comparing the l1b_type if is None in either
+        item we are comparing - we only have a difference if both have a l1b_type
+        and they don't match.
+
+        Also, the hash is only dependent on the instrument name, not the l1b_type.
+        I *think* that is what we want, we can revisit this if needed.
+        """
+        self.s = s
+        self.l1b_type = l1b_type
+
+    def __eq__(self, other: object) -> bool:
+        if not hasattr(other, "s"):
+            raise RuntimeError("other should be a IdentifierStr")
+        if (
+            self.l1b_type is not None
+            and hasattr(other, "l1b_type")
+            and other.l1b_type is not None
+            and self.l1b_type != other.l1b_type
+        ):
+            return False
+        return self.s == other.s
+
+    def __hash__(self) -> int:
+        # Only hash on instrument name, not l1b_type.
+        return hash(self.s)
+
+    @property
+    def base_name(self) -> str:
+        return self.s
+
+    def __str__(self) -> str:
+        if self.l1b_type is not None:
+            # I *think* this is what we want, see if this causes any problems
+            return f"{self.s} - {self.l1b_type}"
+        return self.s
 
 
 class StateElementIdentifier(IdentifierStr):
@@ -97,11 +140,29 @@ class StateElementIdentifier(IdentifierStr):
     def is_atmospheric_species(self) -> bool:
         """Some species are marked as "atmospheric_species". This is used in the
         determination of the microwindows file name, this wants to filter out things
-        like O3_EMIS, O3_TSUR, and just have O3 pass. I don't think this gets used
-        anywhere else.
+        like O3_EMIS, O3_TSUR, and just have O3 pass.
 
         This indicates if this StateElementIdentifier is an atmospheric species"""
         return is_atmospheric_species(str(self))
+
+    @property
+    def oss_species_name(self) -> str:
+        """The MUSES OSS code mostly used the same name for species as we use
+        for the state element name. However there are a few species that have
+        different names. I'm not sure of the history of this, but for whatever
+        reason OSS and py-retrieve use different names. I think one might have
+        been used with the old ELANOR code and one with OSS. In any case,
+        this gives the OSS version of the species name if different."""
+        spec_rename = {
+            "CFC11": "F11",
+            "CFC12": "F12",
+            "ISOP": "C5H8",
+            "CFC22": "CHCLF2",
+        }
+        s = str(self)
+        if s in spec_rename:
+            return spec_rename[s]
+        return s
 
     @classmethod
     def sort_identifier(cls, lst: list) -> list:

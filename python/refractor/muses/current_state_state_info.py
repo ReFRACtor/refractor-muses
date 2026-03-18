@@ -364,6 +364,15 @@ class CurrentStateStateInfo(CurrentState):
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         return self._retrieval_element_id
 
+    def testing_add_retrieval_state_element_id(
+        self, selem: StateElementIdentifier
+    ) -> None:
+        """For unit tests, it can be useful to add retrieval_state_element_id that
+        weren't actually found in the CurrentStrategyStep. This isn't something that
+        should be done in normal processing, just for special case testing"""
+        if selem not in self._retrieval_element_id:
+            self._retrieval_element_id.append(selem)
+
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
         res = self._sys_element_id
@@ -398,13 +407,13 @@ class CurrentStateStateInfo(CurrentState):
         )
         return self._state_info[sid]
 
-    def state_spectral_domain_wavelength(
+    def state_spectral_domain_wavenumber(
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         sd = self.state_element(state_element_id).spectral_domain
         if sd is None:
             return None
-        return sd.convert_wave(rf.Unit("nm"))
+        return sd.convert_wave(rf.Unit("cm^-1"))
 
     def state_value(
         self, state_element_id: StateElementIdentifier | str

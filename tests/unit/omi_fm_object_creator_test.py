@@ -2,6 +2,12 @@ import numpy.testing as npt
 import refractor.framework as rf
 from refractor.omi import OmiFmObjectCreator
 from refractor.muses import InstrumentIdentifier
+from fixtures.require_check import require_muses_py
+
+
+@require_muses_py
+def test_ray_info(omi_fm_object_creator_step_0, isolated_dir):
+    print(omi_fm_object_creator_step_0.ray_info)
 
 
 def test_solar_model(omi_fm_object_creator_step_0):
@@ -99,7 +105,6 @@ def test_fm_run_step2(omi_fm_object_creator_step_1):
 
     fm = OmiFmObjectCreator(
         omi_fm_object_creator_step_1.current_state,
-        omi_fm_object_creator_step_1.measurement_id,
         omi_fm_object_creator_step_1.rs.retrieval_config,
         omi_fm_object_creator_step_1.rs.observation_handle_set.observation(
             InstrumentIdentifier("OMI"),

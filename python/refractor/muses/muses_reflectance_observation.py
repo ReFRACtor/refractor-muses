@@ -172,18 +172,22 @@ class MusesReflectanceObservation(MusesObservationImp):
         self,
         muses_py_dict: dict[str, Any],
         sdesc: dict[str, Any],
-        filter_list: list[FilterIdentifier],
+        channel_list: list[FilterIdentifier],
         existing_obs: Self | None = None,
         coeff: np.ndarray | None = None,
         mp: rf.StateMapping | None = None,
     ) -> None:
-        self.filter_list = filter_list
+        self._channel_list = channel_list
         # Placeholder values if not passed in
         if coeff is None:
-            coeff = np.zeros((len(self.filter_list) * 3))
+            coeff = np.zeros((len(self.channel_list) * 3))
             mp = rf.StateMappingLinear()
         super().__init__(
-            muses_py_dict, sdesc, num_channels=len(self.filter_list), coeff=coeff, mp=mp
+            muses_py_dict,
+            sdesc,
+            num_channels=len(self.channel_list),
+            coeff=coeff,
+            mp=mp,
         )
 
         # Grab values from existing_obs if available
@@ -203,8 +207,8 @@ class MusesReflectanceObservation(MusesObservationImp):
             # It isn't clear here if the best indexing is the full
             # instrument (so 8 bands) with only some of the bands
             # filled in, or instead the index number into the passed
-            # in filter_list. For now, we are using the index into the
-            # filter_list. We can possibly reevaluate this - it
+            # in channel_list. For now, we are using the index into the
+            # channel_list. We can possibly reevaluate this - it
             # wouldn't be huge change in the code we have here.
             self._freq_data = []
             self._nesr_data = []
@@ -215,7 +219,7 @@ class MusesReflectanceObservation(MusesObservationImp):
             self._solar_spectrum = []
             erad = muses_py_dict["Earth_Radiance"]
             srad = muses_py_dict["Solar_Radiance"]
-            for i, flt in enumerate([str(i) for i in filter_list]):
+            for i, flt in enumerate([str(i) for i in channel_list]):
                 flt_sub = erad["EarthWavelength_Filter"] == str(flt)
                 self._freq_data.append(erad["Wavelength"][flt_sub])
                 self._nesr_data.append(erad["EarthRadianceNESR"][flt_sub])
@@ -253,13 +257,13 @@ class MusesReflectanceObservation(MusesObservationImp):
         # dispersion will have independent values
         self._solar_wav = []
         self._norm_rad_wav = []
-        for i in range(len(filter_list)):
+        for i in range(len(channel_list)):
             self._solar_wav.append(
                 MusesDispersion(
                     self._freq_data[i],
                     self.bad_sample_mask(i),
                     self,
-                    0 * len(self.filter_list) + i,
+                    0 * len(self.channel_list) + i,
                     -1,
                     order=1,
                 )
@@ -269,14 +273,28 @@ class MusesReflectanceObservation(MusesObservationImp):
                     self._freq_data[i],
                     self.bad_sample_mask(i),
                     self,
-                    1 * len(self.filter_list) + i,
-                    2 * len(self.filter_list) + i,
+                    1 * len(self.channel_list) + i,
+                    2 * len(self.channel_list) + i,
                     order=2,
                 )
             )
 
+    @property
+    def channel_list(self) -> list[FilterIdentifier]:
+        return self._channel_list
+
     def desc(self) -> str:
         return "MusesReflectanceObservation"
+
+    @property
+    def pointing_angle(self) -> rf.DoubleWithUnit:
+        raise RuntimeError("Need to track this down")
+
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
+        # Put in the right units for the VLIDORT instruments
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
 
     def solar_interp_for_od(
         self,
@@ -323,7 +341,7 @@ class MusesReflectanceObservation(MusesObservationImp):
         # so we can match py-retrieve
         erad = self._muses_py_dict["Earth_Radiance"]
         srad = self._muses_py_dict["Solar_Radiance"]
-        flt_sub = erad["EarthWavelength_Filter"] == str(self.filter_list[sensor_index])
+        flt_sub = erad["EarthWavelength_Filter"] == str(self.channel_list[sensor_index])
         wrong_sol_domain = rf.SpectralDomain(
             srad["Wavelength"][flt_sub], rf.Unit("nm")
         )  # Should be erad["Wavelength"]
@@ -358,7 +376,7 @@ class MusesReflectanceObservation(MusesObservationImp):
 
     @property
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
-        self._filter_data_name = self.filter_list
+        self._filter_data_name = self.channel_list
         self._filter_data_swin = self._spectral_window
         return super().filter_data
 
@@ -771,7 +789,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         self,
         muses_py_dict: dict[str, Any],
         sdesc: dict[str, Any],
-        filter_list: list[FilterIdentifier],
+        channel_list: list[FilterIdentifier],
         existing_obs: Self | None = None,
         coeff: np.ndarray | None = None,
         mp: rf.StateMapping | None = None,
@@ -781,7 +799,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         super().__init__(
             muses_py_dict,
             sdesc,
-            filter_list,
+            channel_list,
             existing_obs=existing_obs,
             coeff=coeff,
             mp=mp,
@@ -794,7 +812,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         xtrack_dict: dict[str, int],
         atrack_dict: dict[str, int],
         utc_time: str,
-        filter_list: list[str],
+        channel_list: list[str],
         calibration_filename: str | None = None,
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -806,7 +824,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             # we can use this
             raise RuntimeError("We don't support TROPOMI calibration yet")
         i_windows = [
-            {"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list
+            {"instrument": "TROPOMI", "filter": str(flt)} for flt in channel_list
         ]
         o_tropomi = cls.read_tropomi(
             filename_dict, xtrack_dict, atrack_dict, utc_time, i_windows, ifile_hlp
@@ -838,7 +856,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "POINTINGANGLE_TROPOMI_BAND8": -999.0,
         }
         # TODO Fill in POINTINGANGLE_TROPOMI
-        for i, flt in enumerate([str(i) for i in filter_list]):
+        for i, flt in enumerate([str(i) for i in channel_list]):
             sdesc[f"TROPOMI_XTRACK_INDEX_{flt}"] = np.int16(xtrack_dict[flt])
             sdesc[f"TROPOMI_ATRACK_INDEX_{flt}"] = np.int16(atrack_dict[flt])
             # Think this is right
@@ -1889,7 +1907,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         xtrack_dict: dict[str, int],
         atrack_dict: dict[str, int],
         utc_time: str,
-        filter_list: list[FilterIdentifier],
+        channel_list: list[FilterIdentifier],
         calibration_filename: str | None = None,
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -1906,11 +1924,11 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             xtrack_dict,
             atrack_dict,
             utc_time,
-            [str(i) for i in filter_list],
+            [str(i) for i in channel_list],
             calibration_filename=calibration_filename,
             ifile_hlp=ifile_hlp,
         )
-        return cls(o_tropomi, sdesc, filter_list)
+        return cls(o_tropomi, sdesc, channel_list)
 
     @classmethod
     def create_from_id(
@@ -1947,16 +1965,16 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             obs = cls(
                 existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
-                existing_obs.filter_list,
+                existing_obs.channel_list,
                 existing_obs=existing_obs,
                 coeff=coeff,
                 mp=mp,
             )
         else:
-            filter_list = mid.filter_list_dict[InstrumentIdentifier("TROPOMI")]
+            channel_list = mid.filter_list_dict[InstrumentIdentifier("TROPOMI")]
             if current_state is not None:
                 coeff, mp = current_state.object_state(
-                    cls.state_element_name_list_from_filter(filter_list)
+                    cls.state_element_name_list_from_filter(channel_list)
                 )
             if int(mid["TROPOMI_Rad_calRun_flag"]) != 1:
                 # The current py-retrieve code just silently ignores calibration,
@@ -1974,7 +1992,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             # sure if we don't have a band 3 here, but follow what that file does.
             xtrack_dict["CLOUD"] = mid["TROPOMI_XTrack_Index_BAND3"]
             atrack_dict["CLOUD"] = mid["TROPOMI_ATrack_Index"]
-            for flt in [str(i) for i in filter_list]:
+            for flt in [str(i) for i in channel_list]:
                 filename_dict[flt] = mid[f"TROPOMI_filename_{flt}"]
                 xtrack_dict[flt] = mid[f"TROPOMI_XTrack_Index_{flt}"]
                 # We happen to have only one atrack in the file, but the
@@ -1993,10 +2011,10 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 xtrack_dict,
                 atrack_dict,
                 utc_time,
-                [str(i) for i in filter_list],
+                [str(i) for i in channel_list],
                 ifile_hlp=ifile_hlp,
             )
-            obs = cls(o_tropomi, sdesc, filter_list, coeff=coeff, mp=mp)
+            obs = cls(o_tropomi, sdesc, channel_list, coeff=coeff, mp=mp)
 
         if write_tropomi_radiance_pickle:
             # Save file needed by py-retrieve VLIDORT code. Note this *isn't*
@@ -2033,31 +2051,31 @@ class MusesTropomiObservation(MusesReflectanceObservation):
 
     @classmethod
     def state_element_name_list_from_filter(
-        cls, filter_list: list[FilterIdentifier]
+        cls, channel_list: list[FilterIdentifier]
     ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"TROPOMISOLARSHIFT{str(flt)}"))
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"TROPOMIRADIANCESHIFT{str(flt)}"))
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"TROPOMIRADSQUEEZE{str(flt)}"))
         return res
 
     def state_vector_name_i(self, i: int) -> str:
         res = []
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Solar Shift {str(flt)}")
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Radiance Shift {str(flt)}")
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
     def state_element_name_list(self) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
-        return self.state_element_name_list_from_filter(self.filter_list)
+        return self.state_element_name_list_from_filter(self.channel_list)
 
     def monthly_minimum_surface_reflectance(self, band: int) -> float:
         return float(
@@ -2077,6 +2095,17 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             "m",
         )
 
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(
+            float(
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "SpacecraftAltitude"
+                ][-1]
+            ),
+            "m",
+        )
+
 
 class MusesOmiObservation(MusesReflectanceObservation):
     """Observation for OMI"""
@@ -2085,7 +2114,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         self,
         muses_py_dict: dict[str, Any],
         sdesc: dict[str, Any],
-        filter_list: list[FilterIdentifier],
+        channel_list: list[FilterIdentifier],
         existing_obs: Self | None = None,
         coeff: np.ndarray | None = None,
         mp: rf.StateMapping | None = None,
@@ -2098,7 +2127,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         super().__init__(
             muses_py_dict,
             sdesc,
-            filter_list,
+            channel_list,
             existing_obs=existing_obs,
             coeff=coeff,
             mp=mp,
@@ -2234,7 +2263,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
         atrack: int,
         utc_time: str,
         calibration_filename: str | os.PathLike[str] | InputFilePath,
-        filter_list: list[FilterIdentifier],
+        channel_list: list[FilterIdentifier],
         cld_filename: str | os.PathLike[str] | InputFilePath,
         ifile_hlp: InputFileHelper | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -2257,7 +2286,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
             cld_filename,
             ifile_hlp=ifile_hlp,
         )
-        return cls(o_omi, sdesc, filter_list)
+        return cls(o_omi, sdesc, channel_list)
 
     @classmethod
     def create_from_id(
@@ -2288,16 +2317,16 @@ class MusesOmiObservation(MusesReflectanceObservation):
             obs = cls(
                 existing_obs._muses_py_dict,  # noqa: SLF001
                 existing_obs.sounding_desc,
-                existing_obs.filter_list,
+                existing_obs.channel_list,
                 existing_obs=existing_obs,
                 coeff=coeff,
                 mp=mp,
             )
         else:
-            filter_list = mid.filter_list_dict[InstrumentIdentifier("OMI")]
+            channel_list = mid.filter_list_dict[InstrumentIdentifier("OMI")]
             if current_state is not None:
                 coeff, mp = current_state.object_state(
-                    cls.state_element_name_list_from_filter(filter_list)
+                    cls.state_element_name_list_from_filter(channel_list)
                 )
             xtrack_uv1 = int(mid["OMI_XTrack_UV1_Index"])
             xtrack_uv2 = int(mid["OMI_XTrack_UV2_Index"])
@@ -2320,7 +2349,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 cld_filename,
                 ifile_hlp=ifile_hlp,
             )
-            obs = cls(o_omi, sdesc, filter_list, coeff=coeff, mp=mp)
+            obs = cls(o_omi, sdesc, channel_list, coeff=coeff, mp=mp)
 
         if write_omi_radiance_pickle:
             # Save file needed by py-retrieve VLIDORT code. Note this *isn't*
@@ -2353,37 +2382,37 @@ class MusesOmiObservation(MusesReflectanceObservation):
 
     def snr_uplimit(self, sensor_index: int) -> float:
         """Upper limit for SNR, we adjust uncertainty is we are greater than this."""
-        if self.filter_list[sensor_index] == FilterIdentifier("UV2"):
+        if self.channel_list[sensor_index] == FilterIdentifier("UV2"):
             return 800.0
         return 500.0
 
     @classmethod
     def state_element_name_list_from_filter(
-        cls, filter_list: list[FilterIdentifier]
+        cls, channel_list: list[FilterIdentifier]
     ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"OMINRADWAV{str(flt)}"))
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"OMIODWAV{str(flt)}"))
-        for flt in filter_list:
+        for flt in channel_list:
             res.append(StateElementIdentifier(f"OMIODWAVSLOPE{str(flt)}"))
         return res
 
     def state_vector_name_i(self, i: int) -> str:
         res = []
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Solar Shift {str(flt)}")
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Radiance Shift {str(flt)}")
-        for flt in self.filter_list:
+        for flt in self.channel_list:
             res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
     def state_element_name_list(self) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
-        return self.state_element_name_list_from_filter(self.filter_list)
+        return self.state_element_name_list_from_filter(self.channel_list)
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
@@ -2391,6 +2420,17 @@ class MusesOmiObservation(MusesReflectanceObservation):
             float(
                 self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
                     "TerrainHeight"
+                ][0]
+            ),
+            "m",
+        )
+
+    @property
+    def spacecraft_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(
+            float(
+                self._muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "SpacecraftAltitude"
                 ][0]
             ),
             "m",

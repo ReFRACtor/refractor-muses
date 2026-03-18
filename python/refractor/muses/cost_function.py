@@ -112,11 +112,13 @@ class CostFunction(rf.NLLSMaxAPosteriori):
             mapping,
         )
         super().__init__(mstand)
-        # Some of the forward models need to know when we have a cost function. In
-        # particular, the MusesForwardModels need to know this to attach the UIP
-        # correctly. However, our general rf.ForwardModel doesn't have this, since
-        # it is completely uncoupled from the CostFunction. Notify the forward models that
-        # have a notify_cost_function function, but skip the rest.
+        # Some of the forward models need to know when we have a cost
+        # function. In particular, the MusesForwardModels need to know
+        # this to attach the UIP correctly. However, our general
+        # rf.ForwardModel doesn't have this, since it is completely
+        # uncoupled from the CostFunction. Notify the forward models
+        # that have a notify_cost_function function, but skip the
+        # rest.
         for fm in fm_list:
             if hasattr(fm, "notify_cost_function"):
                 fm.notify_cost_function(self)

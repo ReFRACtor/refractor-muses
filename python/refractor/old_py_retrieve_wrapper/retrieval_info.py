@@ -39,7 +39,9 @@ class RetrievalInfo:
         ]
 
     def _map_type(self, current_state: CurrentStateStateInfoOld, sid: str) -> str:
-        smap = current_state.state_mapping(StateElementIdentifier(sid))
+        smap = current_state.state_mapping(
+            StateElementIdentifier(sid), include_subset=False
+        )
         if isinstance(smap, rf.StateMappingLinear):
             return "linear"
         elif isinstance(smap, rf.StateMappingLog):
