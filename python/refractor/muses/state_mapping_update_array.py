@@ -88,14 +88,18 @@ class StateMappingUpdateArray(rf.StateMapping):
             )
         return initial_value
 
-    def state_vector_name_index(self, retrieval_state_index : int) -> int:
+    def state_vector_name_index(self, retrieval_state_index: int) -> int:
         # As a convention, return -999 for elements not in update_array. We can
         # then use that in other classes to mark these as placeholders
-        if self.update_array[retrieval_state_index]:
+        if (
+            retrieval_state_index < 0
+            or self.update_array is None
+            or self.update_array[retrieval_state_index]
+        ):
             return retrieval_state_index
         else:
             return -999
-    
+
 
 __all__ = [
     "StateMappingUpdateArray",

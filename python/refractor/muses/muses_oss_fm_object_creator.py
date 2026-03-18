@@ -13,6 +13,7 @@ from .muses_altitude_pge import MusesAltitude
 from .muses_refractive_index import MusesRefractiveIndex
 from .muses_oss_atmosphere import MusesOssAtmosphere
 from .pointing_angle_surface import PointingAngleSurface
+from .vmr_modify import VmrModifySmallToFixed, VmrHandleNeg
 import os
 from pathlib import Path
 from loguru import logger
@@ -147,6 +148,44 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
     def absorption_gases(self) -> list[StateElementIdentifier]:
         # Use list found in the microwindow file for our MusesSpectralWindow
         return self.observation.spectral_window.species_list_all
+
+    @cached_property
+    def absorber_vmr(self) -> list[rf.AbsorberVmr]:
+        # For a few VMRs, we have special handling for things like negative
+        # VMR. py-retrieve has then behavior hardcoded, so for we now we
+        # do the same thing.
+        special_to_threshold = {
+            StateElementIdentifier("HCN"): 1e-12,
+            StateElementIdentifier("NH3"): 5e-11,
+            StateElementIdentifier("ACET"): 1e-12,
+        }
+        special_neg_to_threshold = {
+            StateElementIdentifier("PAN"): 1e-11,
+        }
+
+        vmrs = []
+        for gas in self.absorption_gases:
+            coeff, mp = self.current_state.object_state(
+                [
+                    gas,
+                ]
+            )
+            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, str(gas), mp)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv,
+                [
+                    gas,
+                ],
+                [
+                    vmr,
+                ],
+            )
+            if gas in special_to_threshold:
+                vmr = VmrModifySmallToFixed(vmr, special_to_threshold[gas])
+            elif gas in special_neg_to_threshold:
+                vmr = VmrHandleNeg(vmr, special_neg_to_threshold[gas])
+            vmrs.append(vmr)
+        return vmrs
 
     @cached_property
     def h2o_vmr(self) -> rf.AbsorberVmr:

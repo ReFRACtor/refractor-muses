@@ -360,6 +360,11 @@ from .state_mapping_update_array import (
 from .tes_file import (
     TesFile,
 )
+from .vmr_modify import (
+    VmrHandleNeg,
+    VmrModify,
+    VmrModifySmallToFixed,
+)
 
 __all__ = [
     "AdapterRetrievalConfiguration",
@@ -549,6 +554,9 @@ __all__ = [
     "TesSpectralWindow",
     "UwisCamelOptions",
     "VerboseSolverLogging",
+    "VmrHandleNeg",
+    "VmrModify",
+    "VmrModifySmallToFixed",
     "compare_species",
     "docopt_simple",
     "extra_l2_output",

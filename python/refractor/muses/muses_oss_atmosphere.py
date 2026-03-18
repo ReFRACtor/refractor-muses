@@ -5,112 +5,6 @@ from .identifier import StateElementIdentifier
 import numpy as np
 
 
-class VmrModify:
-    """This class handles things like negative VMRs. We could have
-    these modified values passed absorber_vmr_list, but for now we
-    just handle this here. I think having the knowlege of the special
-    case VMRs in one place makes some sense, but we can rethink that.
-    """
-
-    def __init__(self, initial_absorber_vmr: rf.AbsorberVmr) -> None:
-        self._underlying_absorber_vmr = initial_absorber_vmr
-
-    @property
-    def underlying_absorber_vmr(self) -> rf.AbsorberVmr:
-        return self._underlying_absorber_vmr
-
-    def vmr_grid(
-        self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
-    ) -> rf.ArrayAd_double_1:
-        raise NotImplementedError()
-
-    def update_rt_radiance(
-        self,
-        rad: np.ndarray,
-        drad_dvmr: np.ndarray | None,
-        press: rf.Pressure,
-        pdir: rf.Pressure.PressureGridType,
-    ) -> np.ndarray:
-        """drad_dvmr should be"""
-        return rad
-
-
-class VmrModifySmallToFixed(VmrModify):
-    def __init__(self, initial_absorber_vmr: rf.AbsorberVmr, threshold: float) -> None:
-        super().__init__(initial_absorber_vmr)
-        self.threshold = threshold
-
-    def vmr_grid(
-        self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
-    ) -> rf.ArrayAd_double_1:
-        vmr_s = self.underlying_absorber_vmr.vmr_grid(press, pdir)
-        # TODO Any reason why this is restricted to linear? This is the
-        # logic in py-retrieve and we duplicate it, but might want
-        # to just replace any negative value.
-        if (
-            not hasattr(self.underlying_absorber_vmr, "state_mapping")
-            or not self.underlying_absorber_vmr.state_mapping.name == "linear"
-        ):
-            return vmr_s
-        vmr = vmr_s.value.copy()
-        vmr[vmr < self.threshold] = self.threshold
-        return rf.ArrayAd_double_1(vmr, vmr_s.jacobian)
-
-
-class VmrHandleNeg(VmrModify):
-    """We handle negative PAN values by:
-
-    1. Replacing negative VMR with 1e-11. Call the original VMR VMR0
-    2. Run OSS (outside of this class)
-    3. Modify the radiance by K @ (VMR0 - VMR)
-    """
-
-    def __init__(self, initial_absorber_vmr: rf.AbsorberVmr, threshold: float) -> None:
-        super().__init__(initial_absorber_vmr)
-        self.threshold = threshold
-        self.have_negative = False
-
-    def vmr_grid(
-        self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
-    ) -> rf.ArrayAd_double_1:
-        vmr_s = self.underlying_absorber_vmr.vmr_grid(press, pdir)
-        # Logic is a bit convoluted here, but we replace
-        # any vmr < 1e-11, but *only* if at least one of
-        # the vmrs is negative. I'm not sure if this
-        # specific logic was intended or not (why
-        # different than for other state elements)?, but
-        # this is what is done in the py-retrieve code
-        if np.count_nonzero(vmr_s.value < 0) == 0:
-            return vmr_s
-
-        self.have_negative = True
-        # Save for use in update_rt_radiance, vmr before we have modified it
-        self.vmr_muses = vmr_s.value
-        vmr = vmr_s.value.copy()
-        vmr[vmr < self.threshold] = self.threshold
-        # Save for use in update_rt_radiance, vmr after modification
-        self.vmr_oss = vmr
-        return rf.ArrayAd_double_1(vmr, vmr_s.jacobian)
-
-    # TODO Change to take pressure and direction, so we aren't saving data here. Don't
-    # want an assume call order
-    def update_rt_radiance(
-        self,
-        rad: np.ndarray,
-        drad_dvmr: np.ndarray | None,
-        press: rf.Pressure,
-        pdir: rf.Pressure.PressureGridType,
-    ) -> np.ndarray:
-        """Perform any updates to rad, i.e., with negative VMR handling"""
-        if not self.have_negative:
-            return rad
-        if drad_dvmr is None:
-            raise RuntimeError("Need drad_dvmr for update_rt_radiance")
-        # modify radiance to ACTUAL VMR (vmr_muses) using K.dx
-        # vrm_oss used by OSS, vmr_muses is what we want
-        return rad + drad_dvmr @ (self.vmr_muses - self.vmr_oss)
-
-
 class MusesOssAtmosphere:
     """The muses-oss code takes an "atmosphere" argument. This is the
     VMR for a set of absorbers.
@@ -165,6 +59,10 @@ class MusesOssAtmosphere:
 
     In addition, there are other gases where negative values are replaced
     with a fixes threshold.
+
+    The special handling is put in place outside of this class, the
+    absorber_vmr_list passed in by MusesOssFmObjectCreator has special
+    versions of the VMR classes for these items.
     """
 
     def __init__(
@@ -176,19 +74,6 @@ class MusesOssAtmosphere:
         }
         # TODO Move to fm_creator, pull out vmr and separately test
         # Special handling for some species
-        for selem, threshold in (
-            (StateElementIdentifier("HCN"), 1e-12),
-            (StateElementIdentifier("NH3"), 5e-11),
-            (StateElementIdentifier("ACET"), 1e-12),
-        ):
-            if selem in self.absorber_vmr:
-                self.absorber_vmr[selem] = VmrModifySmallToFixed(
-                    self.absorber_vmr[selem], threshold
-                )
-        selem = StateElementIdentifier("PAN")
-        threshold = 1e-11
-        if selem in self.absorber_vmr:
-            self.absorber_vmr[selem] = VmrHandleNeg(self.absorber_vmr[selem], threshold)
 
     def oss_atmosphere(
         self, press: rf.Pressure, pdir: rf.Pressure.PressureGridType
