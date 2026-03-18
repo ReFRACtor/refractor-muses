@@ -104,8 +104,20 @@ class StateElementFreqShared(StateElementOspFile):
             return
         super()._fill_in_state_mapping()
         assert self.spectral_domain is not None
-        # Skip
-        return
+        # Skip updating state mapping for now, we'll come back to this.
+        self._state_mapping_new2 = self._state_mapping
+        # TODO Clean this up
+        # Note that mw_frequency_needed doesn't give us the update_arr. There
+        # is additional logic in the basis_matrix. We extract out the update_arr
+        # from this. Might be good to pull out this logic, it is a bit obscure how
+        # this is done.
+        if self._retrieved_this_step:
+            update_arr = self.basis_matrix.sum(axis=0) != 0
+            smap = StateMappingUpdateArray(update_arr)
+            if not isinstance(self._state_mapping, rf.StateMappingLinear):
+                self._state_mapping_new2 = rf.StateMappingComposite([self._state_mapping, smap])
+            else:
+                self._state_mapping_new2 = smap
 
     @property
     def state_mapping_new(self) -> None:
