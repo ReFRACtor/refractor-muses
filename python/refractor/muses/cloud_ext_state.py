@@ -41,6 +41,8 @@ class CloudExtState(rf.GenericStateImpBase):
         return "cloud_ext_state"
 
     def state_vector_name_i(self, i: int) -> str:
+        if i == -999:
+            return "Placeholder, not used"
         mname = self.state_mapping.name
         if mname != "linear":
             return f"{mname} CloudExt Freq {i + 1}"

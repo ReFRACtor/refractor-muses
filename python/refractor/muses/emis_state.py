@@ -41,6 +41,8 @@ class EmisState(rf.GenericStateImpBase):
         return "emis_state"
 
     def state_vector_name_i(self, i: int) -> str:
+        if i == -999:
+            return "Placeholder, not used"
         mname = self.state_mapping.name
         if mname != "linear":
             return f"{mname} Emissivity Freq {i + 1}"
