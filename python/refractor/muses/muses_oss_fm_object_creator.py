@@ -88,7 +88,7 @@ class MusesOssFmObjectCreator(RefractorFmObjectCreator):
         semis, mp = self.current_state.object_state(selem)
         semis_sd = self.current_state.state_element(selem[0]).spectral_domain
         smap = StateMappingUpdateArray(update_arr)
-        emis = EmisState(semis, semis_sd, update_arr, smap)
+        emis = EmisState(semis, semis_sd, smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv,
             selem,

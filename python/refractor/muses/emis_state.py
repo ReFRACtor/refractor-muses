@@ -11,20 +11,15 @@ class EmisState(rf.GenericStateImpBase):
         self,
         emisv: np.ndarray,
         emis_sd: rf.SpectralDomain,
-        update_arr: np.ndarray | None,
         mp: rf.StateMapping = rf.StateMappingLinear,
     ):
         super().__init__()
         self.init(emisv, mp)
-        # We want to get the logic used in determining update_arr into this class,
-        # but for now leverage off what we get passed in.
-        self.update_arr = update_arr
         self._emis_sd = emis_sd
         if emisv.shape != emis_sd.data.shape:
             raise RuntimeError(
                 "emisivity and emisivity spectral domain need to be the same size"
             )
-        self.initial_value = emisv.copy()
 
     @property
     def emissivity(self) -> rf.ArrayAd_double_1:

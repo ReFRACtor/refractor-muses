@@ -104,17 +104,28 @@ class StateElementFreqShared(StateElementOspFile):
             return
         super()._fill_in_state_mapping()
         assert self.spectral_domain is not None
+        # Skip
+        return
+
+    def state_mapping_new(self) -> None:
         # TODO See about doing this directly
         wflag = self.mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
         )
-        # Doesn't work yet, we can perhaps come back to this
-        smap = StateMappingUpdateArray(wflag.astype(bool))
-        #if not isinstance(self._state_mapping, rf.StateMappingLinear):
-        #    self._state_mapping = rf.StateMappingComposite([smap, self._state_mapping])
-        #else:
-        #    self._state_mapping = smap
+        # TODO For some reason wflag isn't the same as the calculation we do
+        # with the basis matrix. Sort that out, but for now use the basis
+        # matrix to determine update_arr
+        if self._retrieved_this_step:
+            update_arr = self.basis_matrix.sum(axis=0) != 0
+            #smap = StateMappingUpdateArray(wflag.astype(bool))
+            smap = StateMappingUpdateArray(update_arr)
+            if not isinstance(self.state_mapping, rf.StateMappingLinear):
+                return rf.StateMappingComposite([smap, self.state_mapping])
+            else:
+                return smap
+        else:
+            return self.state_mapping
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
@@ -305,7 +316,6 @@ class StateElementEmis(StateElementFreqShared):
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
-        self._fill_in_state_mapping()
         assert self.spectral_domain is not None
         # TODO See about doing this directly
         wflag = self.mw_frequency_needed(
@@ -321,8 +331,7 @@ class StateElementEmis(StateElementFreqShared):
                 gap_threshold=50.0,
             )
         )
-        # Line 1240 state_element_old for emis
-        # Line 1366 state_element_old for cloud
+        self._fill_in_state_mapping()
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
