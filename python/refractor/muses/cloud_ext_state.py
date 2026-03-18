@@ -30,28 +30,7 @@ class CloudExtState(rf.GenericStateImpBase):
 
     @property
     def cloud_ext(self) -> rf.ArrayAdWithUnit_double_1:
-        ms = self.mapped_state
-        return rf.ArrayAdWithUnit_double_1(ms, "km^-1")
-        return rf.ArrayAdWithUnit_double_1(self.smap.mapped_state(ms), "km^-1")
-        if self.update_arr is None or self.update_arr.shape[0] == 0:
-            return rf.ArrayAdWithUnit_double_1(ms, "km^-1")
-        # Logic only needed when we have update_arr, which is only if we
-        # are retrieving this element
-        res = rf.ArrayAd_double_1(ms.rows, ms.number_variable)
-        for i in range(self.update_arr.shape[0]):
-            if self.update_arr[i]:
-                res[i] = ms[i]
-            else:
-                # TODO Look into this
-                # Note it actually seems wrong that we have a nonzero jacobian here,
-                # but this is what py-retrieve does.
-                #
-                # However, I did try removing this, and things changed a lot. It is
-                # possible the error analysis etc. depends on the jacobian (e.g. it is
-                # a bit like the systematic jacobians). Somebody smarter than me
-                # will need to look into this
-                res[i] = rf.AutoDerivativeDouble(self.initial_value[i], ms[i].gradient)
-        return rf.ArrayAdWithUnit_double_1(res, "km^-1")
+        return rf.ArrayAdWithUnit_double_1(self.mapped_state, "km^-1")
 
     @property
     def cloud_ext_spectral_domain(self) -> rf.SpectralDomain:
