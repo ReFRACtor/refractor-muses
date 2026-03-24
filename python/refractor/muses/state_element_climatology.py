@@ -169,15 +169,27 @@ class StateElementFromClimatology(StateElementOspFile):
             else:
                 vmr = f["type_vmr"][month_index, tindex, :]
             # Convert array of int8 type to a string, stripping off trailing '\0'
-            type_name = "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
+            try:
+                type_name = "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
+            except TypeError:
+                # Some of the files has this as numpy.bytes_ instead of int8,
+                # so try that next
+                type_name = "".join(i.decode("utf8") for i in f["type_name"][tindex]).rstrip("\0")
         else:
             # convert type_name to string
             # Convert array of int8 type to a string, stripping off trailing '\0'
             type_name_list = []
             for tindex in range(f["type_name"].shape[0]):
-                type_name_list.append(
-                    "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
-                )
+                try:
+                    type_name_list.append(
+                        "".join(chr(i) for i in f["type_name"][tindex]).rstrip("\0")
+                    )
+                except TypeError:
+                    # Some of the files has this as numpy.bytes_ instead of int8,
+                    # so try that next
+                    type_name_list.append(
+                        "".join(i.decode("utf8") for i in f["type_name"][tindex]).rstrip("\0")
+                    )
             type_name = ind_type
             if type_name is None:
                 raise RuntimeError(
