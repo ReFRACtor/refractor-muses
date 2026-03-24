@@ -16,11 +16,11 @@ from typing import Any
 
 version = "1.0.0"
 usage = """Usage:
-  refractor-retrieve [options]
+  refractor-retrieve -t <dirlist> [options] | --targets=<dirlist> [options]
   refractor-retrieve -h | --help
   refractor-retrieve -v | --version
 
-Blah blah
+Run a retrieval over a set of target/sounding directories
 
 Options:
   -h --help
@@ -109,7 +109,7 @@ def main() -> None:
     logger.info("refractor-retrieve is running ...")
 
     if args.refractor_config:
-        logger.info("Loading refractor configuration file: %s", args.refractor_config)
+        logger.info(f"Loading refractor configuration file: {args.refractor_config}")
         spec = importlib.util.spec_from_file_location(
             "refractor_config", args.refractor_config
         )
@@ -139,6 +139,13 @@ def main() -> None:
                 # where we want to see the output. So only remove stdout in mpi.
                 logger.remove()
             loghid = logger.add(f"{target_dir}/refractor-retrieve.log")
+
+            # Capture the names of input files read while the software is running into the target
+            # directory along side the log file
+            if args.debug:
+                rs.input_file_helper.add_observer(
+                    refractor.muses.InputFileRecord(f"{target_dir}/input_file_list.log")
+                )
             with logger.catch(reraise=True):
                 # Forward C++ logging in framework to the python logger
                 rf.PythonFpLogger.turn_on_logger(logger)
@@ -196,9 +203,7 @@ def main() -> None:
 
         # For MPI, we use a few fixed directories. By convention, we
         # don't use these for the non-MPI case.
-        bpath = os.path.abspath(
-            os.path.dirname(os.path.dirname(target_dir_full_list[0]))
-        )
+        bpath = os.path.abspath(os.path.dirname(target_dir_full_list[0]))
         success_dir = f"{bpath}/success"
         error_dir = f"{bpath}/error"
         subprocess.run(["mkdir", "-p", success_dir])

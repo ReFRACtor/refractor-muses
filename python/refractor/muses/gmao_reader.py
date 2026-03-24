@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import cache
+from itertools import chain
 import numpy as np
 import scipy
 import datetime
@@ -11,6 +12,19 @@ import typing
 if typing.TYPE_CHECKING:
     from .sounding_metadata import SoundingMetadata
     from .input_file_helper import InputFilePath
+
+geos_3d_filename_patterns = [
+    # GEOS FPIT
+    "*.asm.inst3_3d_asm_Np.*.{year}{month:02d}{day:02d}_{hour:02d}00.V01.nc4",
+    # GEOS IT
+    "*.asm_inst_3hr_glo_L576x361_p42.*.{year}-{month:02d}-{day:02d}T{hour:02d}00.V01.nc4",
+]
+geos_2d_filename_patterns = [
+    # GEOS FPIT
+    "*.asm.inst3_2d_asm_Nx.*.{year}{month:02d}{day:02d}_{hour:02d}00.V01.nc4",
+    # GEOS IT
+    "*.asm_inst_1hr_glo_L576x361_slv.*.{year}-{month:02d}-{day:02d}T{hour:02d}00.V01.nc4",
+]
 
 
 class GmaoReader:
@@ -178,19 +192,31 @@ class GmaoReader:
             raise RuntimeError(
                 f"Can not find GMAO directory {gmao_fdir} or any parents"
             )
+
+        pattern_params = dict(year=year, month=month, day=day, hour=hour)
+
         try:
-            fname_3d = next(
-                gmao_fdir.glob(
-                    f"*.asm.inst3_3d_asm_Np.*.{year}{month:02d}{day:02d}_{hour:02d}00.V01.nc4"
-                )
-            )
-            fname_2d = next(
-                gmao_fdir.glob(
-                    f"*.asm.inst3_2d_asm_Nx.*.{year}{month:02d}{day:02d}_{hour:02d}00.V01.nc4"
-                )
-            )
+            pattern_3d = [
+                template.format(**pattern_params)
+                for template in geos_3d_filename_patterns
+            ]
+            fname_3d = next(chain(*[gmao_fdir.glob(pattern) for pattern in pattern_3d]))
         except StopIteration:
-            raise RuntimeError("GMAO file not found")
+            raise RuntimeError(
+                f"GMAO 3D file not found from patterns: {pattern_3d} at directory {gmao_fdir}"
+            )
+
+        try:
+            pattern_2d = [
+                template.format(**pattern_params)
+                for template in geos_2d_filename_patterns
+            ]
+            fname_2d = next(chain(*[gmao_fdir.glob(pattern) for pattern in pattern_2d]))
+        except StopIteration:
+            raise RuntimeError(
+                f"GMAO 2D file not found from patterns: {pattern_2d} at directory {gmao_fdir}"
+            )
+
         res = {}
         with ifile_hlp.open_h5(fname_3d) as f:
             for v in ["QV", "T", "lat", "lev", "lon"]:

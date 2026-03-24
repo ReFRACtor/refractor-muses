@@ -114,7 +114,6 @@ class RetrievalStrategy:
         ifile_hlp: InputFileHelper | None = None,
         **kwargs: Any,
     ) -> None:
-        logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
 
@@ -201,6 +200,9 @@ class RetrievalStrategy:
         changes in case they need to clear out any caching.
 
         """
+
+        logger.info(f"Strategy table filename: {filename}")
+
         filename = Path(filename)
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent

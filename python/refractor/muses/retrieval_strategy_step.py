@@ -1,7 +1,6 @@
 from __future__ import annotations
 import abc
 from loguru import logger
-from pathlib import Path
 from .priority_handle_set import PriorityHandleSet
 from .muses_levmar_solver import (
     MusesLevmarSolver,
@@ -237,18 +236,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ProcessLocation("retrieval input"), retrieval_strategy_step=self
         )
         logger.info("Running run_retrieval ...")
-
-        # SSK 2023.  I find I get failures from glitches like reading
-        # L1B files, if there are many processes running.  I re-run
-        # several times to give every obs a chance to complete chance
-        # to run, because I am running the same set with different
-        # strategies and want to compare.  write out a token if it
-        # gets here, indicating this obs already got a chance.  I then
-        # copy all completed runs to either 00good/ or 00bad/
-        # depending on the success flag, and re-run anything remaining
-        # in the main directory.
-
-        Path(f"{rs.run_dir}/-run_token.asc").touch()
 
         self.ret_res = self.run_retrieval(rs, **kwargs)
         if self.cfunc is None:
