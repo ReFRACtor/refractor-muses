@@ -1429,40 +1429,6 @@ class CdfWriteLiteTes:
                 )
             # end if np.amax(dataIn['column750'.upper()]) < 1:
 
-            if "CTINTERP_CH4".upper() in dataIn:
-                dataIn["column750_CTINTERP_CH4".upper()] = (
-                    np.zeros(shape=(len_dataIn), dtype=np.float32) - 999
-                )  # FLTARR(N_ELEMENTS(data))-999)
-                indp = np.where(
-                    (dataIn["CTINTERP_PRESSURE".upper()] > 0)
-                    & (dataIn["CTINTERP_CH4".upper()] > 0)
-                )[0]
-                if len(indp) > 0:
-                    VMR = dataIn["CTINTERP_CH4".upper()][indp] * 1e-9
-                    pressure = dataIn["CTINTERP_PRESSURE".upper()][indp]
-                    altitude = dataIn["altitude".upper()][indp]
-                    airDensity = dataIn["airDensity".upper()][indp]
-
-                    ind1 = np.amin(np.where(pressure <= 764)[0])
-                    ind2 = len(pressure) - 1
-
-                    if np.amin(altitude) / 1000 > 20:
-                        raise RuntimeError("np.amin(altitude) / 1000 > 20")
-
-                    minIndex = int(ind1)
-                    maxIndex = int(ind2)
-                    c1 = self.column_integrate(
-                        VMR, airDensity, altitude, minIndex, maxIndex
-                    )
-                    a = self.column_integrate(
-                        VMR * 0 + 1, airDensity, altitude, minIndex, maxIndex
-                    )
-
-                    dataIn["column750_CTINTERP_CH4".upper()] = (
-                        c1["column"] / a["column"] * 1.0e9
-                    )
-                # end if len(indp) > 0:
-            # end if 'CTINTERP_CH4' in dataIn:
 
             # additional screening parameters
             dofstrat = np.zeros(shape=(1), dtype=np.float32)
