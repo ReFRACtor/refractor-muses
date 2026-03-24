@@ -202,8 +202,8 @@ def test_state_element_from_climatology_ch3oh(airs_omi_shandle, unit_test_expect
     # we match stuff
     assert s.spectral_domain is None
     assert not s.cov_is_constraint
-    assert s.poltype == "LAND_ENH"
-    assert s.metadata == {"poltype": "LAND_ENH"}
+    assert s.poltype == "OCEAN_CLN"
+    assert s.metadata == {"poltype": "OCEAN_CLN"}
     assert s.poltype_used_constraint
 
 
