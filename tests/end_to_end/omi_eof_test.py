@@ -23,7 +23,7 @@ def test_eof_omi(ifile_hlp, omi_test_in_dir, end_to_end_run_dir):
     dir = end_to_end_run_dir / "omi_eof"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(omi_test_in_dir, ifile_hlp, path_prefix=dir)
-    rs = RetrievalStrategy(None)
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
@@ -100,9 +100,7 @@ def test_eof_airs_omi(ifile_hlp, end_to_end_run_dir, joint_omi_eof_test_in_dir):
         ifile_hlp,
         path_prefix=dir,
     )
-    rs = RetrievalStrategy(
-        None,
-    )
+    rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.

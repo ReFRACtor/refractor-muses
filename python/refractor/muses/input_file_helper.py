@@ -271,6 +271,14 @@ class InputFilePathDelta(InputFilePath):
             self._base_path.parent, self._delta_path.parent, self._rel_path
         )
 
+    @property
+    def base_path(self) -> InputFilePath:
+        return self._base_path.absolute()
+
+    @property
+    def delta_path(self) -> InputFilePath:
+        return self._delta_path.absolute()
+
     def absolute(self) -> InputFilePath:
         # File is already absolute, so just return self.
         # Note, only called in muses-py, but supply so we don't need to change that code.

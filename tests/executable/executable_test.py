@@ -81,7 +81,11 @@ def test_refractor_py_retrieve_airs_omi(
         ifile_hlp,
         path_prefix=dir,
     )
-    subprocess.run(f"refractor-retrieve --targets {r.run_dir}", shell=True, check=True)
+    subprocess.run(
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --targets {r.run_dir}",
+        shell=True,
+        check=True,
+    )
 
 
 @pytest.mark.long_executable_test
@@ -101,7 +105,11 @@ def test_refractor_py_retrieve_cris_tropomi(
         ifile_hlp,
         path_prefix=dir,
     )
-    subprocess.run(f"refractor-retrieve --targets {r.run_dir}", shell=True, check=True)
+    subprocess.run(
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --targets {r.run_dir}",
+        shell=True,
+        check=True,
+    )
 
 
 @pytest.mark.long_executable_test
@@ -122,7 +130,7 @@ def test_refractor_retrieve_airs_omi(
         path_prefix=dir,
     )
     subprocess.run(
-        f"refractor-retrieve --refractor-config {refractor_config_file} --targets {r.run_dir}",
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
         shell=True,
         check=True,
     )
@@ -149,7 +157,7 @@ def test_refractor_retrieve_cris_tropomi(
         path_prefix=dir,
     )
     subprocess.run(
-        f"refractor-retrieve --refractor-config {refractor_config_file} --targets {r.run_dir}",
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
         shell=True,
         check=True,
     )

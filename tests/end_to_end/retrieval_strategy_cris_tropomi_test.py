@@ -53,6 +53,7 @@ def test_retrieval_strategy_cris_tropomi(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
         # Nice to test the diagnostic stuff, but this adds about 30 seconds
         # to the run and isn't actually used in determining if our output is
         # good. Normally have this turned off, and we test the plotting etc.
@@ -141,6 +142,7 @@ def test_retrieval_cris(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
         # writeOutput=True,
         # writePlots=True,
     )

@@ -31,6 +31,7 @@ def test_two_tropomi(
 
     rs = RetrievalStrategy(
         None,
+        ifile_hlp=ifile_hlp,
     )
     rs.forward_model_handle_set.add_handle(
         TropomiForwardModelHandle(

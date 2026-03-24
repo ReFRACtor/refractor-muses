@@ -41,6 +41,7 @@ def test_retrieval_strategy_tes(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
+        ifile_hlp=ifile_hlp,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

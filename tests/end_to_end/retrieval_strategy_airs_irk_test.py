@@ -51,7 +51,7 @@ def test_retrieval_strategy_airs_irk(
         ifile_hlp,
         path_prefix=dir,
     )
-    rs = RetrievalStrategy(r.run_dir / "Table.asc")
+    rs = RetrievalStrategy(r.run_dir / "Table.asc", ifile_hlp=ifile_hlp)
     try:
         lognum = logger.add(dir / "retrieve.log")
         # Grab each step so we can separately test output
