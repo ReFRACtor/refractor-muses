@@ -10,12 +10,13 @@ authors= [
 {name = 'James McDuffie', email = 'James.McDuffie@jpl.nasa.gov'}
 ]
 dependencies=[
- 'numpy', 'docopt-ng', 'loguru', 'refractor-framework', "mpi4py", "scipy"
+ 'numpy', 'docopt-ng', 'loguru', 'refractor-framework', "mpi4py", "scipy",
+ "attrs", "h5py", "pandas", "pyhdf", "pytz", "scipy", "texttable"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "pytest-loguru", "pytest-profiling", "pytest-sugar",
-       "pytest-xdist", "ruff", "mypy"]
+       "pytest-xdist", "ruff", "mypy", "seaborn"]
 # Frank's ML
 ml = ["scipy", "matplotlib", "cartopy", "tensorflow", "netcdf4", "juypterlab",
       "scikit-learn"]
