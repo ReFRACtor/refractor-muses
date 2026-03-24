@@ -365,16 +365,12 @@ class InputFileHelper:
     ) -> None:
         if isinstance(osp_dir, InputFilePath):
             self.osp_dir = osp_dir
-            logger.debug(f'OSP dir for input file helper is already an InputFilePath instance from input to init function: {osp_dir}')
         else:
-            osp_env = os.environ.get("MUSES_OSP_PATH", "../OSP")
             self.osp_dir = InputFilePathImp(
                 osp_dir
                 if osp_dir is not None
-                else osp_env
+                else os.environ.get("MUSES_OSP_PATH", "../OSP")
             )
-            logger.debug(f'Instantiated InputFilePath for input file helper OSP dir: input osp_dir = {osp_dir}, environment/default osp_dir = {osp_env}')
-        logger.info(f'InputFileHelper OSP dir set to {self.osp_dir}.')
         if isinstance(gmao_dir, InputFilePath):
             self.gmao_dir = gmao_dir
         else:
