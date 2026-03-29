@@ -16,7 +16,9 @@ from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementIdFile
 from .muses_strategy_executor import (
     MusesStrategyExecutorMusesStrategy,
+    MusesStrategyContext
 )
+from .creator_dict import CreatorDict
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
@@ -28,6 +30,7 @@ import pickle
 from pathlib import Path
 from typing import Any
 import typing
+import pystac
 
 if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
@@ -112,11 +115,14 @@ class RetrievalStrategy:
         writeOutput: bool = False,
         writePlots: bool = False,
         ifile_hlp: InputFileHelper | None = None,
+        use_stac: bool = False,
         **kwargs: Any,
     ) -> None:
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
-
+        self._strategy_context = MusesStrategyContext()
+        self._creator_dict = CreatorDict(self.strategy_context)
+        
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = (
             self._cost_function_creator.forward_model_handle_set
@@ -127,7 +133,7 @@ class RetrievalStrategy:
         self._kwargs: dict[str, Any] = kwargs
 
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
-        self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
+        self._strategy_executor = MusesStrategyExecutorMusesStrategy(self, self.creator_dict)
         self._retrieval_strategy_step_set = (
             self.strategy_executor.retrieval_strategy_step_set
         )
@@ -162,7 +168,10 @@ class RetrievalStrategy:
         # For calling from py-retrieve, it is useful to delay the filename. See
         # script_retrieval_ms below
         if filename is not None:
-            self.update_target(filename)
+            if use_stac:
+                self.update_stac(filename)
+            else:
+                self.update_target(filename)
 
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms.
@@ -189,6 +198,46 @@ class RetrievalStrategy:
             return self.script_retrieval_ms(**parms)
         return None
 
+    @property
+    def strategy_context(self) -> MusesStrategyContext:
+        return self._strategy_context
+
+    @property
+    def creator_dict(self) -> CreatorDict:
+        return self._creator_dict
+
+    def update_stac(self, filename: str | os.PathLike[str]) -> None:
+        """Not exactly clear how we want to handle a stac file vs
+        a single target. For now, we just keep this code separate.
+        As we get a bit more experience, we may be able to merge with
+        a single target - at some level these are the same things
+        "what is needed to run processing", but we don't know that
+        that interface should look like."""
+        logger.info(f"Strategy table filename: {filename}")
+
+        filename = Path(filename)
+        self._filename = filename.absolute()
+        self._capture_directory.rundir = filename.absolute().parent
+        rconf = RetrievalConfiguration.create_from_strategy_file(
+            self.strategy_table_filename,
+            self._ifile_hlp,
+        )
+        
+        stac = pystac.Catalog.from_file(
+            self.run_dir / "config.json",
+        )
+        self.strategy_context.update_strategy_context(
+            stac_catalog=stac, retrieval_config=rconf
+        )
+        self.cost_function_creator.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
+        self.strategy_executor.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
+        self.retrieval_strategy_step_set.notify_update_target(self)
+        self.notify_update(ProcessLocation("update stac"))
+
     def update_target(self, filename: str | os.PathLike[str]) -> None:
         """Set up to process a target, given the filename for the
         strategy table.
@@ -206,13 +255,13 @@ class RetrievalStrategy:
         filename = Path(filename)
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent
-        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
+        rconf = RetrievalConfiguration.create_from_strategy_file(
             self.strategy_table_filename,
             self._ifile_hlp,
         )
-        self._measurement_id = MeasurementIdFile(
+        mid = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
-            self.retrieval_config,
+            rconf,
             # Chicken and egg problem for filter_list_dict. We need a MeasurementId
             # to update the strategy_executor, and then need the strategy_executor to
             # get the filter_list_dict. So we put a dummy in, and then fill this in
@@ -220,9 +269,11 @@ class RetrievalStrategy:
             {},
         )
         self.strategy_executor.notify_update_target(
-            self.measurement_id, self.retrieval_config
+            mid, rconf
         )
-        self.measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
+        mid.filter_list_dict = self.strategy_executor.filter_list_dict
+        self.strategy_context.update_strategy_context(
+            measurement_id=mid, retrieval_config=rconf)
         self.cost_function_creator.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
@@ -339,12 +390,16 @@ class RetrievalStrategy:
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
         """Configuration parameters for the retrieval."""
-        return self._retrieval_config
+        return self.strategy_context.retrieval_config
 
     @property
     def measurement_id(self) -> MeasurementIdFile:
         """Measurement ID for the current target."""
-        return self._measurement_id
+        return self.strategy_context.measurement_id
+
+    @property
+    def stac_catalog(self) -> pystac.Collection:
+        return self.strategy_context.stac_catalog
 
     @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:

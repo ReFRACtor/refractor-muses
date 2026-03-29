@@ -1,5 +1,6 @@
-from refractor.muses import QaFlagValueFile, MusesPyQaDataHandle
+from refractor.muses import QaFlagValueFile, MusesPyQaDataHandle, QaFlag
 from fixtures.retrieval_step_fixture import set_up_run_to_location
+import itertools
 
 
 def test_qa_data_qa_flag(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
@@ -9,11 +10,16 @@ def test_qa_data_qa_flag(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
         "retrieval step",
         ifile_hlp,
     )
-    res = rs.qa_data_handle_set.qa_flag(rstep.results, rs.current_strategy_step)
-    assert res == "BAD"
+    res = rs.creator_dict[QaFlag].qa_flag(rstep.results, rs.current_strategy_step)
+    assert res.master_flag == "BAD"
     # Check reading the file directly
-    qa_handle = MusesPyQaDataHandle()
-    qa_handle.notify_update_target(rs.measurement_id, rs.retrieval_config)
+    # This is a little convoluted, but it finds the MusesPyQaDataHandle in our
+    # handle set
+    qa_handle = [
+        t
+        for t in itertools.chain(*rs.qa_data_handle_set.handle_set.values())
+        if isinstance(t, MusesPyQaDataHandle)
+    ][0]
     f = QaFlagValueFile(
         qa_handle.quality_flag_file_name(rs.current_strategy_step),
         rs.retrieval_config.input_file_helper,

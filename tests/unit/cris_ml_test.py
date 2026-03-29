@@ -53,3 +53,6 @@ def test_cris_co_ml(cris_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
         save_evaluate=False,
     )
     print(pred.labels_pred)
+    # This follow what align_l1b_l2muses does in troppy. Can check with Frank
+    # to make sure this is correct ordering
+    # latitude = np.reshape(l1b.latitude, (l1b.latitude.size))

@@ -53,6 +53,11 @@ class PriorityHandleSet(collections.abc.Set):
     with the highest priority wins.
     """
 
+    # We don't initialize this here, so we can use the "trick" of
+    # doing this add_default_handle. When we do this we attach this to
+    # the derived class, rather than the base class. This is based on
+    # cls._default_handle_set = blah creating a copy in cls rather
+    # than PriorityHandleSet._default_handle_set
     _default_handle_set: None | Self = None
 
     def __init__(self) -> None:
@@ -92,6 +97,8 @@ class PriorityHandleSet(collections.abc.Set):
         """Add a handler. The higher priority_order (larger number) items are
         tried first."""
         self.handle_set[priority_order].add(h)
+        if hasattr(h, "notify_add_handle"):
+            h.notify_add_handle(self)
 
     def discard_handle(self, h: Any) -> None:
         """Discard the handle h. It is ok if h isn't actually in the set

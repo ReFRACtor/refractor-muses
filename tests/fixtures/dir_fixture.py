@@ -198,6 +198,11 @@ def joint_tropomi_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def ml_cris_test_in_dir(test_base_path):
+    return test_base_path / "cris/in/ml_1"
+
+
+@pytest.fixture(scope="session")
 def tropomi_test_in_dir3(test_base_path):
     return test_base_path / "tropomi/in/sounding_3"
 
