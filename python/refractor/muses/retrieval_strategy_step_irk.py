@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
+from .retrieval_strategy_step import RetrievalStrategyStep
 from .misc import ResultIrk
 from .identifier import RetrievalType, ProcessLocation
 from loguru import logger
@@ -50,7 +50,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         return res
 
 
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepIRK())
+# RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepIRK())
 
 __all__ = [
     "RetrievalStrategyStepIRK",

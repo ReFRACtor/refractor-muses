@@ -35,7 +35,7 @@ class CreatorHandleSet(PriorityHandleSet):
     already written we make use of it.
 
     In practice you create a simple CreatorHandle class that just
-    creates the something like a ForwardModel or Observation, and
+    creates something like a ForwardModel or Observation, and
     register with the CreatorHandleSet, e.g., ForwardModelHandleSet or
     ObservationHandleSet.  Take a look at the existing examples
     (e.g. the unit tests) - the design seems complicated but is
@@ -56,6 +56,16 @@ class CreatorHandleSet(PriorityHandleSet):
     register as observers of MusesStrategyContext to get the
     notify_update_strategy_executor message. See for example
     MusesPyQaDataHandle.
+
+    We had considered just passing the MusesStrategyContext to handle_h
+    like any other argument. However it makes sense to instead treat this
+    as different because the lifecycles are different. We tend to call
+    handle_h for each retrieval step, but the MusesStrategyContext only
+    changes at the very beginning of a retrieval. So it makes sense to
+    treat these as different, although this means MusesStrategyContext
+    is like a "hidden" argument. I think the trade off is reasonable,
+    but know that the handle_h has access to the MusesStrategyContext as
+    well as whatever argument get passed to handle_h
 
     """
 
@@ -152,13 +162,22 @@ class CreatorHandle:
     first time the objects are created. Objects should register as
     observers to get the message if the need it.
 
+    We had considered just passing the MusesStrategyContext to handle_h
+    like any other argument. However it makes sense to instead treat this
+    as different because the lifecycles are different. We tend to call
+    handle_h for each retrieval step, but the MusesStrategyContext only
+    changes at the very beginning of a retrieval. So it makes sense to
+    treat these as different, although this means MusesStrategyContext
+    is like a "hidden" argument. I think the trade off is reasonable,
+    but know that the handle_h has access to the MusesStrategyContext as
+    well as whatever argument get passed to handle_h
     """
 
-    def __init__(self, add_as_context_observer: bool = False):
+    def __init__(self, add_as_context_observer: bool = False) -> None:
         self.strategy_context: None | MusesStrategyContext = None
         self.add_as_context_observer = add_as_context_observer
 
-    def notify_add_handle(self, hset: CreatorHandleSet):
+    def notify_add_handle(self, hset: CreatorHandleSet) -> None:
         # Derived classes can override this to do whatever they need to.
         self.strategy_context = hset.strategy_context
         # Because it is a common case, we just handle adding this as
@@ -168,7 +187,7 @@ class CreatorHandle:
         # Temp, until we get all the classes moved over
         if not hasattr(self, "add_as_context_observer"):
             return
-        if self.add_as_context_observer:
+        if self.strategy_context is not None and self.add_as_context_observer:
             self.strategy_context.add_observer(self)
 
     @property

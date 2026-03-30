@@ -9,14 +9,11 @@ from .retrieval_debug_output import (
     RetrievalPlotRadiance,
     RetrievalPlotResult,
 )
-from .retrieval_strategy_step import (
-    RetrievalStrategyStepSet,
-)
 from .retrieval_configuration import RetrievalConfiguration
-from .muses_observation import MeasurementIdFile
+from .muses_observation import MeasurementId, MeasurementIdFile
 from .muses_strategy_executor import (
     MusesStrategyExecutorMusesStrategy,
-    MusesStrategyContext
+    MusesStrategyContext,
 )
 from .creator_dict import CreatorDict
 from .spectral_window_handle import SpectralWindowHandleSet
@@ -122,7 +119,7 @@ class RetrievalStrategy:
         self._observers: set[Any] = set()
         self._strategy_context = MusesStrategyContext()
         self._creator_dict = CreatorDict(self.strategy_context)
-        
+
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = (
             self._cost_function_creator.forward_model_handle_set
@@ -133,9 +130,8 @@ class RetrievalStrategy:
         self._kwargs: dict[str, Any] = kwargs
 
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
-        self._strategy_executor = MusesStrategyExecutorMusesStrategy(self, self.creator_dict)
-        self._retrieval_strategy_step_set = (
-            self.strategy_executor.retrieval_strategy_step_set
+        self._strategy_executor = MusesStrategyExecutorMusesStrategy(
+            self, self.creator_dict
         )
         self._spectral_window_handle_set = (
             self.strategy_executor.spectral_window_handle_set
@@ -222,7 +218,7 @@ class RetrievalStrategy:
             self.strategy_table_filename,
             self._ifile_hlp,
         )
-        
+
         stac = pystac.Catalog.from_file(
             self.run_dir / "config.json",
         )
@@ -235,7 +231,6 @@ class RetrievalStrategy:
         self.strategy_executor.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
-        self.retrieval_strategy_step_set.notify_update_target(self)
         self.notify_update(ProcessLocation("update stac"))
 
     def update_target(self, filename: str | os.PathLike[str]) -> None:
@@ -268,19 +263,17 @@ class RetrievalStrategy:
             # in the next step.
             {},
         )
-        self.strategy_executor.notify_update_target(
-            mid, rconf
-        )
+        self.strategy_executor.notify_update_target(mid, rconf)
         mid.filter_list_dict = self.strategy_executor.filter_list_dict
         self.strategy_context.update_strategy_context(
-            measurement_id=mid, retrieval_config=rconf)
+            measurement_id=mid, retrieval_config=rconf
+        )
         self.cost_function_creator.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
         self.strategy_executor.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
-        self.retrieval_strategy_step_set.notify_update_target(self)
         self.notify_update(ProcessLocation("update target"))
 
     def script_retrieval_ms(
@@ -390,16 +383,25 @@ class RetrievalStrategy:
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
         """Configuration parameters for the retrieval."""
-        return self.strategy_context.retrieval_config
+        res = self.strategy_context.retrieval_config
+        if res is None:
+            raise RuntimeError("Need to update strategy_context first")
+        return res
 
     @property
-    def measurement_id(self) -> MeasurementIdFile:
+    def measurement_id(self) -> MeasurementId:
         """Measurement ID for the current target."""
-        return self.strategy_context.measurement_id
+        res = self.strategy_context.measurement_id
+        if res is None:
+            raise RuntimeError("Need to update strategy_context first")
+        return res
 
     @property
-    def stac_catalog(self) -> pystac.Collection:
-        return self.strategy_context.stac_catalog
+    def stac_catalog(self) -> pystac.Catalog:
+        res = self.strategy_context.stac_catalog
+        if res is None:
+            raise RuntimeError("Need to update strategy_context first")
+        return res
 
     @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
@@ -422,11 +424,6 @@ class RetrievalStrategy:
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         """The set of handles we use for each state element."""
         return self._strategy_executor.cross_state_element_handle_set
-
-    @property
-    def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
-        """The set of handles for determining the RetrievalStrategyStep."""
-        return self._retrieval_strategy_step_set
 
     @property
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:

@@ -57,7 +57,7 @@ class CreatorDict(UserDict):
         self.strategy_context = (
             strategy_context if strategy_context is not None else MusesStrategyContext()
         )
-        
+
     @classmethod
     def register(
         self, created_type: Any, handle_set_class: type[CreatorHandleSet]
