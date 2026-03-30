@@ -159,6 +159,7 @@ class RetrievalOutput:
     def results(self) -> RetrievalResult:
         if (
             self.retrieval_strategy_step is None
+            or not hasattr(self.retrieval_strategy_step, "results")
             or self.retrieval_strategy_step.results is None
         ):
             raise RuntimeError("retrieval_strategy_step.results needs to not be None")

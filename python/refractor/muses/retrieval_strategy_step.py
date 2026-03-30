@@ -1,6 +1,7 @@
 from __future__ import annotations
 import abc
 from loguru import logger
+import refractor.framework as rf  # type: ignore
 from .creator_dict import CreatorDict
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .muses_levmar_solver import (
@@ -105,6 +106,14 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     at points during the processing, where the Observer can do
     whatever with the processing (e.g, produce an output file).
 
+    Note this current class has a number of things related to optimal
+    estimation (e.g., forward model) that don't really apply to a
+    different kind of retrieval (e.g., machine learning). We may want
+    to separate this out. Right now, it seems harmless - we just have
+    a bunch of functions we don't need for machine learning. But it
+    might be better to separate this out, once we have a clearer
+    picture of the differences between the two.
+
     """
 
     def __init__(
@@ -166,6 +175,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         return self.rs.create_forward_model_combine(
             use_systematic=use_systematic, include_bad_sample=include_bad_sample
         )
+    
+    def create_forward_model(self) -> rf.ForwardModel:
+        return self.rs.strategy_executor.create_forward_model()
 
     def notify_update(self, ploc: ProcessLocation) -> None:
         self.rs.notify_update(ploc, retrieval_strategy_step=self)

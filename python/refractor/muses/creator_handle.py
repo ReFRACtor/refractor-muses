@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_executor import MusesStrategyContext
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
+    import pystac
 
 
 class CreatorHandleSet(PriorityHandleSet):
@@ -114,7 +115,7 @@ class CreatorHandleSet(PriorityHandleSet):
     ) -> Self:
         # Temp, until we get everything moved over
         try:
-            res = cls(strategy_context)
+            res = cls(strategy_context)  # type: ignore[arg-type]
         except TypeError:
             res = cls()
         if cls._default_handle is not None:
@@ -246,7 +247,7 @@ class CreatorHandle:
             return False
         return True
 
-    def stac_catalog(self) -> RetrievalConfiguration:
+    def stac_catalog(self) -> pystac.Catalog:
         """We often want to get the stac_catalog from the strategy_context,
         having an error if either the strategy_context or the stac_catalog
         is None. This function is a short cut for that, throwing an exception
