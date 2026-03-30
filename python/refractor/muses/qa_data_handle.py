@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .creator_dict import CreatorDict
+from .identifier import StateElementIdentifier
 from loguru import logger
 import abc
 import os
@@ -16,7 +17,6 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .input_file_helper import InputFileHelper, InputFilePath
     from .muses_strategy_executor import MusesStrategyContext
-    from refractor.muses_py_fm import FakeStateInfo
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -199,19 +199,14 @@ class MusesPyQaDataHandle(QaDataHandle):
         """This does the QA calculation, and returns the master quality flag
         results. A good result returns "GOOD".
         """
-        # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeStateInfo
-
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         if self.ifile_hlp is None:
             raise RuntimeError("Need to call notify_update_strategy_context first")
-        fstate_info = FakeStateInfo(retrieval_result.current_state)
         master = self.write_quality_flags(
             QaFlagValueFile(
                 self.quality_flag_file_name(current_strategy_step), self.ifile_hlp
             ),
             retrieval_result,
-            fstate_info,
         )
         logger.info(f"Master Quality: {master}")
         return QaFlag(master_flag=master)
@@ -220,8 +215,8 @@ class MusesPyQaDataHandle(QaDataHandle):
         self,
         qa_flag_value: QaFlagValue,
         results: RetrievalResult,
-        stateInfo: FakeStateInfo,
     ) -> str:
+        cstate = results.current_state
         strs = [
             "radianceResidualRMS",
             "radianceResidualMean",
@@ -265,7 +260,7 @@ class MusesPyQaDataHandle(QaDataHandle):
             0,
             0,
             results.cloudODAve,
-            stateInfo.current["PCLOUD"][0],
+            cstate.state_value(StateElementIdentifier("PCLOUD"))[0],
             results.Desert_Emiss_QA,
             results.emisDev,
             results.cloudODVar,
@@ -290,12 +285,14 @@ class MusesPyQaDataHandle(QaDataHandle):
             results.O3_tropo_consistency,
         ]
 
-        if stateInfo.current["TSUR"] >= 1:
-            values_list[2] = (
-                stateInfo.current["TSUR"]
-                - stateInfo.current["values"][stateInfo.species.index("TATM"), 0]
-            )
-            values_list[3] = stateInfo.current["TSUR"] - stateInfo.constraint["TSUR"]
+        tsur = cstate.state_value(StateElementIdentifier("TSUR"))[0]
+        tsur_constraint = cstate.state_constraint_vector(
+            StateElementIdentifier("TSUR")
+        )[0]
+        tatmsur = cstate.state_value(StateElementIdentifier("TATM"))[0]
+        if tsur >= 1:
+            values_list[2] = tsur - tatmsur
+            values_list[3] = tsur - tsur_constraint
 
         ind_radiance = np.where(results.radianceResidualRMS > -990)[0]
         ind_both = []

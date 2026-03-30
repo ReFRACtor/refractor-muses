@@ -2,7 +2,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from .retrieval_strategy_step import RetrievalStrategyStepSet, RetrievalStrategyStep
 from .current_state_state_info import CurrentStateStateInfo
-from .qa_data_handle import QaDataHandleSet, QaFlag
 from .muses_strategy import (
     MusesStrategy,
     CurrentStrategyStep,
@@ -119,6 +118,10 @@ class MusesStrategyContext:
         self._stac_catalog: None | pystac.Catalog = None
         self._retrieval_config: None | RetrievalConfiguration = None
         self._observers: set[Any] = set()
+        # Marker if notify_update_strategy_executor has been called. If it
+        # has, we want to immediately call this on new observers that have
+        # been added
+        self._have_been_updated = False
 
     def add_observer(self, obs: Any) -> None:
         # Often we want weakref, so we don't prevent objects from
@@ -131,6 +134,13 @@ class MusesStrategyContext:
         self._observers.add(obs)
         if hasattr(obs, "notify_add"):
             obs.notify_add(self)
+        # Go ahead and call notify_update_strategy_context if we have
+        # already been updated. This way the observer can do any initialization
+        # needed for the first time the context is available. Otherwise, this
+        # will get called in self.notify_update_strategy_context when that
+        # happens later.
+        if self._have_been_updated:
+            obs.notify_update_strategy_context(self)
 
     def remove_observer(self, obs: Any) -> None:
         self._observers.discard(obs)
@@ -154,6 +164,7 @@ class MusesStrategyContext:
         stac_catalog: None | pystac.Catalog = None,
         retrieval_config: None | RetrievalConfiguration = None,
     ) -> None:
+        self._have_been_updated = True
         self._measurement_id = measurement_id
         self._stac_catalog = stac_catalog
         self._retrieval_config = retrieval_config
@@ -237,7 +248,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         else:
             self._spectral_window_handle_set = spectral_window_handle_set
 
-        self._qa_data_handle_set = self.creator_dict[QaFlag]
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
 
@@ -247,9 +257,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
-        self.qa_data_handle_set.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -276,11 +283,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError()
-
-    @property
-    def qa_data_handle_set(self) -> QaDataHandleSet:
-        """The QaDataHandleSet to use to get the QA flag filename."""
-        return self._qa_data_handle_set
 
     @property
     def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:

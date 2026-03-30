@@ -17,7 +17,6 @@ from .muses_strategy_executor import (
 )
 from .creator_dict import CreatorDict
 from .spectral_window_handle import SpectralWindowHandleSet
-from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
@@ -139,7 +138,6 @@ class RetrievalStrategy:
         self._muses_strategy_handle_set = (
             self.strategy_executor.muses_strategy_handle_set
         )
-        self._qa_data_handle_set = self.strategy_executor.qa_data_handle_set
 
         # Right now, we hardcode the output observers. Probably want to
         # rework this
@@ -434,11 +432,6 @@ class RetrievalStrategy:
     def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
         """The set of handles for determining the MusesStrategy."""
         return self._muses_strategy_handle_set
-
-    @property
-    def qa_data_handle_set(self) -> QaDataHandleSet:
-        """The set of handles for determining the QA flag file name."""
-        return self._qa_data_handle_set
 
     @property
     def strategy_step(self) -> StrategyStepIdentifier:

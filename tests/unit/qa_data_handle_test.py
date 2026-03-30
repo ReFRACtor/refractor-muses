@@ -17,7 +17,7 @@ def test_qa_data_qa_flag(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
     # handle set
     qa_handle = [
         t
-        for t in itertools.chain(*rs.qa_data_handle_set.handle_set.values())
+        for t in itertools.chain(*rs.creator_dict[QaFlag].handle_set.values())
         if isinstance(t, MusesPyQaDataHandle)
     ][0]
     f = QaFlagValueFile(

@@ -1,5 +1,9 @@
 from __future__ import annotations
-from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet, RetrievalStrategyStepHandle
+from .retrieval_strategy_step import (
+    RetrievalStrategyStep,
+    RetrievalStrategyStepSet,
+    RetrievalStrategyStepHandle,
+)
 from .misc import ResultIrk
 from .identifier import RetrievalType, ProcessLocation
 from loguru import logger

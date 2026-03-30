@@ -4,6 +4,7 @@ from loguru import logger
 import refractor.framework as rf  # type: ignore
 from .creator_dict import CreatorDict
 from .creator_handle import CreatorHandle, CreatorHandleSet
+from .qa_data_handle import QaFlag
 from .muses_levmar_solver import (
     MusesLevmarSolver,
     VerboseSolverLogging,
@@ -128,7 +129,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # TODO I think we will want to remove the direct use of RetrievalStrategy,
         # although I'm not sure. For now we use this.
         self.rs = rs
-        self.creator_dict = CreatorDict
+        self.creator_dict = creator_dict
         self.kwargs = kwargs
 
     def do_retrieval(
@@ -174,7 +175,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         return self.rs.create_forward_model_combine(
             use_systematic=use_systematic, include_bad_sample=include_bad_sample
         )
-    
+
     def create_forward_model(self) -> rf.ForwardModel:
         return self.rs.strategy_executor.create_forward_model()
 
@@ -336,7 +337,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.cfunc.obs_list,
             rfull,
             self.current_state.propagated_qa,
-            self.rs.qa_data_handle_set,
+            self.creator_dict[QaFlag],
             jacobian_sys=self.jacobian_sys,
         )
         self.notify_update(ProcessLocation("retrieval step"))
@@ -344,7 +345,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self) -> SolverResult:
         """run_retrieval"""
         self.cfunc = self.create_cost_function()
-        cost_function_params = self.kwargs.get("cost_function_params", None)
+        cost_function_params = self.kwargs["cost_function_params"]
         self.notify_update(ProcessLocation("create_cost_function"))
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:
