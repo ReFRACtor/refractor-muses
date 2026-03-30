@@ -133,9 +133,8 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
     def do_retrieval(
         self,
-        ret_state: None | dict[str, Any] = None,
     ) -> None:
-        self.set_state(ret_state)
+        self.set_state(self.kwargs.get("ret_state", None))
         self.retrieval_step_body()
         self.notify_update(ProcessLocation("end_retrieval_step"))
 
@@ -345,7 +344,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self) -> SolverResult:
         """run_retrieval"""
         self.cfunc = self.create_cost_function()
-        cost_function_params = self.kwargs.get("cost_function_params", {})
+        cost_function_params = self.kwargs.get("cost_function_params", None)
         self.notify_update(ProcessLocation("create_cost_function"))
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:
