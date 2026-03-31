@@ -67,6 +67,14 @@ class MusesForwardModelBase(rf.ForwardModel):
         """
         super().__init__()
         self.instrument_name = instrument_name
+        self.obs = obs
+        self.kwargs = kwargs
+        self.rconf = rconf
+        self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
+        self.have_fake_jac_in_oss = False
+        self.have_create_uip = False
+        self.uip_params: None | np.ndarray = None
         # We save the current_state value, since it might have changed
         # when we create the UIP. The semantics here is that we create
         # the UIP when we create the forward model, however we actually
@@ -79,15 +87,15 @@ class MusesForwardModelBase(rf.ForwardModel):
         # the time penalty of creating the UIP and/or require muses-py be
         # available. So to support that, we have a delayed create on first
         # use of the UIP.
-        self.current_state = copy.deepcopy(current_state)
-        self.obs = obs
-        self.kwargs = kwargs
-        self.rconf = rconf
-        self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
-        self.use_vlidort_temp_dir = use_vlidort_temp_dir
-        self.have_fake_jac_in_oss = False
-        self.have_create_uip = False
-        self.uip_params: None | np.ndarray = None
+        if False:
+            # Have a problem with pickling here. Also, we don't use these
+            # forward models as much, so deferral  isn't as needed. Leave
+            # functionality in place since we already have it, but we
+            # just short circuit this and calculate UIP right away
+            self.current_state = copy.deepcopy(current_state)
+        else:
+            self.current_state = current_state
+            _ = self.rf_uip
 
     def update_uip(self, parameters: np.ndarray) -> None:
         if not self.have_create_uip:
