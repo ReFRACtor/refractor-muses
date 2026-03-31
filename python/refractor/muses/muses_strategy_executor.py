@@ -7,7 +7,6 @@ from .muses_strategy import (
     CurrentStrategyStep,
 )
 from .cost_function import CostFunction
-from .observation_handle import ObservationHandleSet
 from .identifier import StateElementIdentifier, ProcessLocation
 from .spectral_window_handle import MusesSpectralWindowDict
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
@@ -256,6 +255,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Like create_cost_function, but create just a ForwardModelCombine instead of
         a full CostFunction."""
         return self.cost_function_creator.forward_model(
+            self.creator_dict,
             self.current_strategy_step.instrument_name,
             self.current_state,
             self.current_strategy_step.spectral_window_dict,
@@ -269,6 +269,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     ) -> CostFunction:
         """Create a CostFunction for use in a retrieval."""
         return self.cost_function_creator.cost_function(
+            self.creator_dict,
             self.current_strategy_step.instrument_name,
             self.current_state,
             self.current_strategy_step.spectral_window_dict,

@@ -13,6 +13,7 @@ import numpy as np
 import numpy.testing as npt
 import pickle
 
+
 @require_muses_py_fm
 def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
@@ -57,7 +58,7 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
         # get this working
         fm.notify_cost_function = None
         t = pickle.dumps(fm)
-        t2 = pickle.loads(t)
+        _ = pickle.loads(t)
 
 
 @require_muses_py_fm

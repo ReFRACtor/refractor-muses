@@ -8,7 +8,6 @@ from refractor.muses import (
     MusesTesObservation,
     InstrumentIdentifier,
     CurrentState,
-    MeasurementId,
     RetrievalConfiguration,
     MusesObservation,
     ResultIrk,
@@ -92,7 +91,7 @@ class MusesForwardModelBase(rf.ForwardModel):
             # forward models as much, so deferral  isn't as needed. Leave
             # functionality in place since we already have it, but we
             # just short circuit this and calculate UIP right away
-            self.current_state = copy.deepcopy(current_state)
+            self.current_state: CurrentState = copy.deepcopy(current_state)
         else:
             self.current_state = current_state
             _ = self.rf_uip
@@ -881,18 +880,12 @@ class MusesForwardModelHandle(ForwardModelHandle):
         use_vlidort_temp_dir: bool = False,
         **creator_kwargs: Any,
     ) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
         self.rconf: RetrievalConfiguration | None = None
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.rconf = retrieval_config
 
     def forward_model(
         self,
@@ -908,13 +901,11 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # (see MusesForwardModelBase), which gets called when the CostFunction is created.
         if instrument_name != self.instrument_name:
             return None
-        if self.rconf is None:
-            raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
         return self.cls(
             current_state,
             obs,
-            self.rconf,
+            self.retrieval_config_new,
             **kwargs,
         )
 

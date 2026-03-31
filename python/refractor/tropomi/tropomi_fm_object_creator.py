@@ -21,7 +21,7 @@ import h5py  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation, RetrievalConfiguration
+    from refractor.muses import MusesObservation, RetrievalConfiguration
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
@@ -917,15 +917,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -937,8 +930,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
         model_type = (
             "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
         )
@@ -947,7 +938,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         )
         obj_creator = TropomiFmObjectCreator(
             current_state,
-            self.retrieval_config,
+            self.retrieval_config_new,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

@@ -691,15 +691,8 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
 
 class CrisForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -711,12 +704,10 @@ class CrisForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("CRIS"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating OSS forward model using using CrisFmObjectCreator")
         obj_creator = CrisFmObjectCreator(
             current_state,
-            self.retrieval_config,
+            self.retrieval_config_new,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -728,15 +719,8 @@ class CrisForwardModelHandle(ForwardModelHandle):
 
 class AirsForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -748,12 +732,10 @@ class AirsForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("AIRS"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating OSS forward model using using AirsFmObjectCreator")
         obj_creator = AirsFmObjectCreator(
             current_state,
-            self.retrieval_config,
+            self.retrieval_config_new,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -765,15 +747,8 @@ class AirsForwardModelHandle(ForwardModelHandle):
 
 class TesForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -785,12 +760,10 @@ class TesForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TES"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
         logger.debug("Creating OSS forward model using using TesFmObjectCreator")
         obj_creator = TesFmObjectCreator(
             current_state,
-            self.retrieval_config,
+            self.retrieval_config_new,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

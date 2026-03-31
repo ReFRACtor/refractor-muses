@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .refractor_capture_directory import RefractorCaptureDirectory
 from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_irk_output import RetrievalIrkOutput
@@ -387,7 +388,7 @@ class RetrievalStrategy:
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
         """The set of handles we use for mapping instrument name to a
         ForwardModel"""
-        return self.strategy_executor.cost_function_creator.forward_model_handle_set
+        return self.creator_dict[rf.ForwardModel]
 
     @property
     def observation_handle_set(self) -> ObservationHandleSet:

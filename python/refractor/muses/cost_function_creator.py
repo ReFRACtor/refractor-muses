@@ -3,7 +3,6 @@ from .cost_function import CostFunction
 from .creator_dict import CreatorDict
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .current_state import CurrentState
-from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
 from .retrieval_array import RetrievalGridArray
 from .forward_model_combine import ForwardModelCombine
@@ -15,10 +14,8 @@ from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from refractor.muses_py_fm import RefractorUip
-    from .retrieval_strategy import RetrievalStrategy
-    from .retrieval_configuration import RetrievalConfiguration
     from .identifier import InstrumentIdentifier
     from .muses_strategy_executor import MusesStrategyContext
 
@@ -31,18 +28,9 @@ class CostFunctionHandle(CreatorHandle):
     Observation, see that class for a discussion on using this.
     """
 
-    def __init__(self, rs: RetrievalStrategy | None = None) -> None:
+    def __init__(self) -> None:
         super().__init__(add_as_context_observer=True)
-        self._forward_model_handle_set = None
-        self._observation_handle_set = None
-
-    @property
-    def forward_model_handle_set(self) -> ForwardModelHandleSet:
-        if(self._forward_model_handle_set is None):
-            self._forward_model_handle_set = copy.deepcopy(
-                ForwardModelHandleSet.default_handle_set()
-            )
-        return self._forward_model_handle_set
+        self._observation_handle_set: None | ObservationHandleSet = None
 
     @property
     def observation_handle_set(self) -> ObservationHandleSet:
@@ -51,26 +39,24 @@ class CostFunctionHandle(CreatorHandle):
                 ObservationHandleSet.default_handle_set()
             )
         return self._observation_handle_set
-    
+
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        if(self._strategy_context is None):
+        if self._strategy_context is None:
             # This doesn't normally happen, but we have some unit
             # tests in old_py_retrieve that don't initialize the
             # strategy_context
             self._strategy_context = strategy_context
         # Temp, we'll get this moved out in a bit
-        self.forward_model_handle_set.notify_update_target(
-            self.measurement_id_new, self.retrieval_config_new
-        )
         self.observation_handle_set.notify_update_target(
             self.measurement_id_new, self.retrieval_config_new
         )
 
     def forward_model(
         self,
+        creator_dict: CreatorDict,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
@@ -85,6 +71,7 @@ class CostFunctionHandle(CreatorHandle):
         try:
             current_state.use_systematic = use_systematic
             _, fmlist, obslist, fm_sv, _, _, _ = self._forward_model(
+                creator_dict,
                 instrument_name_list,
                 current_state,
                 spec_win_dict,
@@ -99,6 +86,7 @@ class CostFunctionHandle(CreatorHandle):
 
     def cost_function(
         self,
+        creator_dict: CreatorDict,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
@@ -128,6 +116,7 @@ class CostFunctionHandle(CreatorHandle):
         """
 
         args = self._forward_model(
+            creator_dict,
             instrument_name_list,
             current_state,
             spec_win_dict,
@@ -142,6 +131,7 @@ class CostFunctionHandle(CreatorHandle):
 
     def _forward_model(
         self,
+        creator_dict: CreatorDict,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
@@ -187,7 +177,7 @@ class CostFunctionHandle(CreatorHandle):
 
         self.fm_list = []
         for i, instrument_name in enumerate(instrument_name_list):
-            fm = self.forward_model_handle_set.forward_model(
+            fm = creator_dict[rf.ForwardModel].forward_model(
                 instrument_name,
                 current_state,
                 self.obs_list[i],
@@ -213,6 +203,7 @@ class CostFunctionHandle(CreatorHandle):
 
     def cost_function_from_uip(
         self,
+        creator_dict: CreatorDict,
         rf_uip: RefractorUip,
         obs_list: list[MusesObservation] | None,
         ret_info: dict | None,
@@ -247,6 +238,7 @@ class CostFunctionHandle(CreatorHandle):
 
         cstate = CurrentStateUip(rf_uip, ret_info)
         return self.cost_function(
+            creator_dict,
             rf_uip.instrument,  # type:ignore[arg-type]
             cstate,  # type:ignore[arg-type]
             None,
@@ -265,21 +257,15 @@ class CostFunctionHandleSet(CreatorHandleSet):
     def __init__(self, strategy_context: MusesStrategyContext) -> None:
         super().__init__("_dispatch", strategy_context)
 
-    # Temp, we'll get this out in a bit
-    @property
-    def forward_model_handle_set(self) -> ForwardModelHandleSet:
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                return h.forward_model_handle_set
-
     @property
     def observation_handle_set(self) -> ObservationHandleSet:
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 return h.observation_handle_set
-            
+
     def forward_model(
         self,
+        creator_dict: CreatorDict,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
@@ -290,6 +276,7 @@ class CostFunctionHandleSet(CreatorHandleSet):
     ) -> ForwardModelCombine:
         return self.handle(
             "forward_model",
+            creator_dict,
             instrument_name_list,
             current_state,
             spec_win_dict,
@@ -301,6 +288,7 @@ class CostFunctionHandleSet(CreatorHandleSet):
 
     def cost_function(
         self,
+        creator_dict: CreatorDict,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
@@ -309,6 +297,7 @@ class CostFunctionHandleSet(CreatorHandleSet):
     ) -> CostFunction:
         return self.handle(
             "cost_function",
+            creator_dict,
             instrument_name_list,
             current_state,
             spec_win_dict,
@@ -318,19 +307,21 @@ class CostFunctionHandleSet(CreatorHandleSet):
 
     def cost_function_from_uip(
         self,
+        creator_dict: CreatorDict,
         rf_uip: RefractorUip,
         obs_list: list[MusesObservation] | None,
         ret_info: dict | None,
         **kwargs: Any,
     ) -> CostFunction:
-    
         return self.handle(
             "cost_function_from_uip",
+            creator_dict,
             rf_uip,
             obs_list,
             ret_info,
             **kwargs,
         )
+
 
 CostFunctionHandleSet.add_default_handle(CostFunctionHandle())
 # Register creator set

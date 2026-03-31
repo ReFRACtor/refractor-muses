@@ -1,5 +1,7 @@
+import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     CostFunctionCreator,
+    CreatorDict,
     CostFunction,
     MeasurementIdFile,
     RetrievalConfiguration,
@@ -90,7 +92,9 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-    rs.strategy_context.update_strategy_context(measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config)
+    rs.strategy_context.update_strategy_context(
+        measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config
+    )
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -112,7 +116,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         rs.retrieval_config,
     )
     cfunc = rs.creator_dict[CostFunction].cost_function_from_uip(
-        rf_uip, [obs_cris, obs_tropomi], None
+        rs.creator_dict, rf_uip, [obs_cris, obs_tropomi], None
     )
     (
         o_radiance,
@@ -183,7 +187,9 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-    rs.strategy_context.update_strategy_context(measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config)
+    rs.strategy_context.update_strategy_context(
+        measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config
+    )
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -205,7 +211,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
         rs.retrieval_config,
     )
     cfunc = rs.creator_dict[CostFunction].cost_function_from_uip(
-        rf_uip, [obs_airs, obs_omi], None
+        rs.creator_dict, rf_uip, [obs_airs, obs_omi], None
     )
     (
         o_radiance,
@@ -278,26 +284,6 @@ def test_residual_fm_jac_tropomi(
             rf_uip.tropomi_params["radsqueeze_BAND3"],
         ]
     )
-    creator = CostFunctionCreator()
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"),
-            MusesTropomiForwardModel,
-        ),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
-        priority_order=100,
-    )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
@@ -305,9 +291,33 @@ def test_residual_fm_jac_tropomi(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconfig)
-    strategy_context.add_observer(creator)
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconfig
+    )
+    creator = CostFunctionCreator()
+    creator.notify_update_strategy_context(strategy_context)
+    cdict = CreatorDict(strategy_context)
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
+        ),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=100,
+    )
     cfunc = creator.cost_function_from_uip(
+        cdict,
         rf_uip,
         [obs_cris, obs_tropomi],
         rrefractor.params["ret_info"],
@@ -392,26 +402,6 @@ def test_residual_fm_jac_omi(
             rf_uip.omi_params["odwav_slope_uv2"],
         ]
     )
-    creator = CostFunctionCreator()
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(
-            InstrumentIdentifier("TROPOMI"),
-            MusesTropomiForwardModel,
-        ),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-        priority_order=100,
-    )
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
-        priority_order=100,
-    )
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
@@ -419,9 +409,33 @@ def test_residual_fm_jac_omi(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconfig)
-    strategy_context.add_observer(creator)
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconfig
+    )
+    creator = CostFunctionCreator()
+    creator.notify_update_strategy_context(strategy_context)
+    cdict = CreatorDict(strategy_context)
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(
+            InstrumentIdentifier("TROPOMI"),
+            MusesTropomiForwardModel,
+        ),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
+        priority_order=100,
+    )
     cfunc = creator.cost_function_from_uip(
+        cdict,
         rf_uip,
         [obs_airs, obs_omi],
         rrefractor.params["ret_info"],
@@ -508,6 +522,7 @@ def test_residual_fm_jac_omi2(
     strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
     strategy_context.add_observer(creator)
     cfunc = creator.cost_function_from_uip(
+        CreatorDict(),
         rf_uip,
         joint_omi_obs_step_8,
         rrefractor.params["ret_info"],
@@ -551,13 +566,6 @@ def test_residual_fm_jac_tropomi2(
         lrad_second_order=False,
         use_vlidort_temp_dir=False,
     )
-    creator = CostFunctionCreator()
-    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    creator.forward_model_handle_set.add_handle(
-        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
-        priority_order=100,
-    )
-    obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
         joint_tropomi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
@@ -567,9 +575,17 @@ def test_residual_fm_jac_tropomi2(
     )
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
-    strategy_context.add_observer(creator)
+    creator = CostFunctionCreator()
+    creator.notify_update_strategy_context(strategy_context)
+    cdict = CreatorDict(strategy_context)
+    cdict[rf.ForwardModel].add_handle(ihandle, priority_order=100)
+    cdict[rf.ForwardModel].add_handle(
+        MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),
+        priority_order=100,
+    )
+    obslist = joint_tropomi_obs_step_12
     cfunc = creator.cost_function_from_uip(
-        rf_uip, obslist, rrefractor.params["ret_info"]
+        cdict, rf_uip, obslist, rrefractor.params["ret_info"]
     )
     (uip, o_residual, o_jacobian_ret, radiance_out, o_jacobianOut, o_stop_flag) = (
         cfunc.residual_fm_jacobian(**rrefractor.params)
