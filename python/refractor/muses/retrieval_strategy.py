@@ -394,7 +394,7 @@ class RetrievalStrategy:
     def observation_handle_set(self) -> ObservationHandleSet:
         """The set of handles we use for mapping instrument name to a
         MusesObservation"""
-        return self.strategy_executor.cost_function_creator.observation_handle_set
+        return self.creator_dict[rf.Observation]
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:

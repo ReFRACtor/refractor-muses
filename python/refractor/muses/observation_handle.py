@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_dict import CreatorDict
 from .current_state import CurrentState
 import refractor.framework as rf  # type: ignore
 import abc
@@ -8,11 +9,11 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .current_state import CurrentState
     from .muses_spectral_window import MusesSpectralWindow
     from .identifier import InstrumentIdentifier
-    from .retrieval_configuration import RetrievalConfiguration
+    from .muses_strategy_executor import MusesStrategyContext
 
 
 def mpy_radiance_from_observation_list(
@@ -90,13 +91,6 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        # Default is to do nothing
-        pass
-
     @abc.abstractmethod
     def observation(
         self,
@@ -132,8 +126,8 @@ class ObservationHandleSet(CreatorHandleSet):
 
     """
 
-    def __init__(self) -> None:
-        super().__init__("observation")
+    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+        super().__init__("observation", strategy_context)
 
     def observation(
         self,
@@ -146,6 +140,9 @@ class ObservationHandleSet(CreatorHandleSet):
         """Create an Observation for the given instrument."""
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
 
+
+# Register creator set
+CreatorDict.register(rf.Observation, ObservationHandleSet)
 
 __all__ = [
     "ObservationHandleSet",

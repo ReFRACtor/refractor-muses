@@ -20,6 +20,7 @@ from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIden
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
+    from .muses_strategy_executor import MusesStrategyContext
 
 
 class MeasurementId(collections.abc.Mapping):
@@ -916,14 +917,9 @@ class SimulatedObservationHandle(ObservationHandle):
     def __init__(
         self, instrument_name: InstrumentIdentifier, obs: MusesObservation
     ) -> None:
+        super().__init__()
         self.instrument_name = instrument_name
         self.obs = obs
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        self.measurement_id = measurement_id
 
     def observation(
         self,
@@ -953,6 +949,7 @@ class MusesObservationHandle(ObservationHandle):
         instrument_name: InstrumentIdentifier,
         obs_cls: type[MusesObservationClassType],
     ) -> None:
+        super().__init__(add_as_context_observer=True)
         self.instrument_name = instrument_name
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
@@ -971,14 +968,14 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.existing_obs = None
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
         # Need to read new data when the target changes
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        logger.debug(
+            f"Call to {self.__class__.__name__}::notify_update_strategy_context"
+        )
         self.existing_obs = None
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
 
     def observation(
         self,
@@ -990,16 +987,14 @@ class MusesObservationHandle(ObservationHandle):
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target before observation")
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
-            self.measurement_id,
+            self.measurement_id_new,
             self.existing_obs,
             current_state,
             spec_win,
             fm_sv,
-            self.retrieval_config.input_file_helper,
+            self.retrieval_config_new.input_file_helper,
             **kwargs,
         )
         if self.existing_obs is None:
@@ -1016,11 +1011,11 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
     then the next time a observation gets read in a unit test we can read the pickle
     file."""
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        super().notify_update_target(measurement_id, retrieval_config)
-        pname = measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
+        super().notify_update_strategy_context(strategy_context)
+        pname = self.retrieval_config_new["run_dir"] / f"{self.instrument_name}_obs.pkl"
         if pname.exists():
             self.existing_obs = pickle.load(open(pname, "rb"))
 
@@ -1032,8 +1027,6 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
         fm_sv: rf.StateVector | None,
         **kwargs: Any,
     ) -> MusesObservation | None:
-        if self.measurement_id is None:
-            raise RuntimeError("Call notify_update_target first")
         might_save = self.existing_obs is None
         res = super().observation(
             instrument_name,

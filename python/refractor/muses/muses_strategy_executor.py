@@ -235,7 +235,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 "create_forward_model can only work with one instrument, we don't have handling for multiple."
             )
         iname = self.current_strategy_step.instrument_name[0]
-        obs = self.cost_function_creator.observation_handle_set.observation(
+        obs = self.creator_dict[rf.Observation].observation(
             iname, None, self.current_strategy_step.spectral_window_dict[iname], None
         )
         fm_sv = self.current_state.setup_fm_state_vector()
@@ -313,7 +313,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 measurement_id,
                 retrieval_config,
                 self.strategy,
-                self.cost_function_creator.observation_handle_set,
+                self.creator_dict[rf.Observation],
             )
 
     @property

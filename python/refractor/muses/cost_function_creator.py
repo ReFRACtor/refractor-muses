@@ -3,11 +3,9 @@ from .cost_function import CostFunction
 from .creator_dict import CreatorDict
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .current_state import CurrentState
-from .observation_handle import ObservationHandleSet
 from .retrieval_array import RetrievalGridArray
 from .forward_model_combine import ForwardModelCombine
 import refractor.framework as rf  # type: ignore
-import copy
 from loguru import logger
 import typing
 from typing import Any
@@ -30,29 +28,20 @@ class CostFunctionHandle(CreatorHandle):
 
     def __init__(self) -> None:
         super().__init__(add_as_context_observer=True)
-        self._observation_handle_set: None | ObservationHandleSet = None
-
-    @property
-    def observation_handle_set(self) -> ObservationHandleSet:
-        if self._observation_handle_set is None:
-            self._observation_handle_set = copy.deepcopy(
-                ObservationHandleSet.default_handle_set()
-            )
-        return self._observation_handle_set
 
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        # This doesn't normally happen, but we have some unit
+        # tests in old_py_retrieve that don't initialize the
+        # strategy_context. Put handling in here, just to support those
+        # old unit tests. Otherwise, we don't need to do anything special
+        # here
         if self._strategy_context is None:
-            # This doesn't normally happen, but we have some unit
-            # tests in old_py_retrieve that don't initialize the
-            # strategy_context
+            logger.debug(
+                f"Call to {self.__class__.__name__}::notify_update_strategy_context"
+            )
             self._strategy_context = strategy_context
-        # Temp, we'll get this moved out in a bit
-        self.observation_handle_set.notify_update_target(
-            self.measurement_id_new, self.retrieval_config_new
-        )
 
     def forward_model(
         self,
@@ -154,7 +143,7 @@ class CostFunctionHandle(CreatorHandle):
             self.obs_list = obs_list
         else:
             for instrument_name in instrument_name_list:
-                obs = self.observation_handle_set.observation(
+                obs = creator_dict[rf.Observation].observation(
                     instrument_name,
                     current_state,
                     (
@@ -256,12 +245,6 @@ class CostFunctionHandleSet(CreatorHandleSet):
 
     def __init__(self, strategy_context: MusesStrategyContext) -> None:
         super().__init__("_dispatch", strategy_context)
-
-    @property
-    def observation_handle_set(self) -> ObservationHandleSet:
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                return h.observation_handle_set
 
     def forward_model(
         self,

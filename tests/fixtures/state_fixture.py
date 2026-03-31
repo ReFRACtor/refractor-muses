@@ -1,4 +1,5 @@
 import pytest
+import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     MusesRunDir,
     MusesObservationHandlePickleSave,
@@ -9,7 +10,6 @@ from refractor.muses import (
     MusesTesObservation,
     MusesObservationHandle,
     InstrumentIdentifier,
-    ObservationHandleSet,
     MeasurementIdFile,
     SoundingMetadata,
     MusesStrategyStepList,
@@ -46,18 +46,19 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
     )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("CRIS"), MusesCrisObservation
-        )
+        ),
+        priority_order=100,
     )
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -106,11 +107,13 @@ def tropomi_swir_shandle(
     )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
-        MusesObservationHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiObservation)
+        MusesObservationHandle(
+            InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -156,18 +159,19 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("AIRS"), MusesAirsObservation
-        )
+        ),
+        priority_order=100,
     )
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("OMI"), MusesOmiObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -210,13 +214,13 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
     )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("TES"), MusesTesObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],

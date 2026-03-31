@@ -24,7 +24,7 @@ from typing import Any
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFilePath
     from .current_state import CurrentState
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .retrieval_configuration import RetrievalConfiguration
 
 
