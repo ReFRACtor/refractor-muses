@@ -1,8 +1,10 @@
 from refractor.muses import (
     CostFunctionCreator,
+    CostFunction,
     MeasurementIdFile,
     RetrievalConfiguration,
     InstrumentIdentifier,
+    MusesStrategyContext,
 )
 from refractor.muses_py_fm import (
     RefractorUip,
@@ -88,10 +90,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-
-    rs.cost_function_creator.notify_update_target(
-        rs.measurement_id, rs.retrieval_config
-    )
+    rs.strategy_context.update_strategy_context(measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config)
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -112,7 +111,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         rs.current_state,
         rs.retrieval_config,
     )
-    cfunc = rs.cost_function_creator.cost_function_from_uip(
+    cfunc = rs.creator_dict[CostFunction].cost_function_from_uip(
         rf_uip, [obs_cris, obs_tropomi], None
     )
     (
@@ -184,9 +183,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-    rs.cost_function_creator.notify_update_target(
-        rs.measurement_id, rs.retrieval_config
-    )
+    rs.strategy_context.update_strategy_context(measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config)
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -207,7 +204,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
         rs.current_state,
         rs.retrieval_config,
     )
-    cfunc = rs.cost_function_creator.cost_function_from_uip(
+    cfunc = rs.creator_dict[CostFunction].cost_function_from_uip(
         rf_uip, [obs_airs, obs_omi], None
     )
     (
@@ -307,7 +304,9 @@ def test_residual_fm_jac_tropomi(
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
-    creator.notify_update_target(mid, rconfig)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconfig)
+    strategy_context.add_observer(creator)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_cris, obs_tropomi],
@@ -419,7 +418,9 @@ def test_residual_fm_jac_omi(
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
-    creator.notify_update_target(mid, rconfig)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconfig)
+    strategy_context.add_observer(creator)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_airs, obs_omi],
@@ -503,7 +504,9 @@ def test_residual_fm_jac_omi2(
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
-    creator.notify_update_target(mid, rconf)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
+    strategy_context.add_observer(creator)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         joint_omi_obs_step_8,
@@ -562,7 +565,9 @@ def test_residual_fm_jac_tropomi2(
     mid = MeasurementIdFile(
         joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
-    creator.notify_update_target(mid, rconf)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
+    strategy_context.add_observer(creator)
     cfunc = creator.cost_function_from_uip(
         rf_uip, obslist, rrefractor.params["ret_info"]
     )

@@ -56,6 +56,11 @@ class CostFunctionHandle(CreatorHandle):
         self, strategy_context: MusesStrategyContext
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        if(self._strategy_context is None):
+            # This doesn't normally happen, but we have some unit
+            # tests in old_py_retrieve that don't initialize the
+            # strategy_context
+            self._strategy_context = strategy_context
         # Temp, we'll get this moved out in a bit
         self.forward_model_handle_set.notify_update_target(
             self.measurement_id_new, self.retrieval_config_new
@@ -311,6 +316,21 @@ class CostFunctionHandleSet(CreatorHandleSet):
             **kwargs,
         )
 
+    def cost_function_from_uip(
+        self,
+        rf_uip: RefractorUip,
+        obs_list: list[MusesObservation] | None,
+        ret_info: dict | None,
+        **kwargs: Any,
+    ) -> CostFunction:
+    
+        return self.handle(
+            "cost_function_from_uip",
+            rf_uip,
+            obs_list,
+            ret_info,
+            **kwargs,
+        )
 
 CostFunctionHandleSet.add_default_handle(CostFunctionHandle())
 # Register creator set
