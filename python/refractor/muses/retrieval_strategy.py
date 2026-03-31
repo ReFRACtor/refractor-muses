@@ -16,7 +16,6 @@ from .muses_strategy_executor import (
     MusesStrategyContext,
 )
 from .creator_dict import CreatorDict
-from .spectral_window_handle import SpectralWindowHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
@@ -131,9 +130,6 @@ class RetrievalStrategy:
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
         self._strategy_executor = MusesStrategyExecutorMusesStrategy(
             self, self.creator_dict
-        )
-        self._spectral_window_handle_set = (
-            self.strategy_executor.spectral_window_handle_set
         )
 
         # Right now, we hardcode the output observers. Probably want to
@@ -422,11 +418,6 @@ class RetrievalStrategy:
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         """The set of handles we use for each state element."""
         return self._strategy_executor.cross_state_element_handle_set
-
-    @property
-    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
-        """The set of handles for determining the MusesSpectralWindow."""
-        return self._spectral_window_handle_set
 
     @property
     def strategy_step(self) -> StrategyStepIdentifier:

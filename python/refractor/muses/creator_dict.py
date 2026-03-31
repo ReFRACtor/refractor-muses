@@ -53,6 +53,8 @@ class CreatorDict(UserDict):
     _creator_class: dict[Any, type[CreatorHandleSet]] = {}
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        from .muses_strategy_executor import MusesStrategyContext
+
         super().__init__()
         self.strategy_context = (
             strategy_context if strategy_context is not None else MusesStrategyContext()

@@ -51,11 +51,11 @@ class CreatorHandleSet(PriorityHandleSet):
 
     Note a CreatorHandle can assume that it called for the same
     MusesStrategyContext, until MusesStrategyContext sends a
-    notify_update_strategy_executor message. So if it makes sense,
+    notify_update_strategy_context message. So if it makes sense,
     these objects can do internal caching for things that don't change
     when the MusesStrategyContext is the same. These objects should
     register as observers of MusesStrategyContext to get the
-    notify_update_strategy_executor message. See for example
+    notify_update_strategy_context message. See for example
     MusesPyQaDataHandle.
 
     We had considered just passing the MusesStrategyContext to handle_h
@@ -153,13 +153,13 @@ class CreatorHandle:
     and 2) documents that a class is intended for this.
 
     Note a CreatorHandle can assume that it called for the same
-    MusesStrategyContext, until notify_update_strategy_executor is
+    MusesStrategyContext, until notify_update_strategy_context is
     called. So if it makes sense, these objects can do internal
     caching for things that don't change when the MusesStrategyContext
     is the same from one call to the next (e.g., read a L1B file
     once).
 
-    notify_update_strategy_executor will also be called before the
+    notify_update_strategy_context will also be called before the
     first time the objects are created. Objects should register as
     observers to get the message if the need it.
 

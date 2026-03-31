@@ -16,7 +16,7 @@ from .retrieval_array import RetrievalGridArray, FullGridMappedArray
 import os
 import abc
 import typing
-import copy
+import itertools
 from collections import defaultdict
 from typing import Any, cast
 
@@ -294,7 +294,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
@@ -312,7 +312,7 @@ class MusesStrategyHandleSet(CreatorHandleSet):
 
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
@@ -547,15 +547,8 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 class MusesStrategyImp(MusesStrategy):
     """Base class for the way we generally implement a MusesStrategy"""
 
-    def __init__(
-        self, spectral_window_handle_set: SpectralWindowHandleSet | None = None
-    ) -> None:
-        if spectral_window_handle_set is None:
-            self._spectral_window_handle_set = copy.deepcopy(
-                SpectralWindowHandleSet.default_handle_set()
-            )
-        else:
-            self._spectral_window_handle_set = spectral_window_handle_set
+    def __init__(self, spectral_window_handle_set: SpectralWindowHandleSet) -> None:
+        self._spectral_window_handle_set = spectral_window_handle_set
 
     @property
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
@@ -566,7 +559,7 @@ class MusesStrategyImp(MusesStrategy):
 class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
@@ -586,7 +579,7 @@ class MusesStrategyStepList(MusesStrategyImp):
 
     def __init__(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> None:
         """This uses a list of CurrentStrategyStep,
         self.current_strategy_list.  Note that there is a bit of
@@ -617,7 +610,7 @@ class MusesStrategyStepList(MusesStrategyImp):
         cls,
         filename: str | os.PathLike[str],
         ifile_hlp: InputFileHelper,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(spectral_window_handle_set)
@@ -823,7 +816,10 @@ class MusesStrategyStepList(MusesStrategyImp):
             InstrumentIdentifier, dict[FilterIdentifier, float]
         ] = defaultdict(dict)
         # Fill in measurement specific stuff
-        self.spectral_window_handle_set.notify_update_target(strategy_context.measurement_id, strategy_context.retrieval_config)
+        # This might be updated after this class, so go ahead and force this
+        # to update now
+        for t in itertools.chain(*self.spectral_window_handle_set.handle_set.values()):
+            t.notify_update_strategy_context(strategy_context)
         for cstep in self.current_strategy_list:
             cstep.strategy_context = strategy_context
             cstep.is_skipped = False
@@ -891,7 +887,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
 
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given

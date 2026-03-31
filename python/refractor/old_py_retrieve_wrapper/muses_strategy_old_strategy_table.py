@@ -6,9 +6,9 @@ from refractor.muses import (
     FilterIdentifier,
     InstrumentIdentifier,
     InputFileHelper,
-    MeasurementId,
     MusesStrategy,
     MusesStrategyHandle,
+    MusesStrategyContext,
     MusesStrategyImp,
     RetrievalType,
     SpectralWindowHandleSet,
@@ -31,8 +31,8 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
     def __init__(
         self,
         filename: str | os.PathLike[str],
-        ifile_hlp: InputFileHelper | None = None,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        ifile_hlp: InputFileHelper | None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
     ):
         super().__init__(spectral_window_handle_set)
         self._stable = StrategyTable(filename, ifile_hlp=ifile_hlp)
@@ -97,13 +97,18 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         # different convergence depending on the step type. The chi2_tolerance is calculated
         # in RetrievalStrategyStepRetrieve if we don't fill it in - this depends on the
         # size of the radiance data
+        rconfig = self.strategy_context.retrieval_config
+        if rconfig is None:
+            raise RuntimeError(
+                "Need to call notify_update_strategy_context before calling this function."
+            )
         cost_function_params = {
             "max_iter": int(self._stable.max_num_iterations),
-            "delta_value": int(self.strategy_context.retrieval_config["LMDelta"].split()[0]),
+            "delta_value": int(rconfig["LMDelta"].split()[0]),
             "conv_tolerance": [
-                float(self.strategy_context.retrieval_config["ConvTolerance_CostThresh"]),
-                float(self.strategy_context.retrieval_config["ConvTolerance_pThresh"]),
-                float(self.strategy_context.retrieval_config["ConvTolerance_JacThresh"]),
+                float(rconfig["ConvTolerance_CostThresh"]),
+                float(rconfig["ConvTolerance_pThresh"]),
+                float(rconfig["ConvTolerance_JacThresh"]),
             ],
             "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
         }
@@ -148,7 +153,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
 class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given

@@ -8,7 +8,7 @@ from .muses_strategy import (
 )
 from .observation_handle import ObservationHandleSet
 from .identifier import StateElementIdentifier, ProcessLocation
-from .spectral_window_handle import SpectralWindowHandleSet
+from .spectral_window_handle import MusesSpectralWindowDict
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
 from .muses_observation import MeasurementId
@@ -187,7 +187,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         observation_handle_set: ObservationHandleSet | None = None,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> None:
         self.rs = rs
@@ -200,13 +199,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self.observation_handle_set = observation_handle_set
-        if spectral_window_handle_set is None:
-            self._spectral_window_handle_set = copy.deepcopy(
-                SpectralWindowHandleSet.default_handle_set()
-            )
-        else:
-            self._spectral_window_handle_set = spectral_window_handle_set
-
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
 
@@ -242,11 +234,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError()
-
-    @property
-    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
-        """The SpectralWindowHandleSet to use for getting MusesSpectralWindow."""
-        return self._spectral_window_handle_set
 
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""
@@ -309,13 +296,11 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
-        spectral_window_handle_set: None | SpectralWindowHandleSet = None,
     ) -> None:
         super().__init__(
             rs,
             creator_dict,
             observation_handle_set=rs.observation_handle_set,
-            spectral_window_handle_set=spectral_window_handle_set,
             **rs.keyword_arguments,
         )
         self._strategy: MusesStrategy | None = None
@@ -325,7 +310,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
         self._strategy = self.creator_dict[MusesStrategy].muses_strategy(
-            spectral_window_handle_set=self.spectral_window_handle_set,
+            spectral_window_handle_set=self.creator_dict[MusesSpectralWindowDict],
         )
         # Only do notify_update_target if we already have the filter_list_dict filled in.
         # If we don't just skip this

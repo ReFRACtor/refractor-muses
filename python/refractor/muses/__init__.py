@@ -20,6 +20,9 @@ from .cost_function import (
 from .cost_function_creator import (
     CostFunctionCreator,
 )
+from .creator_dict import (
+    CreatorDict,
+)
 from .creator_handle import (
     CreatorHandle,
     CreatorHandleSet,
@@ -306,6 +309,7 @@ from .sounding_metadata import (
 )
 from .spectral_window_handle import (
     MusesPySpectralWindowHandle,
+    MusesSpectralWindowDict,
     SpectralWindowHandle,
     SpectralWindowHandleSet,
 )
@@ -382,6 +386,7 @@ __all__ = [
     "CostFunction",
     "CostFunctionCreator",
     "CostFunctionStateElementNotify",
+    "CreatorDict",
     "CreatorHandle",
     "CreatorHandleSet",
     "CrisFmObjectCreator",
@@ -448,6 +453,7 @@ __all__ = [
     "MusesRefractiveIndex",
     "MusesRunDir",
     "MusesSpectralWindow",
+    "MusesSpectralWindowDict",
     "MusesSpectrumSampling",
     "MusesStrategy",
     "MusesStrategyContext",

@@ -1,4 +1,4 @@
-from refractor.muses import MusesStrategyStepList
+from refractor.muses import MusesStrategyStepList, MusesSpectralWindowDict
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
 import os
@@ -16,10 +16,12 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     stable = MusesStrategyStepList.create_from_strategy_file(
         rs.run_dir / "Table.asc",
         rs.retrieval_config.input_file_helper,
-        rs.spectral_window_handle_set,
+        rs.creator_dict[MusesSpectralWindowDict],
     )
     stable_old = MusesStrategyOldStrategyTable(
-        rs.run_dir / "Table.asc", rs.input_file_helper, rs.spectral_window_handle_set
+        rs.run_dir / "Table.asc",
+        rs.input_file_helper,
+        rs.creator_dict[MusesSpectralWindowDict],
     )
     stable.notify_update_strategy_context(rs.strategy_context)
     stable_old.notify_update_strategy_context(rs.strategy_context)

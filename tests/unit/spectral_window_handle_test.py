@@ -31,9 +31,10 @@ def test_muses_py_spectral_window_handle(
     }
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id = mid, retrieval_config=rconfig)
-    swin_handle_set = SpectralWindowHandleSet.default_handle_set()
-    swin_handle_set.notify_update_target(mid, rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconfig
+    )
+    swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(strategy_context)
     # For step 8
     current_strategy_step = CurrentStrategyStepDict(
         {
@@ -83,9 +84,10 @@ def test_muses_py_spectral_window_handle_empty_band(
     }
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id = mid, retrieval_config=rconfig)
-    swin_handle_set = SpectralWindowHandleSet.default_handle_set()
-    swin_handle_set.notify_update_target(mid, rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconfig
+    )
+    swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(strategy_context)
     # For step 3
     current_strategy_step = CurrentStrategyStepDict(
         {

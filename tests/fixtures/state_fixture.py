@@ -17,6 +17,8 @@ from refractor.muses import (
     RetrievalConfiguration,
     InputFileHelper,
     StateInfo,
+    CreatorDict,
+    MusesSpectralWindowDict,
 )
 from loguru import logger
 import sys
@@ -34,11 +36,14 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
         ifile_hlp,
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
-    )
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=measurement_id, retrieval_config=rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
+    cdict = CreatorDict(strategy_context)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, cdict[MusesSpectralWindowDict]
+    )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -85,11 +90,20 @@ def tropomi_swir_shandle(
         tfilename, InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir)
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, osp_dir=josh_osp_dir
-    )
+    cdict = CreatorDict()
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=measurement_id, retrieval_config=rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename,
+        rconfig.input_file_helper,
+        cdict[MusesSpectralWindowDict],
+        osp_dir=josh_osp_dir,
+    )
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -129,11 +143,17 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
-    )
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=measurement_id, retrieval_config=rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
+    cdict = CreatorDict(strategy_context)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, cdict[MusesSpectralWindowDict]
+    )
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
@@ -177,11 +197,17 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
-    )
     strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=measurement_id, retrieval_config=rconfig)
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
+    cdict = CreatorDict(strategy_context)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        tfilename, rconfig.input_file_helper, cdict[MusesSpectralWindowDict]
+    )
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig
+    )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()

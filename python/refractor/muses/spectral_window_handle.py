@@ -2,15 +2,17 @@ from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .filter_metadata import FileFilterMetadata, FilterMetadata
 from .muses_spectral_window import MusesSpectralWindow
+from .identifier import InstrumentIdentifier, FilterIdentifier
+from .creator_dict import CreatorDict
 from loguru import logger
 import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MeasurementId
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .identifier import InstrumentIdentifier, FilterIdentifier
-    from .retrieval_configuration import RetrievalConfiguration
+    from .muses_strategy_executor import CurrentStrategyStep, MusesStrategyContext
+
+# We use this in a number of places, so give a short name for this dict
+MusesSpectralWindowDict = dict[InstrumentIdentifier, MusesSpectralWindow]
 
 
 class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -20,14 +22,6 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
     a class is intended for this.
 
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
@@ -62,7 +56,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
         self,
         current_strategy_step: CurrentStrategyStep,
         filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
-    ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
+    ) -> MusesSpectralWindowDict | None:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
         extra metadata and bad sample/full band handing we need we
@@ -93,8 +87,8 @@ class SpectralWindowHandleSet(CreatorHandleSet):
 
     """
 
-    def __init__(self) -> None:
-        super().__init__("_dispatch")
+    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+        super().__init__("_dispatch", strategy_context)
 
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
@@ -114,7 +108,7 @@ class SpectralWindowHandleSet(CreatorHandleSet):
         self,
         current_strategy_step: CurrentStrategyStep,
         filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
-    ) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
+    ) -> MusesSpectralWindowDict:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
         extra metadata and bad sample/full band handing we need we
@@ -139,25 +133,21 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
     """
 
     def __init__(self) -> None:
+        super().__init__(add_as_context_observer=True)
         self.filter_metadata: None | FilterMetadata = None
-        self.retrieval_config: None | RetrievalConfiguration = None
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
-        # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
-        # Not all retrievals have spectral windows (e.g, a ML only retrieval).
-        # Just short circuit the set up if we
-        # aren't doing anything with spectral windows. This would cause errors later, but it
-        # *should* be the case that we if don't have spectal windows support we don't try to
-        # create a spectral window
-        if "defaultSpectralWindowsDefinitionFilename" in retrieval_config:
+        if (
+            self.has_retrieval_config
+            and "defaultSpectralWindowsDefinitionFilename" in self.retrieval_config_new
+        ):
             self.filter_metadata = FileFilterMetadata(
-                retrieval_config["defaultSpectralWindowsDefinitionFilename"],
-                retrieval_config.input_file_helper,
+                self.retrieval_config_new["defaultSpectralWindowsDefinitionFilename"],
+                self.retrieval_config_new.input_file_helper,
             )
 
     def spectral_window_dict(
@@ -169,15 +159,13 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         for that instrument. Note because of the extra metadata and bad sample/full band
         handing we need we currently require a MusesSpectralWindow. We could perhaps
         relax this in the future if we have another way of handling this extra functionality."""
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target before this function")
         fname = current_strategy_step.muses_microwindows_fname()
         logger.debug(
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"
         )
         return MusesSpectralWindow.create_dict_from_file(
             fname,
-            self.retrieval_config.input_file_helper,
+            self.retrieval_config_new.input_file_helper,
             filter_list_all_dict,
             self.filter_metadata,
         )
@@ -185,8 +173,11 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
 
 # For now, just fall back to the old muses-py code.
 SpectralWindowHandleSet.add_default_handle(MusesPySpectralWindowHandle())
+# Register creator set
+CreatorDict.register(MusesSpectralWindowDict, SpectralWindowHandleSet)
 
 __all__ = [
+    "MusesSpectralWindowDict",
     "SpectralWindowHandle",
     "SpectralWindowHandleSet",
     "MusesPySpectralWindowHandle",
