@@ -9,6 +9,7 @@ from refractor.muses import (
     StrategyStepIdentifier,
     RetrievalType,
     StateElementIdentifier,
+    MusesStrategyContext,
 )
 
 
@@ -29,6 +30,8 @@ def test_muses_py_spectral_window_handle(
         ],
     }
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id = mid, retrieval_config=rconfig)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid, rconfig)
     # For step 8
@@ -53,7 +56,7 @@ def test_muses_py_spectral_window_handle(
             "max_num_iterations": "15",
             "retrieval_type": RetrievalType("joint"),
         },
-        mid,
+        strategy_context,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, mid.filter_list_dict
@@ -79,6 +82,8 @@ def test_muses_py_spectral_window_handle_empty_band(
         ],
     }
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
+    strategy_context = MusesStrategyContext()
+    strategy_context.update_strategy_context(measurement_id = mid, retrieval_config=rconfig)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid, rconfig)
     # For step 3
@@ -89,7 +94,7 @@ def test_muses_py_spectral_window_handle_empty_band(
             "max_num_iterations": "10",
             "retrieval_type": RetrievalType("OMICLOUD_IG_Refine"),
         },
-        mid,
+        strategy_context,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, mid.filter_list_dict

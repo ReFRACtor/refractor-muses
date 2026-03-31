@@ -266,7 +266,6 @@ class RetrievalStrategy:
         self.strategy_context.update_strategy_context(
             measurement_id=mid, retrieval_config=rconf
         )
-        self.strategy_executor.notify_update_target(mid, rconf)
         self.cost_function_creator.notify_update_target(
             self.measurement_id, self.retrieval_config
         )

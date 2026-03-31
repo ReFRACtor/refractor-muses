@@ -88,9 +88,9 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
     def current_strategy_step(self) -> CurrentStrategyStep:
         if self.is_done():
             raise RuntimeError("Past end of strategy")
-        if self.measurement_id is None:
+        if self.strategy_context is None:
             raise RuntimeError(
-                "Need to call notify_update_target before calling this function."
+                "Need to call notify_update_strategy_context before calling this function."
             )
 
         # Various convergence criteria for solver. This is the MusesLevmarSolver. Note the
@@ -99,11 +99,11 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         # size of the radiance data
         cost_function_params = {
             "max_iter": int(self._stable.max_num_iterations),
-            "delta_value": int(self.measurement_id["LMDelta"].split()[0]),
+            "delta_value": int(self.strategy_context.retrieval_config["LMDelta"].split()[0]),
             "conv_tolerance": [
-                float(self.measurement_id["ConvTolerance_CostThresh"]),
-                float(self.measurement_id["ConvTolerance_pThresh"]),
-                float(self.measurement_id["ConvTolerance_JacThresh"]),
+                float(self.strategy_context.retrieval_config["ConvTolerance_CostThresh"]),
+                float(self.strategy_context.retrieval_config["ConvTolerance_pThresh"]),
+                float(self.strategy_context.retrieval_config["ConvTolerance_JacThresh"]),
             ],
             "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
         }
@@ -131,7 +131,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
                 StateElementIdentifier(s) for s in self._stable.do_not_update_list
             ],
         }
-        cstep = CurrentStrategyStepDict(cstepdict, self.measurement_id)
+        cstep = CurrentStrategyStepDict(cstepdict, self.strategy_context)
         cstep.current_strategy_step_dict["spectral_window_dict"] = (
             self.spectral_window_handle_set.spectral_window_dict(
                 cstep, self.filter_list_dict
@@ -139,23 +139,28 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         )
         return cstep
 
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
+    ) -> None:
+        self.strategy_context = strategy_context
+
 
 class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
-        measurement_id: MeasurementId,
-        ifile_hlp: InputFileHelper,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
-        return MusesStrategyOldStrategyTable(
-            measurement_id["run_dir"] / "Table.asc",
-            ifile_hlp,
+        res = MusesStrategyOldStrategyTable(
+            self.retrieval_config_new["run_dir"] / "Table.asc",
+            self.retrieval_config_new.input_file_helper,
             spectral_window_handle_set,
         )
+        self.strategy_context.add_observer(res)
+        return res
 
 
 # Can turn on if needed for doing a test, but normally don't use this.
