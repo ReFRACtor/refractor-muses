@@ -35,7 +35,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
-    from .muses_strategy import MusesStrategy, MusesStrategyHandleSet
+    from .muses_strategy import MusesStrategy
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
@@ -134,9 +134,6 @@ class RetrievalStrategy:
         )
         self._spectral_window_handle_set = (
             self.strategy_executor.spectral_window_handle_set
-        )
-        self._muses_strategy_handle_set = (
-            self.strategy_executor.muses_strategy_handle_set
         )
 
         # Right now, we hardcode the output observers. Probably want to
@@ -261,11 +258,15 @@ class RetrievalStrategy:
             # in the next step.
             {},
         )
+        self.strategy_context.update_strategy_context(
+            measurement_id=mid, retrieval_config=rconf
+        )
         self.strategy_executor.notify_update_target(mid, rconf)
         mid.filter_list_dict = self.strategy_executor.filter_list_dict
         self.strategy_context.update_strategy_context(
             measurement_id=mid, retrieval_config=rconf
         )
+        self.strategy_executor.notify_update_target(mid, rconf)
         self.cost_function_creator.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
@@ -427,11 +428,6 @@ class RetrievalStrategy:
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         """The set of handles for determining the MusesSpectralWindow."""
         return self._spectral_window_handle_set
-
-    @property
-    def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
-        """The set of handles for determining the MusesStrategy."""
-        return self._muses_strategy_handle_set
 
     @property
     def strategy_step(self) -> StrategyStepIdentifier:

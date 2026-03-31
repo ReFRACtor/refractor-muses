@@ -175,12 +175,12 @@ class CreatorHandle:
     """
 
     def __init__(self, add_as_context_observer: bool = False) -> None:
-        self.strategy_context: None | MusesStrategyContext = None
+        self._strategy_context: None | MusesStrategyContext = None
         self.add_as_context_observer = add_as_context_observer
 
     def notify_add_handle(self, hset: CreatorHandleSet) -> None:
         # Derived classes can override this to do whatever they need to.
-        self.strategy_context = hset.strategy_context
+        self._strategy_context = hset.strategy_context
         # Because it is a common case, we just handle adding this as
         # an observer if the derived class requested this.
         # Note that the class should add a notify_update_strategy_context
@@ -188,13 +188,13 @@ class CreatorHandle:
         # Temp, until we get all the classes moved over
         if not hasattr(self, "add_as_context_observer"):
             return
-        if self.strategy_context is not None and self.add_as_context_observer:
+        if self.has_strategy_context and self.add_as_context_observer:
             self.strategy_context.add_observer(self)
 
     @property
     def has_measurement_id(self) -> bool:
         if (
-            self.strategy_context is None
+            not self.has_strategy_context
             or self.strategy_context.measurement_id is None
         ):
             return False
@@ -210,7 +210,7 @@ class CreatorHandle:
         if we can't get the measurement_id. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
         if (
-            self.strategy_context is None
+            not self.has_strategy_context
             or self.strategy_context.measurement_id is None
         ):
             raise RuntimeError("Need to call notify_update_strategy_context first")
@@ -219,7 +219,7 @@ class CreatorHandle:
     @property
     def has_retrieval_config(self) -> bool:
         if (
-            self.strategy_context is None
+            not self.has_strategy_context
             or self.strategy_context.retrieval_config is None
         ):
             return False
@@ -243,7 +243,7 @@ class CreatorHandle:
 
     @property
     def has_stac_catalog(self) -> bool:
-        if self.strategy_context is None or self.strategy_context.stac_catalog is None:
+        if not self.has_strategy_context or self.strategy_context.stac_catalog is None:
             return False
         return True
 
@@ -253,9 +253,19 @@ class CreatorHandle:
         is None. This function is a short cut for that, throwing an exception
         if we can't get the stac_catalog. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
-        if self.strategy_context is None or self.strategy_context.stac_catalog is None:
+        if not self.has_strategy_context or self.strategy_context.stac_catalog is None:
             raise RuntimeError("Need to call notify_update_strategy_context first")
         return self.strategy_context.stac_catalog
+
+    @property
+    def has_strategy_context(self) -> bool:
+        return self._strategy_context is not None
+
+    @property
+    def strategy_context(self) -> MusesStrategyContext:
+        if not self.has_strategy_context:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        return self._strategy_context
 
     def _dispatch(self, func_name: str, *args: Any, **kwargs: Any) -> Any:
         """It can be useful sometimes to have a handle with multiple

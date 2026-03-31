@@ -8,7 +8,6 @@ from .muses_strategy import (
 )
 from .observation_handle import ObservationHandleSet
 from .identifier import StateElementIdentifier, ProcessLocation
-from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
@@ -19,8 +18,6 @@ import copy
 import os
 from loguru import logger
 import time
-import numpy as np
-import numpy.testing as npt
 from pathlib import Path
 import typing
 from typing import Generator, Any, cast
@@ -54,37 +51,6 @@ def log_timing() -> Generator[None, None, None]:
     logger.info(f"elapsed_time {elapsed_time}")
     logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
     logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
-
-
-def struct_compare(
-    s1: dict, s2: dict, skip_list: None | list[str] = None, verbose: bool = False
-) -> None:
-    if skip_list is None:
-        skip_list = []
-    for k in s1.keys():
-        if k in skip_list:
-            if verbose:
-                print(f"Skipping {k}")
-            continue
-        if verbose:
-            print(k)
-        if isinstance(s1[k], np.ndarray) and np.can_cast(s1[k], np.float64):
-            npt.assert_allclose(s1[k], s2[k])
-        elif isinstance(s1[k], np.ndarray):
-            assert np.all(s1[k] == s2[k])
-        else:
-            assert s1[k] == s2[k]
-
-
-def array_compare(
-    s1: list[dict],
-    s2: list[dict],
-    skip_list: None | list[str] = None,
-    verbose: bool = False,
-) -> None:
-    assert len(s1) == len(s2)
-    for i in range(len(s1)):
-        struct_compare(s1[i], s2[i], skip_list=skip_list, verbose=verbose)
 
 
 class MusesStrategyContext:
@@ -221,7 +187,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         observation_handle_set: ObservationHandleSet | None = None,
-        muses_strategy_handle_set: MusesStrategyHandleSet | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> None:
@@ -235,12 +200,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self.observation_handle_set = observation_handle_set
-        if muses_strategy_handle_set is None:
-            self._muses_strategy_handle_set = copy.deepcopy(
-                MusesStrategyHandleSet.default_handle_set()
-            )
-        else:
-            self._muses_strategy_handle_set = muses_strategy_handle_set
         if spectral_window_handle_set is None:
             self._spectral_window_handle_set = copy.deepcopy(
                 SpectralWindowHandleSet.default_handle_set()
@@ -283,11 +242,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError()
-
-    @property
-    def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
-        """The MusesStrategyHandleSet used for getting MusesStrategy"""
-        return self._muses_strategy_handle_set
 
     @property
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
@@ -355,14 +309,12 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
-        muses_strategy_handle_set: None | MusesStrategyHandleSet = None,
         spectral_window_handle_set: None | SpectralWindowHandleSet = None,
     ) -> None:
         super().__init__(
             rs,
             creator_dict,
             observation_handle_set=rs.observation_handle_set,
-            muses_strategy_handle_set=muses_strategy_handle_set,
             spectral_window_handle_set=spectral_window_handle_set,
             **rs.keyword_arguments,
         )
@@ -372,12 +324,9 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
     ) -> None:
         super().notify_update_target(measurement_id, retrieval_config)
-        self._strategy = self.muses_strategy_handle_set.muses_strategy(
-            measurement_id,
-            retrieval_config.input_file_helper,
+        self._strategy = self.creator_dict[MusesStrategy].muses_strategy(
             spectral_window_handle_set=self.spectral_window_handle_set,
         )
-        self.strategy.notify_update_target(measurement_id, retrieval_config)
         # Only do notify_update_target if we already have the filter_list_dict filled in.
         # If we don't just skip this
         if len(measurement_id.filter_list_dict) > 0:
@@ -541,7 +490,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         ret_state_file: str | os.PathLike[str] | None = None,
     ) -> None:
         """This pairs with CurrentStateRecordAndPlay. Instead of
-        pickling the entire RetrievalStrategy, we just save functions
+        pickling the entire RetrievalStrategy, we just save values
         used on CurrentState. We then set up to process the given
         target_filename jumping to the given retrieval step_number.
 

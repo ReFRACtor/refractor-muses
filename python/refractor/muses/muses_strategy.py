@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .muses_spectral_window import MusesSpectralWindow
 from .creator_handle import CreatorHandle, CreatorHandleSet
+from .creator_dict import CreatorDict
 from .identifier import (
     InstrumentIdentifier,
     StateElementIdentifier,
@@ -20,13 +21,13 @@ from collections import defaultdict
 from typing import Any, cast
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MeasurementId
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .retrieval_strategy import RetrievalStrategy
     from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
     from .input_file_helper import InputFileHelper, InputFilePath
+    from .muses_strategy_executor import MusesStrategyContext
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -104,10 +105,12 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     """Implementation of CurrentStrategyStep that uses a dict"""
 
     def __init__(
-        self, current_strategy_step_dict: dict, measurement_id: MeasurementId | None
+        self,
+        current_strategy_step_dict: dict,
+        strategy_context: MusesStrategyContext | None,
     ) -> None:
         self.current_strategy_step_dict = current_strategy_step_dict
-        self.measurement_id = measurement_id
+        self.strategy_context = strategy_context
         self.is_skipped = False
 
     @property
@@ -175,11 +178,18 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """This is very specific, but there is some complicated code used to generate the
         microwindows file name. This is used to create the MusesSpectralWindow (by
         one of the handlers). Also the QA data file name depends on this."""
-        if self.measurement_id is None:
-            raise RuntimeError("Call notify_update_target before this function")
+        if self.strategy_context is None:
+            raise RuntimeError(
+                "Call notify_update_strategy_context before this function"
+            )
+        mid = self.strategy_context.measurement_id
+        if mid is None:
+            raise RuntimeError(
+                "Call notify_update_strategy_context before this function"
+            )
         return MusesSpectralWindow.muses_microwindows_fname(
-            self.measurement_id["viewingMode"],
-            self.measurement_id["spectralWindowDirectory"],
+            mid["viewingMode"],
+            mid["spectralWindowDirectory"],
             self.retrieval_elements,
             self.strategy_step.step_name,
             self.retrieval_type,
@@ -276,23 +286,14 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     useful because it 1) provides the interface and 2) documents that
     a class is intended for this.
 
-    This can do caching based on assuming the target is the same
-    between calls, see CreatorHandle for a discussion of this.
+    This can do caching based on assuming the MusesStrategyContext is
+    the same between calls, see CreatorHandle for a discussion of
+    this.
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     @abc.abstractmethod
     def muses_strategy(
         self,
-        measurement_id: MeasurementId,
-        ifile_hlp: InputFileHelper,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -306,20 +307,16 @@ class MusesStrategyHandleSet(CreatorHandleSet):
     """This takes the MeasurementId and creates a MusesStrategy for
     processing it."""
 
-    def __init__(self) -> None:
-        super().__init__("muses_strategy")
+    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+        super().__init__("muses_strategy", strategy_context)
 
     def muses_strategy(
         self,
-        measurement_id: MeasurementId,
-        ifile_hlp: InputFileHelper,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
-        return self.handle(
-            measurement_id, ifile_hlp, spectral_window_handle_set, **kwargs
-        )
+        return self.handle(spectral_window_handle_set, **kwargs)
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
@@ -335,15 +332,10 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     previous steps. This part of the code may well need to be more
     developed, the only example we have right now is choosing steps
     based off of brightness temperature of the observation. If we get
-    for examples of this, we may want to rework how conditional
+    more examples of this, we may want to rework how conditional
     processing is handled.
 
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        pass
 
     @abc.abstractmethod
     def is_next_bt(self) -> bool:
@@ -450,40 +442,46 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def current_strategy_step(self) -> CurrentStrategyStep | None:
-        """Return the CurrentStrategyStep for the current step. Returns None is self.is_done()"""
+        """Return the CurrentStrategyStep for the current
+        step. Returns None is self.is_done()"""
         raise NotImplementedError
 
     def retrieval_initial_fm_from_cycle(
         self, selem: StateElementWithCreate, retrieval_config: RetrievalConfiguration
     ) -> None:
-        """This cycles a state element through all the strategy steps, and uses the
-        final value_fm to set the retrieval_initial_fm.
+        """This cycles a state element through all the strategy steps,
+        and uses the final value_fm to set the retrieval_initial_fm.
 
-        Note that the actual steps used in a strategy table might depend on the results
-        of previous steps. It isn't clear what we want to do in general here, but what
-        we do is pass through all possible steps.
+        Note that the actual steps used in a strategy table might
+        depend on the results of previous steps. It isn't clear what
+        we want to do in general here, but what we do is pass through
+        all possible steps.
 
-        According to Susan, historically the initial guess stuff was translated
-        to and from the retrieval grid. This was done so that paired retrievals
-        are in sync, so if we retrieve H2O with O3 held fixed and then O3 we
-        don't want the O3 to jump a bunch as it goes to the retrieval grid. She
-        said this is less important now where a lot of stuff is retrieved at the
-        same time.
+        According to Susan, historically the initial guess stuff was
+        translated to and from the retrieval grid. This was done so
+        that paired retrievals are in sync, so if we retrieve H2O with
+        O3 held fixed and then O3 we don't want the O3 to jump a bunch
+        as it goes to the retrieval grid. She said this is less
+        important now where a lot of stuff is retrieved at the same
+        time.
 
-        But muses-py cycled through all the strategy table, which
-        had the side effect of calling get_initial_guess() and taking values to
-        and from the retrieval grid (so FullGridMappedArrayFromRetGrid). This function
-        tries to duplicate this.
+        But muses-py cycled through all the strategy table, which had
+        the side effect of calling get_initial_guess() and taking
+        values to and from the retrieval grid (so
+        FullGridMappedArrayFromRetGrid). This function tries to
+        duplicate this.
 
-        We might 1) decide not to continue doing this or 2) We can't actually do this
-        with a generate MusesStrategy (we don't know all the steps until we actuall
-        process them). But for now, we will have this code in place.
+        We might 1) decide not to continue doing this or 2) We can't
+        actually do this with a general MusesStrategy (we don't know
+        all the steps until we actually process them). But for now, we
+        will have this code in place.
 
-        Note that we update selem in place. We don't generally want to have side effects,
-        that update arguments, but in this case the entire job of the function is to
-        update selem.
+        Note that we update selem in place. We don't generally want to
+        have side effects, that update arguments, but in this case the
+        entire job of the function is to update selem.
 
         TODO - Decide if this is something we want to continue doing
+
         """
         # Don't check against the old state element values while doing this, the
         # whole point is to update stuff to match what muses-py did
@@ -536,9 +534,10 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 next_step_initial_fm=None,
             )
 
-            # StateElementWithCreate has a notify_done_retrieval_initial_fm_from_cycle. Call
-            # if the StateElement has this attribute - no error if it doesn't. Just marks so
-            # we know this has already been run
+            # StateElementWithCreate has a
+            # notify_done_retrieval_initial_fm_from_cycle. Call if the
+            # StateElement has this attribute - no error if it
+            # doesn't. Just marks so we know this has already been run
             if hasattr(selem, "notify_done_retrieval_initial_fm_from_cycle"):
                 selem.notify_done_retrieval_initial_fm_from_cycle()
         finally:
@@ -551,7 +550,6 @@ class MusesStrategyImp(MusesStrategy):
     def __init__(
         self, spectral_window_handle_set: SpectralWindowHandleSet | None = None
     ) -> None:
-        self._measurement_id: MeasurementId | None = None
         if spectral_window_handle_set is None:
             self._spectral_window_handle_set = copy.deepcopy(
                 SpectralWindowHandleSet.default_handle_set()
@@ -560,39 +558,27 @@ class MusesStrategyImp(MusesStrategy):
             self._spectral_window_handle_set = spectral_window_handle_set
 
     @property
-    def measurement_id(self) -> MeasurementId | None:
-        return self._measurement_id
-
-    @property
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
         return self._spectral_window_handle_set
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        self._measurement_id = measurement_id
-        self.spectral_window_handle_set.notify_update_target(
-            self.measurement_id, retrieval_config
-        )
 
 
 class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
-        measurement_id: MeasurementId,
-        ifile_hlp: InputFileHelper,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
-        return MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc",
-            ifile_hlp,
+        res = MusesStrategyStepList.create_from_strategy_file(
+            self.retrieval_config_new["run_dir"] / "Table.asc",
+            self.retrieval_config_new.input_file_helper,
             spectral_window_handle_set,
         )
+        self.strategy_context.add_observer(res)
+        return res
 
 
 class MusesStrategyStepList(MusesStrategyImp):
@@ -604,13 +590,13 @@ class MusesStrategyStepList(MusesStrategyImp):
     ) -> None:
         """This uses a list of CurrentStrategyStep,
         self.current_strategy_list.  Note that there is a bit of
-        information that depends on the measurement_id, we fill that
-        in when notify_update_target. Also, we may end up skipping
-        some of the steps. The current_strategy_list can get modified
-        (e.g., a derived class or outside process changes this), which
-        can be useful to modify a StrategyTable. This can be useful
-        for doing a variation of a StrategyTable for a test or
-        something like that, without needing to modify the original
+        information that depends on the MusesStrategyContext, we fill
+        that in when notify_update_strategy_context. Also, we may end
+        up skipping some of the steps. The current_strategy_list can
+        get modified (e.g., a derived class or outside process changes
+        this), which can be useful to modify a StrategyTable. This can
+        be useful for doing a variation of a StrategyTable for a test
+        or something like that, without needing to modify the original
         StrategyTable.
 
         The various StateElement lists (like retrieval_elements) need
@@ -642,7 +628,7 @@ class MusesStrategyStepList(MusesStrategyImp):
             cost_function_params: dict[str, Any] = {
                 "max_iter": int(row["maxNumIterations"]),
                 "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
-                # Will fill in notify_update_target
+                # Will fill in notify_update_strategy_context
                 "delta_value": None,
                 "conv_tolerance": None,
             }
@@ -653,7 +639,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "retrieval_elements": res._parse_state_elements(
                     row["retrievalElements"]
                 ),
-                # Will fill in notify_update_target
+                # Will fill in notify_update_strategy_context
                 "instrument_name": None,
                 "strategy_step": StrategyStepIdentifier(i2, row["stepName"]),
                 "retrieval_step_parameters": {
@@ -663,7 +649,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "error_analysis_interferents": res._parse_state_elements(
                     row["errorAnalysisInterferents"]
                 ),
-                # Will fill in notify_update_target
+                # Will fill in notify_update_strategy_context
                 "spectral_window_dict": None,
                 # List of elements that we include in this step, but then
                 # set back to their original value for the next step
@@ -674,7 +660,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 # we retrieve
                 "update_constraint_elements": [],
             }
-            # Will fill in measurement_id in notify_update_target
+            # Will fill in strategy_context in notify_update_strategy_context
             cstep = CurrentStrategyStepDict(cstepdict, None)
             # The muses-py strategy table just "knows" that certain
             # retrieval types also update the apriori value. We duplicate this
@@ -807,7 +793,8 @@ class MusesStrategyStepList(MusesStrategyImp):
         return self._cur_step_index >= len(self.current_strategy_list)
 
     def current_strategy_step(self) -> CurrentStrategyStep | None:
-        """Return the CurrentStrategyStep for the current step. Returns None is self.is_done()"""
+        """Return the CurrentStrategyStep for the current
+        step. Returns None is self.is_done()"""
         if self.is_done():
             return None
         cstate = self.current_strategy_list[self._cur_step_index]
@@ -825,27 +812,32 @@ class MusesStrategyStepList(MusesStrategyImp):
             return []
         return [StateElementIdentifier(i) for i in r]
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        super().notify_update_target(measurement_id, retrieval_config)
+        # We determine the full list of filters we encounter. This is needed
+        # by MusesObservation. Perhaps we can remove this, it would be
+        # reasonable to just read filters on first use in the MusesObservation.
+        # But for now, this is needed.
         filter_list_dict_t: dict[
             InstrumentIdentifier, dict[FilterIdentifier, float]
         ] = defaultdict(dict)
         # Fill in measurement specific stuff
+        self.spectral_window_handle_set.notify_update_target(strategy_context.measurement_id, strategy_context.retrieval_config)
         for cstep in self.current_strategy_list:
-            cstep.measurement_id = measurement_id
+            cstep.strategy_context = strategy_context
             cstep.is_skipped = False
             p = cstep.retrieval_step_parameters["cost_function_params"]
             # Not all retrievals have cost function parameters, so only
             # update if we have these
-            if "LMDelta" in retrieval_config:
-                p["delta_value"] = int(retrieval_config["LMDelta"].split()[0])
+            rconfig = strategy_context.retrieval_config
+            if rconfig is not None and "LMDelta" in rconfig:
+                p["delta_value"] = int(rconfig["LMDelta"].split()[0])
                 if p["conv_tolerance"] is None:
                     p["conv_tolerance"] = [
-                        float(retrieval_config["ConvTolerance_CostThresh"]),
-                        float(retrieval_config["ConvTolerance_pThresh"]),
-                        float(retrieval_config["ConvTolerance_JacThresh"]),
+                        float(rconfig["ConvTolerance_CostThresh"]),
+                        float(rconfig["ConvTolerance_pThresh"]),
+                        float(rconfig["ConvTolerance_JacThresh"]),
                     ]
             sdict = self.spectral_window_handle_set.spectral_window_dict(cstep, None)
             cstep.current_strategy_step_dict["instrument_name"] = list(sdict.keys())
@@ -899,8 +891,6 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
 
     def muses_strategy(
         self,
-        measurement_id: MeasurementId,
-        ifile_hlp: InputFileHelper,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -908,8 +898,8 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         s = MusesStrategyStepList.create_from_strategy_file(
-            measurement_id["run_dir"] / "Table.asc",
-            ifile_hlp,
+            self.retrieval_config_new["run_dir"] / "Table.asc",
+            self.retrieval_config_new.input_file_helper,
             spectral_window_handle_set,
         )
         s.current_strategy_list[
@@ -921,6 +911,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
             s.current_strategy_list[self.step_number].retrieval_step_parameters[
                 "max_iter"
             ] = self.max_iter
+        self.strategy_context.add_observer(s)
         return s
 
 
@@ -933,10 +924,12 @@ def modify_strategy_table(
     """Simple function to modify the strategy table in a RetrievalStrategy. Meant for
     things like unit tests."""
     h = MusesStrategyModifyHandle(step_number, retrieval_elements, max_iter)
-    rs.muses_strategy_handle_set.add_handle(h, 100)
+    rs.creator_dict[MusesStrategy].add_handle(h, 100)
 
 
 MusesStrategyHandleSet.add_default_handle(MusesStrategyFileHandle())
+# Register creator set
+CreatorDict.register(MusesStrategy, MusesStrategyHandleSet)
 
 __all__ = [
     "MusesStrategy",
