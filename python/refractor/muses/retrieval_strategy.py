@@ -16,7 +16,6 @@ from .muses_strategy_executor import (
     MusesStrategyContext,
 )
 from .creator_dict import CreatorDict
-from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
 from loguru import logger
@@ -118,13 +117,6 @@ class RetrievalStrategy:
         self._strategy_context = MusesStrategyContext()
         self._creator_dict = CreatorDict(self.strategy_context)
 
-        self._cost_function_creator = CostFunctionCreator(rs=self)
-        self._forward_model_handle_set = (
-            self._cost_function_creator.forward_model_handle_set
-        )
-        self._observation_handle_set = (
-            self._cost_function_creator.observation_handle_set
-        )
         self._kwargs: dict[str, Any] = kwargs
 
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
@@ -216,9 +208,6 @@ class RetrievalStrategy:
         self.strategy_context.update_strategy_context(
             stac_catalog=stac, retrieval_config=rconf
         )
-        self.cost_function_creator.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
         self.strategy_executor.notify_update_target(
             self.measurement_id, self.retrieval_config
         )
@@ -261,9 +250,6 @@ class RetrievalStrategy:
         mid.filter_list_dict = self.strategy_executor.filter_list_dict
         self.strategy_context.update_strategy_context(
             measurement_id=mid, retrieval_config=rconf
-        )
-        self.cost_function_creator.notify_update_target(
-            self.measurement_id, self.retrieval_config
         )
         self.strategy_executor.notify_update_target(
             self.measurement_id, self.retrieval_config
@@ -401,13 +387,13 @@ class RetrievalStrategy:
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
         """The set of handles we use for mapping instrument name to a
         ForwardModel"""
-        return self._forward_model_handle_set
+        return self.strategy_executor.cost_function_creator.forward_model_handle_set
 
     @property
     def observation_handle_set(self) -> ObservationHandleSet:
         """The set of handles we use for mapping instrument name to a
         MusesObservation"""
-        return self._observation_handle_set
+        return self.strategy_executor.cost_function_creator.observation_handle_set
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -438,10 +424,6 @@ class RetrievalStrategy:
     @property
     def retrieval_type(self) -> RetrievalType:
         return self.current_strategy_step.retrieval_type
-
-    @property
-    def cost_function_creator(self) -> CostFunctionCreator:
-        return self._cost_function_creator
 
     def create_cost_function(
         self,

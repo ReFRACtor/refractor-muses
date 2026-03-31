@@ -6,6 +6,7 @@ from .muses_strategy import (
     MusesStrategy,
     CurrentStrategyStep,
 )
+from .cost_function import CostFunction
 from .observation_handle import ObservationHandleSet
 from .identifier import StateElementIdentifier, ProcessLocation
 from .spectral_window_handle import MusesSpectralWindowDict
@@ -186,19 +187,12 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
-        observation_handle_set: ObservationHandleSet | None = None,
         **kwargs: Any,
     ) -> None:
         self.rs = rs
         self.creator_dict = creator_dict
         self.current_state = CurrentStateStateInfo()
         self.kwargs = copy.copy(kwargs)
-        if observation_handle_set is None:
-            self.observation_handle_set = copy.deepcopy(
-                ObservationHandleSet.default_handle_set()
-            )
-        else:
-            self.observation_handle_set = observation_handle_set
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
 
@@ -223,7 +217,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     @property
     def cost_function_creator(self) -> CostFunctionCreator:
-        return self.rs.cost_function_creator
+        return self.creator_dict[CostFunction]
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -242,7 +236,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 "create_forward_model can only work with one instrument, we don't have handling for multiple."
             )
         iname = self.current_strategy_step.instrument_name[0]
-        obs = self.observation_handle_set.observation(
+        obs = self.cost_function_creator.observation_handle_set.observation(
             iname, None, self.current_strategy_step.spectral_window_dict[iname], None
         )
         fm_sv = self.current_state.setup_fm_state_vector()
@@ -300,7 +294,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         super().__init__(
             rs,
             creator_dict,
-            observation_handle_set=rs.observation_handle_set,
             **rs.keyword_arguments,
         )
         self._strategy: MusesStrategy | None = None
@@ -319,7 +312,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 measurement_id,
                 retrieval_config,
                 self.strategy,
-                self.observation_handle_set,
+                self.cost_function_creator.observation_handle_set,
             )
 
     @property

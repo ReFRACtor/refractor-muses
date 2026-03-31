@@ -1,5 +1,7 @@
 from __future__ import annotations
 from .cost_function import CostFunction
+from .creator_dict import CreatorDict
+from .creator_handle import CreatorHandle, CreatorHandleSet
 from .current_state import CurrentState
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
@@ -18,9 +20,10 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_configuration import RetrievalConfiguration
     from .identifier import InstrumentIdentifier
+    from .muses_strategy_executor import MusesStrategyContext
 
 
-class CostFunctionCreator:
+class CostFunctionHandle(CreatorHandle):
     """This creates the set of ForwardModel and Observation and then
     uses those to create the CostFunction.
 
@@ -29,36 +32,36 @@ class CostFunctionCreator:
     """
 
     def __init__(self, rs: RetrievalStrategy | None = None) -> None:
-        self.forward_model_handle_set = copy.deepcopy(
-            ForwardModelHandleSet.default_handle_set()
-        )
-        self.observation_handle_set = copy.deepcopy(
-            ObservationHandleSet.default_handle_set()
-        )
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
+        super().__init__(add_as_context_observer=True)
+        self._forward_model_handle_set = None
+        self._observation_handle_set = None
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    @property
+    def forward_model_handle_set(self) -> ForwardModelHandleSet:
+        if(self._forward_model_handle_set is None):
+            self._forward_model_handle_set = copy.deepcopy(
+                ForwardModelHandleSet.default_handle_set()
+            )
+        return self._forward_model_handle_set
+
+    @property
+    def observation_handle_set(self) -> ObservationHandleSet:
+        if self._observation_handle_set is None:
+            self._observation_handle_set = copy.deepcopy(
+                ObservationHandleSet.default_handle_set()
+            )
+        return self._observation_handle_set
+    
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        """Set up for processing a target.
-
-        Note we separate this out from the cost_function creator
-        because we want to allow internal caching based on the
-        sounding - e.g., read the input file only once. Ignoring
-        performance, functionally this is just like an extra argument
-        passed to cost_function.
-
-        We take measure_id, which is a MeasurementId.
-        """
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
+        # Temp, we'll get this moved out in a bit
         self.forward_model_handle_set.notify_update_target(
-            self.measurement_id, self.retrieval_config
+            self.measurement_id_new, self.retrieval_config_new
         )
         self.observation_handle_set.notify_update_target(
-            self.measurement_id, self.retrieval_config
+            self.measurement_id_new, self.retrieval_config_new
         )
 
     def forward_model(
@@ -247,6 +250,73 @@ class CostFunctionCreator:
         )
 
 
-__all__ = [
-    "CostFunctionCreator",
-]
+class CostFunctionHandleSet(CreatorHandleSet):
+    """This takes a CurrentStrategyStep and maps that to a dict. The
+    dict in turn maps a instrument name to the MusesSpectralWindow to
+    use for that instrument.
+
+    """
+
+    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+        super().__init__("_dispatch", strategy_context)
+
+    # Temp, we'll get this out in a bit
+    @property
+    def forward_model_handle_set(self) -> ForwardModelHandleSet:
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                return h.forward_model_handle_set
+
+    @property
+    def observation_handle_set(self) -> ObservationHandleSet:
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                return h.observation_handle_set
+            
+    def forward_model(
+        self,
+        instrument_name_list: list[InstrumentIdentifier],
+        current_state: CurrentState,
+        spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
+        use_systematic: bool = False,
+        include_bad_sample: bool = False,
+        obs_list: list[MusesObservation] | None = None,
+        **kwargs: Any,
+    ) -> ForwardModelCombine:
+        return self.handle(
+            "forward_model",
+            instrument_name_list,
+            current_state,
+            spec_win_dict,
+            use_systematic,
+            include_bad_sample,
+            obs_list,
+            **kwargs,
+        )
+
+    def cost_function(
+        self,
+        instrument_name_list: list[InstrumentIdentifier],
+        current_state: CurrentState,
+        spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
+        obs_list: list[MusesObservation] | None = None,
+        **kwargs: Any,
+    ) -> CostFunction:
+        return self.handle(
+            "cost_function",
+            instrument_name_list,
+            current_state,
+            spec_win_dict,
+            obs_list,
+            **kwargs,
+        )
+
+
+CostFunctionHandleSet.add_default_handle(CostFunctionHandle())
+# Register creator set
+CreatorDict.register(CostFunction, CostFunctionHandleSet)
+
+# Old name we used for this. We can perhaps clean this up
+CostFunctionCreator = CostFunctionHandle
+
+__all__ = ["CostFunctionCreator", "CostFunctionHandle", "CostFunctionHandleSet"]
