@@ -30,11 +30,6 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     )
     ocreator = CrisFmObjectCreator(rs.current_state, rs.retrieval_config, obs_cris)
     fm = ocreator.forward_model
-    # Currently broken, we need to come back and figure out why serialization
-    # isn't working.
-    if False:
-        t = pickle.dumps(fm)
-        t2 = pickle.loads(t)
     # Match fm state used by the UIP. This is just needed because we aren't going through
     # the cost function that normal set this up for us.
     fm_sv = ocreator.fm_sv
@@ -53,6 +48,16 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
     npt.assert_allclose(jac, jaccmp)
+    # Currently broken, we need to come back and figure out why serialization
+    # isn't working.
+    if False:
+        # Problem is notify_cost_function that was added. This can't be pickled
+        # We really should just remove the UIP all together, but short term probably
+        # isn't worth worrying about this - we can just avoid pickling until we
+        # get this working
+        fm.notify_cost_function = None
+        t = pickle.dumps(fm)
+        t2 = pickle.loads(t)
 
 
 @require_muses_py_fm
