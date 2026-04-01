@@ -10,7 +10,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):

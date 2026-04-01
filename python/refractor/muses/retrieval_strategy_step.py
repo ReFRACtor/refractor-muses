@@ -31,7 +31,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .cost_function import CostFunction
     from .muses_levmar_solver import SolverResult
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
     from .identifier import StrategyStepIdentifier, InstrumentIdentifier
     from pathlib import Path
 

@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from refractor.muses_py_fm import RefractorUip
     from .identifier import InstrumentIdentifier
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class CostFunctionHandle(CreatorHandle):

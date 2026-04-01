@@ -20,7 +20,7 @@ from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIden
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class MeasurementId(collections.abc.Mapping):

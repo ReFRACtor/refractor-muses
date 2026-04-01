@@ -11,7 +11,6 @@ from .identifier import StateElementIdentifier, ProcessLocation
 from .spectral_window_handle import MusesSpectralWindowDict
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
-from .muses_observation import MeasurementId
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -32,7 +31,7 @@ if typing.TYPE_CHECKING:
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
     from .creator_dict import CreatorDict
-    import pystac
+    from .muses_strategy_context import MusesStrategyContext
 
 
 @contextmanager
@@ -51,105 +50,6 @@ def log_timing() -> Generator[None, None, None]:
     logger.info(f"elapsed_time {elapsed_time}")
     logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
     logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
-
-
-class MusesStrategyContext:
-    """The MusesStrategyExecutor works in a context for doing one strategy
-    execution. This currently just is the input data we are running on, either
-    a MeasurementId or a pystac.Collection (currently), a RetrievalConfiguration,
-    a strategy table.
-
-    Note that a context is only for one MusesStrategyExecutor. We can certainly
-    have multiple MusesStrategyExecutor in a python environment (e.g., we are
-    running a test comparing two retrievals), but they each get their own
-    MusesStrategyContext.
-
-    Things such as CreatorHandleSet can assume that the
-    MusesStrategyContext is unchanged as we move through the MusesStrategyExecutor,
-    so if it makes sense internal caching based on the MusesStrategyExecutor
-    can be done (e.g., read a L1B input file once).
-
-    Objects can register as observers to be notified when something in
-    the MusesStrategyContext changes (e.g., we move to the next target to
-    process).
-
-    The notify_update_strategy_context is guaranteed to be called before the
-    first MusesStrategyExecutor starts, so any delayed initialization can
-    depend on this being called (e.g. some setup that depends on the the
-    MeasurementId).
-    """
-
-    def __init__(self) -> None:
-        self._measurement_id: None | MeasurementId = None
-        self._stac_catalog: None | pystac.Catalog = None
-        self._retrieval_config: None | RetrievalConfiguration = None
-        self._observers: set[Any] = set()
-        # Marker if notify_update_strategy_context has been called. If it
-        # has, we want to immediately call this on new observers that have
-        # been added
-        self._have_been_updated = False
-
-    def add_observer(self, obs: Any) -> None:
-        # Often we want weakref, so we don't prevent objects from
-        # being deleted just because they are observing this. But in
-        # this particular case, we actually do want to maintain the
-        # lifetime. These observers will do things like write out
-        # output, but have no real life outside of being attached to
-        # this class.  It is easy enough to change this to weakref if
-        # that proves useful
-        self._observers.add(obs)
-        if hasattr(obs, "notify_add"):
-            obs.notify_add(self)
-        # Go ahead and call notify_update_strategy_context if we have
-        # already been updated. This way the observer can do any initialization
-        # needed for the first time the context is available. Otherwise, this
-        # will get called in self.notify_update_strategy_context when that
-        # happens later.
-        if self._have_been_updated:
-            obs.notify_update_strategy_context(self)
-
-    def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
-        if hasattr(obs, "notify_remove"):
-            obs.notify_remove(self)
-
-    def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
-        # list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            self.remove_observer(obs)
-
-    def notify_update_strategy_context(self) -> None:
-        # The list of observers might change in our loop, so grab a copy
-        # of the list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            obs.notify_update_strategy_context(self)
-
-    def update_strategy_context(
-        self,
-        measurement_id: None | MeasurementId = None,
-        stac_catalog: None | pystac.Catalog = None,
-        retrieval_config: None | RetrievalConfiguration = None,
-    ) -> None:
-        self._have_been_updated = True
-        self._measurement_id = measurement_id
-        self._stac_catalog = stac_catalog
-        self._retrieval_config = retrieval_config
-        self.notify_update_strategy_context()
-
-    @property
-    def measurement_id(self) -> None | MeasurementId:
-        return self._measurement_id
-
-    @property
-    def stac_catalog(self) -> None | pystac.Catalog:
-        return self._stac_catalog
-
-    @property
-    def retrieval_config(self) -> None | RetrievalConfiguration:
-        return self._retrieval_config
 
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
@@ -494,7 +394,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
 
 __all__ = [
-    "MusesStrategyContext",
     "MusesStrategyExecutor",
     "MusesStrategyExecutorRetrievalStrategyStep",
     "MusesStrategyExecutorMusesStrategy",

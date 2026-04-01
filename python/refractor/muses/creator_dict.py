@@ -5,7 +5,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .creator_handle import CreatorHandleSet
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class CreatorDict(UserDict):
@@ -53,7 +53,7 @@ class CreatorDict(UserDict):
     _creator_class: dict[Any, type[CreatorHandleSet]] = {}
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
-        from .muses_strategy_executor import MusesStrategyContext
+        from .muses_strategy_context import MusesStrategyContext
 
         super().__init__()
         self.strategy_context = (

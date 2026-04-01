@@ -560,13 +560,16 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         spectral_window_handle_set: SpectralWindowHandleSet,
+        strategy_table_filename: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
         res = MusesStrategyStepList.create_from_strategy_file(
-            self.retrieval_config_new["run_dir"] / "Table.asc",
+            strategy_table_filename
+            if strategy_table_filename is not None
+            else self.retrieval_config_new["run_dir"] / "Table.asc",
             self.retrieval_config_new.input_file_helper,
             spectral_window_handle_set,
         )

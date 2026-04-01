@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_spectral_window import MusesSpectralWindow
     from .identifier import InstrumentIdentifier
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 def mpy_radiance_from_observation_list(

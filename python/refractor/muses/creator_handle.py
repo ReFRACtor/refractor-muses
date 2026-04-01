@@ -5,7 +5,7 @@ from typing import Any, Self
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
     import pystac

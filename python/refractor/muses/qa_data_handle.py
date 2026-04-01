@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .muses_strategy import CurrentStrategyStep
     from .input_file_helper import InputFileHelper, InputFilePath
-    from .muses_strategy_executor import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
