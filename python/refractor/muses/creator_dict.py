@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import UserDict
 from typing import Any
+import copy
 import typing
 
 if typing.TYPE_CHECKING:
@@ -71,9 +72,11 @@ class CreatorDict(UserDict):
             raise KeyError(
                 f"The type {created_type} has not been registered with CratotrDict"
             )
-        self.data[created_type] = self._creator_class[
+        self.data[created_type] = copy.deepcopy(self._creator_class[
             created_type
-        ].default_handle_set_with_context(self.strategy_context)
+        ].default_handle_set())
+        if hasattr(self.data[created_type], "notify_add_creator_dict"):
+            self.data[created_type].notify_add_creator_dict(self)
         return self.data[created_type]
 
 

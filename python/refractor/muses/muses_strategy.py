@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .muses_spectral_window import MusesSpectralWindow
-from .creator_handle import CreatorHandle, CreatorHandleSet
+from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
 from .creator_dict import CreatorDict
 from .identifier import (
     InstrumentIdentifier,
@@ -303,11 +303,12 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class MusesStrategyHandleSet(CreatorHandleSet):
+class MusesStrategyHandleSet(CreatorHandleWithContextSet):
     """This takes the MeasurementId and creates a MusesStrategy for
     processing it."""
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self,
+                 strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("muses_strategy", strategy_context)
 
     def muses_strategy(

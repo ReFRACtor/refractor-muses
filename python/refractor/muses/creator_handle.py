@@ -41,21 +41,40 @@ class CreatorHandleSet(PriorityHandleSet):
     ObservationHandleSet.  Take a look at the existing examples
     (e.g. the unit tests) - the design seems complicated but is
     actually pretty simple to use in practice.
+    """
 
-    Right now, every CreatorHandleSet has a MusesStrategyContext. I
-    think this is what we want, however we might in the future run
-    into CreatorHandleSet that don't have or need a
-    MusesStrategyContext (they are separate concepts).  However, for
-    now we have this baked in. We can revisit this in the future if
-    and when we have an example of how we would want to separate this.
+    def __init__(self, creator_func_name: str) -> None:
+        """Constructor, takes the name of the creator function (e.g.,
+        "observation")."""
+        super().__init__()
+        self.creator_func_name = creator_func_name
 
-    Note a CreatorHandle can assume that it called for the same
-    MusesStrategyContext, until MusesStrategyContext sends a
+    # Temp, we will remove this once we have everything moved over
+    def notify_update_target(self, *args: Any, **kwargs: Any) -> None:
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(*args, **kwargs)
+
+    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
+        """Process a registered function"""
+        res = getattr(h, self.creator_func_name)(*args, **kwargs)
+        if res is None:
+            return (False, None)
+        return (True, res)
+
+
+class CreatorHandleWithContextSet(CreatorHandleSet):
+    """This is CreatorHandleSet that also has a
+    MusesStrategyContext. This is pretty common, a lot of our objects
+    handles need the context to produce objects.
+
+    Note a CreatorHandleWithContext can assume that it called for the
+    same MusesStrategyContext, until MusesStrategyContext sends a
     notify_update_strategy_context message. So if it makes sense,
     these objects can do internal caching for things that don't change
     when the MusesStrategyContext is the same. These objects should
     register as observers of MusesStrategyContext to get the
-    notify_update_strategy_context message. See for example
+    notify_update_strategy_context message if needed. See for example
     MusesPyQaDataHandle.
 
     We had considered just passing the MusesStrategyContext to handle_h
@@ -66,19 +85,8 @@ class CreatorHandleSet(PriorityHandleSet):
     treat these as different, although this means MusesStrategyContext
     is like a "hidden" argument. I think the trade off is reasonable,
     but know that the handle_h has access to the MusesStrategyContext as
-    well as whatever argument get passed to handle_h
-
+    well as whatever argument get passed to handle_h.
     """
-
-    # We don't initialize this here, so we can use the "trick" of
-    # doing this add_default_handle. When we do this we attach this to
-    # the derived class, rather than the base class. This is based on
-    # cls._default_handle = blah creating a copy in cls rather than
-    # CreatorHandle._default_handle
-    _default_handle: None | dict[Any, int] = None
-
-    # Temp, None here just so we can skip needing to update all the handles
-    # at once. This way we can test them separately.
     def __init__(
         self,
         creator_func_name: str,
@@ -86,64 +94,21 @@ class CreatorHandleSet(PriorityHandleSet):
     ) -> None:
         """Constructor, takes the name of the creator function (e.g.,
         "observation")."""
-        super().__init__()
-        self.creator_func_name = creator_func_name
-        self.strategy_context = strategy_context
-
-    # Temp, we'll remove this
-    def notify_update_target(self, *args: Any, **kwargs: Any) -> None:
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                if hasattr(h, "notify_update_target"):
-                    h.notify_update_target(*args, **kwargs)
+        from .muses_strategy_context import MusesStrategyContextProxy
+        super().__init__(creator_func_name)
+        self.strategy_context = MusesStrategyContextProxy(strategy_context)
 
     @classmethod
-    def default_handle_set(cls) -> Self:
-        # We handle the default handle set a little differently, because we
-        # need to add the MusesStrategyContext. Stub this out so it isn't
-        # accidentally called
-
-        # Temp, just so we can test before everything has changed
-        return cls.default_handle_set_with_context(None)
-        raise RuntimeError(
-            "default_handle_set isn't implemented. Call default_handle_set_with_context instead"
-        )
-
-    @classmethod
-    def default_handle_set_with_context(
-        cls, strategy_context: MusesStrategyContext
-    ) -> Self:
-        # Temp, until we get everything moved over
-        try:
-            res = cls(strategy_context)  # type: ignore[arg-type]
-        except TypeError:
-            res = cls()
-        if cls._default_handle is not None:
-            for h, priority_order in cls._default_handle.items():
-                res.add_handle(copy.deepcopy(h), priority_order)
+    def default_handle_set_with_context(cls, strategy_context: MusesStrategyContext) -> Self:
+        '''Like default_handle_set, but also set of the strategy_context. This is
+        a copy, so it can be modified without changing default_handle_set'''
+        res = copy.deepcopy(cls.default_handle_set())
+        res.strategy_context.reset_context(strategy_context)
         return res
+    
+    def notify_add_creator_dict(self, cdict: CreatorDict):
+        self.strategy_context.reset_context(cdict.strategy_context)
 
-    @classmethod
-    def add_default_handle(cls, h: Any, priority_order: int = 0) -> None:
-        """Add the given handle to the default set of handlers.  The
-        higher priority_order (larger number) items are tried first."""
-        if cls._default_handle is None:
-            cls._default_handle = dict()
-        cls._default_handle[h] = priority_order
-
-    @classmethod
-    def discard_default_handle(cls, h: Any) -> None:
-        if cls._default_handle is None:
-            return
-        # Remove is present, no error if not found
-        cls._default_handle.pop(h, None)
-
-    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
-        """Process a registered function"""
-        res = getattr(h, self.creator_func_name)(*args, **kwargs)
-        if res is None:
-            return (False, None)
-        return (True, res)
 
 
 class CreatorHandle:
@@ -178,16 +143,16 @@ class CreatorHandle:
         self._strategy_context: None | MusesStrategyContext = None
         self.add_as_context_observer = add_as_context_observer
 
-    def notify_add_handle(self, hset: CreatorHandleSet) -> None:
+    def notify_add_handle(self, hset: CreatorHandleWithContextSet) -> None:
+        # Temp, until we get this all sorted out
+        if not hasattr(hset, "strategy_context"):
+            return
         # Derived classes can override this to do whatever they need to.
         self._strategy_context = hset.strategy_context
         # Because it is a common case, we just handle adding this as
         # an observer if the derived class requested this.
         # Note that the class should add a notify_update_strategy_context
         # if it is an observer.
-        # Temp, until we get all the classes moved over
-        if not hasattr(self, "add_as_context_observer"):
-            return
         if self.has_strategy_context and self.add_as_context_observer:
             self.strategy_context.add_observer(self)
 
@@ -284,4 +249,4 @@ class CreatorHandle:
     # handle.  def observation(self, *args):
 
 
-__all__ = ["CreatorHandleSet", "CreatorHandle"]
+__all__ = ["CreatorHandleSet", "CreatorHandleWithContextSet", "CreatorHandle"]

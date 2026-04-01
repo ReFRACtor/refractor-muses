@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import typing
+import copy
 from typing import Any
 
 if typing.TYPE_CHECKING:
@@ -197,12 +198,40 @@ class MusesStrategyContextProxy:
     '''It is useful to be able to update the MusesStrategyContext being used in
     things like CreatorHandleWithContextSet, so we can start setting thing up
     before we have the final MusesStrategyContext. So we introduce a simple proxy
-    class to allow the underlying context to be updated.'''
+    class to allow the underlying context to be updated.
+
+    This supports deferred adding of observer.'''
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         self._strategy_context = strategy_context
+        self._defer_observers: set[Any] = set()
 
     def reset_context(self, strategy_context: MusesStrategyContext) -> None:
         self._strategy_context = strategy_context
+        for obj in self._defer_observers:
+            self._strategy_context.add_observer(obj)
+        self._defer_observers = set()
+
+    def add_observer(self, obs: Any) -> None:
+        if self._strategy_context is not None:
+            self._strategy_context.add_observer(obs)
+        else:
+            self._defer_observers.add(obs)
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {'_strategy_context' : self._strategy_context,
+                '_defer_observers' : self._defer_observers}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self._strategy_context = state["_strategy_context"]
+        self._defer_observers = state["_defer_observers"]
+    
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+        new_obj._strategy_context = copy.deepcopy(self._strategy_context, memo)
+        new_obj._defer_observers = copy.deepcopy(self._defer_observers, memo)
+        return new_obj
 
     def __getattr__(self, name: str) -> Any:
         if self._strategy_context is not None:

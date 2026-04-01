@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
 from .creator_dict import CreatorDict
 import refractor.framework as rf  # type: ignore
 import abc
@@ -56,13 +56,13 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class ForwardModelHandleSet(CreatorHandleSet):
+class ForwardModelHandleSet(CreatorHandleWithContextSet):
     """This takes the instrument name and RefractorUip, and creates a
     ForwardModel and Observation for that instrument.
 
     """
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("forward_model", strategy_context)
 
     def forward_model(

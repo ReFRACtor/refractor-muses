@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .cost_function import CostFunction
 from .creator_dict import CreatorDict
-from .creator_handle import CreatorHandle, CreatorHandleSet
+from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
 from .current_state import CurrentState
 from .retrieval_array import RetrievalGridArray
 from .forward_model_combine import ForwardModelCombine
@@ -236,14 +236,14 @@ class CostFunctionHandle(CreatorHandle):
         )
 
 
-class CostFunctionHandleSet(CreatorHandleSet):
+class CostFunctionHandleSet(CreatorHandleWithContextSet):
     """This takes a CurrentStrategyStep and maps that to a dict. The
     dict in turn maps a instrument name to the MusesSpectralWindow to
     use for that instrument.
 
     """
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("_dispatch", strategy_context)
 
     def forward_model(

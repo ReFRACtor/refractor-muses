@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
 from .filter_metadata import FileFilterMetadata, FilterMetadata
 from .muses_spectral_window import MusesSpectralWindow
 from .identifier import InstrumentIdentifier, FilterIdentifier
@@ -81,16 +81,20 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class SpectralWindowHandleSet(CreatorHandleSet):
+class SpectralWindowHandleSet(CreatorHandleWithContextSet):
     """This takes a CurrentStrategyStep and maps that to a dict. The
     dict in turn maps a instrument name to the MusesSpectralWindow to
     use for that instrument.
 
     """
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self,
+                 strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("_dispatch", strategy_context)
 
+    def notify_add_creator_dict(self, cdict: CreatorDict):
+        self.strategy_context.reset_context(cdict.strategy_context)
+        
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
     ) -> dict[InstrumentIdentifier, list[FilterIdentifier]] | None:

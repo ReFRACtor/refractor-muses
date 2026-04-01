@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
 from .creator_dict import CreatorDict
 from .identifier import StateElementIdentifier
 from loguru import logger
@@ -108,10 +108,11 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class QaDataHandleSet(CreatorHandleSet):
+class QaDataHandleSet(CreatorHandleWithContextSet):
     """This takes a RetrievalResult and updates it with QA data."""
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self,
+                 strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("qa_flag", strategy_context)
 
     def qa_flag(

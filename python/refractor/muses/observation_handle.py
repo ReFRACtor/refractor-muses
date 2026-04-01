@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
 from .creator_dict import CreatorDict
 from .current_state import CurrentState
 import refractor.framework as rf  # type: ignore
@@ -120,13 +120,15 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class ObservationHandleSet(CreatorHandleSet):
+class ObservationHandleSet(CreatorHandleWithContextSet):
     """This takes the instrument name and creates an Observation for
     that instrument.
 
     """
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self,
+                 strategy_context: MusesStrategyContext | None = None,
+                 ) -> None:
         super().__init__("observation", strategy_context)
 
     def observation(

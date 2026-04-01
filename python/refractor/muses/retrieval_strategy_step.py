@@ -3,7 +3,7 @@ import abc
 from loguru import logger
 import refractor.framework as rf  # type: ignore
 from .creator_dict import CreatorDict
-from .creator_handle import CreatorHandle, CreatorHandleSet
+from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
 from .qa_data_handle import QaFlag
 from .muses_levmar_solver import (
     MusesLevmarSolver,
@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
     from pathlib import Path
 
 
-class RetrievalStrategyStepSet(CreatorHandleSet):
+class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
     """This takes the retrieval_type and determines a
     RetrievalStrategyStep to handle this, returning it so it can
     be called.
@@ -48,7 +48,8 @@ class RetrievalStrategyStepSet(CreatorHandleSet):
     retrieved is the same from one call to the next.
     """
 
-    def __init__(self, strategy_context: MusesStrategyContext) -> None:
+    def __init__(self,
+                 strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("retrieval_step", strategy_context)
 
     def retrieval_step(
