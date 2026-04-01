@@ -905,7 +905,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         return self.cls(
             current_state,
             obs,
-            self.retrieval_config_new,
+            self.retrieval_config,
             **kwargs,
         )
 

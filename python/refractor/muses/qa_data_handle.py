@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
 from .creator_dict import CreatorDict
 from .identifier import StateElementIdentifier
 from loguru import logger
@@ -88,7 +88,7 @@ class QaFlag:
         return 1 if self.master_flag == "GOOD" else 0
 
 
-class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class QaDataHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for QaDataHandle. Note we use duck typing,
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
@@ -111,8 +111,7 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
 class QaDataHandleSet(CreatorHandleWithContextSet):
     """This takes a RetrievalResult and updates it with QA data."""
 
-    def __init__(self,
-                 strategy_context: MusesStrategyContext | None = None) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("qa_flag", strategy_context)
 
     def qa_flag(
@@ -157,15 +156,15 @@ class MusesPyQaDataHandle(QaDataHandle):
         if (
             self.has_retrieval_config
             and self.has_measurement_id
-            and "QualityFlagDirectory" in self.measurement_id_new
+            and "QualityFlagDirectory" in self.measurement_id
         ):
             self.run_dir = (
-                self.retrieval_config_new["outputDirectory"]
-                / self.retrieval_config_new["sessionID"]
+                self.retrieval_config["outputDirectory"]
+                / self.retrieval_config["sessionID"]
             )
-            self.viewing_mode = self.retrieval_config_new["viewingMode"]
-            self.qa_flag_directory = self.measurement_id_new["QualityFlagDirectory"]
-            self.ifile_hlp = self.retrieval_config_new.input_file_helper
+            self.viewing_mode = self.retrieval_config["viewingMode"]
+            self.qa_flag_directory = self.measurement_id["QualityFlagDirectory"]
+            self.ifile_hlp = self.retrieval_config.input_file_helper
 
     def quality_flag_file_name(
         self, current_strategy_step: CurrentStrategyStep

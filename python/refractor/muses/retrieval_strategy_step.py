@@ -3,7 +3,7 @@ import abc
 from loguru import logger
 import refractor.framework as rf  # type: ignore
 from .creator_dict import CreatorDict
-from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from .qa_data_handle import QaFlag
 from .muses_levmar_solver import (
     MusesLevmarSolver,
@@ -48,8 +48,7 @@ class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
     retrieved is the same from one call to the next.
     """
 
-    def __init__(self,
-                 strategy_context: MusesStrategyContext | None = None) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("retrieval_step", strategy_context)
 
     def retrieval_step(
@@ -62,7 +61,7 @@ class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
         return self.handle(retrieval_type, rs, creator_dict, **kwargs)
 
 
-class RetrievalStrategyStepHandle(CreatorHandle):
+class RetrievalStrategyStepHandle(CreatorHandleWithContext):
     """Right now our strategy steps just key off of the retrieval_type
     being in a set (or None to match any). We have this handle for
     this case. We can certainly create other CreatorHandle if we have

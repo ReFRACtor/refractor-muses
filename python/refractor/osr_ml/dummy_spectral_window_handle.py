@@ -6,8 +6,6 @@ from refractor.muses import (
     RetrievalType,
     FilterIdentifier,
     CurrentStrategyStep,
-    RetrievalConfiguration,
-    MeasurementId,
 )
 from loguru import logger
 
@@ -26,24 +24,11 @@ class DummySpectralWindowHandle(SpectralWindowHandle):
     this seems like a reasonable workaround.
     """
 
-    def __init__(self) -> None:
-        self.retrieval_config: None | RetrievalConfiguration = None
-        self.measurement_id: None | MeasurementId = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-
     def spectral_window_dict(
         self,
         current_strategy_step: CurrentStrategyStep,
         filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
     ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
-        if self.retrieval_config is None or self.measurement_id is None:
-            raise RuntimeError("Call notify_update_target before this function")
         if current_strategy_step.retrieval_type != RetrievalType("ML"):
             return None
         iset: set[InstrumentIdentifier] = set()

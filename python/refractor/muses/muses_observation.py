@@ -987,12 +987,12 @@ class MusesObservationHandle(ObservationHandle):
             return None
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
-            self.measurement_id_new,
+            self.measurement_id,
             self.existing_obs,
             current_state,
             spec_win,
             fm_sv,
-            self.retrieval_config_new.input_file_helper,
+            self.retrieval_config.input_file_helper,
             **kwargs,
         )
         if self.existing_obs is None:
@@ -1013,7 +1013,7 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
         self, strategy_context: MusesStrategyContext
     ) -> None:
         super().notify_update_strategy_context(strategy_context)
-        pname = self.retrieval_config_new["run_dir"] / f"{self.instrument_name}_obs.pkl"
+        pname = self.retrieval_config["run_dir"] / f"{self.instrument_name}_obs.pkl"
         if pname.exists():
             self.existing_obs = pickle.load(open(pname, "rb"))
 
@@ -1034,9 +1034,7 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             **kwargs,
         )
         if res is not None and might_save and self.existing_obs is not None:
-            pname = (
-                self.retrieval_config_new["run_dir"] / f"{self.instrument_name}_obs.pkl"
-            )
+            pname = self.retrieval_config["run_dir"] / f"{self.instrument_name}_obs.pkl"
             pickle.dump(self.existing_obs, open(pname, "wb"))
         return res
 

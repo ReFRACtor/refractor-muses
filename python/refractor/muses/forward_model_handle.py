@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
 from .creator_dict import CreatorDict
 import refractor.framework as rf  # type: ignore
 import abc
@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_context import MusesStrategyContext
 
 
-class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class ForwardModelHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for ForwardModelHandle. Note we use duck typing, so
     you don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that

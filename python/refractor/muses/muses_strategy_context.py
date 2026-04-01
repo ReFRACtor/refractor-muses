@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import typing
 import copy
-from typing import Any
+from typing import Any, Self
 
 if typing.TYPE_CHECKING:
     from .input_file_helper import InputFileHelper
@@ -66,7 +66,7 @@ class MusesStrategyContext:
         # Marker if notify_update_strategy_context has been called. If it
         # has, we want to immediately call this on new observers that have
         # been added
-        self._have_been_updated = False
+        self._has_been_updated = False
         if strategy_table_filename is not None:
             self.create_from_table_filename(strategy_table_filename)
 
@@ -112,7 +112,7 @@ class MusesStrategyContext:
         # needed for the first time the context is available. Otherwise, this
         # will get called in self.notify_update_strategy_context when that
         # happens later.
-        if self._have_been_updated:
+        if self._has_been_updated:
             obs.notify_update_strategy_context(self)
 
     def remove_observer(self, obs: Any) -> None:
@@ -164,18 +164,20 @@ class MusesStrategyContext:
             from .creator_dict import CreatorDict
 
             cdict = creator_dict if creator_dict is not None else CreatorDict(self)
+            strategy_creator = cdict[MusesStrategy]
+            swin_creator = cdict[MusesSpectralWindowDict]
             lobs = list(self._observers)
             for obs in lobs:
                 if isinstance(obs, MusesStrategyHandle) or isinstance(
                     obs, SpectralWindowHandle
                 ):
                     obs.notify_update_strategy_context(self)  # type: ignore
-            self._strategy = cdict[MusesStrategy].muses_strategy(
-                cdict[MusesSpectralWindowDict],
+            self._strategy = strategy_creator.muses_strategy(
+                swin_creator,
                 strategy_table_filename=strategy_table_filename,
             )
 
-        self._have_been_updated = True
+        self._has_been_updated = True
         self.notify_update_strategy_context()
 
     @property
@@ -194,14 +196,19 @@ class MusesStrategyContext:
     def strategy(self) -> None | MusesStrategy:
         return self._strategy
 
+
 class MusesStrategyContextProxy:
-    '''It is useful to be able to update the MusesStrategyContext being used in
+    """It is useful to be able to update the MusesStrategyContext being used in
     things like CreatorHandleWithContextSet, so we can start setting thing up
     before we have the final MusesStrategyContext. So we introduce a simple proxy
     class to allow the underlying context to be updated.
 
-    This supports deferred adding of observer.'''
-    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+    This supports deferred adding of observer."""
+
+    def __init__(
+        self,
+        strategy_context: MusesStrategyContext | None = None,
+    ) -> None:
         self._strategy_context = strategy_context
         self._defer_observers: set[Any] = set()
 
@@ -218,19 +225,21 @@ class MusesStrategyContextProxy:
             self._defer_observers.add(obs)
 
     def __getstate__(self) -> dict[str, Any]:
-        return {'_strategy_context' : self._strategy_context,
-                '_defer_observers' : self._defer_observers}
+        return {
+            "_strategy_context": self._strategy_context,
+            "_defer_observers": self._defer_observers,
+        }
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self._strategy_context = state["_strategy_context"]
         self._defer_observers = state["_defer_observers"]
-    
-    def __deepcopy__(self, memo):
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
         cls = self.__class__
         new_obj = cls.__new__(cls)
         memo[id(self)] = new_obj
-        new_obj._strategy_context = copy.deepcopy(self._strategy_context, memo)
-        new_obj._defer_observers = copy.deepcopy(self._defer_observers, memo)
+        new_obj._strategy_context = copy.deepcopy(self._strategy_context, memo)  # noqa: SLF001
+        new_obj._defer_observers = copy.deepcopy(self._defer_observers, memo)  # noqa: SLF001
         return new_obj
 
     def __getattr__(self, name: str) -> Any:
@@ -240,6 +249,106 @@ class MusesStrategyContextProxy:
         raise AttributeError(f"No attribute {name}")
 
 
+class MusesStrategyContextMixin:
+    """Mixin to provide some common functionality"""
+
+    def __init__(
+        self,
+        strategy_context: MusesStrategyContextProxy
+        | MusesStrategyContext
+        | None = None,
+    ) -> None:
+        self._strategy_context = strategy_context
+
+    @property
+    def has_measurement_id(self) -> bool:
+        if (
+            not self.has_strategy_context
+            or self.strategy_context.measurement_id is None
+        ):
+            return False
+        return True
+
+    @property
+    def measurement_id(self) -> MeasurementId:
+        """We often want to get the measurement id from the strategy_context,
+        having an error if either the strategy_context or the measurement id
+        is None. This function is a short cut for that, throwing an exception
+        if we can't get the measurement_id. If you just want to check if this
+        is available, you can get that from the strategy_context directly."""
+        if not self.has_measurement_id:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        res = self.strategy_context.measurement_id
+        assert res is not None
+        return res
+
+    @property
+    def has_retrieval_config(self) -> bool:
+        if (
+            not self.has_strategy_context
+            or self.strategy_context.retrieval_config is None
+        ):
+            return False
+        return True
+
+    @property
+    def retrieval_config(self) -> RetrievalConfiguration:
+        """We often want to get the retrieval_config from the strategy_context,
+        having an error if either the strategy_context or the retrieval_config
+        is None. This function is a short cut for that, throwing an exception
+        if we can't get the retrieval_config. If you just want to check if this
+        is available, you can get that from the strategy_context directly."""
+        if not self.has_retrieval_config:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        res = self.strategy_context.retrieval_config
+        assert res is not None
+        return res
+
+    @property
+    def has_stac_catalog(self) -> bool:
+        if not self.has_strategy_context or self.strategy_context.stac_catalog is None:
+            return False
+        return True
+
+    def stac_catalog(self) -> pystac.Catalog:
+        """We often want to get the stac_catalog from the strategy_context,
+        having an error if either the strategy_context or the stac_catalog
+        is None. This function is a short cut for that, throwing an exception
+        if we can't get the stac_catalog. If you just want to check if this
+        is available, you can get that from the strategy_context directly."""
+        if not self.has_stac_catalog:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        res = self.strategy_context.stac_catalog
+        assert res is not None
+        return res
+
+    @property
+    def has_strategy_context(self) -> bool:
+        return self._strategy_context is not None
+
+    @property
+    def strategy_context(self) -> MusesStrategyContext | MusesStrategyContextProxy:
+        if self._strategy_context is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        return self._strategy_context
+
+    @property
+    def has_strategy(self) -> bool:
+        if not self.has_strategy_context or self.strategy_context.strategy is None:
+            return False
+        return True
+
+    @property
+    def strategy(self) -> MusesStrategy:
+        if not self.has_strategy:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        res = self.strategy_context.strategy
+        assert res is not None
+        return res
+
+
 __all__ = [
-    "MusesStrategyContext", "MusesStrategyContextProxy",
+    "MusesStrategyContext",
+    "MusesStrategyContextProxy",
+    "MusesStrategyContextMixin",
 ]

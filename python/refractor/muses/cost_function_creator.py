@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .cost_function import CostFunction
 from .creator_dict import CreatorDict
-from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from .current_state import CurrentState
 from .retrieval_array import RetrievalGridArray
 from .forward_model_combine import ForwardModelCombine
@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_context import MusesStrategyContext
 
 
-class CostFunctionHandle(CreatorHandle):
+class CostFunctionHandle(CreatorHandleWithContext):
     """This creates the set of ForwardModel and Observation and then
     uses those to create the CostFunction.
 

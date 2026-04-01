@@ -13,7 +13,7 @@ from .retrieval_debug_output import (
 from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementId, MeasurementIdFile
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
-from .muses_strategy_context import  MusesStrategyContext
+from .muses_strategy_context import MusesStrategyContext
 from .creator_dict import CreatorDict
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper

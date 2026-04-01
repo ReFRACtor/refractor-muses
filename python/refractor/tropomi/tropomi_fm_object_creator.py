@@ -938,7 +938,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         )
         obj_creator = TropomiFmObjectCreator(
             current_state,
-            self.retrieval_config_new,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

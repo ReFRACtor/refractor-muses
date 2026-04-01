@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
 from .filter_metadata import FileFilterMetadata, FilterMetadata
 from .muses_spectral_window import MusesSpectralWindow
 from .identifier import InstrumentIdentifier, FilterIdentifier
@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 MusesSpectralWindowDict = dict[InstrumentIdentifier, MusesSpectralWindow]
 
 
-class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class SpectralWindowHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for SpectralWindowHandle. Note we use duck typing,
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that
@@ -88,13 +88,9 @@ class SpectralWindowHandleSet(CreatorHandleWithContextSet):
 
     """
 
-    def __init__(self,
-                 strategy_context: MusesStrategyContext | None = None) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("_dispatch", strategy_context)
 
-    def notify_add_creator_dict(self, cdict: CreatorDict):
-        self.strategy_context.reset_context(cdict.strategy_context)
-        
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
     ) -> dict[InstrumentIdentifier, list[FilterIdentifier]] | None:
@@ -144,15 +140,14 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         if (
             self.has_retrieval_config
-            and "defaultSpectralWindowsDefinitionFilename" in self.retrieval_config_new
+            and "defaultSpectralWindowsDefinitionFilename" in self.retrieval_config
         ):
             self.filter_metadata = FileFilterMetadata(
-                self.retrieval_config_new["defaultSpectralWindowsDefinitionFilename"],
-                self.retrieval_config_new.input_file_helper,
+                self.retrieval_config["defaultSpectralWindowsDefinitionFilename"],
+                self.retrieval_config.input_file_helper,
             )
 
     def spectral_window_dict(
@@ -170,7 +165,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         )
         return MusesSpectralWindow.create_dict_from_file(
             fname,
-            self.retrieval_config_new.input_file_helper,
+            self.retrieval_config.input_file_helper,
             filter_list_all_dict,
             self.filter_metadata,
         )

@@ -707,7 +707,7 @@ class CrisForwardModelHandle(ForwardModelHandle):
         logger.debug("Creating OSS forward model using using CrisFmObjectCreator")
         obj_creator = CrisFmObjectCreator(
             current_state,
-            self.retrieval_config_new,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -735,7 +735,7 @@ class AirsForwardModelHandle(ForwardModelHandle):
         logger.debug("Creating OSS forward model using using AirsFmObjectCreator")
         obj_creator = AirsFmObjectCreator(
             current_state,
-            self.retrieval_config_new,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,
@@ -763,7 +763,7 @@ class TesForwardModelHandle(ForwardModelHandle):
         logger.debug("Creating OSS forward model using using TesFmObjectCreator")
         obj_creator = TesFmObjectCreator(
             current_state,
-            self.retrieval_config_new,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

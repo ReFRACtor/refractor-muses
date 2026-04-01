@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .muses_spectral_window import MusesSpectralWindow
-from .creator_handle import CreatorHandle, CreatorHandleWithContextSet
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from .creator_dict import CreatorDict
 from .identifier import (
     InstrumentIdentifier,
@@ -280,7 +280,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         return True
 
 
-class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for MusesStrategyHandle. Note we use duck typing, so
     you don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that
@@ -307,8 +307,7 @@ class MusesStrategyHandleSet(CreatorHandleWithContextSet):
     """This takes the MeasurementId and creates a MusesStrategy for
     processing it."""
 
-    def __init__(self,
-                 strategy_context: MusesStrategyContext | None = None) -> None:
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("muses_strategy", strategy_context)
 
     def muses_strategy(
@@ -570,8 +569,8 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         res = MusesStrategyStepList.create_from_strategy_file(
             strategy_table_filename
             if strategy_table_filename is not None
-            else self.retrieval_config_new["run_dir"] / "Table.asc",
-            self.retrieval_config_new.input_file_helper,
+            else self.retrieval_config["run_dir"] / "Table.asc",
+            self.retrieval_config.input_file_helper,
             spectral_window_handle_set,
         )
         self.strategy_context.add_observer(res)
@@ -898,8 +897,8 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         s = MusesStrategyStepList.create_from_strategy_file(
-            self.retrieval_config_new["run_dir"] / "Table.asc",
-            self.retrieval_config_new.input_file_helper,
+            self.retrieval_config["run_dir"] / "Table.asc",
+            self.retrieval_config.input_file_helper,
             spectral_window_handle_set,
         )
         s.current_strategy_list[

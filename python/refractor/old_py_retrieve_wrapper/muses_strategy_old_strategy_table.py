@@ -160,8 +160,8 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
         measurement_id, or None if we can't.
         """
         res = MusesStrategyOldStrategyTable(
-            self.retrieval_config_new["run_dir"] / "Table.asc",
-            self.retrieval_config_new.input_file_helper,
+            self.retrieval_config["run_dir"] / "Table.asc",
+            self.retrieval_config.input_file_helper,
             spectral_window_handle_set,
         )
         self.strategy_context.add_observer(res)

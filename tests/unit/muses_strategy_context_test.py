@@ -16,4 +16,3 @@ def test_muses_strategy_context(joint_tropomi_test_in_dir):
     print(sproxy.measurement_id)
     print(sproxy.retrieval_config)
     print(sproxy.strategy)
-    

@@ -952,7 +952,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
         logger.debug("Creating forward model using using OmiFmObjectCreator")
         obj_creator = OmiFmObjectCreator(
             current_state,
-            self.retrieval_config_new,
+            self.retrieval_config,
             obs,
             fm_sv=fm_sv,
             **self.creator_kwargs,

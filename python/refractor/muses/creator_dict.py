@@ -72,9 +72,9 @@ class CreatorDict(UserDict):
             raise KeyError(
                 f"The type {created_type} has not been registered with CratotrDict"
             )
-        self.data[created_type] = copy.deepcopy(self._creator_class[
-            created_type
-        ].default_handle_set())
+        self.data[created_type] = copy.deepcopy(
+            self._creator_class[created_type].default_handle_set()
+        )
         if hasattr(self.data[created_type], "notify_add_creator_dict"):
             self.data[created_type].notify_add_creator_dict(self)
         return self.data[created_type]

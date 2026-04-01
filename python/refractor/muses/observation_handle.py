@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleWithContextSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
 from .creator_dict import CreatorDict
 from .current_state import CurrentState
 import refractor.framework as rf  # type: ignore
@@ -70,7 +70,7 @@ def mpy_radiance_from_observation_list(
     }
 
 
-class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class ObservationHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for ObservationHandle. Note we use duck typing, so
     you don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that
@@ -126,9 +126,10 @@ class ObservationHandleSet(CreatorHandleWithContextSet):
 
     """
 
-    def __init__(self,
-                 strategy_context: MusesStrategyContext | None = None,
-                 ) -> None:
+    def __init__(
+        self,
+        strategy_context: MusesStrategyContext | None = None,
+    ) -> None:
         super().__init__("observation", strategy_context)
 
     def observation(
