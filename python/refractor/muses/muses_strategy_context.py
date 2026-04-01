@@ -193,7 +193,24 @@ class MusesStrategyContext:
     def strategy(self) -> None | MusesStrategy:
         return self._strategy
 
+class MusesStrategyContextProxy:
+    '''It is useful to be able to update the MusesStrategyContext being used in
+    things like CreatorHandleWithContextSet, so we can start setting thing up
+    before we have the final MusesStrategyContext. So we introduce a simple proxy
+    class to allow the underlying context to be updated.'''
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        self._strategy_context = strategy_context
+
+    def reset_context(self, strategy_context: MusesStrategyContext) -> None:
+        self._strategy_context = strategy_context
+
+    def __getattr__(self, name: str) -> Any:
+        if self._strategy_context is not None:
+            if hasattr(self._strategy_context, name):
+                return getattr(self._strategy_context, name)
+        raise AttributeError(f"No attribute {name}")
+
 
 __all__ = [
-    "MusesStrategyContext",
+    "MusesStrategyContext", "MusesStrategyContextProxy",
 ]

@@ -76,7 +76,8 @@ from .muses_strategy import (CurrentStrategyStep, CurrentStrategyStepDict,
                              MusesStrategyHandleSet, MusesStrategyImp,
                              MusesStrategyModifyHandle, MusesStrategyStepList,
                              modify_strategy_table,)
-from .muses_strategy_context import (MusesStrategyContext,)
+from .muses_strategy_context import (MusesStrategyContext,
+                                     MusesStrategyContextProxy,)
 from .muses_strategy_executor import (MusesStrategyExecutor,
                                       MusesStrategyExecutorMusesStrategy,
                                       MusesStrategyExecutorRetrievalStrategyStep,)
@@ -193,7 +194,8 @@ __all__ = ['AdapterRetrievalConfiguration', 'AirsFmObjectCreator',
            'MusesReflectanceObservation', 'MusesRefractiveIndex',
            'MusesRunDir', 'MusesSpectralWindow', 'MusesSpectralWindowDict',
            'MusesSpectrumSampling', 'MusesStrategy', 'MusesStrategyContext',
-           'MusesStrategyExecutor', 'MusesStrategyExecutorMusesStrategy',
+           'MusesStrategyContextProxy', 'MusesStrategyExecutor',
+           'MusesStrategyExecutorMusesStrategy',
            'MusesStrategyExecutorRetrievalStrategyStep', 'MusesStrategyHandle',
            'MusesStrategyHandleSet', 'MusesStrategyImp',
            'MusesStrategyModifyHandle', 'MusesStrategyStepList',
