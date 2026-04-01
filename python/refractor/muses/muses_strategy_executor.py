@@ -73,7 +73,7 @@ class MusesStrategyContext:
     the MusesStrategyContext changes (e.g., we move to the next target to
     process).
 
-    The notify_update_strategy_executor is guaranteed to be called before the
+    The notify_update_strategy_context is guaranteed to be called before the
     first MusesStrategyExecutor starts, so any delayed initialization can
     depend on this being called (e.g. some setup that depends on the the
     MeasurementId).
@@ -84,7 +84,7 @@ class MusesStrategyContext:
         self._stac_catalog: None | pystac.Catalog = None
         self._retrieval_config: None | RetrievalConfiguration = None
         self._observers: set[Any] = set()
-        # Marker if notify_update_strategy_executor has been called. If it
+        # Marker if notify_update_strategy_context has been called. If it
         # has, we want to immediately call this on new observers that have
         # been added
         self._have_been_updated = False
@@ -121,7 +121,10 @@ class MusesStrategyContext:
             self.remove_observer(obs)
 
     def notify_update_strategy_context(self) -> None:
-        for obs in self._observers:
+        # The list of observers might change in our loop, so grab a copy
+        # of the list before we start
+        lobs = list(self._observers)
+        for obs in lobs:
             obs.notify_update_strategy_context(self)
 
     def update_strategy_context(
@@ -192,15 +195,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.creator_dict = creator_dict
         self.current_state = CurrentStateStateInfo()
         self.kwargs = copy.copy(kwargs)
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Have updated the target we are processing."""
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -298,28 +292,37 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **rs.keyword_arguments,
         )
         self._strategy: MusesStrategy | None = None
+        self.creator_dict.strategy_context.add_observer(self)
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        super().notify_update_target(measurement_id, retrieval_config)
-        self._strategy = self.creator_dict[MusesStrategy].muses_strategy(
-            spectral_window_handle_set=self.creator_dict[MusesSpectralWindowDict],
-        )
+        self._strategy = None
+        mid = strategy_context.measurement_id
+        rconf = strategy_context.retrieval_config
         # Only do notify_update_target if we already have the filter_list_dict filled in.
         # If we don't just skip this
-        if len(measurement_id.filter_list_dict) > 0:
+        if mid is not None and rconf is not None and len(mid.filter_list_dict) > 0:
             self.current_state.notify_update_target(
-                measurement_id,
-                retrieval_config,
+                mid,
+                rconf,
                 self.strategy,
                 self.creator_dict[rf.Observation],
             )
 
     @property
+    def retrieval_config(self) -> RetrievalConfiguration:
+        res = self.creator_dict.strategy_context.retrieval_config
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        return res
+
+    @property
     def strategy(self) -> MusesStrategy:
         if self._strategy is None:
-            raise RuntimeError("Call update_target before this function")
+            self._strategy = self.creator_dict[MusesStrategy].muses_strategy(
+                spectral_window_handle_set=self.creator_dict[MusesSpectralWindowDict],
+            )
         return self._strategy
 
     def notify_update(self, location: str | ProcessLocation, **kwargs: Any) -> None:
@@ -341,16 +344,12 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_retrieval(
             self.current_strategy_step, self.retrieval_config
         )
 
     def notify_start_step(self, skip_initial_guess_update: bool = False) -> None:
         """Called to notify other object that we are on a new retrieval step."""
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_step(
             self.current_strategy_step,
             self.retrieval_config,
@@ -427,10 +426,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         problems with an individual step, or to run a simulation at a
         particular step.
         """
-        if self.measurement_id is None:
-            raise RuntimeError(
-                "Need to call notify_update_target before calling this function"
-            )
         self.restart()
         self.notify_update(ProcessLocation("initial set up done"))
         while not self.is_done():
@@ -482,8 +477,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         Take a look at the capture_data_test.py examples for how to
         save this data
         """
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target before this function")
         rplay = CurrentStateRecordAndPlay(current_state_replay_file)
         # Note we go to the end of the previous step. We then are ready
         # for the current retrieval step.

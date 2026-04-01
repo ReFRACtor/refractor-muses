@@ -209,9 +209,6 @@ class RetrievalStrategy:
         self.strategy_context.update_strategy_context(
             stac_catalog=stac, retrieval_config=rconf
         )
-        self.strategy_executor.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
         self.notify_update(ProcessLocation("update stac"))
 
     def update_target(self, filename: str | os.PathLike[str]) -> None:
@@ -247,13 +244,9 @@ class RetrievalStrategy:
         self.strategy_context.update_strategy_context(
             measurement_id=mid, retrieval_config=rconf
         )
-        self.strategy_executor.notify_update_target(mid, rconf)
         mid.filter_list_dict = self.strategy_executor.filter_list_dict
         self.strategy_context.update_strategy_context(
             measurement_id=mid, retrieval_config=rconf
-        )
-        self.strategy_executor.notify_update_target(
-            self.measurement_id, self.retrieval_config
         )
         self.notify_update(ProcessLocation("update target"))
 

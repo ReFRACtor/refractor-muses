@@ -92,9 +92,6 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, ifile_hlp):
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
     )
-    rs.strategy_context.update_strategy_context(
-        measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config
-    )
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -186,9 +183,6 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, ifile_hlp):
     rs.forward_model_handle_set.add_handle(
         MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel),
         priority_order=100,
-    )
-    rs.strategy_context.update_strategy_context(
-        measurement_id=rs.measurement_id, retrieval_config=rs.retrieval_config
     )
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),

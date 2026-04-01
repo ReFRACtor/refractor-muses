@@ -955,8 +955,6 @@ class MusesObservationHandle(ObservationHandle):
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
         self.existing_obs: MusesObservation | None = None
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
 
     def __getstate__(self) -> dict[str, Any]:
         # If we pickle, don't include the stashed obs
@@ -1036,7 +1034,9 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             **kwargs,
         )
         if res is not None and might_save and self.existing_obs is not None:
-            pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
+            pname = (
+                self.retrieval_config_new["run_dir"] / f"{self.instrument_name}_obs.pkl"
+            )
             pickle.dump(self.existing_obs, open(pname, "wb"))
         return res
 
