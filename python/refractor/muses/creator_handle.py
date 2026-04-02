@@ -174,8 +174,14 @@ class CreatorHandleWithContext(CreatorHandle, MusesStrategyContextMixin):
 
     """
 
-    def __init__(self, add_as_context_observer: bool = False) -> None:
-        super(MusesStrategyContextMixin, self).__init__()
+    def __init__(
+        self,
+        add_as_context_observer: bool = False,
+        strategy_context: MusesStrategyContextProxy
+        | MusesStrategyContext
+        | None = None,
+    ) -> None:
+        MusesStrategyContextMixin.__init__(self, strategy_context)
         self.add_as_context_observer = add_as_context_observer
 
     def notify_add_handle(self, hset: CreatorHandleWithContextSet) -> None:

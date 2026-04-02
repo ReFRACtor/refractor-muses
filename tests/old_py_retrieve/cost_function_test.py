@@ -288,8 +288,7 @@ def test_residual_fm_jac_tropomi(
     strategy_context.update_strategy_context(
         measurement_id=mid, retrieval_config=rconfig
     )
-    creator = CostFunctionCreator()
-    creator.notify_update_strategy_context(strategy_context)
+    creator = CostFunctionCreator(strategy_context)
     cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(

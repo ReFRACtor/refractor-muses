@@ -6,7 +6,6 @@ from .current_state import CurrentState
 from .retrieval_array import RetrievalGridArray
 from .forward_model_combine import ForwardModelCombine
 import refractor.framework as rf  # type: ignore
-from loguru import logger
 import typing
 from typing import Any
 
@@ -15,7 +14,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from refractor.muses_py_fm import RefractorUip
     from .identifier import InstrumentIdentifier
-    from .muses_strategy_context import MusesStrategyContext
+    from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextProxy
 
 
 class CostFunctionHandle(CreatorHandleWithContext):
@@ -26,22 +25,15 @@ class CostFunctionHandle(CreatorHandleWithContext):
     Observation, see that class for a discussion on using this.
     """
 
-    def __init__(self) -> None:
-        super().__init__(add_as_context_observer=True)
-
-    def notify_update_strategy_context(
-        self, strategy_context: MusesStrategyContext
+    def __init__(
+        self,
+        strategy_context: MusesStrategyContextProxy
+        | MusesStrategyContext
+        | None = None,
     ) -> None:
-        # This doesn't normally happen, but we have some unit
-        # tests in old_py_retrieve that don't initialize the
-        # strategy_context. Put handling in here, just to support those
-        # old unit tests. Otherwise, we don't need to do anything special
-        # here
-        if self._strategy_context is None:
-            logger.debug(
-                f"Call to {self.__class__.__name__}::notify_update_strategy_context"
-            )
-            self._strategy_context = strategy_context
+        super().__init__(
+            add_as_context_observer=True, strategy_context=strategy_context
+        )
 
     def forward_model(
         self,
