@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from refractor.muses_py_fm import RefractorUip
     from .identifier import InstrumentIdentifier
-    from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextProxy
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class CostFunctionHandle(CreatorHandleWithContext):
@@ -24,16 +24,6 @@ class CostFunctionHandle(CreatorHandleWithContext):
     This uses CreatorHandleSet for creating the ForwardModel and
     Observation, see that class for a discussion on using this.
     """
-
-    def __init__(
-        self,
-        strategy_context: MusesStrategyContextProxy
-        | MusesStrategyContext
-        | None = None,
-    ) -> None:
-        super().__init__(
-            add_as_context_observer=True, strategy_context=strategy_context
-        )
 
     def forward_model(
         self,
