@@ -288,7 +288,7 @@ def test_residual_fm_jac_tropomi(
     strategy_context.update_strategy_context(
         measurement_id=mid, retrieval_config=rconfig
     )
-    creator = CostFunctionCreator(strategy_context)
+    creator = CostFunctionCreator(strategy_context=strategy_context)
     cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(
@@ -405,8 +405,7 @@ def test_residual_fm_jac_omi(
     strategy_context.update_strategy_context(
         measurement_id=mid, retrieval_config=rconfig
     )
-    creator = CostFunctionCreator()
-    creator.notify_update_strategy_context(strategy_context)
+    creator = CostFunctionCreator(strategy_context=strategy_context)
     cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(
@@ -504,8 +503,6 @@ def test_residual_fm_jac_omi2(
         lrad_second_order=False,
         use_vlidort_temp_dir=False,
     )
-    creator = CostFunctionCreator()
-    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rconf = RetrievalConfiguration.create_from_strategy_file(
         joint_omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
@@ -514,6 +511,8 @@ def test_residual_fm_jac_omi2(
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
     strategy_context.add_observer(creator)
+    creator = CostFunctionCreator(strategy_context=strategy_context)
+    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     cfunc = creator.cost_function_from_uip(
         CreatorDict(),
         rf_uip,
@@ -568,8 +567,7 @@ def test_residual_fm_jac_tropomi2(
     )
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
-    creator = CostFunctionCreator()
-    creator.notify_update_strategy_context(strategy_context)
+    creator = CostFunctionCreator(strategy_context)
     cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(ihandle, priority_order=100)
     cdict[rf.ForwardModel].add_handle(
