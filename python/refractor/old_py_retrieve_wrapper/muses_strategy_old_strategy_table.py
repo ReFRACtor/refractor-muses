@@ -136,7 +136,9 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
                 StateElementIdentifier(s) for s in self._stable.do_not_update_list
             ],
         }
-        cstep = CurrentStrategyStepDict(cstepdict, self.strategy_context, self.spectral_window_handle_set)
+        cstep = CurrentStrategyStepDict(
+            cstepdict, self.strategy_context, self.spectral_window_handle_set
+        )
         cstep.current_strategy_step_dict["spectral_window_dict"] = (
             self.spectral_window_handle_set.spectral_window_dict(
                 cstep, self.filter_list_dict

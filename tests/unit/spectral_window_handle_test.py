@@ -59,8 +59,9 @@ def test_muses_py_spectral_window_handle(
             "max_num_iterations": "15",
             "retrieval_type": RetrievalType("joint"),
         },
+        mid.filter_list_dict,
         strategy_context,
-        swin_handle_set
+        swin_handle_set,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, mid.filter_list_dict
@@ -102,7 +103,7 @@ def test_muses_py_spectral_window_handle_empty_band(
             "retrieval_type": RetrievalType("OMICLOUD_IG_Refine"),
         },
         strategy_context,
-        swin_handle_set
+        swin_handle_set,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, mid.filter_list_dict

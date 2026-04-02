@@ -169,7 +169,9 @@ class CurrentStrategyStepDict(CurrentStrategyStep, MusesStrategyContextMixin):
     def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Return a dictionary that maps instrument name to the MusesSpectralWindow
         to use for that."""
-        return self.current_strategy_step_dict["spectral_window_dict"]
+        return self.spectral_window_handle_set.spectral_window_dict(
+            self, self.filter_list_dict
+        )
 
     @property
     def error_analysis_interferents(self) -> list[StateElementIdentifier]:
@@ -647,8 +649,6 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "retrieval_elements": res._parse_state_elements(
                     row["retrievalElements"]
                 ),
-                # Will fill in CurrentStrategyStepDict
-                "instrument_name": None,
                 "strategy_step": StrategyStepIdentifier(i2, row["stepName"]),
                 "retrieval_step_parameters": {
                     "cost_function_params": cost_function_params,
@@ -852,14 +852,6 @@ class MusesStrategyStepList(MusesStrategyImp):
         self._instrument_name = cast(
             list[InstrumentIdentifier], silist.sorted_identifer()
         )
-
-        # And use to populate the spectral_window_dict
-        for cstep in self.current_strategy_list:
-            cstep.current_strategy_step_dict["spectral_window_dict"] = (
-                self.spectral_window_handle_set.spectral_window_dict(
-                    cstep, self._filter_list_dict
-                )
-            )
 
 
 class MusesStrategyModifyHandle(MusesStrategyHandle):

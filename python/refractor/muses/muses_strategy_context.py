@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Self
 
 if typing.TYPE_CHECKING:
+    from .identifier import InstrumentIdentifier, FilterIdentifier
     from .input_file_helper import InputFileHelper
     from .muses_observation import MeasurementId
     from .muses_strategy import MusesStrategy
@@ -22,6 +23,7 @@ class _ContextData:
     stac_catalog: None | pystac.Catalog = None
     retrieval_config: None | RetrievalConfiguration = None
     strategy: None | MusesStrategy = None
+    filter_list_dict: None | dict[InstrumentIdentifier, list[FilterIdentifier]] = None
     # Marker if notify_update_strategy_context has been called. If it
     # has, we want to immediately call this on new observers that have
     # been added
@@ -207,7 +209,9 @@ class MusesStrategyContext:
                 swin_creator,
                 strategy_table_filename=strategy_table_filename,
             )
-
+        self._context_data.filter_list_dict = (
+            self._context_data.strategy.filter_list_dict
+        )
         self._context_data.has_been_updated = True
         self.notify_update_strategy_context()
 
@@ -226,6 +230,12 @@ class MusesStrategyContext:
     @property
     def strategy(self) -> None | MusesStrategy:
         return self._context_data.strategy
+
+    @property
+    def filter_list_dict(
+        self,
+    ) -> None | dict[InstrumentIdentifier, list[FilterIdentifier]]:
+        return self._context_data.filter_list_dict
 
 
 class MusesStrategyContextMixin:
@@ -282,6 +292,22 @@ class MusesStrategyContextMixin:
         if we can't get the stac_catalog. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
         res = self.strategy_context.stac_catalog
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
+        return res
+
+    @property
+    def has_filter_list_dict(self) -> bool:
+        return self.strategy_context.filter_list_dict is not None
+
+    @property
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
+        """We often want to get the filter_list_dict from the strategy_context,
+        having an error if either the strategy_context or the filter_list_dict
+        is None. This function is a short cut for that, throwing an exception
+        if we can't get the filter_list_dict. If you just want to check if this
+        is available, you can get that from the strategy_context directly."""
+        res = self.strategy_context.filter_list_dict
         if res is None:
             raise RuntimeError("Need to call notify_update_strategy_context first")
         return res

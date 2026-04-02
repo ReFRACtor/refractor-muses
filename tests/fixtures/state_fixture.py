@@ -42,8 +42,10 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
     )
     cdict = CreatorDict(strategy_context)
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, strategy_context,
-        cdict[MusesSpectralWindowDict]
+        tfilename,
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict[MusesSpectralWindowDict],
     )
     strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
@@ -154,7 +156,10 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     )
     cdict = CreatorDict(strategy_context)
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, strategy_context, cdict[MusesSpectralWindowDict]
+        tfilename,
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict[MusesSpectralWindowDict],
     )
     strategy_context.update_strategy_context(
         measurement_id=measurement_id, retrieval_config=rconfig
@@ -209,7 +214,10 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
     )
     cdict = CreatorDict(strategy_context)
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, strategy_context, cdict[MusesSpectralWindowDict]
+        tfilename,
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict[MusesSpectralWindowDict],
     )
     strategy_context.update_strategy_context(
         measurement_id=measurement_id, retrieval_config=rconfig
