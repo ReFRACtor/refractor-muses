@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import typing
-import copy
+from dataclasses import dataclass
 from typing import Any, Self
 
 if typing.TYPE_CHECKING:
@@ -12,6 +12,20 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .creator_dict import CreatorDict
     import pystac
+
+
+@dataclass
+class _ContextData:
+    """One level of indirection, to support merge"""
+
+    measurement_id: None | MeasurementId = None
+    stac_catalog: None | pystac.Catalog = None
+    retrieval_config: None | RetrievalConfiguration = None
+    strategy: None | MusesStrategy = None
+    # Marker if notify_update_strategy_context has been called. If it
+    # has, we want to immediately call this on new observers that have
+    # been added
+    has_been_updated = False
 
 
 class MusesStrategyContext:
@@ -58,17 +72,30 @@ class MusesStrategyContext:
         create_from_table_filename. This is just a short cut, because we do this
         a lot.
         """
-        self._measurement_id: None | MeasurementId = None
-        self._stac_catalog: None | pystac.Catalog = None
-        self._retrieval_config: None | RetrievalConfiguration = None
-        self._strategy: None | MusesStrategy = None
+        # We have one level of indirection here to support the merge function below
+        self._context_data = _ContextData()
         self._observers: set[Any] = set()
-        # Marker if notify_update_strategy_context has been called. If it
-        # has, we want to immediately call this on new observers that have
-        # been added
-        self._has_been_updated = False
         if strategy_table_filename is not None:
             self.create_from_table_filename(strategy_table_filename)
+
+    def merge(self, other: MusesStrategyContext) -> Self:
+        """Replace our context data with other._context_data so the are both
+        pointing at the same data. Merge the observer lists."""
+        # We may already point to the same data, in which case this is a noop
+        if id(self._context_data) == id(other._context_data):
+            return self
+        self._context_data = other._context_data
+        # Notify observers of this current object of an update to the data.
+        # We don't notify the observers of other since from their viewpoint
+        # nothing has changed.
+        if self._context_data.has_been_updated:
+            self.notify_update_strategy_context()
+        new_observers = self._observers | other._observers
+        self._observers = new_observers
+        # Rare time where updating a passed in argument is actually correct,
+        # so although this looks funny it is actually intended.
+        other._observers = new_observers
+        return self
 
     def create_from_table_filename(
         self,
@@ -112,7 +139,7 @@ class MusesStrategyContext:
         # needed for the first time the context is available. Otherwise, this
         # will get called in self.notify_update_strategy_context when that
         # happens later.
-        if self._has_been_updated:
+        if self._context_data.has_been_updated:
             obs.notify_update_strategy_context(self)
 
     def remove_observer(self, obs: Any) -> None:
@@ -143,10 +170,10 @@ class MusesStrategyContext:
         strategy_table_filename: str | os.PathLike[str] | None = None,
         creator_dict: CreatorDict | None = None,
     ) -> None:
-        self._measurement_id = measurement_id
-        self._stac_catalog = stac_catalog
-        self._retrieval_config = retrieval_config
-        self._strategy = strategy
+        self._context_data.measurement_id = measurement_id
+        self._context_data.stac_catalog = stac_catalog
+        self._context_data.retrieval_config = retrieval_config
+        self._context_data.strategy = strategy
         # Most of the time, the strategy isn't passed in. Instead, we create
         # this once we have the measurement_id/stac_catalog/retrieval_config.
         # A bit of a chicken an egg here, we need to use the spectral window
@@ -155,7 +182,7 @@ class MusesStrategyContext:
         # and notify these first. This is a bit clumsy, but I'm not sure how
         # to avoid this. We have this buried in the function, so hopefully this
         # won't cause any problems.
-        if self._strategy is None:
+        if self._context_data.strategy is None:
             from .muses_strategy import MusesStrategyHandle, MusesStrategy
             from .spectral_window_handle import (
                 MusesSpectralWindowDict,
@@ -172,81 +199,29 @@ class MusesStrategyContext:
                     obs, SpectralWindowHandle
                 ):
                     obs.notify_update_strategy_context(self)  # type: ignore
-            self._strategy = strategy_creator.muses_strategy(
+            self._context_data.strategy = strategy_creator.muses_strategy(
                 swin_creator,
                 strategy_table_filename=strategy_table_filename,
             )
 
-        self._has_been_updated = True
+        self._context_data.has_been_updated = True
         self.notify_update_strategy_context()
 
     @property
     def measurement_id(self) -> None | MeasurementId:
-        return self._measurement_id
+        return self._context_data.measurement_id
 
     @property
     def stac_catalog(self) -> None | pystac.Catalog:
-        return self._stac_catalog
+        return self._context_data.stac_catalog
 
     @property
     def retrieval_config(self) -> None | RetrievalConfiguration:
-        return self._retrieval_config
+        return self._context_data.retrieval_config
 
     @property
     def strategy(self) -> None | MusesStrategy:
-        return self._strategy
-
-
-class MusesStrategyContextProxy:
-    """It is useful to be able to update the MusesStrategyContext being used in
-    things like CreatorHandleWithContextSet, so we can start setting thing up
-    before we have the final MusesStrategyContext. So we introduce a simple proxy
-    class to allow the underlying context to be updated.
-
-    This supports deferred adding of observer."""
-
-    def __init__(
-        self,
-        strategy_context: MusesStrategyContext | None = None,
-    ) -> None:
-        self._strategy_context = strategy_context
-        self._defer_observers: set[Any] = set()
-
-    def reset_context(self, strategy_context: MusesStrategyContext) -> None:
-        self._strategy_context = strategy_context
-        for obj in self._defer_observers:
-            self._strategy_context.add_observer(obj)
-        self._defer_observers = set()
-
-    def add_observer(self, obs: Any) -> None:
-        if self._strategy_context is not None:
-            self._strategy_context.add_observer(obs)
-        else:
-            self._defer_observers.add(obs)
-
-    def __getstate__(self) -> dict[str, Any]:
-        return {
-            "_strategy_context": self._strategy_context,
-            "_defer_observers": self._defer_observers,
-        }
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        self._strategy_context = state["_strategy_context"]
-        self._defer_observers = state["_defer_observers"]
-
-    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
-        cls = self.__class__
-        new_obj = cls.__new__(cls)
-        memo[id(self)] = new_obj
-        new_obj._strategy_context = copy.deepcopy(self._strategy_context, memo)  # noqa: SLF001
-        new_obj._defer_observers = copy.deepcopy(self._defer_observers, memo)  # noqa: SLF001
-        return new_obj
-
-    def __getattr__(self, name: str) -> Any:
-        if self._strategy_context is not None:
-            if hasattr(self._strategy_context, name):
-                return getattr(self._strategy_context, name)
-        raise AttributeError(f"No attribute {name}")
+        return self._context_data.strategy
 
 
 class MusesStrategyContextMixin:
@@ -254,20 +229,15 @@ class MusesStrategyContextMixin:
 
     def __init__(
         self,
-        strategy_context: MusesStrategyContextProxy
-        | MusesStrategyContext
-        | None = None,
+        strategy_context: MusesStrategyContext | None = None,
     ) -> None:
-        self._strategy_context = strategy_context
+        self.strategy_context = (
+            strategy_context if strategy_context is not None else MusesStrategyContext()
+        )
 
     @property
     def has_measurement_id(self) -> bool:
-        if (
-            not self.has_strategy_context
-            or self.strategy_context.measurement_id is None
-        ):
-            return False
-        return True
+        return self.strategy_context.measurement_id is not None
 
     @property
     def measurement_id(self) -> MeasurementId:
@@ -276,20 +246,14 @@ class MusesStrategyContextMixin:
         is None. This function is a short cut for that, throwing an exception
         if we can't get the measurement_id. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
-        if not self.has_measurement_id:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
         res = self.strategy_context.measurement_id
-        assert res is not None
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         return res
 
     @property
     def has_retrieval_config(self) -> bool:
-        if (
-            not self.has_strategy_context
-            or self.strategy_context.retrieval_config is None
-        ):
-            return False
-        return True
+        return self.strategy_context.retrieval_config is not None
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
@@ -298,17 +262,14 @@ class MusesStrategyContextMixin:
         is None. This function is a short cut for that, throwing an exception
         if we can't get the retrieval_config. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
-        if not self.has_retrieval_config:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
         res = self.strategy_context.retrieval_config
-        assert res is not None
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         return res
 
     @property
     def has_stac_catalog(self) -> bool:
-        if not self.has_strategy_context or self.strategy_context.stac_catalog is None:
-            return False
-        return True
+        return self.strategy_context.stac_catalog is not None
 
     def stac_catalog(self) -> pystac.Catalog:
         """We often want to get the stac_catalog from the strategy_context,
@@ -316,39 +277,24 @@ class MusesStrategyContextMixin:
         is None. This function is a short cut for that, throwing an exception
         if we can't get the stac_catalog. If you just want to check if this
         is available, you can get that from the strategy_context directly."""
-        if not self.has_stac_catalog:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
         res = self.strategy_context.stac_catalog
-        assert res is not None
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         return res
 
     @property
-    def has_strategy_context(self) -> bool:
-        return self._strategy_context is not None
-
-    @property
-    def strategy_context(self) -> MusesStrategyContext | MusesStrategyContextProxy:
-        if self._strategy_context is None:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
-        return self._strategy_context
-
-    @property
     def has_strategy(self) -> bool:
-        if not self.has_strategy_context or self.strategy_context.strategy is None:
-            return False
-        return True
+        return self.strategy_context.strategy is not None
 
     @property
     def strategy(self) -> MusesStrategy:
-        if not self.has_strategy:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
         res = self.strategy_context.strategy
-        assert res is not None
+        if res is None:
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         return res
 
 
 __all__ = [
     "MusesStrategyContext",
-    "MusesStrategyContextProxy",
     "MusesStrategyContextMixin",
 ]

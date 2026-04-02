@@ -510,7 +510,6 @@ def test_residual_fm_jac_omi2(
     mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
-    strategy_context.add_observer(creator)
     creator = CostFunctionCreator(strategy_context=strategy_context)
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     cfunc = creator.cost_function_from_uip(

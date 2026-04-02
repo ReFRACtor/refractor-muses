@@ -3,7 +3,6 @@ from .priority_handle_set import PriorityHandleSet
 from .muses_strategy_context import (
     MusesStrategyContext,
     MusesStrategyContextMixin,
-    MusesStrategyContextProxy,
 )
 import copy
 from typing import Any, Self
@@ -98,7 +97,9 @@ class CreatorHandleWithContextSet(CreatorHandleSet):
         """Constructor, takes the name of the creator function (e.g.,
         "observation")."""
         super().__init__(creator_func_name)
-        self.strategy_context = MusesStrategyContextProxy(strategy_context)
+        self.strategy_context = (
+            strategy_context if strategy_context is not None else MusesStrategyContext()
+        )
 
     @classmethod
     def default_handle_set_with_context(
@@ -107,11 +108,11 @@ class CreatorHandleWithContextSet(CreatorHandleSet):
         """Like default_handle_set, but also set of the strategy_context. This is
         a copy, so it can be modified without changing default_handle_set"""
         res = copy.deepcopy(cls.default_handle_set())
-        res.strategy_context.reset_context(strategy_context)
+        res.strategy_context.merge(strategy_context)
         return res
 
     def notify_add_creator_dict(self, cdict: CreatorDict) -> None:
-        self.strategy_context.reset_context(cdict.strategy_context)
+        self.strategy_context.merge(cdict.strategy_context)
 
 
 class CreatorHandle:
@@ -177,20 +178,18 @@ class CreatorHandleWithContext(CreatorHandle, MusesStrategyContextMixin):
     def __init__(
         self,
         add_as_context_observer: bool = False,
-        strategy_context: MusesStrategyContextProxy
-        | MusesStrategyContext
-        | None = None,
+        strategy_context: MusesStrategyContext | None = None,
     ) -> None:
         MusesStrategyContextMixin.__init__(self, strategy_context)
         self.add_as_context_observer = add_as_context_observer
 
     def notify_add_handle(self, hset: CreatorHandleWithContextSet) -> None:
-        self._strategy_context = hset.strategy_context
+        self.strategy_context = hset.strategy_context
         # Because it is a common case, we just handle adding this as
         # an observer if the derived class requested this.
         # Note that the class should add a notify_update_strategy_context
         # if it is an observer.
-        if self.has_strategy_context and self.add_as_context_observer:
+        if self.add_as_context_observer:
             self.strategy_context.add_observer(self)
 
 

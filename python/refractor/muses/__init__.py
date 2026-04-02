@@ -28,6 +28,8 @@ from .creator_dict import (
 from .creator_handle import (
     CreatorHandle,
     CreatorHandleSet,
+    CreatorHandleWithContext,
+    CreatorHandleWithContextSet,
 )
 from .cross_state_element import (
     CrossStateElement,
@@ -194,7 +196,7 @@ from .muses_strategy import (
 )
 from .muses_strategy_context import (
     MusesStrategyContext,
-    MusesStrategyContextProxy,
+    MusesStrategyContextMixin,
 )
 from .muses_strategy_executor import (
     MusesStrategyExecutor,
@@ -396,6 +398,8 @@ __all__ = [
     "CreatorDict",
     "CreatorHandle",
     "CreatorHandleSet",
+    "CreatorHandleWithContext",
+    "CreatorHandleWithContextSet",
     "CrisFmObjectCreator",
     "CrisForwardModelHandle",
     "CrossStateElement",
@@ -464,7 +468,7 @@ __all__ = [
     "MusesSpectrumSampling",
     "MusesStrategy",
     "MusesStrategyContext",
-    "MusesStrategyContextProxy",
+    "MusesStrategyContextMixin",
     "MusesStrategyExecutor",
     "MusesStrategyExecutorMusesStrategy",
     "MusesStrategyExecutorRetrievalStrategyStep",
