@@ -306,14 +306,14 @@ class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
-        """Return MusesStrategy if we can process the given
-        measurement_id, or None if we can't.
+        """Return MusesStrategy if we can process the given context,
+        or None if we can't.
         """
         raise NotImplementedError()
 
 
 class MusesStrategyHandleSet(CreatorHandleWithContextSet):
-    """This takes the MeasurementId and creates a MusesStrategy for
+    """This takes the MusesStrategyContext and creates a MusesStrategy for
     processing it."""
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
@@ -324,14 +324,14 @@ class MusesStrategyHandleSet(CreatorHandleWithContextSet):
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy:
-        """Create a MusesStrategy for the given measurement_id."""
+        """Create a MusesStrategy for the given strategy_context."""
         return self.handle(self.strategy_context, spectral_window_handle_set, **kwargs)
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
     """A MusesStrategy is a list of steps to be executed by a
     MusesStrategyExecutor.  Each step is represented by a
-    StrategyStep, which give the list of retrieval elements, spectral
+    CurrentStrategyStep, which give the list of retrieval elements, spectral
     windows, etc.
 
     The canonical MusesStrategy is to read a Table.asc file (e.g.,
@@ -360,7 +360,14 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
-        all retrieval steps)
+        all retrieval steps). This is needed by
+        MusesObservation. Perhaps we can remove this, it would be
+        reasonable to just read filters on first use in the
+        MusesObservation.  But for now, this is needed.
+
+        Note there is a assumption in py-retrieve that the
+        list[FilterIdentifier] is sorted by the starting wavelength
+        for each of filters, so we do that here.
 
         Note that because we want to allow a strategy to be dynamic,
         we don't really know in general what this list will be. Right
@@ -369,9 +376,6 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         be a super set - so if we have a item listed here that isn't
         actually used that is ok.
 
-        Note there is a assumption in muses-py that the
-        list[FilterIdentifier] is sorted by the starting wavelength
-        for each of filters, so we do that here.
         """
         # TODO Can this go away?
         raise NotImplementedError()
@@ -420,7 +424,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         be a super set - so if we have a item listed here that isn't
         actually used that is ok.
 
-        There is an assumption in the muses-py code that the instruments
+        There is an assumption in the py-retrieve code that the instruments
         are sorted by whatever the smallest wavelength in the SpectralWindow
         for that instrument is, so this list is sorted by that logic.
         """
@@ -474,7 +478,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         important now where a lot of stuff is retrieved at the same
         time.
 
-        But muses-py cycled through all the strategy table, which had
+        But py-retrieve cycled through all the strategy table, which had
         the side effect of calling get_initial_guess() and taking
         values to and from the retrieval grid (so
         FullGridMappedArrayFromRetGrid). This function tries to
@@ -493,7 +497,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
         """
         # Don't check against the old state element values while doing this, the
-        # whole point is to update stuff to match what muses-py did
+        # whole point is to update stuff to match what py-retrieve did
         original_value = CurrentState.check_old_state_element_value
         try:
             CurrentState.check_old_state_element_value = False
@@ -535,7 +539,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 self.next_step(None)
             self.set_step(cstepnum, None)
             # Note, rightly or wrongly we don't always update constraint_vector.
-            # This is to match what muses-py does
+            # This is to match what py-retrieve does
             # TODO Determine if this is the correct behavior
             selem.update_state_element(
                 retrieval_initial_fm=selem.value_fm.copy(),
@@ -551,6 +555,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 selem.notify_done_retrieval_initial_fm_from_cycle()
         finally:
             CurrentState.check_old_state_element_value = original_value
+
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
+    ) -> None:
+        pass
 
 
 class MusesStrategyImp(MusesStrategy):
@@ -573,9 +582,6 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         strategy_table_filename: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
-        """Return MusesStrategy if we can process the given
-        measurement_id, or None if we can't.
-        """
         res = MusesStrategyStepList.create_from_strategy_file(
             strategy_table_filename
             if strategy_table_filename is not None
@@ -614,8 +620,9 @@ class MusesStrategyStepList(MusesStrategyImp):
 
         """
         super().__init__(spectral_window_handle_set)
-        self._filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] = {}
-        self._instrument_name: list[InstrumentIdentifier] = []
+        self._filter_list_dict: (
+            dict[InstrumentIdentifier, list[FilterIdentifier]] | None
+        ) = None
         self.current_strategy_list: list[CurrentStrategyStepDict] = []
         self._cur_step_index = 0
         self._cur_step_count = 0
@@ -657,8 +664,6 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "error_analysis_interferents": res._parse_state_elements(
                     row["errorAnalysisInterferents"]
                 ),
-                # Will fill in notify_update_strategy_context
-                "spectral_window_dict": None,
                 # List of elements that we include in this step, but then
                 # set back to their original value for the next step
                 "retrieval_elements_not_updated": res._parse_state_elements(
@@ -671,7 +676,7 @@ class MusesStrategyStepList(MusesStrategyImp):
             cstep = CurrentStrategyStepDict(
                 cstepdict, strategy_context, spectral_window_handle_set
             )
-            # The muses-py strategy table just "knows" that certain
+            # The py-retrieve strategy table just "knows" that certain
             # retrieval types also update the apriori value. We duplicate this
             # behavior, although it would be nice to have a cleaner way of doing this
             # (e.g., maybe just have a update_constraint_elements column in the table?)
@@ -689,12 +694,42 @@ class MusesStrategyStepList(MusesStrategyImp):
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
-        all retrieval steps)
+        all retrieval steps). This is needed by
+        MusesObservation. Perhaps we can remove this, it would be
+        reasonable to just read filters on first use in the
+        MusesObservation.  But for now, this is needed.
 
-        Note there is a assumption in muses-py that the
+        Note there is a assumption in py-retrieve that the
         list[FilterIdentifier] is sorted by the starting wavelength
         for each of filters, so we do that here.
+
+        Note that because we want to allow a strategy to be dynamic,
+        we don't really know in general what this list will be. Right
+        now, this is needed by other code - perhaps we can remove this
+        dependency. But for now this is required. I believe this can
+        be a super set - so if we have a item listed here that isn't
+        actually used that is ok.
         """
+        if self._filter_list_dict is None:
+            filter_list_dict_t: dict[
+                InstrumentIdentifier, dict[FilterIdentifier, float]
+            ] = defaultdict(dict)
+            for cstep in self.current_strategy_list:
+                sdict = self.spectral_window_handle_set.spectral_window_dict(
+                    cstep, None
+                )
+                for k, v in sdict.items():
+                    for fid, swav in v.filter_name_list():
+                        filter_list_dict_t[k][fid] = swav
+
+            self._filter_list_dict = {}
+            for k2, v2 in filter_list_dict_t.items():
+                sflist = IdentifierSortByWaveLength()
+                for fid, swav in v2.items():
+                    sflist.add(fid, swav)
+                self._filter_list_dict[k2] = cast(
+                    list[FilterIdentifier], sflist.sorted_identifer()
+                )
         return self._filter_list_dict
 
     def _next_step_peek(self) -> CurrentStrategyStepDict | None:
@@ -743,7 +778,10 @@ class MusesStrategyStepList(MusesStrategyImp):
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """Complete list of instrument names (so for all retrieval
         steps)"""
-        return InstrumentIdentifier.sort_identifier(list(self.filter_list_dict.keys()))
+        res: set[InstrumentIdentifier] = set()
+        for cstep in self.current_strategy_list:
+            res.update(cstep.instrument_name)
+        return InstrumentIdentifier.sort_identifier(list(res))
 
     def restart(self) -> None:
         """Set step to the first one."""
@@ -824,39 +862,25 @@ class MusesStrategyStepList(MusesStrategyImp):
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
-        # We determine the full list of filters we encounter. This is needed
-        # by MusesObservation. Perhaps we can remove this, it would be
-        # reasonable to just read filters on first use in the MusesObservation.
-        # But for now, this is needed.
-        filter_list_dict_t: dict[
-            InstrumentIdentifier, dict[FilterIdentifier, float]
-        ] = defaultdict(dict)
+        # Mark all the steps as available again. This gets modified as the
+        # actual retrieval takes place
         for cstep in self.current_strategy_list:
             cstep.is_skipped = False
-            sdict = self.spectral_window_handle_set.spectral_window_dict(cstep, None)
-            for k, v in sdict.items():
-                for fid, swav in v.filter_name_list():
-                    filter_list_dict_t[k][fid] = swav
-
-        # Calculate filter_list_dict,
-        self._filter_list_dict.clear()
-        for k2, v2 in filter_list_dict_t.items():
-            sflist = IdentifierSortByWaveLength()
-            for fid, swav in v2.items():
-                sflist.add(fid, swav)
-            self._filter_list_dict[k2] = cast(
-                list[FilterIdentifier], sflist.sorted_identifer()
-            )
+        # The filter_list_dict need to be regenerated, so mark as not available
+        # yet
+        self._filter_list_dict = None
 
 
 class MusesStrategyModifyHandle(MusesStrategyHandle):
-    """This is a handle useful for a quick test. We read in an existing Table.asc,
-    but then modify the given step_number to have the given retrieval_elements and
-    optionally change the max_iter.
+    """This is a handle useful for a quick test. We read in an
+    existing Table.asc, but then modify the given step_number to have
+    the given retrieval_elements and optionally change the max_iter.
 
-    This is limited of course, but handles the bulk of what we have run into in our
-    pytests. You can do a similar more complicated handle if useful, or even derive from
-    MusesStrategyStepList for more complicated stuff."""
+    This is limited of course, but handles the bulk of what we have
+    run into in our pytests. You can do a similar more complicated
+    handle if useful, or even derive from MusesStrategyStepList for
+    more complicated stuff.
+    """
 
     def __init__(
         self,
@@ -875,9 +899,6 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
-        """Return MusesStrategy if we can process the given
-        measurement_id, or None if we can't.
-        """
         s = MusesStrategyStepList.create_from_strategy_file(
             self.retrieval_config["run_dir"] / "Table.asc",
             self.retrieval_config.input_file_helper,

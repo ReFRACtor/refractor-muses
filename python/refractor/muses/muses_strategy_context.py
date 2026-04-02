@@ -171,7 +171,8 @@ class MusesStrategyContext:
         strategy: None | MusesStrategy = None,
         strategy_table_filename: str | os.PathLike[str] | None = None,
         creator_dict: CreatorDict | None = None,
-        filter_list_dict: None | dict[InstrumentIdentifier, list[FilterIdentifier]] = None,
+        filter_list_dict: None
+        | dict[InstrumentIdentifier, list[FilterIdentifier]] = None,
     ) -> None:
         self._context_data.measurement_id = measurement_id
         self._context_data.stac_catalog = stac_catalog
@@ -214,7 +215,9 @@ class MusesStrategyContext:
             self._context_data.filter_list_dict = filter_list_dict
         else:
             self._context_data.strategy.notify_update_strategy_context(self)
-            self._context_data.filter_list_dict = self._context_data.strategy.filter_list_dict
+            self._context_data.filter_list_dict = (
+                self._context_data.strategy.filter_list_dict
+            )
         self._context_data.has_been_updated = True
         self.notify_update_strategy_context()
 
