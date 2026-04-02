@@ -32,7 +32,7 @@ def test_muses_py_spectral_window_handle(
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig
+        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context
@@ -59,12 +59,11 @@ def test_muses_py_spectral_window_handle(
             "max_num_iterations": "15",
             "retrieval_type": RetrievalType("joint"),
         },
-        mid.filter_list_dict,
         strategy_context,
         swin_handle_set,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
-        current_strategy_step, mid.filter_list_dict
+        current_strategy_step, strategy_context.filter_list_dict
     )
     print(swin_dict)
 
@@ -89,7 +88,7 @@ def test_muses_py_spectral_window_handle_empty_band(
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     strategy_context = MusesStrategyContext()
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig
+        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context
@@ -106,6 +105,6 @@ def test_muses_py_spectral_window_handle_empty_band(
         swin_handle_set,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
-        current_strategy_step, mid.filter_list_dict
+        current_strategy_step, strategy_context.filter_list_dict
     )
     print(swin_dict)

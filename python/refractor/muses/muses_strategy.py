@@ -743,7 +743,7 @@ class MusesStrategyStepList(MusesStrategyImp):
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """Complete list of instrument names (so for all retrieval
         steps)"""
-        return InstrumentIdentifier.sort_identifier(self._instrument_name)
+        return InstrumentIdentifier.sort_identifier(list(self.filter_list_dict.keys()))
 
     def restart(self) -> None:
         """Set step to the first one."""
@@ -839,8 +839,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                     filter_list_dict_t[k][fid] = swav
 
         # Calculate filter_list_dict,
-        self._filter_list_dict = {}
-        silist = IdentifierSortByWaveLength()
+        self._filter_list_dict.clear()
         for k2, v2 in filter_list_dict_t.items():
             sflist = IdentifierSortByWaveLength()
             for fid, swav in v2.items():
@@ -848,10 +847,6 @@ class MusesStrategyStepList(MusesStrategyImp):
             self._filter_list_dict[k2] = cast(
                 list[FilterIdentifier], sflist.sorted_identifer()
             )
-            silist.add(k2, min(v2.values()))
-        self._instrument_name = cast(
-            list[InstrumentIdentifier], silist.sorted_identifer()
-        )
 
 
 class MusesStrategyModifyHandle(MusesStrategyHandle):
