@@ -181,7 +181,7 @@ class MusesStrategyContext:
         # notify_update_strategy_context having been called. So we go through
         # and notify these first. This is a bit clumsy, but I'm not sure how
         # to avoid this. We have this buried in the function, so hopefully this
-        # won't cause any problems.
+        # hidden order dependency won't cause any problems.
         if self._context_data.strategy is None:
             from .muses_strategy import MusesStrategyHandle, MusesStrategy
             from .spectral_window_handle import (
@@ -194,10 +194,14 @@ class MusesStrategyContext:
             strategy_creator = cdict[MusesStrategy]
             swin_creator = cdict[MusesSpectralWindowDict]
             lobs = list(self._observers)
+            # Do spectral window first, since MusesStrategy depends on this
             for obs in lobs:
-                if isinstance(obs, MusesStrategyHandle) or isinstance(
-                    obs, SpectralWindowHandle
-                ):
+                if isinstance(obs, SpectralWindowHandle):
+                    obs.notify_update_strategy_context(self)  # type: ignore
+            # Then MusesStrategyHandle since we want to call the creator in the
+            # next step
+            for obs in lobs:
+                if isinstance(obs, MusesStrategyHandle):
                     obs.notify_update_strategy_context(self)  # type: ignore
             self._context_data.strategy = strategy_creator.muses_strategy(
                 swin_creator,

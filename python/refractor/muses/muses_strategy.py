@@ -13,10 +13,11 @@ from .identifier import (
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
 from .retrieval_array import RetrievalGridArray, FullGridMappedArray
+from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
+import copy
 import os
 import abc
 import typing
-import itertools
 from collections import defaultdict
 from typing import Any, cast
 
@@ -27,7 +28,6 @@ if typing.TYPE_CHECKING:
     from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
     from .input_file_helper import InputFileHelper, InputFilePath
-    from .muses_strategy_executor import MusesStrategyContext
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -101,21 +101,36 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class CurrentStrategyStepDict(CurrentStrategyStep):
+class CurrentStrategyStepDict(CurrentStrategyStep, MusesStrategyContextMixin):
     """Implementation of CurrentStrategyStep that uses a dict"""
 
     def __init__(
         self,
         current_strategy_step_dict: dict,
-        strategy_context: MusesStrategyContext | None,
+        strategy_context: MusesStrategyContext,
+        spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> None:
+        MusesStrategyContextMixin.__init__(self, strategy_context)
+        self.spectral_window_handle_set = spectral_window_handle_set
         self.current_strategy_step_dict = current_strategy_step_dict
-        self.strategy_context = strategy_context
         self.is_skipped = False
 
     @property
     def retrieval_step_parameters(self) -> dict:
-        return self.current_strategy_step_dict["retrieval_step_parameters"]
+        # Fill in some of the data that comes in retrieval config
+        res = copy.deepcopy(
+            self.current_strategy_step_dict["retrieval_step_parameters"]
+        )
+        if self.has_retrieval_config:
+            p = res["cost_function_params"]
+            p["delta_value"] = int(self.retrieval_config["LMDelta"].split()[0])
+            if p["conv_tolerance"] is None:
+                p["conv_tolerance"] = [
+                    float(self.retrieval_config["ConvTolerance_CostThresh"]),
+                    float(self.retrieval_config["ConvTolerance_pThresh"]),
+                    float(self.retrieval_config["ConvTolerance_JacThresh"]),
+                ]
+        return res
 
     @property
     def retrieval_elements(self) -> list[StateElementIdentifier]:
@@ -142,9 +157,8 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     @property
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
-        return InstrumentIdentifier.sort_identifier(
-            self.current_strategy_step_dict["instrument_name"]
-        )
+        sdict = self.spectral_window_handle_set.spectral_window_dict(self, None)
+        return InstrumentIdentifier.sort_identifier(list(sdict.keys()))
 
     @property
     def retrieval_type(self) -> RetrievalType:
@@ -178,15 +192,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """This is very specific, but there is some complicated code used to generate the
         microwindows file name. This is used to create the MusesSpectralWindow (by
         one of the handlers). Also the QA data file name depends on this."""
-        if self.strategy_context is None:
-            raise RuntimeError(
-                "Call notify_update_strategy_context before this function"
-            )
-        mid = self.strategy_context.measurement_id
-        if mid is None:
-            raise RuntimeError(
-                "Call notify_update_strategy_context before this function"
-            )
+        mid = self.measurement_id
         return MusesSpectralWindow.muses_microwindows_fname(
             mid["viewingMode"],
             mid["spectralWindowDirectory"],
@@ -294,6 +300,7 @@ class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def muses_strategy(
         self,
+        strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -316,7 +323,7 @@ class MusesStrategyHandleSet(CreatorHandleWithContextSet):
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
-        return self.handle(spectral_window_handle_set, **kwargs)
+        return self.handle(self.strategy_context, spectral_window_handle_set, **kwargs)
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
@@ -559,6 +566,7 @@ class MusesStrategyImp(MusesStrategy):
 class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
+        strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
         strategy_table_filename: str | os.PathLike[str] | None = None,
         **kwargs: Any,
@@ -571,6 +579,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
             if strategy_table_filename is not None
             else self.retrieval_config["run_dir"] / "Table.asc",
             self.retrieval_config.input_file_helper,
+            strategy_context,
             spectral_window_handle_set,
         )
         self.strategy_context.add_observer(res)
@@ -582,6 +591,7 @@ class MusesStrategyStepList(MusesStrategyImp):
 
     def __init__(
         self,
+        strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> None:
         """This uses a list of CurrentStrategyStep,
@@ -607,24 +617,26 @@ class MusesStrategyStepList(MusesStrategyImp):
         self.current_strategy_list: list[CurrentStrategyStepDict] = []
         self._cur_step_index = 0
         self._cur_step_count = 0
+        self.strategy_context = strategy_context
 
     @classmethod
     def create_from_strategy_file(
         cls,
         filename: str | os.PathLike[str],
         ifile_hlp: InputFileHelper,
+        strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
-        res = cls(spectral_window_handle_set)
+        res = cls(strategy_context, spectral_window_handle_set)
         fin = ifile_hlp.open_tes(filename)
         i2 = -1
         for i, row in fin.checked_table.iterrows():
             i2 += 1
             cost_function_params: dict[str, Any] = {
                 "max_iter": int(row["maxNumIterations"]),
-                "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
-                # Will fill in notify_update_strategy_context
+                "chi2_tolerance": None,
+                # Will fill in from strategy in CurrentStrategyStepDict
                 "delta_value": None,
                 "conv_tolerance": None,
             }
@@ -635,7 +647,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "retrieval_elements": res._parse_state_elements(
                     row["retrievalElements"]
                 ),
-                # Will fill in notify_update_strategy_context
+                # Will fill in CurrentStrategyStepDict
                 "instrument_name": None,
                 "strategy_step": StrategyStepIdentifier(i2, row["stepName"]),
                 "retrieval_step_parameters": {
@@ -656,8 +668,9 @@ class MusesStrategyStepList(MusesStrategyImp):
                 # we retrieve
                 "update_constraint_elements": [],
             }
-            # Will fill in strategy_context in notify_update_strategy_context
-            cstep = CurrentStrategyStepDict(cstepdict, None)
+            cstep = CurrentStrategyStepDict(
+                cstepdict, strategy_context, spectral_window_handle_set
+            )
             # The muses-py strategy table just "knows" that certain
             # retrieval types also update the apriori value. We duplicate this
             # behavior, although it would be nice to have a cleaner way of doing this
@@ -818,28 +831,9 @@ class MusesStrategyStepList(MusesStrategyImp):
         filter_list_dict_t: dict[
             InstrumentIdentifier, dict[FilterIdentifier, float]
         ] = defaultdict(dict)
-        # Fill in measurement specific stuff
-        # This might be updated after this class, so go ahead and force this
-        # to update now
-        for t in itertools.chain(*self.spectral_window_handle_set.handle_set.values()):
-            t.notify_update_strategy_context(strategy_context)
         for cstep in self.current_strategy_list:
-            cstep.strategy_context = strategy_context
             cstep.is_skipped = False
-            p = cstep.retrieval_step_parameters["cost_function_params"]
-            # Not all retrievals have cost function parameters, so only
-            # update if we have these
-            rconfig = strategy_context.retrieval_config
-            if rconfig is not None and "LMDelta" in rconfig:
-                p["delta_value"] = int(rconfig["LMDelta"].split()[0])
-                if p["conv_tolerance"] is None:
-                    p["conv_tolerance"] = [
-                        float(rconfig["ConvTolerance_CostThresh"]),
-                        float(rconfig["ConvTolerance_pThresh"]),
-                        float(rconfig["ConvTolerance_JacThresh"]),
-                    ]
             sdict = self.spectral_window_handle_set.spectral_window_dict(cstep, None)
-            cstep.current_strategy_step_dict["instrument_name"] = list(sdict.keys())
             for k, v in sdict.items():
                 for fid, swav in v.filter_name_list():
                     filter_list_dict_t[k][fid] = swav
@@ -890,6 +884,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
 
     def muses_strategy(
         self,
+        strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -899,6 +894,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         s = MusesStrategyStepList.create_from_strategy_file(
             self.retrieval_config["run_dir"] / "Table.asc",
             self.retrieval_config.input_file_helper,
+            strategy_context,
             spectral_window_handle_set,
         )
         s.current_strategy_list[
