@@ -282,14 +282,18 @@ def test_residual_fm_jac_tropomi(
         rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     mid = MeasurementIdFile(
-        rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
+        rf_uip.run_dir / "Measurement_ID.asc",
+        rconfig,
     )
-    strategy_context = MusesStrategyContext()
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig
+        measurement_id=mid,
+        retrieval_config=rconfig,
+        filter_list_dict={"TROPOMI": ["BAND3"]},
+        creator_dict=cdict,
     )
     creator = CostFunctionCreator(strategy_context=strategy_context)
-    cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(
             InstrumentIdentifier("TROPOMI"),
@@ -398,15 +402,18 @@ def test_residual_fm_jac_omi(
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         rf_uip.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
-    mid = MeasurementIdFile(
-        rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
-    )
-    strategy_context = MusesStrategyContext()
+    mid = MeasurementIdFile(rf_uip.run_dir / "Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig
+        measurement_id=mid,
+        retrieval_config=rconfig,
+        filter_list_dict={
+            "TROPOMI": ["BAND3"],
+        },
+        creator_dict=cdict,
     )
     creator = CostFunctionCreator(strategy_context=strategy_context)
-    cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(
             InstrumentIdentifier("TROPOMI"),
@@ -507,13 +514,17 @@ def test_residual_fm_jac_omi2(
         joint_omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
     flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
-    strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
+    mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconf, filter_list_dict=flist,
+        creator_dict=cdict
+    )
     creator = CostFunctionCreator(strategy_context=strategy_context)
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     cfunc = creator.cost_function_from_uip(
-        CreatorDict(),
+        cdict,
         rf_uip,
         joint_omi_obs_step_8,
         rrefractor.params["ret_info"],
@@ -562,12 +573,16 @@ def test_residual_fm_jac_tropomi2(
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(
-        joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
+        joint_tropomi_test_in_dir / "Measurement_ID.asc",
+        rconf,
     )
-    strategy_context = MusesStrategyContext()
-    strategy_context.update_strategy_context(measurement_id=mid, retrieval_config=rconf)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=mid, retrieval_config=rconf, filter_list_dict=flist,
+        creator_dict=cdict
+    )
     creator = CostFunctionCreator(strategy_context)
-    cdict = CreatorDict(strategy_context)
     cdict[rf.ForwardModel].add_handle(ihandle, priority_order=100)
     cdict[rf.ForwardModel].add_handle(
         MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel),

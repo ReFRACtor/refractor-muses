@@ -10,6 +10,7 @@ from refractor.muses import (
     RetrievalType,
     StateElementIdentifier,
     MusesStrategyContext,
+    CreatorDict
 )
 
 
@@ -29,10 +30,12 @@ def test_muses_py_spectral_window_handle(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
-    strategy_context = MusesStrategyContext()
+    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist
+        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist,
+        creator_dict=cdict
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context
@@ -85,10 +88,12 @@ def test_muses_py_spectral_window_handle_empty_band(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
-    strategy_context = MusesStrategyContext()
+    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist
+        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist,
+        creator_dict = cdict
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context

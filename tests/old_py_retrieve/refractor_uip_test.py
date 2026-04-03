@@ -106,10 +106,26 @@ def test_refractor_joint_tropomi_create_uip(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig)
     obs_list = [
-        MusesCrisObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
-        MusesTropomiObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
+        MusesCrisObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("CRIS")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
+        MusesTropomiObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("TROPOMI")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -177,9 +193,17 @@ def test_refractor_tropomi_create_uip(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig)
     obs_list = [
-        MusesTropomiObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
+        MusesTropomiObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("TROPOMI")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -245,10 +269,26 @@ def test_refractor_joint_omi_create_uip(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig)
     obs_list = [
-        MusesAirsObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
-        MusesOmiObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
+        MusesAirsObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("AIRS")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
+        MusesOmiObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("OMI")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
@@ -316,9 +356,17 @@ def test_refractor_omi_create_uip(
             FilterIdentifier("1A1"),
         ],
     }
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig)
     obs_list = [
-        MusesOmiObservation.create_from_id(mid, None, None, None, None, ifile_hlp),
+        MusesOmiObservation.create_from_id(
+            mid,
+            filter_list_dict[InstrumentIdentifier("OMI")],
+            None,
+            None,
+            None,
+            None,
+            ifile_hlp,
+        ),
     ]
     cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)

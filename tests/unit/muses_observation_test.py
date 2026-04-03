@@ -20,17 +20,7 @@ def test_measurement_id(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
-    flist = {
-        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
-        InstrumentIdentifier("AIRS"): [
-            FilterIdentifier("2B1"),
-            FilterIdentifier("1B2"),
-            FilterIdentifier("2A1"),
-            FilterIdentifier("1A1"),
-        ],
-    }
-    mid = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, flist)
-    assert mid.filter_list_dict == flist
+    mid = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     assert float(mid["OMI_Longitude"]) == pytest.approx(-154.7512664794922)
     assert int(mid["OMI_XTrack_UV1_Index"]) == 10
     assert (
@@ -57,9 +47,7 @@ def test_simulated_obs(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
             FilterIdentifier("1A1"),
         ],
     }
-    measurement_id = MeasurementIdFile(
-        r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
-    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
@@ -81,6 +69,7 @@ def test_simulated_obs(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     )
     obs = MusesTropomiObservation.create_from_id(
         measurement_id,
+        filter_list_dict[InstrumentIdentifier("TROPOMI")],
         None,
         cs,
         swin_dict[InstrumentIdentifier("TROPOMI")],

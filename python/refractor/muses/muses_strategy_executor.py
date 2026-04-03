@@ -1,14 +1,13 @@
 from __future__ import annotations
 from contextlib import contextmanager
-from .retrieval_strategy_step import RetrievalStrategyStepSet, RetrievalStrategyStep
+from .retrieval_strategy_step import RetrievalStrategyStep
 from .current_state_state_info import CurrentStateStateInfo
 from .muses_strategy import (
-    MusesStrategy,
     CurrentStrategyStep,
 )
+from .muses_strategy_context import MusesStrategyContextMixin, MusesStrategyContext
 from .cost_function import CostFunction
 from .identifier import StateElementIdentifier, ProcessLocation
-from .spectral_window_handle import MusesSpectralWindowDict
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
 import refractor.framework as rf  # type: ignore
@@ -19,19 +18,17 @@ from loguru import logger
 import time
 from pathlib import Path
 import typing
-from typing import Generator, Any, cast
+from typing import Generator, Any
 
 if typing.TYPE_CHECKING:
     from .forward_model_combine import ForwardModelCombine
     from .retrieval_strategy import RetrievalStrategy
     from .cost_function import CostFunction
-    from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
     from .creator_dict import CreatorDict
-    from .muses_strategy_context import MusesStrategyContext
 
 
 @contextmanager
@@ -171,14 +168,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         )
 
 
-class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyStep):
-    """This is a strategy executor that uses a MusesStrategy to determine the
-    strategy.
+class MusesStrategyExecutorMusesStrategy(
+    MusesStrategyExecutorRetrievalStrategyStep, MusesStrategyContextMixin
+):
+    """This is a strategy executor that uses a MusesStrategy to
+    determine the strategy.
 
-    It isn't clear if we will ever need a different strategy executor, having different
-    MusesStrategy may be all the flexibility we need. But we go ahead and set up
-    the infrastructure here since it is fairly cheap to do so, just in case we need
-    a different implementation in the future.
+    It isn't clear if we will ever need a different strategy executor,
+    having different MusesStrategy may be all the flexibility we
+    need. But we go ahead and set up the infrastructure here since it
+    is fairly cheap to do so, just in case we need a different
+    implementation in the future.
+
     """
 
     def __init__(
@@ -186,52 +187,28 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
     ) -> None:
-        super().__init__(
+        MusesStrategyExecutorRetrievalStrategyStep.__init__(
+            self,
             rs,
             creator_dict,
             **rs.keyword_arguments,
         )
-        self._strategy: MusesStrategy | None = None
-        self.creator_dict.strategy_context.add_observer(self)
+        MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
+        self.strategy_context.add_observer(self)
 
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
-        self._strategy = None
-        mid = strategy_context.measurement_id
-        rconf = strategy_context.retrieval_config
-        # Only do notify_update_target if we already have the filter_list_dict filled in.
-        # If we don't just skip this
-        if mid is not None and rconf is not None and len(mid.filter_list_dict) > 0:
+        if self.has_measurement_id and self.has_retrieval_config:
             self.current_state.notify_update_target(
-                mid,
-                rconf,
+                self.measurement_id,
+                self.retrieval_config,
                 self.strategy,
                 self.creator_dict[rf.Observation],
             )
 
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        res = self.creator_dict.strategy_context.retrieval_config
-        if res is None:
-            raise RuntimeError("Need to call notify_update_strategy_context first")
-        return res
-
-    @property
-    def strategy(self) -> MusesStrategy:
-        if self._strategy is None:
-            self._strategy = self.creator_dict[MusesStrategy].muses_strategy(
-                spectral_window_handle_set=self.creator_dict[MusesSpectralWindowDict],
-            )
-        return self._strategy
-
     def notify_update(self, location: str | ProcessLocation, **kwargs: Any) -> None:
         self.rs.notify_update(location, **kwargs)
-
-    @property
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for all retrieval steps)"""
-        return self.strategy.filter_list_dict
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
@@ -294,9 +271,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         logger.info(
             f"Step: {self.current_strategy_step.strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
-        rstep = cast(
-            RetrievalStrategyStepSet, self.creator_dict[RetrievalStrategyStep]
-        ).retrieval_step(
+        rstep = self.creator_dict[RetrievalStrategyStep].retrieval_step(
             self.current_strategy_step.retrieval_type,
             self.rs,
             self.creator_dict,

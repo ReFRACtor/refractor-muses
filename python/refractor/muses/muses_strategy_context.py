@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import typing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Self
 
 if typing.TYPE_CHECKING:
@@ -24,6 +24,8 @@ class _ContextData:
     retrieval_config: None | RetrievalConfiguration = None
     strategy: None | MusesStrategy = None
     filter_list_dict: None | dict[InstrumentIdentifier, list[FilterIdentifier]] = None
+    need_notify: dict[Any, bool] = field(default_factory=dict)
+    observers: set[Any] = field(default_factory=set)
     # Marker if notify_update_strategy_context has been called. If it
     # has, we want to immediately call this on new observers that have
     # been added
@@ -76,6 +78,9 @@ class MusesStrategyContext:
         """
         # We have one level of indirection here to support the merge function below
         self._context_data = _ContextData()
+        # Be careful with adding any other variables here. The parent MusesStrategyContext
+        # may be different in different places, even if the self._context_data
+        # should be shared.
         self._observers: set[Any] = set()
         if strategy_table_filename is not None:
             self.create_from_table_filename(strategy_table_filename)
@@ -86,17 +91,19 @@ class MusesStrategyContext:
         # We may already point to the same data, in which case this is a noop
         if id(self._context_data) == id(other._context_data):
             return self
+        new_observers = self._context_data.observers | other._context_data.observers
+        old_observers = set(self._context_data.observers)
+        old_need_notify = dict(self._context_data.need_notify)
         self._context_data = other._context_data
-        # Notify observers of this current object of an update to the data.
-        # We don't notify the observers of other since from their viewpoint
-        # nothing has changed.
+        self._context_data.observers = new_observers
+        for obs in old_observers:
+            self._context_data.need_notify[obs] = True
         if self._context_data.has_been_updated:
-            self.notify_update_strategy_context()
-        new_observers = self._observers | other._observers
-        self._observers = new_observers
-        # Rare time where updating a passed in argument is actually correct,
-        # so although this looks funny it is actually intended.
-        other._observers = new_observers
+            lobs = list(self._context_data.need_notify.keys())
+            for obs in lobs:
+                if self._context_data.need_notify[obs]:
+                    obs.notify_update_strategy_context(self)
+                    self._context_data.need_notify[obs] = False
         return self
 
     def create_from_table_filename(
@@ -109,6 +116,9 @@ class MusesStrategyContext:
     ) -> None:
         from .muses_observation import MeasurementIdFile
         from .retrieval_configuration import RetrievalConfiguration
+        from .creator_dict import CreatorDict
+
+        cdict = creator_dict if creator_dict is not None else CreatorDict(self)
 
         table_filename = Path(strategy_table_filename).absolute()
         rconf_filename = table_filename.parent / retrieval_config_fname
@@ -116,12 +126,11 @@ class MusesStrategyContext:
         rconf = RetrievalConfiguration.create_from_strategy_file(
             rconf_filename, ifile_hlp
         )
-        # TODO Hopefully we can remove the filter list dict stuff
-        mid = MeasurementIdFile(mid_filename, rconf, {})
+        mid = MeasurementIdFile(mid_filename, rconf)
         self.update_strategy_context(
             measurement_id=mid,
             retrieval_config=rconf,
-            creator_dict=creator_dict,
+            creator_dict=cdict,
             strategy_table_filename=strategy_table_filename,
         )
 
@@ -133,7 +142,7 @@ class MusesStrategyContext:
         # output, but have no real life outside of being attached to
         # this class.  It is easy enough to change this to weakref if
         # that proves useful
-        self._observers.add(obs)
+        self._context_data.observers.add(obs)
         if hasattr(obs, "notify_add"):
             obs.notify_add(self)
         # Go ahead and call notify_update_strategy_context if we have
@@ -145,68 +154,89 @@ class MusesStrategyContext:
             obs.notify_update_strategy_context(self)
 
     def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
+        self._context_data.observers.discard(obs)
         if hasattr(obs, "notify_remove"):
             obs.notify_remove(self)
 
     def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
+        # We change self._context_data.observers, in our loop so grab a copy of the
         # list before we start
-        lobs = list(self._observers)
+        lobs = list(self._context_data.observers)
         for obs in lobs:
             self.remove_observer(obs)
 
-    def notify_update_strategy_context(self) -> None:
-        # The list of observers might change in our loop, so grab a copy
-        # of the list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
+    def notify_if_needed(self, obs: Any) -> None:
+        """We can get race conditions when doing
+        update_strategy_context, when we notify the various observers
+        there is no guaranteed order of notifications.  A object may
+        turn around and use another object (e.g., calling a
+        CreatorHandleWithContextSet for a SpectralWindow or something
+        like that). To avoid this, we have CreatorHandleWithContextSet
+        check before using any object if it is on the list of items to
+        be updated, and if so go ahead an send the
+        notify_update_strategy_context message. If we aren't in the
+        process of passing this out or if the object is already
+        notified, this is a noop. Otherwise we go ahead and notify
+        that object.
+
+        Note it is safe to call this with objects that aren't actually
+        observers. So CreatorHandleWithContextSet doesn't need to
+        determine if a particular handle is an observer or not. This
+        is a noop if obs isn't even an observer.
+        """
+        if self._context_data.need_notify.get(obs, False):
             obs.notify_update_strategy_context(self)
+            self._context_data.need_notify[obs] = False
+
+    def notify_update_strategy_context(self) -> None:
+        self._context_data.need_notify.clear()
+        for obs in self._context_data.observers:
+            self._context_data.need_notify[obs] = True
+        lobs = list(self._context_data.need_notify.keys())
+        for obs in lobs:
+            if self._context_data.need_notify[obs]:
+                obs.notify_update_strategy_context(self)
+                self._context_data.need_notify[obs] = False
+        self._context_data.need_notify.clear()
 
     def update_strategy_context(
         self,
+        creator_dict: CreatorDict,
         measurement_id: None | MeasurementId = None,
         stac_catalog: None | pystac.Catalog = None,
         retrieval_config: None | RetrievalConfiguration = None,
         strategy: None | MusesStrategy = None,
         strategy_table_filename: str | os.PathLike[str] | None = None,
-        creator_dict: CreatorDict | None = None,
         filter_list_dict: None
         | dict[InstrumentIdentifier, list[FilterIdentifier]] = None,
     ) -> None:
+        from .muses_strategy import MusesStrategy
+        from .spectral_window_handle import MusesSpectralWindowDict
+
+        # Note, it is important these get created before we start the
+        # update here.  These may results in calls to merge, which
+        # interacts with the update. If these are already in cdict, then doing
+        # this outside of the update doesn't hurt, but it is necessary if
+        # they are created on first use here.
+        strategy_creator = creator_dict[MusesStrategy]
+        swin_creator = creator_dict[MusesSpectralWindowDict]
+        # We are assuming out creators are pointing at the same context. Catch
+        # this is not, we have some logic error at a higher level
+        if id(strategy_creator.strategy_context._context_data) != id(self._context_data):
+            raise RuntimeError("strategy_creator isn't looking at the same context data")
+        if id(swin_creator.strategy_context._context_data) != id(self._context_data):
+            raise RuntimeError("swin_creator isn't looking at the same context data")
         self._context_data.measurement_id = measurement_id
         self._context_data.stac_catalog = stac_catalog
         self._context_data.retrieval_config = retrieval_config
         self._context_data.strategy = strategy
+        self._context_data.need_notify.clear()
+        for obs in self._context_data.observers:
+            self._context_data.need_notify[obs] = True
+        self._context_data.has_been_updated = True
         # Most of the time, the strategy isn't passed in. Instead, we create
         # this once we have the measurement_id/stac_catalog/retrieval_config.
-        # A bit of a chicken an egg here, we need to use the spectral window
-        # and muses strategy creators, which depend potentially on
-        # notify_update_strategy_context having been called. So we go through
-        # and notify these first. This is a bit clumsy, but I'm not sure how
-        # to avoid this. We have this buried in the function, so hopefully this
-        # hidden order dependency won't cause any problems.
         if self._context_data.strategy is None:
-            from .muses_strategy import MusesStrategyHandle, MusesStrategy
-            from .spectral_window_handle import (
-                MusesSpectralWindowDict,
-                SpectralWindowHandle,
-            )
-            from .creator_dict import CreatorDict
-
-            cdict = creator_dict if creator_dict is not None else CreatorDict(self)
-            strategy_creator = cdict[MusesStrategy]
-            swin_creator = cdict[MusesSpectralWindowDict]
-            lobs = list(self._observers)
-            # Do spectral window first, since MusesStrategy depends on this
-            for obs in lobs:
-                if isinstance(obs, SpectralWindowHandle):
-                    obs.notify_update_strategy_context(self)  # type: ignore
-            # Then MusesStrategyHandle since we want to call the creator in the
-            # next step
-            for obs in lobs:
-                if isinstance(obs, MusesStrategyHandle):
-                    obs.notify_update_strategy_context(self)  # type: ignore
             self._context_data.strategy = strategy_creator.muses_strategy(
                 swin_creator,
                 strategy_table_filename=strategy_table_filename,
@@ -218,8 +248,12 @@ class MusesStrategyContext:
             self._context_data.filter_list_dict = (
                 self._context_data.strategy.filter_list_dict
             )
-        self._context_data.has_been_updated = True
-        self.notify_update_strategy_context()
+        lobs = list(self._context_data.need_notify.keys())
+        for obs in lobs:
+            if self._context_data.need_notify[obs]:
+                obs.notify_update_strategy_context(self)
+                self._context_data.need_notify[obs] = False
+        self._context_data.need_notify.clear()
 
     @property
     def measurement_id(self) -> None | MeasurementId:

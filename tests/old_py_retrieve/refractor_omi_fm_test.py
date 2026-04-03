@@ -103,8 +103,7 @@ def test_refractor_fm_refractor(
     rconf = RetrievalConfiguration.create_from_strategy_file(
         omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
-    flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf)
     r = RefractorOmiFm(
         obs,
         mid,
@@ -162,8 +161,7 @@ def test_refractor_detailed_fm_refractor(
     rconf = RetrievalConfiguration.create_from_strategy_file(
         omi_test_in_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
-    flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf)
     r = RefractorOmiFm(
         omi_obs_step_2,
         mid,

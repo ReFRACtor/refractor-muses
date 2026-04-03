@@ -11,9 +11,8 @@ from .retrieval_debug_output import (
     RetrievalPlotResult,
 )
 from .retrieval_configuration import RetrievalConfiguration
-from .muses_observation import MeasurementId, MeasurementIdFile
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
-from .muses_strategy_context import MusesStrategyContext
+from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
 from .creator_dict import CreatorDict
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
@@ -32,7 +31,6 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
-    from .muses_strategy import MusesStrategy
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
@@ -43,7 +41,7 @@ if typing.TYPE_CHECKING:
 # This implements mpy.ReplaceFunctionObject, but we don't actually derive from
 # that so we don't depend on mpy being available.
 # class RetrievalStrategy(mpy.ReplaceFunctionObject):
-class RetrievalStrategy:
+class RetrievalStrategy(MusesStrategyContextMixin):
     """This is a replacement for script_retrieval_ms, that tries to do
     a few things:
 
@@ -111,9 +109,9 @@ class RetrievalStrategy:
         use_stac: bool = False,
         **kwargs: Any,
     ) -> None:
+        MusesStrategyContextMixin.__init__(self, MusesStrategyContext())
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
-        self._strategy_context = MusesStrategyContext()
         self._creator_dict = CreatorDict(self.strategy_context)
 
         self._kwargs: dict[str, Any] = kwargs
@@ -177,10 +175,6 @@ class RetrievalStrategy:
         return None
 
     @property
-    def strategy_context(self) -> MusesStrategyContext:
-        return self._strategy_context
-
-    @property
     def creator_dict(self) -> CreatorDict:
         return self._creator_dict
 
@@ -205,7 +199,10 @@ class RetrievalStrategy:
             self.run_dir / "config.json",
         )
         self.strategy_context.update_strategy_context(
-            stac_catalog=stac, retrieval_config=rconf
+            stac_catalog=stac,
+            retrieval_config=rconf,
+            strategy_table_filename=self.strategy_table_filename,
+            creator_dict=self.creator_dict,
         )
         self.notify_update(ProcessLocation("update stac"))
 
@@ -226,25 +223,10 @@ class RetrievalStrategy:
         filename = Path(filename)
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent
-        rconf = RetrievalConfiguration.create_from_strategy_file(
+        self.strategy_context.create_from_table_filename(
             self.strategy_table_filename,
-            self._ifile_hlp,
-        )
-        mid = MeasurementIdFile(
-            self.run_dir / "Measurement_ID.asc",
-            rconf,
-            # Chicken and egg problem for filter_list_dict. We need a MeasurementId
-            # to update the strategy_executor, and then need the strategy_executor to
-            # get the filter_list_dict. So we put a dummy in, and then fill this in
-            # in the next step.
-            {},
-        )
-        self.strategy_context.update_strategy_context(
-            measurement_id=mid, retrieval_config=rconf
-        )
-        mid.filter_list_dict = self.strategy_executor.filter_list_dict
-        self.strategy_context.update_strategy_context(
-            measurement_id=mid, retrieval_config=rconf
+            ifile_hlp=self._ifile_hlp,
+            creator_dict=self._creator_dict,
         )
         self.notify_update(ProcessLocation("update target"))
 
@@ -326,13 +308,6 @@ class RetrievalStrategy:
         return self._strategy_executor
 
     @property
-    def strategy(self) -> MusesStrategy:
-        """The MusesStrategy used to describe the strategy"""
-        if self.strategy_executor.strategy is None:
-            raise RuntimeError("Call update_target before this function")
-        return self.strategy_executor.strategy
-
-    @property
     def input_file_helper(self) -> InputFileHelper:
         """The InputFileHelper used to read input data."""
         return self._ifile_hlp
@@ -351,29 +326,6 @@ class RetrievalStrategy:
     def strategy_table_filename(self) -> Path:
         """Name of the strategy table we are using."""
         return self._filename
-
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        """Configuration parameters for the retrieval."""
-        res = self.strategy_context.retrieval_config
-        if res is None:
-            raise RuntimeError("Need to update strategy_context first")
-        return res
-
-    @property
-    def measurement_id(self) -> MeasurementId:
-        """Measurement ID for the current target."""
-        res = self.strategy_context.measurement_id
-        if res is None:
-            raise RuntimeError("Need to update strategy_context first")
-        return res
-
-    @property
-    def stac_catalog(self) -> pystac.Catalog:
-        res = self.strategy_context.stac_catalog
-        if res is None:
-            raise RuntimeError("Need to update strategy_context first")
-        return res
 
     @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:

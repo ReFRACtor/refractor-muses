@@ -174,6 +174,7 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
+        filter_list: list[FilterIdentifier],
         existing_obs: MusesAirsObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
@@ -197,7 +198,6 @@ class MusesAirsObservation(MusesObservationImp):
             )
         else:
             # Read the data from disk, because it doesn't already exist.
-            filter_list = mid.filter_list_dict[InstrumentIdentifier("AIRS")]
             filename = mid["AIRS_filename"]
             granule = mid["AIRS_Granule"]
             xtrack = int(mid["AIRS_XTrack_Index"])

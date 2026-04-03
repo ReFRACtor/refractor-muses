@@ -2,8 +2,6 @@ from refractor.muses import (
     MusesRunDir,
     RetrievalConfiguration,
     MeasurementIdFile,
-    FilterIdentifier,
-    InstrumentIdentifier,
 )
 from refractor.osr_ml import read_l1b, features_l1b, prediction
 
@@ -15,17 +13,7 @@ def test_cris_co_ml(cris_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
     )
-    filter_list_dict = {
-        InstrumentIdentifier("CRIS"): [
-            FilterIdentifier("2B1"),
-            FilterIdentifier("1B2"),
-            FilterIdentifier("2A1"),
-            FilterIdentifier("1A1"),
-        ],
-    }
-    measurement_id = MeasurementIdFile(
-        r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
-    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     # This is a bit round about to get a single file name. But I imagine that
     # we will have some interface like this to get the file list.
     l1b_fname = measurement_id["CRIS_filename"]

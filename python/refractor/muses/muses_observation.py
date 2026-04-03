@@ -38,9 +38,6 @@ class MeasurementId(collections.abc.Mapping):
        live in the Measurement_ID.asc file but don't because it is
        convenient to store them elsewhere - for example the
        omi_calibration_filename which comes from the strategy file.
-       3. When reading the data, we often need to know the specific
-       filters we will be working with, e.g., so we only read that
-       data out of the sounding files.
 
     3. We also want to bring in the RetrievalConfiguration data, the
        separation between the two is pretty arbitrary and we tend to
@@ -56,14 +53,6 @@ class MeasurementId(collections.abc.Mapping):
     dict with the values).
 
     """
-
-    @abc.abstractproperty
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        raise NotImplementedError
 
     def __getitem__(self, key: str) -> Any:
         raise NotImplementedError
@@ -81,24 +70,8 @@ class MeasurementIdDict(MeasurementId):
     def __init__(
         self,
         measurement_dict: dict,
-        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ) -> None:
         self.measurement_dict = measurement_dict
-        self._filter_list_dict = filter_list_dict
-
-    @property
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        return self._filter_list_dict
-
-    @filter_list_dict.setter
-    def filter_list_dict(
-        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
-    ) -> None:
-        self._filter_list_dict = val
 
     def __getitem__(self, key: str) -> Any:
         return self.measurement_dict[key]
@@ -118,32 +91,16 @@ class MeasurementIdFile(MeasurementId):
         self,
         fname: str | os.PathLike[str],
         retrieval_config: RetrievalConfiguration,
-        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
         self._p = retrieval_config.input_file_helper.open_tes(self.fname)
-        self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
 
     def __hash__(self) -> int:
         # We need a unique hash to separate MeasurementIds. I think just using the
         # absolute file name will do that.
         return hash(self.fname.absolute())
-
-    @property
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        return self._filter_list_dict
-
-    @filter_list_dict.setter
-    def filter_list_dict(
-        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
-    ) -> None:
-        self._filter_list_dict = val
 
     def __getitem__(self, key: str) -> Any:
         if key in self._p:
@@ -268,7 +225,7 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         "radianceStep".
 
         Note this is similar but distinct from the filter_list_dict
-        used in MeasurementId. That list corresponds to specific data
+        used in MusesStrategyContext. That list corresponds to specific data
         read from a file. Often this is the same as the filter data
         used in "radianceStep", but in some cases py-retrieve wants to
         think of data as different filters even if it is read from one
@@ -988,6 +945,7 @@ class MusesObservationHandle(ObservationHandle):
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
             self.measurement_id,
+            self.filter_list_dict[self.instrument_name],
             self.existing_obs,
             current_state,
             spec_win,

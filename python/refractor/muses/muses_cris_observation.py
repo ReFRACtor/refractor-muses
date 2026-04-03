@@ -233,6 +233,7 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
+        filter_list: list[FilterIdentifier],
         existing_obs: MusesCrisObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,

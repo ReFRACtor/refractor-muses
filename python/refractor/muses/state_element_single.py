@@ -249,7 +249,7 @@ class StateElementPtgAng(StateElementOspFile):
     ) -> OspSetupReturn | None:
         # Only tes retrievals have a nonzero ptgang
         value_fm = np.array([0.0]).view(FullGridMappedArray)
-        if InstrumentIdentifier("TES") in measurement_id.filter_list_dict:
+        if "TES_filename_L1B" in measurement_id:
             try:
                 otes = observation_handle_set.observation(
                     InstrumentIdentifier("TES"), None, None, None

@@ -114,6 +114,13 @@ class CreatorHandleWithContextSet(CreatorHandleSet):
     def notify_add_creator_dict(self, cdict: CreatorDict) -> None:
         self.strategy_context.merge(cdict.strategy_context)
 
+    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
+        """Process a registered function"""
+        # Check if we need to get a notification message, see MusesStrategyContext
+        # for a discussion of this
+        self.strategy_context.notify_if_needed(h)
+        return super().handle_h(h, *args, **kwargs)
+
 
 class CreatorHandle:
     """Base class for handles used by CreatorHandleSet. Note we use

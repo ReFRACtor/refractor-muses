@@ -29,9 +29,7 @@ def test_create_muses_airs_observation(isolated_dir, ifile_hlp, joint_omi_test_i
             FilterIdentifier("1A1"),
         ],
     }
-    measurement_id = MeasurementIdFile(
-        r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
-    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
@@ -43,6 +41,7 @@ def test_create_muses_airs_observation(isolated_dir, ifile_hlp, joint_omi_test_i
     )
     obs = MusesAirsObservation.create_from_id(
         measurement_id,
+        filter_list_dict,
         None,
         None,
         swin_dict[InstrumentIdentifier("AIRS")],
