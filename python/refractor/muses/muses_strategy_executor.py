@@ -5,11 +5,12 @@ from .current_state_state_info import CurrentStateStateInfo
 from .muses_strategy import (
     CurrentStrategyStep,
 )
-from .muses_strategy_context import MusesStrategyContextMixin, MusesStrategyContext
+from .muses_strategy_context import MusesStrategyContextMixin
 from .cost_function import CostFunction
 from .identifier import StateElementIdentifier, ProcessLocation
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
+from .state_info import StateInfo
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -90,7 +91,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     ) -> None:
         self.rs = rs
         self.creator_dict = creator_dict
-        self.current_state = CurrentStateStateInfo(self.creator_dict)
+        self.state_info = StateInfo(creator_dict)
+        self.current_state = CurrentStateStateInfo(self.state_info)
         self.kwargs = copy.copy(kwargs)
 
     @property
@@ -194,18 +196,6 @@ class MusesStrategyExecutorMusesStrategy(
             **rs.keyword_arguments,
         )
         MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
-        self.strategy_context.add_observer(self)
-
-    def notify_update_strategy_context(
-        self, strategy_context: MusesStrategyContext
-    ) -> None:
-        if self.has_measurement_id and self.has_retrieval_config:
-            self.current_state.notify_update_target(
-                self.measurement_id,
-                self.retrieval_config,
-                self.strategy,
-                self.creator_dict[rf.Observation],
-            )
 
     def notify_update(self, location: str | ProcessLocation, **kwargs: Any) -> None:
         self.rs.notify_update(location, **kwargs)

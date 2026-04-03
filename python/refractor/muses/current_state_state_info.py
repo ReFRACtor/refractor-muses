@@ -21,18 +21,16 @@ import typing
 from typing import cast
 
 if typing.TYPE_CHECKING:
-    from .creator_dict import CreatorDict
     from .current_state import PropagatedQA
     from .identifier import RetrievalType, StrategyStepIdentifier
     from .sounding_metadata import SoundingMetadata
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
-    from .muses_strategy import MusesStrategy
-    from .observation_handle import ObservationHandleSet
-    from .muses_observation import MeasurementId
+    from .muses_strategy_context import MusesStrategyContext
     from .state_info import StateElement
     from .cross_state_element import CrossStateElementHandleSet
     from .cost_function import CostFunction
+    from .state_info import StateInfo
 
 
 class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
@@ -56,11 +54,9 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
 
-    def __init__(self, creator_dict: CreatorDict) -> None:
-        from .state_info import StateInfo
-
+    def __init__(self, state_info: StateInfo) -> None:
         super().__init__()
-        self._state_info = StateInfo(creator_dict)
+        self._state_info = state_info
         self._step_directory: None | Path = None
         self._strategy_step: None | StrategyStepIdentifier = None
         self._retrieval_type: None | RetrievalType = None
@@ -71,6 +67,7 @@ class CurrentStateStateInfo(CurrentState):
         self._current_state_old = self._state_info._current_state_old  # noqa: SLF001
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
+        self._state_info.strategy_context.add_observer(self)
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
@@ -515,19 +512,21 @@ class CurrentStateStateInfo(CurrentState):
                 )
             )
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        self._covariance_state_element_name = StateElementIdentifier.sort_identifier(
-            list(
-                set(strategy.retrieval_elements)
-                | set(strategy.error_analysis_interferents)
+        strategy = strategy_context.strategy
+        if strategy is not None:
+            self._covariance_state_element_name = (
+                StateElementIdentifier.sort_identifier(
+                    list(
+                        set(strategy.retrieval_elements)
+                        | set(strategy.error_analysis_interferents)
+                    )
+                )
             )
-        )
+        else:
+            self._covariance_state_element_name = []
         self.clear_cache()
 
     def notify_start_retrieval(
