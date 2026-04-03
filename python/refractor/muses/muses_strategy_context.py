@@ -93,7 +93,6 @@ class MusesStrategyContext:
             return self
         new_observers = self._context_data.observers | other._context_data.observers
         old_observers = set(self._context_data.observers)
-        old_need_notify = dict(self._context_data.need_notify)
         self._context_data = other._context_data
         self._context_data.observers = new_observers
         for obs in old_observers:
@@ -222,9 +221,13 @@ class MusesStrategyContext:
         swin_creator = creator_dict[MusesSpectralWindowDict]
         # We are assuming out creators are pointing at the same context. Catch
         # this is not, we have some logic error at a higher level
-        if id(strategy_creator.strategy_context._context_data) != id(self._context_data):
-            raise RuntimeError("strategy_creator isn't looking at the same context data")
-        if id(swin_creator.strategy_context._context_data) != id(self._context_data):
+        if id(strategy_creator.strategy_context._context_data) != id(  # noqa: SLF001
+            self._context_data
+        ):
+            raise RuntimeError(
+                "strategy_creator isn't looking at the same context data"
+            )
+        if id(swin_creator.strategy_context._context_data) != id(self._context_data):  # noqa: SLF001
             raise RuntimeError("swin_creator isn't looking at the same context data")
         self._context_data.measurement_id = measurement_id
         self._context_data.stac_catalog = stac_catalog

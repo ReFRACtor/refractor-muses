@@ -9,8 +9,7 @@ from refractor.muses import (
     StrategyStepIdentifier,
     RetrievalType,
     StateElementIdentifier,
-    MusesStrategyContext,
-    CreatorDict
+    CreatorDict,
 )
 
 
@@ -34,8 +33,10 @@ def test_muses_py_spectral_window_handle(
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist,
-        creator_dict=cdict
+        measurement_id=mid,
+        retrieval_config=rconfig,
+        filter_list_dict=flist,
+        creator_dict=cdict,
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context
@@ -92,8 +93,10 @@ def test_muses_py_spectral_window_handle_empty_band(
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconfig, filter_list_dict=flist,
-        creator_dict = cdict
+        measurement_id=mid,
+        retrieval_config=rconfig,
+        filter_list_dict=flist,
+        creator_dict=cdict,
     )
     swin_handle_set = SpectralWindowHandleSet.default_handle_set_with_context(
         strategy_context

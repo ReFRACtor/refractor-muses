@@ -1,7 +1,6 @@
 import pytest
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
-    CreatorDict,
     MusesRunDir,
     MusesObservationHandlePickleSave,
     MusesTropomiObservation,
@@ -14,7 +13,6 @@ from refractor.muses import (
     MeasurementIdFile,
     SoundingMetadata,
     MusesStrategyStepList,
-    MusesStrategyContext,
     RetrievalConfiguration,
     InputFileHelper,
     StateInfo,
@@ -40,7 +38,7 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict = cdict
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
         tfilename,
@@ -69,8 +67,7 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
         obs_hset.observation(strat.instrument_name[0], None, None, None),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -98,7 +95,7 @@ def tropomi_swir_shandle(
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict = cdict
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
         tfilename,
@@ -127,8 +124,7 @@ def tropomi_swir_shandle(
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -151,7 +147,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict = cdict
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
         tfilename,
@@ -185,8 +181,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -234,8 +229,7 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     logger.add(sys.stderr, level="DEBUG")
     return (
         measurement_id,

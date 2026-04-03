@@ -21,6 +21,7 @@ import typing
 from typing import cast
 
 if typing.TYPE_CHECKING:
+    from .creator_dict import CreatorDict
     from .current_state import PropagatedQA
     from .identifier import RetrievalType, StrategyStepIdentifier
     from .sounding_metadata import SoundingMetadata
@@ -55,13 +56,11 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
 
-    def __init__(
-        self,
-    ) -> None:
+    def __init__(self, creator_dict: CreatorDict) -> None:
         from .state_info import StateInfo
 
         super().__init__()
-        self._state_info = StateInfo()
+        self._state_info = StateInfo(creator_dict)
         self._step_directory: None | Path = None
         self._strategy_step: None | StrategyStepIdentifier = None
         self._retrieval_type: None | RetrievalType = None
@@ -523,9 +522,6 @@ class CurrentStateStateInfo(CurrentState):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
     ) -> None:
-        self._state_info.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set
-        )
         self._covariance_state_element_name = StateElementIdentifier.sort_identifier(
             list(
                 set(strategy.retrieval_elements)

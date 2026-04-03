@@ -90,7 +90,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     ) -> None:
         self.rs = rs
         self.creator_dict = creator_dict
-        self.current_state = CurrentStateStateInfo()
+        self.current_state = CurrentStateStateInfo(self.creator_dict)
         self.kwargs = copy.copy(kwargs)
 
     @property

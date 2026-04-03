@@ -6,7 +6,6 @@ from refractor.muses import (
     MeasurementIdFile,
     RetrievalConfiguration,
     InstrumentIdentifier,
-    MusesStrategyContext,
 )
 from refractor.muses_py_fm import (
     RefractorUip,
@@ -518,8 +517,10 @@ def test_residual_fm_jac_omi2(
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconf, filter_list_dict=flist,
-        creator_dict=cdict
+        measurement_id=mid,
+        retrieval_config=rconf,
+        filter_list_dict=flist,
+        creator_dict=cdict,
     )
     creator = CostFunctionCreator(strategy_context=strategy_context)
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
@@ -579,8 +580,10 @@ def test_residual_fm_jac_tropomi2(
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
     strategy_context.update_strategy_context(
-        measurement_id=mid, retrieval_config=rconf, filter_list_dict=flist,
-        creator_dict=cdict
+        measurement_id=mid,
+        retrieval_config=rconf,
+        filter_list_dict=flist,
+        creator_dict=cdict,
     )
     creator = CostFunctionCreator(strategy_context)
     cdict[rf.ForwardModel].add_handle(ihandle, priority_order=100)
