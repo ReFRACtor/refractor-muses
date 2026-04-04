@@ -27,7 +27,7 @@ if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
-    from .state_info import StateElementHandleSet
+    from .state_element import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
     from .creator_dict import CreatorDict
 

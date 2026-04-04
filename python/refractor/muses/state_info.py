@@ -2,7 +2,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .current_state import PropagatedQA
 from .sounding_metadata import SoundingMetadata
-from .state_element import StateElementHandleSet, StateElement
+from .state_element import StateElement
 from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
 from .identifier import StateElementIdentifier
@@ -121,9 +121,6 @@ class StateInfo(UserDict, MusesStrategyContextMixin):
         UserDict.__init__(self)
         MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
         self._creator_dict = creator_dict
-        self.state_element_handle_set = copy.deepcopy(
-            StateElementHandleSet.default_handle_set()
-        )
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
         self._cross_state_info = CrossStateInfo(self)
         self._sounding_metadata: SoundingMetadata | None = None
@@ -221,14 +218,6 @@ class StateInfo(UserDict, MusesStrategyContextMixin):
                 self.strategy,
                 self._creator_dict[rf.Observation],
             )
-        self.state_element_handle_set.notify_update_target(
-            self.measurement_id,
-            self.retrieval_config,
-            self.strategy,
-            self._creator_dict[rf.Observation],
-            self._sounding_metadata,
-            self,
-        )
         self._cross_state_info.notify_update_target(
             self.measurement_id,
             self.retrieval_config,
@@ -302,8 +291,8 @@ class StateInfo(UserDict, MusesStrategyContextMixin):
         self._cross_state_info.notify_step_solution(xsol, current_state)
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
-        self.data[state_element_id] = self.state_element_handle_set.state_element(
-            state_element_id
+        self.data[state_element_id] = self._creator_dict[StateElement].state_element(
+            state_element_id, self._creator_dict[rf.Observation], self
         )
         # Create all the cross terms, so any coupling gets set up
         for sid in self.keys():

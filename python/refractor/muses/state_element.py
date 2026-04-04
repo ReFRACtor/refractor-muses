@@ -1,8 +1,10 @@
 # Might end up breaking this file up, for now have all the stuff here
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .creator_handle import CreatorHandle, CreatorHandleSet
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
+from .creator_dict import CreatorDict
 from .identifier import StateElementIdentifier, StrategyStepIdentifier
+from .sounding_metadata import SoundingMetadata
 from .retrieval_array import (
     RetrievalGridArray,
     FullGridMappedArray,
@@ -23,9 +25,9 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .muses_strategy_context import MusesStrategyContext
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state_state_info import CostFunctionStateElementNotify
-    from .sounding_metadata import SoundingMetadata
     from .state_info import StateInfo
 
 
@@ -451,7 +453,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         pass
 
 
-class StateElementHandle(CreatorHandle):
+class StateElementHandle(CreatorHandleWithContext):
     """Return StateElement objects, for a given StateElementIdentifier
 
     Note StateElementHandle can assume that they are called for the same target, until
@@ -459,27 +461,17 @@ class StateElementHandle(CreatorHandle):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next."""
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-        state_info: StateInfo | None,
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        # Default is to do nothing
-        pass
-
     @abc.abstractmethod
     def state_element(
-        self, state_element_id: StateElementIdentifier
+        self,
+        state_element_id: StateElementIdentifier,
+        observation_handle_set: ObservationHandleSet,
+        state_info: StateInfo | None,
     ) -> StateElement | None:
         raise NotImplementedError()
 
 
-class StateElementHandleSet(CreatorHandleSet):
+class StateElementHandleSet(CreatorHandleWithContextSet):
     """This maps a StateElementIdentifier to a StateElement object that handles it.
 
     Note StatElementHandle can assume that they are called for the same target, until
@@ -487,32 +479,16 @@ class StateElementHandleSet(CreatorHandleSet):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next."""
 
-    def __init__(self) -> None:
-        super().__init__("state_element")
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        super().__init__("state_element", strategy_context)
 
-    def state_element(self, state_element_id: StateElementIdentifier) -> StateElement:
-        return self.handle(state_element_id)
-
-    def notify_update_target(
+    def state_element(
         self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
+        state_element_id: StateElementIdentifier,
         observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
         state_info: StateInfo | None,
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(
-                    measurement_id,
-                    retrieval_config,
-                    strategy,
-                    observation_handle_set,
-                    sounding_metadata,
-                    state_info,
-                )
+    ) -> StateElement:
+        return self.handle(state_element_id, observation_handle_set, state_info)
 
 
 class StateElementImplementation(StateElement):
@@ -1016,10 +992,14 @@ class StateElementFillValueHandle(StateElementHandle):
         self,
         sid: StateElementIdentifier,
     ) -> None:
+        super().__init__()
         self.sid = sid
 
     def state_element(
-        self, state_element_id: StateElementIdentifier
+        self,
+        state_element_id: StateElementIdentifier,
+        observation_handle_set: ObservationHandleSet,
+        state_info: StateInfo | None,
     ) -> StateElement | None:
         if state_element_id != self.sid:
             return None
@@ -1054,12 +1034,16 @@ class StateElementFixedValueHandle(StateElementHandle):
         constraint_vector_fm: FullGridMappedArray,
         apriori_cov_fm: FullGrid2dArray,
     ) -> None:
+        super().__init__()
         self.sid = sid
         self.constraint_vector_fm = constraint_vector_fm
         self.apriori_cov_fm = apriori_cov_fm
 
     def state_element(
-        self, state_element_id: StateElementIdentifier
+        self,
+        state_element_id: StateElementIdentifier,
+        observation_handle_set: ObservationHandleSet,
+        state_info: StateInfo | None,
     ) -> StateElement | None:
         if state_element_id != self.sid:
             return None
@@ -1189,12 +1173,11 @@ class StateElementWithCreateHandle(StateElementHandle):
         function, so you can add specific stuff needed (e.g., a
         band_id or other arguments).
         """
+        super().__init__()
         self.sid = sid
         self.obj_cls = obj_cls
         self._hold: Any | None = None
         self.include_old_state_info = include_old_state_info
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
         self.extra_kwargs = kwargs
 
     @property
@@ -1208,41 +1191,36 @@ class StateElementWithCreateHandle(StateElementHandle):
             self._hold = state_element_old_wrapper_handle
         return self._hold
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-        state_info: StateInfo | None,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-        self.state_info = state_info
-
     def state_element(
-        self, state_element_id: StateElementIdentifier
+        self,
+        state_element_id: StateElementIdentifier,
+        observation_handle_set: ObservationHandleSet,
+        state_info: StateInfo | None,
     ) -> StateElement | None:
         if self.sid is not None and state_element_id != self.sid:
             return None
-
+        sounding_metadata = SoundingMetadata.create_from_measurement_id(
+            self.measurement_id,
+            self.strategy.instrument_name[0],
+            observation_handle_set.observation(
+                self.strategy.instrument_name[0],
+                None,
+                None,
+                None,
+            ),
+            self.retrieval_config.input_file_helper,
+        )
         sold = (
             self.hold.state_element(state_element_id) if self.hold is not None else None
         )
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
         res = self.obj_cls.create(
             sid=state_element_id,
             measurement_id=self.measurement_id,
             retrieval_config=self.retrieval_config,
             strategy=self.strategy,
-            observation_handle_set=self.observation_handle_set,
-            sounding_metadata=self.sounding_metadata,
-            state_info=self.state_info,
+            observation_handle_set=observation_handle_set,
+            sounding_metadata=sounding_metadata,
+            state_info=state_info,
             selem_wrapper=sold,
             **self.extra_kwargs,
         )
@@ -1253,6 +1231,9 @@ class StateElementWithCreateHandle(StateElementHandle):
         logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
+
+# Register creator set
+CreatorDict.register(StateElement, StateElementHandleSet)
 
 __all__ = [
     "StateElement",

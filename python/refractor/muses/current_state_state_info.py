@@ -9,7 +9,7 @@ from .retrieval_array import (
     FullGrid2dArray,
 )
 from .identifier import StateElementIdentifier
-from .state_element import StateElementHandleSet, StateElement
+from .state_element import StateElement
 import numpy as np
 import scipy  # type: ignore
 import refractor.framework as rf  # type: ignore
@@ -474,14 +474,6 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
         return self.state_element(state_element_id).pressure_list_fm
-
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        return self._state_info.state_element_handle_set
-
-    @state_element_handle_set.setter
-    def state_element_handle_set(self, val: StateElementHandleSet) -> None:
-        self._state_info.state_element_handle_set = val
 
     @property
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:

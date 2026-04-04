@@ -6,7 +6,8 @@ import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    pass
+    from .observation_handle import ObservationHandleSet
+    from .state_info import StateInfo
 
 
 class OmiEofStateElement(StateElementImplementation):
@@ -31,10 +32,14 @@ class OmiEofStateElement(StateElementImplementation):
 
 class OmiEofStateElementHandle(StateElementHandle):
     def __init__(self, state_element_id: StateElementIdentifier):
+        super().__init__()
         self._state_element_id = state_element_id
 
     def state_element(
-        self, state_element_id: StateElementIdentifier
+        self,
+        state_element_id: StateElementIdentifier,
+        observation_handle_set: ObservationHandleSet,
+        state_info: StateInfo | None,
     ) -> StateElement | None:
         if state_element_id != self._state_element_id:
             return None
