@@ -5,20 +5,20 @@ import h5py  # type: ignore
 
 from refractor.framework.factory import creator, param  # type: ignore
 import refractor.framework as rf  # type: ignore
-
+from pathlib import Path
 config_dir = os.path.dirname(__file__)
 
 # ILS and solar reference spectra used below, are in the OSP directory
 # config_dir is at omi/config
-if "MUSES_OSP_PATH" in os.environ:
-    osp_dir = os.environ["MUSES_OSP_PATH"]
+if "REFRACTOR_TEST_DATA" in os.environ:
+    osp_dir = Path(os.environ["REFRACTOR_TEST_DATA"]) / "OSP"
 else:
-    osp_dir = os.path.expanduser("~/OSP")
-ils_path = f"{osp_dir}/OMI/OMI_ILS/NORMAL/"
+    osp_dir = (Path(os.path.dirname(__file__)) / "../../../../../refractor_test_data/OSP").resolve()
+ils_path = str(osp_dir / "OMI/OMI_ILS/NORMAL/")
 
 # Same file used by MUSES retrieval
 # Listed as a 3 year mean of solar spectra
-solar_ref_3yr_filename = f"{osp_dir}/OMI/OMI_Solar/omisol_v003_avg_nshi_backup.h5"
+solar_ref_3yr_filename = str(osp_dir / "OMI/OMI_Solar/omisol_v003_avg_nshi_backup.h5")
 num_channels = 2
 channel_names = ["UV1", "UV2"]
 

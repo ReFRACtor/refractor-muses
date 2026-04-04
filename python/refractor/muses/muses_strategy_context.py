@@ -70,6 +70,10 @@ class MusesStrategyContext:
     def __init__(
         self,
         strategy_table_filename: str | os.PathLike[str] | None = None,
+        measurement_id_fname: str | os.PathLike[str] = "./Measurement_ID.asc",
+        retrieval_config_fname: str | os.PathLike[str] = "./Table.asc",
+        ifile_hlp: InputFileHelper | None = None,
+        creator_dict: CreatorDict | None = None,
     ) -> None:
         """Create a empty MusesStrategyContext. Because it is common in testing,
         you can optionally pass a strategy_table_filename and we then call
@@ -83,7 +87,12 @@ class MusesStrategyContext:
         # should be shared.
         self._observers: set[Any] = set()
         if strategy_table_filename is not None:
-            self.create_from_table_filename(strategy_table_filename)
+            self.create_from_table_filename(strategy_table_filename,
+                                            measurement_id_fname=measurement_id_fname,
+                                            retrieval_config_fname=retrieval_config_fname,
+                                            ifile_hlp=ifile_hlp,
+                                            creator_dict=creator_dict,
+                                            )
 
     def merge(self, other: MusesStrategyContext) -> Self:
         """Replace our context data with other._context_data so the are both

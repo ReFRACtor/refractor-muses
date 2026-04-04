@@ -25,11 +25,12 @@ def osp_real_dir():
     test_data_dir / "OSP", but it can be useful to use the real actual OSP in
     some cases, particularly when developing something new that we haven't already
     saved."""
-    osp_path = os.environ.get("MUSES_OSP_PATH", None)
-    if osp_path is None or not os.path.exists(osp_path):
-        pytest.skip(
-            "test requires OSP directory set by through the MUSES_OSP_PATH environment variable"
-        )
+    osp_path = os.environ.get("MUSES_OSP_PATH", "Not_set")
+    if False:
+        if osp_path is None or not os.path.exists(osp_path):
+            pytest.skip(
+                "test requires OSP directory set by through the MUSES_OSP_PATH environment variable"
+            )
     return Path(osp_path)
 
 
@@ -71,11 +72,12 @@ def gmao_real_dir():
     test_data_dir / "OSP", but it can be useful to use the real actual OSP in
     some cases, particularly when developing something new that we haven't already
     saved."""
-    gmao_path = os.environ.get("MUSES_GMAO_PATH", None)
-    if gmao_path is None or not os.path.exists(gmao_path):
-        pytest.skip(
-            "test requires GMAO directory set by through the MUSES_GMAO_PATH environment variable"
-        )
+    gmao_path = os.environ.get("MUSES_GMAO_PATH", "Not_set")
+    if False:
+        if gmao_path is None or not os.path.exists(gmao_path):
+            pytest.skip(
+                "test requires GMAO directory set by through the MUSES_GMAO_PATH environment variable"
+            )
     return Path(gmao_path)
 
 
