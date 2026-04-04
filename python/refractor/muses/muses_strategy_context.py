@@ -87,12 +87,13 @@ class MusesStrategyContext:
         # should be shared.
         self._observers: set[Any] = set()
         if strategy_table_filename is not None:
-            self.create_from_table_filename(strategy_table_filename,
-                                            measurement_id_fname=measurement_id_fname,
-                                            retrieval_config_fname=retrieval_config_fname,
-                                            ifile_hlp=ifile_hlp,
-                                            creator_dict=creator_dict,
-                                            )
+            self.create_from_table_filename(
+                strategy_table_filename,
+                measurement_id_fname=measurement_id_fname,
+                retrieval_config_fname=retrieval_config_fname,
+                ifile_hlp=ifile_hlp,
+                creator_dict=creator_dict,
+            )
 
     def merge(self, other: MusesStrategyContext) -> Self:
         """Replace our context data with other._context_data so the are both

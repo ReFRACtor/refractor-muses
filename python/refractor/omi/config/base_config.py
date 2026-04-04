@@ -6,6 +6,7 @@ import h5py  # type: ignore
 from refractor.framework.factory import creator, param  # type: ignore
 import refractor.framework as rf  # type: ignore
 from pathlib import Path
+
 config_dir = os.path.dirname(__file__)
 
 # ILS and solar reference spectra used below, are in the OSP directory
@@ -13,7 +14,9 @@ config_dir = os.path.dirname(__file__)
 if "REFRACTOR_TEST_DATA" in os.environ:
     osp_dir = Path(os.environ["REFRACTOR_TEST_DATA"]) / "OSP"
 else:
-    osp_dir = (Path(os.path.dirname(__file__)) / "../../../../../refractor_test_data/OSP").resolve()
+    osp_dir = (
+        Path(os.path.dirname(__file__)) / "../../../../../refractor_test_data/OSP"
+    ).resolve()
 ils_path = str(osp_dir / "OMI/OMI_ILS/NORMAL/")
 
 # Same file used by MUSES retrieval

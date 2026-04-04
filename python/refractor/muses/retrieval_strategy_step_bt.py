@@ -1,9 +1,9 @@
 from __future__ import annotations
 from .retrieval_strategy_step import (
-    RetrievalStrategyStep,
     RetrievalStrategyStepSet,
     RetrievalStrategyStepHandle,
 )
+from .retrieval_strategy_step_oe import RetrievalStrategyStepOEBase
 from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
 from loguru import logger
@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
     from .creator_dict import CreatorDict
 
 
-class RetrievalStrategyStepBT(RetrievalStrategyStep):
+class RetrievalStrategyStepBT(RetrievalStrategyStepOEBase):
     """Brightness Temperature strategy step. This handles steps with
     the retrieval type "BT". This then selects one of the following
     BT_IG_Refine steps to execute.

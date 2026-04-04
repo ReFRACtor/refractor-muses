@@ -4,7 +4,7 @@ from refractor.muses import MusesStrategyContext
 def test_muses_strategy_context(joint_tropomi_test_in_dir, ifile_hlp):
     strategy_context = MusesStrategyContext(
         strategy_table_filename=joint_tropomi_test_in_dir / "Table.asc",
-        ifile_hlp=ifile_hlp
+        ifile_hlp=ifile_hlp,
     )
     print(strategy_context.measurement_id)
     print(strategy_context.retrieval_config)

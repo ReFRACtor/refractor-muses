@@ -1,9 +1,9 @@
 from __future__ import annotations
 from .retrieval_strategy_step import (
-    RetrievalStrategyStep,
     RetrievalStrategyStepSet,
     RetrievalStrategyStepHandle,
 )
+from .retrieval_strategy_step_oe import RetrievalStrategyStepOEBase
 from .misc import ResultIrk
 from .identifier import RetrievalType, ProcessLocation
 from loguru import logger
@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
     from .creator_dict import CreatorDict
 
 
-class RetrievalStrategyStepIRK(RetrievalStrategyStep):
+class RetrievalStrategyStepIRK(RetrievalStrategyStepOEBase):
     """IRK strategy step."""
 
     def __init__(
