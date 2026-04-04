@@ -8,6 +8,7 @@ from .muses_levmar_solver import (
     VerboseSolverLogging,
     SolverLogFileWriter,
 )
+from .cost_function import CostFunction
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
@@ -25,7 +26,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .forward_model_combine import ForwardModelCombine
     from .retrieval_result import RetrievalResult
-    from .cost_function import CostFunction
     from .muses_levmar_solver import SolverResult
 
 
@@ -41,15 +41,42 @@ class RetrievalStrategyStepOEBase(RetrievalStrategyStep):
         use_systematic: bool = False,
         include_bad_sample: bool = False,
     ) -> ForwardModelCombine:
-        return self.rs.create_forward_model_combine(
-            use_systematic=use_systematic, include_bad_sample=include_bad_sample
+        return self.creator_dict[CostFunction].forward_model(
+            self.creator_dict,
+            self.current_strategy_step.instrument_name,
+            self.current_state,
+            self.current_strategy_step.spectral_window_dict,
+            use_systematic=use_systematic,
+            include_bad_sample=include_bad_sample,
+            **self.kwargs,
         )
 
     def create_forward_model(self) -> rf.ForwardModel:
-        return self.rs.strategy_executor.create_forward_model()
+        if len(self.current_strategy_step.instrument_name) != 1:
+            raise RuntimeError(
+                "create_forward_model can only work with one instrument, we don't have handling for multiple."
+            )
+        iname = self.current_strategy_step.instrument_name[0]
+        obs = self.creator_dict[rf.Observation].observation(
+            iname, None, self.current_strategy_step.spectral_window_dict[iname], None
+        )
+        fm_sv = self.current_state.setup_fm_state_vector()
+        fm = self.creator_dict[rf.ForwardModel].forward_model(
+            iname,
+            self.current_state,
+            obs,
+            fm_sv,
+        )
+        return fm
 
     def create_cost_function(self) -> CostFunction:
-        return self.rs.create_cost_function()
+        return self.creator_dict[CostFunction].cost_function(
+            self.creator_dict,
+            self.current_strategy_step.instrument_name,
+            self.current_state,
+            self.current_strategy_step.spectral_window_dict,
+            **self.kwargs,
+        )
 
 
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):

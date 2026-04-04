@@ -3,6 +3,7 @@ from refractor.muses import (
     StateElementIdentifier,
     CrisFmObjectCreator,
     AirsFmObjectCreator,
+    CostFunction,
 )
 from refractor.muses_py_fm import (
     MusesCrisForwardModel,
@@ -94,7 +95,12 @@ def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
         ]
     )
     # Default forward model is MusesCrisForwardModelOss
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     cfunc.parameters = parm_with_neg
     print(cfunc.fm_sv)
     fm = cfunc.fm_list[0]

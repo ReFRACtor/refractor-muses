@@ -1,5 +1,6 @@
 from __future__ import annotations
 from refractor.muses import (
+    CostFunction,
     CurrentState,
     CurrentStrategyStep,
     ForwardModelHandle,
@@ -259,7 +260,12 @@ def test_simulated_retrieval(
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     pickle.dump(cfunc, open(test_dir / "cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
@@ -333,7 +339,12 @@ def test_radiance(
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     cstate = rs.current_state
     # Print out a description of the full state, so we can look at the problem
     # with the albedo

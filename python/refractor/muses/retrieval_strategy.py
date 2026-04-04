@@ -27,14 +27,12 @@ import pystac
 
 if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
-    from .forward_model_combine import ForwardModelCombine
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .cost_function import CostFunction
-    from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
+    from .identifier import RetrievalType, StrategyStepIdentifier
     from .state_element import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
+    from .muses_strategy_executor import CurrentStrategyStep
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -351,16 +349,15 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         return self._strategy_executor.cross_state_element_handle_set
 
     @property
+    def current_strategy_step(self) -> CurrentStrategyStep:
+        res = self.strategy.current_strategy_step()
+        if res is None:
+            raise RuntimeError("Need current_strategy_step")
+        return res
+
+    @property
     def strategy_step(self) -> StrategyStepIdentifier:
         return self.current_strategy_step.strategy_step
-
-    @property
-    def instrument_name_all_step(self) -> list[InstrumentIdentifier]:
-        return self.strategy_executor.instrument_name_all_step
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        return self.strategy_executor.current_strategy_step
 
     @property
     def current_state(self) -> CurrentState:
@@ -369,27 +366,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
     @property
     def retrieval_type(self) -> RetrievalType:
         return self.current_strategy_step.retrieval_type
-
-    def create_cost_function(
-        self,
-    ) -> CostFunction:
-        """Create cost function"""
-        # This gets uses in
-        # RetrievalStrategyStep and perhaps we should just pass the
-        # strategy_executor to the constructor.  But for now, make
-        # explicit that we need this.
-        return self.strategy_executor.create_cost_function()
-
-    def create_forward_model_combine(
-        self,
-        use_systematic: bool = False,
-        include_bad_sample: bool = False,
-    ) -> ForwardModelCombine:
-        """Create ForwardModelCombine"""
-        return self.strategy_executor.create_forward_model_combine(
-            use_systematic=use_systematic,
-            include_bad_sample=include_bad_sample,
-        )
 
     def save_pickle(
         self, save_pickle_file: str | os.PathLike[str], **kwargs: Any

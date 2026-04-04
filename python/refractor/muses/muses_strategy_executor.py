@@ -6,12 +6,10 @@ from .muses_strategy import (
     CurrentStrategyStep,
 )
 from .muses_strategy_context import MusesStrategyContextMixin
-from .cost_function import CostFunction
 from .identifier import StateElementIdentifier, ProcessLocation
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
 from .state_info import StateInfo
-import refractor.framework as rf  # type: ignore
 import abc
 import copy
 import os
@@ -22,12 +20,8 @@ import typing
 from typing import Generator, Any
 
 if typing.TYPE_CHECKING:
-    from .forward_model_combine import ForwardModelCombine
     from .retrieval_strategy import RetrievalStrategy
-    from .cost_function import CostFunction
-    from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
-    from .state_element import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
     from .creator_dict import CreatorDict
 
@@ -96,20 +90,12 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.kwargs = copy.copy(kwargs)
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        return self.current_state.state_element_handle_set
-
-    @property
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         return self.current_state.cross_state_element_handle_set
 
     @property
     def run_dir(self) -> Path:
         return self.rs.run_dir
-
-    @property
-    def cost_function_creator(self) -> CostFunctionCreator:
-        return self.creator_dict[CostFunction]
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -120,54 +106,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError()
-
-    def create_forward_model(self) -> rf.ForwardModel:
-        """Create a forward model for the current step."""
-        if len(self.current_strategy_step.instrument_name) != 1:
-            raise RuntimeError(
-                "create_forward_model can only work with one instrument, we don't have handling for multiple."
-            )
-        iname = self.current_strategy_step.instrument_name[0]
-        obs = self.creator_dict[rf.Observation].observation(
-            iname, None, self.current_strategy_step.spectral_window_dict[iname], None
-        )
-        fm_sv = self.current_state.setup_fm_state_vector()
-        fm = self.rs.forward_model_handle_set.forward_model(
-            iname,
-            self.current_state,
-            obs,
-            fm_sv,
-        )
-        return fm
-
-    def create_forward_model_combine(
-        self,
-        use_systematic: bool = False,
-        include_bad_sample: bool = False,
-    ) -> ForwardModelCombine:
-        """Like create_cost_function, but create just a ForwardModelCombine instead of
-        a full CostFunction."""
-        return self.cost_function_creator.forward_model(
-            self.creator_dict,
-            self.current_strategy_step.instrument_name,
-            self.current_state,
-            self.current_strategy_step.spectral_window_dict,
-            use_systematic=use_systematic,
-            include_bad_sample=include_bad_sample,
-            **self.kwargs,
-        )
-
-    def create_cost_function(
-        self,
-    ) -> CostFunction:
-        """Create a CostFunction for use in a retrieval."""
-        return self.cost_function_creator.cost_function(
-            self.creator_dict,
-            self.current_strategy_step.instrument_name,
-            self.current_state,
-            self.current_strategy_step.spectral_window_dict,
-            **self.kwargs,
-        )
 
 
 class MusesStrategyExecutorMusesStrategy(

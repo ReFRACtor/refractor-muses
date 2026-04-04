@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
-    from .state_info import StateElement, StateElementHandleSet
+    from .state_element import StateElement
     from .record_and_play_func import CurrentStateRecordAndPlay
     from .sounding_metadata import SoundingMetadata
     from .cost_function import CostFunction
@@ -1024,10 +1024,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def retrieval_type(self) -> RetrievalType:
         """Similar to step_directory, retrieval_type is used by RefractorUip. Supply that."""
-        raise NotImplementedError()
-
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
         raise NotImplementedError()
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
