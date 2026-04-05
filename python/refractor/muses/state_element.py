@@ -454,12 +454,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
 
 class StateElementHandle(CreatorHandleWithContext):
-    """Return StateElement objects, for a given StateElementIdentifier
-
-    Note StateElementHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next."""
+    """Return StateElement objects, for a given StateElementIdentifier"""
 
     @abc.abstractmethod
     def state_element(
@@ -472,12 +467,7 @@ class StateElementHandle(CreatorHandleWithContext):
 
 
 class StateElementHandleSet(CreatorHandleWithContextSet):
-    """This maps a StateElementIdentifier to a StateElement object that handles it.
-
-    Note StatElementHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next."""
+    """This maps a StateElementIdentifier to a StateElement object that handles it."""
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
         super().__init__("state_element", strategy_context)

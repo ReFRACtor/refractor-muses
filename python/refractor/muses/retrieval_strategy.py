@@ -13,7 +13,8 @@ from .retrieval_debug_output import (
 from .retrieval_configuration import RetrievalConfiguration
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
-from .state_element import StateElement
+from .state_element import StateElement, StateElementHandleSet
+from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .creator_dict import CreatorDict
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
@@ -30,8 +31,6 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState
     from .identifier import RetrievalType, StrategyStepIdentifier
-    from .state_element import StateElementHandleSet
-    from .cross_state_element import CrossStateElementHandleSet
     from .muses_strategy_executor import CurrentStrategyStep
 
 
@@ -346,7 +345,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
     @property
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         """The set of handles we use for each state element."""
-        return self._strategy_executor.cross_state_element_handle_set
+        return self.creator_dict[CrossStateElement]
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:

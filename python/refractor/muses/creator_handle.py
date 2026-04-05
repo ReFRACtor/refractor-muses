@@ -50,12 +50,6 @@ class CreatorHandleSet(PriorityHandleSet):
         super().__init__()
         self.creator_func_name = creator_func_name
 
-    # Temp, we will remove this once we have everything moved over
-    def notify_update_target(self, *args: Any, **kwargs: Any) -> None:
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(*args, **kwargs)
-
     def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
         """Process a registered function"""
         res = getattr(h, self.creator_func_name)(*args, **kwargs)
@@ -139,12 +133,6 @@ class CreatorHandle:
         filter_name_dict and spectral_window_dict.
         """
         return getattr(self, func_name)(*args, **kwargs)
-
-    def notify_update_target(self, *args: Any) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     # Derived classes should add a creator function, e.g. observation.
     # This should either return an object if we can create it, or None

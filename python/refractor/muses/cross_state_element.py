@@ -1,8 +1,9 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, RetrievalType
 from .osp_reader import OspSpeciesReader
 from .retrieval_array import FullGridMappedArray, RetrievalGrid2dArray
+from .creator_dict import CreatorDict
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from pathlib import Path
 from loguru import logger
 import numpy as np
@@ -10,14 +11,12 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from .observation_handle import ObservationHandleSet
-    from .muses_observation import MeasurementId
     from .input_file_helper import InputFileHelper
     from .retrieval_configuration import RetrievalConfiguration
-    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .muses_strategy import CurrentStrategyStep
+    from .muses_strategy_context import MusesStrategyContext
     from .current_state import (
         StateElement,
-        SoundingMetadata,
         RetrievalGridArray,
     )
 
@@ -157,28 +156,8 @@ class CrossStateElement:
         pass
 
 
-class CrossStateElementHandle(CreatorHandle):
-    """Return CrossStateElement objects, for a given pair of StateElement
-
-    Note CrossStateElementHandle can assume that they are called for
-    the same target, until notify_update_target is called. So if it
-    makes sense, these objects can do internal caching for things that
-    don't change when the target being retrieved is the same from one
-    call to the next.
-
-    """
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        # Default is to do nothing
-        pass
+class CrossStateElementHandle(CreatorHandleWithContext):
+    """Return CrossStateElement objects, for a given pair of StateElement"""
 
     @abc.abstractmethod
     def cross_state_element(
@@ -187,16 +166,11 @@ class CrossStateElementHandle(CreatorHandle):
         raise NotImplementedError()
 
 
-class CrossStateElementHandleSet(CreatorHandleSet):
-    """This maps a StateElementIdentifier to a StateElement object that handles it.
+class CrossStateElementHandleSet(CreatorHandleWithContextSet):
+    """This maps a StateElementIdentifier to a StateElement object that handles it."""
 
-    Note StatElementHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next."""
-
-    def __init__(self) -> None:
-        super().__init__("cross_state_element")
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        super().__init__("cross_state_element", strategy_context)
 
     def cross_state_element(
         self, state_element_1: StateElement, state_element_2: StateElement
@@ -205,25 +179,6 @@ class CrossStateElementHandleSet(CreatorHandleSet):
             return self.handle(state_element_1, state_element_2)
         else:
             return self.handle(state_element_2, state_element_1)
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(
-                    measurement_id,
-                    retrieval_config,
-                    strategy,
-                    observation_handle_set,
-                    sounding_metadata,
-                )
 
 
 class CrossStateElementImplementation(CrossStateElement):
@@ -243,9 +198,6 @@ class CrossStateElementImplementation(CrossStateElement):
 
 
 class CrossStateElementDefaultHandle(CrossStateElementHandle):
-    def __init__(self) -> None:
-        pass
-
     def cross_state_element(
         self, state_element_1: StateElement, state_element_2: StateElement
     ) -> CrossStateElement | None:
@@ -361,23 +313,9 @@ class H2OCrossStateElementOspHandle(CrossStateElementHandle):
     def __init__(
         self, sid_1: StateElementIdentifier, sid_2: StateElementIdentifier
     ) -> None:
+        super().__init__()
         self.sid_1 = sid_1
         self.sid_2 = sid_2
-        self.retrieval_config: RetrievalConfiguration | None = None
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
 
     def cross_state_element(
         self, state_element_1: StateElement, state_element_2: StateElement
@@ -387,8 +325,6 @@ class H2OCrossStateElementOspHandle(CrossStateElementHandle):
             or state_element_2.state_element_id != self.sid_2
         ):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
         res = H2OCrossStateElementOsp(
             state_element_1,
             state_element_2,
@@ -424,6 +360,9 @@ CrossStateElementHandleSet.add_default_handle(
 CrossStateElementHandleSet.add_default_handle(
     CrossStateElementDefaultHandle(), priority_order=-1
 )
+
+# Register creator set
+CreatorDict.register(CrossStateElement, CrossStateElementHandleSet)
 
 __all__ = [
     "CrossStateElement",

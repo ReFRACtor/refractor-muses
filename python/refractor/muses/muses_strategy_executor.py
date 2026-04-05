@@ -22,7 +22,6 @@ from typing import Generator, Any
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .identifier import InstrumentIdentifier, FilterIdentifier
-    from .cross_state_element import CrossStateElementHandleSet
     from .creator_dict import CreatorDict
 
 
@@ -88,10 +87,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.state_info = StateInfo(creator_dict)
         self.current_state = CurrentStateStateInfo(self.state_info)
         self.kwargs = copy.copy(kwargs)
-
-    @property
-    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
-        return self.current_state.cross_state_element_handle_set
 
     @property
     def run_dir(self) -> Path:

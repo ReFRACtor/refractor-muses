@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import CurrentStrategyStep
     from .muses_strategy_context import MusesStrategyContext
     from .state_info import StateElement
-    from .cross_state_element import CrossStateElementHandleSet
     from .cost_function import CostFunction
     from .state_info import StateInfo
 
@@ -474,14 +473,6 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
         return self.state_element(state_element_id).pressure_list_fm
-
-    @property
-    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
-        return self._state_info.cross_state_element_handle_set
-
-    @cross_state_element_handle_set.setter
-    def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
-        self._state_info.cross_state_element_handle_set = val
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach StateElement to get notified when current state changes.

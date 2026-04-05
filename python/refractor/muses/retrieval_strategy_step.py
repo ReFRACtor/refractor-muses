@@ -23,12 +23,6 @@ class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
     """This takes the retrieval_type and determines a
     RetrievalStrategyStep to handle this, returning it so it can
     be called.
-
-    Note RetrievalStrategyStep can assume that they are called for the
-    same MusesStrategyContext, until notify_update_strategy_context is
-    called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the context being
-    retrieved is the same from one call to the next.
     """
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
@@ -80,23 +74,16 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
     We *only* maintain state between steps in CurrentState (other than
     possibly internal caching for performance). If the same
     RetrievalStrategyStep is called with the same CurrentState, it
-    will produce the same output.
+    will produce the same output (possibly slower, if internal caching
+    isn't the same).
 
     A RetrievalStrategyStep *only* modifies CurrentState and produces
     output through side effects. Note that the RetrievalStrategyStep
     doesn't directly produce output, instead we use the
     Observer/Observable pattern to decouple generation of output. A
-    RetrievalStrategyStep calls RetrievalStrategy.notify_update_target
+    RetrievalStrategyStep calls ProcessLocationObserver.notify_process_location
     at points during the processing, where the Observer can do
     whatever with the processing (e.g, produce an output file).
-
-    Note this current class has a number of things related to optimal
-    estimation (e.g., forward model) that don't really apply to a
-    different kind of retrieval (e.g., machine learning). We may want
-    to separate this out. Right now, it seems harmless - we just have
-    a bunch of functions we don't need for machine learning. But it
-    might be better to separate this out, once we have a clearer
-    picture of the differences between the two.
 
     """
 
