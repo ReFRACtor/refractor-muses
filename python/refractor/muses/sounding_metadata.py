@@ -82,9 +82,6 @@ class SoundingMetadata:
             f = ifile_hlp.open_tes(measurement_id.base_dir / "DateTime.asc")
             res._tai_time = float(f["TAI_Time_of_ZPD"])
             res._utc_time = f["UTC_Time"]
-        else:
-            res._tai_time = None
-            res._utc_time = None
         res._day_flag = res.local_hour >= 8 and res.local_hour <= 22
         res._surface_altitude = obs.surface_altitude
         return res
