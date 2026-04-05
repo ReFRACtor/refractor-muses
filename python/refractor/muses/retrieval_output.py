@@ -118,13 +118,10 @@ class RetrievalOutput:
 
     @property
     def output_directory(self) -> Path:
-        # This is usually the same as the self.retrieval_strategy.run_dir, but
+        # This is usually the same as the self.retrieval_config["run_dir"], but
         # could in principle be different. So we calculate this the same way
         # muses-py does
-        return (
-            self.retrieval_config["outputDirectory"]
-            / self.retrieval_config["sessionID"]
-        )
+        return self.retrieval_config["output_directory"]
 
     @property
     def lite_directory(self) -> InputFilePath:

@@ -523,7 +523,7 @@ class CurrentStateStateInfo(CurrentState):
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
-                retrieval_config["run_dir"]
+                retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             self._strategy_step = current_strategy_step.strategy_step
@@ -551,7 +551,7 @@ class CurrentStateStateInfo(CurrentState):
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
-                retrieval_config["run_dir"]
+                retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             self._strategy_step = current_strategy_step.strategy_step

@@ -194,7 +194,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         )
 
         stac = pystac.Catalog.from_file(
-            self.run_dir / "config.json",
+            self._output_directory / "config.json",
         )
         self.strategy_context.update_strategy_context(
             stac_catalog=stac,
@@ -315,7 +315,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         self._ifile_hlp = val
 
     @property
-    def run_dir(self) -> Path:
+    def _output_directory(self) -> Path:
         """Directory we are running in (e.g. where the strategy table and measurement id files
         are)"""
         return Path(self._capture_directory.rundir)
@@ -371,7 +371,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
     ) -> None:
         """Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy."""
-        self._capture_directory.save_directory(self.run_dir)
+        self._capture_directory.save_directory(self._output_directory)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
     def load_step_info(
@@ -408,14 +408,13 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
         """
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
-        res._capture_directory.rundir = (  # noqa: SLF001
-            Path(path).absolute() / res._capture_directory.runbase  # noqa: SLF001
-        )
-        res._filename = res.run_dir / res.strategy_table_filename.name  # noqa: SLF001
+        output_directory = Path(path).absolute() / res._capture_directory.runbase  # noqa: SLF001
+        res._capture_directory.rundir = output_directory  # noqa: SLF001
+        res._filename = output_directory / res.strategy_table_filename.name  # noqa: SLF001
         res._strategy_executor.strategy_table_filename = res._filename  # noqa: SLF001
         res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()  # noqa: SLF001
         res._retrieval_config.ifile_hlp = res.input_file_helper  # noqa: SLF001
-        res._retrieval_config.base_dir = res.run_dir  # noqa: SLF001
+        res._retrieval_config.base_dir = output_directory  # noqa: SLF001
         res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)  # noqa: SLF001
         return res, kwargs
 
@@ -448,7 +447,7 @@ class RetrievalStrategyCaptureObserver:
         # I think we always want to store this in the run directory. We can
         # change this if not - but for now assume we always do that
         fname = (
-            retrieval_strategy.run_dir
+            retrieval_strategy._output_directory  # noqa: SLF001
             / f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
         )
         # Don't want this class included in the pickle

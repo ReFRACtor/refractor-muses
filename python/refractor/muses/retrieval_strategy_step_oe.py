@@ -208,7 +208,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
         if True:
             self.slv.add_observer(VerboseSolverLogging())
         if self.rs.write_output:
-            levmar_log_file = f"{self.retrieval_config['run_dir']}/Step{self.strategy_step.step_number:02d}_{self.strategy_step.step_name}/LevmarSolver-{self.strategy_step.step_name}.log"
+            levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.strategy_step.step_number:02d}_{self.strategy_step.step_name}/LevmarSolver-{self.strategy_step.step_name}.log"
             self.slv.add_observer(SolverLogFileWriter(levmar_log_file))
         if self._saved_state is not None:
             # Skip solve if we have a saved state.

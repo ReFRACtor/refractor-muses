@@ -15,7 +15,6 @@ import copy
 import os
 from loguru import logger
 import time
-from pathlib import Path
 import typing
 from typing import Generator, Any
 
@@ -87,10 +86,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.state_info = StateInfo(creator_dict)
         self.current_state = CurrentStateStateInfo(self.state_info)
         self.kwargs = copy.copy(kwargs)
-
-    @property
-    def run_dir(self) -> Path:
-        return self.rs.run_dir
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:

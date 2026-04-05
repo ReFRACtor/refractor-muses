@@ -71,7 +71,7 @@ def test_retrieval_pickle_results(joint_tropomi_output):
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
     assert (
-        Path(rs.run_dir) / "Step12_H2O,O3,EMIS_TROPOMI/Diagnostics/results.pkl"
+        rs.retrieval_config["output_directory"] / "Step12_H2O,O3,EMIS_TROPOMI/Diagnostics/results.pkl"
     ).exists()
 
 
@@ -92,7 +92,7 @@ def test_retrieval_plot_radiance(joint_tropomi_output):
         "radiance_fit.png",
     ):
         assert (
-            Path(rs.run_dir) / f"Step12_H2O,O3,EMIS_TROPOMI/StepAnalysis/{fname}"
+           rs.retrieval_config["output_directory"] / f"Step12_H2O,O3,EMIS_TROPOMI/StepAnalysis/{fname}"
         ).exists()
 
 
@@ -117,7 +117,7 @@ def test_retrieval_plot_results(joint_tropomi_output):
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
     for fname in ("ak_full.png", "plot_H2O.png", "plot_O3.png"):
-        assert (Path(rs.run_dir) / f"Step12_H2O,O3,EMIS_TROPOMI/{fname}").exists()
+        assert (rs.retrieval_config["output_directory"] / f"Step12_H2O,O3,EMIS_TROPOMI/{fname}").exists()
 
 
 def test_retrieval_irk_output(airs_irk_step_6, airs_irk_test_expected_dir):

@@ -158,10 +158,6 @@ class MusesPyQaDataHandle(QaDataHandle):
             and self.has_measurement_id
             and "QualityFlagDirectory" in self.measurement_id
         ):
-            self.run_dir = (
-                self.retrieval_config["outputDirectory"]
-                / self.retrieval_config["sessionID"]
-            )
             self.viewing_mode = self.retrieval_config["viewingMode"]
             self.qa_flag_directory = self.measurement_id["QualityFlagDirectory"]
             self.ifile_hlp = self.retrieval_config.input_file_helper

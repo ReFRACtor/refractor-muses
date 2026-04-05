@@ -967,13 +967,24 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
     then the next time a observation gets read in a unit test we can read the pickle
     file."""
 
+    def __init__(
+        self,
+        instrument_name: InstrumentIdentifier,
+        obs_cls: type[MusesObservationClassType],
+    ) -> None:
+        super().__init__(instrument_name, obs_cls)
+        self.pname: Path | None = None
+
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
         super().notify_update_strategy_context(strategy_context)
-        pname = self.retrieval_config["run_dir"] / f"{self.instrument_name}_obs.pkl"
-        if pname.exists():
-            self.existing_obs = pickle.load(open(pname, "rb"))
+        if hasattr(self.measurement_id, "base_dir"):
+            self.pname = (
+                self.measurement_id.base_dir / f"{self.instrument_name}_obs.pkl"
+            )
+        if self.pname is not None and self.pname.exists():
+            self.existing_obs = pickle.load(open(self.pname, "rb"))
 
     def observation(
         self,
@@ -991,9 +1002,13 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             fm_sv,
             **kwargs,
         )
-        if res is not None and might_save and self.existing_obs is not None:
-            pname = self.retrieval_config["run_dir"] / f"{self.instrument_name}_obs.pkl"
-            pickle.dump(self.existing_obs, open(pname, "wb"))
+        if (
+            self.pname is not None
+            and res is not None
+            and might_save
+            and self.existing_obs is not None
+        ):
+            pickle.dump(self.existing_obs, open(self.pname, "wb"))
         return res
 
 
