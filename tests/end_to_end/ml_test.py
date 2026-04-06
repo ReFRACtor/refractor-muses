@@ -3,12 +3,12 @@ from refractor.muses import (
     RetrievalConfiguration,
     MusesSpectralWindowDict,
     RetrievalStrategyStep,
-    RetrievalStrategyStepHandle,
     RetrievalType,
 )
 from refractor.osr_ml import (
     DummySpectralWindowHandle,
     RetrievalStrategyStepMl,
+    RetrievalStrategyStepMlHandle,
     RetrievalMlOutput,
 )
 from loguru import logger
@@ -30,7 +30,9 @@ def test_refractor_retrieve_ml_end_to_end(
         DummySpectralWindowHandle(), priority_order=1
     )
     rs.creator_dict[RetrievalStrategyStep].add_handle(
-        RetrievalStrategyStepHandle(RetrievalStrategyStepMl, {RetrievalType("ml")}),
+        RetrievalStrategyStepMlHandle(
+            RetrievalStrategyStepMl, {RetrievalType("ml")}, "CRIS-JPSS-1", "CO"
+        ),
         priority_order=1,
     )
     rs.add_observer(RetrievalMlOutput())

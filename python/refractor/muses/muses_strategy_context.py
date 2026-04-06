@@ -344,6 +344,7 @@ class MusesStrategyContextMixin:
     def has_stac_catalog(self) -> bool:
         return self.strategy_context.stac_catalog is not None
 
+    @property
     def stac_catalog(self) -> pystac.Catalog:
         """We often want to get the stac_catalog from the strategy_context,
         having an error if either the strategy_context or the stac_catalog

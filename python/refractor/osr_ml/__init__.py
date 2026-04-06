@@ -34,7 +34,10 @@ from .read_nc import (
     read_nc,
 )
 from .retrieval_ml_output import RetrievalMlOutput
-from .retrieval_strategy_step_ml import RetrievalStrategyStepMl
+from .retrieval_strategy_step_ml import (
+    RetrievalStrategyStepMl,
+    RetrievalStrategyStepMlHandle,
+)
 from .rmsd_two_var import (
     rmsd_two_var,
 )
