@@ -116,7 +116,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
         self._strategy_executor = MusesStrategyExecutorMusesStrategy(
-            self, self.creator_dict
+            self.creator_dict, self.process_location_observable
         )
 
         # Right now, we hardcode the output observers. Probably want to
@@ -248,7 +248,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
     def add_observer(self, obs: Any) -> None:
         self.process_location_observable.add_observer(obs)
-        
+
     def remove_observer(self, obs: Any) -> None:
         self.process_location_observable.remove_observer(obs)
 
@@ -262,7 +262,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
         self.process_location_observable.notify_process_location(location, **kwargs)
-        
+
     @property
     def keyword_arguments(self) -> dict:
         """Keyword arguments, which can be used to pass arguments down
@@ -402,9 +402,11 @@ class RetrievalStrategyCaptureObserver:
     """
 
     def __init__(
-        self, basefname: str, location_to_capture: str | ProcessLocation
+            self, basefname: str, location_to_capture: str | ProcessLocation,
+            retrieval_strategy : RetrievalStrategy
     ) -> None:
         self.basefname = basefname
+        self.retrieval_strategy = retrieval_strategy
         if isinstance(location_to_capture, ProcessLocation):
             self.location_to_capture = location_to_capture
         else:
@@ -412,25 +414,25 @@ class RetrievalStrategyCaptureObserver:
 
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
-        return [self.location_to_capture,]
-            
+        return [
+            self.location_to_capture,
+        ]
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
+        strategy_executor: MusesStrategyExecutor,
         **kwargs: Any,
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
-        # I think we always want to store this in the run directory. We can
-        # change this if not - but for now assume we always do that
         fname = (
-            retrieval_strategy._output_directory  # noqa: SLF001
-            / f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
+            strategy_executor.retrieval_config["output_directory"]
+            / f"{self.basefname}_{strategy_executor.step_number}.pkl"
         )
         # Don't want this class included in the pickle
-        retrieval_strategy.remove_observer(self)
-        retrieval_strategy.save_pickle(fname, **kwargs)
-        retrieval_strategy.add_observer(self)
+        strategy_executor.process_location_observable.remove_observer(self)
+        self.retrieval_strategy.save_pickle(fname, **kwargs)
+        strategy_executor.process_location_observable.add_observer(self)
 
 
 class RetrievalStrategyMemoryUse:

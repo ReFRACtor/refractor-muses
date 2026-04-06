@@ -25,7 +25,6 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .retrieval_result import RetrievalResult
     from .current_state import CurrentState
@@ -94,12 +93,12 @@ class RetrievalOutput(MusesStrategyContextMixin):
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.current_state = retrieval_strategy.current_state
+        self.current_state = current_state
         self.retrieval_strategy_step = retrieval_strategy_step
 
     @property

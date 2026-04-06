@@ -11,9 +11,9 @@ import typing
 from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .creator_dict import CreatorDict
+    from .current_state import CurrentState
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -40,15 +40,19 @@ class RetrievalRadianceOutput(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.

@@ -12,9 +12,10 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
     from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_context import MusesStrategyContext
+    from .current_state import CurrentState
+    from .process_location_observable import ProcessLocationObservable
 
 
 class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
@@ -29,11 +30,18 @@ class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
     def retrieval_step(
         self,
         retrieval_type: RetrievalType,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> RetrievalStrategyStep:
-        return self.handle(retrieval_type, rs, creator_dict, **kwargs)
+        return self.handle(
+            retrieval_type,
+            creator_dict,
+            current_state,
+            process_location_observable,
+            **kwargs,
+        )
 
 
 class RetrievalStrategyStepHandle(CreatorHandleWithContext):
@@ -54,15 +62,18 @@ class RetrievalStrategyStepHandle(CreatorHandleWithContext):
     def retrieval_step(
         self,
         retrieval_type: RetrievalType,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> RetrievalStrategyStep | None:
         if (
             self._retrieval_type_set is None
             or retrieval_type in self._retrieval_type_set
         ):
-            return self._create_cls(rs, creator_dict, **kwargs)
+            return self._create_cls(
+                creator_dict, current_state, process_location_observable, **kwargs
+            )
         return None
 
 
@@ -87,16 +98,16 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
 
     def __init__(
         self,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> None:
         super().__init__(creator_dict.strategy_context)
         self._saved_state: None | dict[str, Any] = None
-        # TODO I think we will want to remove the direct use of RetrievalStrategy,
-        # although I'm not sure. For now we use this.
-        self.rs = rs
         self.creator_dict = creator_dict
+        self.current_state = current_state
+        self.process_location_observable = process_location_observable
         self.kwargs = kwargs
 
     def do_retrieval(
@@ -132,12 +143,9 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
         self._saved_state = d
 
     def notify_process_location(self, ploc: ProcessLocation) -> None:
-        self.rs.notify_process_location(ploc, retrieval_strategy=self.rs,
-                                        retrieval_strategy_step=self)
-
-    @property
-    def current_state(self) -> CurrentState:
-        return self.rs.current_state
+        self.process_location_observable.notify_process_location(
+            ploc, current_state=self.current_state, retrieval_strategy_step=self
+        )
 
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):

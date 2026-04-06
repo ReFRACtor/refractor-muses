@@ -40,7 +40,10 @@ def test_retrieval_radiance_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalRadianceOutput(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
 
 
@@ -48,7 +51,10 @@ def test_retrieval_jacobian_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalJacobianOutput(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
 
 
@@ -56,19 +62,25 @@ def test_retrieval_l2_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalL2Output(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     jout.finalize_file_number()
 
 
 # Can't currently pickle because of our dynamic function FmUpdateUip. We can come
 # back to this
-@pytest.mark.skip    
+@pytest.mark.skip
 def test_retrieval_pickle_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPickleResult(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
@@ -82,7 +94,10 @@ def test_retrieval_plot_radiance(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPlotRadiance(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
@@ -107,7 +122,10 @@ def test_retrieval_input_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalInputOutput(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     breakpoint()
 
@@ -116,7 +134,10 @@ def test_retrieval_plot_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPlotResult(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("retrieval step"), retrieval_strategy=rs, retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
@@ -131,8 +152,10 @@ def test_retrieval_irk_output(airs_irk_step_6, airs_irk_test_expected_dir):
     rs, rstep, kwargs = airs_irk_step_6
     jout = RetrievalIrkOutput(rs.creator_dict)
     jout.notify_process_location(
-        ProcessLocation("IRK step"), retrieval_strategy=rs,
-        retrieval_strategy_step=rstep, **kwargs
+        ProcessLocation("IRK step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
     )
     # compare_dir = airs_irk_test_expected_dir
     # diff_is_error = True

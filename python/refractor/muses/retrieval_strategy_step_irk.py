@@ -11,8 +11,9 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .creator_dict import CreatorDict
+    from .current_state import CurrentState
+    from .process_location_observable import ProcessLocationObservable
 
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStepOEBase):
@@ -20,11 +21,14 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStepOEBase):
 
     def __init__(
         self,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> None:
-        super().__init__(rs, creator_dict, **kwargs)
+        super().__init__(
+            creator_dict, current_state, process_location_observable, **kwargs
+        )
         self.results_irk: ResultIrk | None = None
 
     def retrieval_step_body(self) -> None:

@@ -9,7 +9,7 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_strategy_executor import CurrentStrategyStep
+    from .muses_strategy import CurrentStrategyStep
     from .muses_strategy_context import MusesStrategyContext
 
 # We use this in a number of places, so give a short name for this dict

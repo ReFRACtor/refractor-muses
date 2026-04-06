@@ -23,10 +23,11 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .forward_model_combine import ForwardModelCombine
     from .retrieval_result import RetrievalResult
     from .muses_levmar_solver import SolverResult
+    from .current_state import CurrentState
+    from .process_location_observable import ProcessLocationObservable
 
 
 class RetrievalStrategyStepOEBase(RetrievalStrategyStep):
@@ -85,11 +86,14 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
 
     def __init__(
         self,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> None:
-        super().__init__(rs, creator_dict, **kwargs)
+        super().__init__(
+            creator_dict, current_state, process_location_observable, **kwargs
+        )
         self.slv: None | MusesLevmarSolver = None
         self.cfunc: None | CostFunction = None
         self.jacobian_sys: None | np.ndarray = None
@@ -198,15 +202,17 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
         logger.info(f"Initial State vector:\n{self.cfunc.fm_sv}")
         self.slv = MusesLevmarSolver(
             self.cfunc,
+            self.process_location_observable,
             cost_function_params["max_iter"],
             cost_function_params["delta_value"],
             cost_function_params["conv_tolerance"],
             chi2_tolerance,
         )
         # For now, assume we want verbose logging
-        if True:
+        # Move to retrieval_strategy
+        if False:
             self.slv.add_observer(VerboseSolverLogging())
-        if self.rs.write_output:
+        if False and self.rs.write_output:
             levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.strategy_step.step_number:02d}_{self.strategy_step.step_name}/LevmarSolver-{self.strategy_step.step_name}.log"
             self.slv.add_observer(SolverLogFileWriter(levmar_log_file))
         if self._saved_state is not None:

@@ -60,7 +60,7 @@ def test_eof_omi(ifile_hlp, omi_test_in_dir, end_to_end_run_dir):
     try:
         lognum = logger.add(dir / "retrieve.log")
         rscap = RetrievalStrategyCaptureObserver(
-            "retrieval_strategy_retrieval_step", "starting run_step"
+            "retrieval_strategy_retrieval_step", "starting run_step", rs
         )
         rs.add_observer(rscap)
         rs.retrieval_ms()

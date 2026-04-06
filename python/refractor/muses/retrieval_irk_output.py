@@ -10,10 +10,9 @@ import typing
 from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .misc import ResultIrk
-    from .current_state import PropagatedQA
+    from .current_state import PropagatedQA, CurrentState
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -32,6 +31,7 @@ class RetrievalIrkOutput(RetrievalOutput):
 
     @property
     def propagated_qa(self) -> PropagatedQA:
+        assert self.current_state is not None
         return self.current_state.propagated_qa
 
     @property
@@ -45,22 +45,26 @@ class RetrievalIrkOutput(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("IRK step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         self.out_fname = self.output_directory / "Products" / "Products_IRK.nc"
         os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
         self.write_irk()
 
     def write_irk(self) -> None:
-        if self.results_irk is None:
+        if self.results_irk is None or self.current_state is None:
             return
 
         # Copy of write_products_irk_one, so we can try cleaning this up a bit

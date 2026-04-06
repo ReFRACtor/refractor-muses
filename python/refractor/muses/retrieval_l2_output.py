@@ -11,12 +11,13 @@ from .muses_altitude_pge import MusesAltitudePge
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Callable
+from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .muses_strategy_context import MusesStrategyContext
     from .creator_dict import CreatorDict
+    from .current_state import CurrentState
 
 
 class FileNumberHandle:
@@ -96,31 +97,39 @@ class RetrievalL2Output(RetrievalOutput):
             fnum.finalize()
         self.file_number_dict = {}
 
-    def notify_update_strategy_context(self, strategy_context: MusesStrategyContext) -> None:
-            # Save these, used in later lite files. Note these actually get
-            # saved between steps, so we initialize these for the first step but
-            # then leave them alone
-            self.dataTATM = None
-            self.dataH2O = None
-            self.dataN2O = None
-            self.file_number_dict = {}
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
+    ) -> None:
+        # Save these, used in later lite files. Note these actually get
+        # saved between steps, so we initialize these for the first step but
+        # then leave them alone
+        self.dataTATM = None
+        self.dataH2O = None
+        self.dataN2O = None
+        self.file_number_dict = {}
 
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval done"), ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState | None=None,
+        retrieval_strategy_step: RetrievalStrategyStep | None=None,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
         if location == ProcessLocation("retrieval done"):
             self.finalize_file_number()
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
+        assert current_state is not None
+        assert retrieval_strategy_step is not None
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         # Regenerate this for the current step
         self._species_list = None
         for self.spcname in self.species_list:

@@ -2,9 +2,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from .retrieval_strategy_step import RetrievalStrategyStep
 from .current_state_state_info import CurrentStateStateInfo
-from .muses_strategy import (
-    CurrentStrategyStep,
-)
 from .muses_strategy_context import MusesStrategyContextMixin
 from .identifier import StateElementIdentifier, ProcessLocation
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
@@ -19,9 +16,9 @@ import typing
 from typing import Generator, Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .creator_dict import CreatorDict
+    from .process_location_observable import ProcessLocationObservable
 
 
 @contextmanager
@@ -77,11 +74,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def __init__(
         self,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> None:
-        self.rs = rs
+        self.process_location_observable = process_location_observable
         self.creator_dict = creator_dict
         self.state_info = StateInfo(creator_dict)
         self.current_state = CurrentStateStateInfo(self.state_info)
@@ -109,21 +106,25 @@ class MusesStrategyExecutorMusesStrategy(
 
     def __init__(
         self,
-        rs: RetrievalStrategy,
         creator_dict: CreatorDict,
+        process_location_observable: ProcessLocationObservable,
+        **kwargs: Any,
     ) -> None:
         MusesStrategyExecutorRetrievalStrategyStep.__init__(
             self,
-            rs,
             creator_dict,
-            **rs.keyword_arguments,
+            process_location_observable,
+            **kwargs,
         )
         MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
 
     def notify_process_location(
         self, location: str | ProcessLocation, **kwargs: Any
     ) -> None:
-        self.rs.notify_process_location(location, retrieval_strategy=self.rs, **kwargs)
+        self.process_location_observable.notify_process_location(
+            location, current_state=self.current_state, strategy_executor=self,
+            **kwargs
+        )
 
     def restart(self) -> None:
         """Set step to the first one."""
@@ -180,8 +181,9 @@ class MusesStrategyExecutorMusesStrategy(
         )
         rstep = self.creator_dict[RetrievalStrategyStep].retrieval_step(
             self.current_strategy_step.retrieval_type,
-            self.rs,
             self.creator_dict,
+            self.current_state,
+            self.process_location_observable,
             **self.current_strategy_step.retrieval_step_parameters,
             **self.kwargs,
         )

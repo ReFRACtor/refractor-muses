@@ -137,10 +137,12 @@ def run_step_to_location(
 
         @property
         def observing_process_location(self) -> list[ProcessLocation]:
-            return [ProcessLocation(location),]
+            return [
+                ProcessLocation(location),
+            ]
 
         def notify_process_location(
-                self, loc, retrieval_strategy=None, retrieval_strategy_step=None, **kwargs
+            self, loc, retrieval_strategy=None, retrieval_strategy_step=None, **kwargs
         ):
             self.retrieval_strategy_step = retrieval_strategy_step
             self.kwargs = kwargs

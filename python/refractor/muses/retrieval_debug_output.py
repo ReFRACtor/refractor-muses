@@ -8,8 +8,8 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .current_state import CurrentState
 
 # We don't have all this in place yet, but put a few samples in place for output
 # triggered by having "writeOutput" which is controlled by the --debug flag set
@@ -30,15 +30,19 @@ class RetrievalInputOutput(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.input_directory, exist_ok=True)
         # May need to extend this logic here
@@ -64,15 +68,19 @@ class RetrievalPickleResult(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.elanor_directory, exist_ok=True)
         with open(self.elanor_directory / "results.pkl", "wb") as fh:
@@ -83,15 +91,19 @@ class RetrievalPlotResult(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.step_directory, exist_ok=True)
         # Just skip if we don't have muses_py. This is a pretty involved function, and
@@ -110,15 +122,19 @@ class RetrievalPlotRadiance(RetrievalOutput):
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [ProcessLocation("retrieval step")]
-    
+
     def notify_process_location(
         self,
         location: ProcessLocation,
-        retrieval_strategy: RetrievalStrategy | None = None,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.analysis_directory, exist_ok=True)
         # Just skip if we don't have muses_py. This is a pretty involved function, and

@@ -61,11 +61,11 @@ class CostFunctionCapture:
 
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
-        return [self.location_to_capture,]
-        
-    def notify_process_location(
-        self, location, retrieval_strategy_step=None, **kwargs
-    ):
+        return [
+            self.location_to_capture,
+        ]
+
+    def notify_process_location(self, location, retrieval_strategy_step=None, **kwargs):
         self.cost_function = retrieval_strategy_step.cfunc
         raise StopIteration()
 

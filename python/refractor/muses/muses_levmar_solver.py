@@ -8,6 +8,10 @@ from typing import Any
 from attrs import frozen
 import math
 from loguru import logger
+import typing
+
+if typing.TYPE_CHECKING:
+    from .process_location_observable import ProcessLocationObservable
 
 
 @frozen
@@ -32,10 +36,14 @@ class SolverResult:
 class VerboseSolverLogging:
     """Observer of MusesLevmarSolver that adds some more verbose logging."""
 
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("start iteration"), ProcessLocation("end iteration")]
+
     def notify_process_location(
         self,
-        slv: MusesLevmarSolver,
         location: ProcessLocation,
+        slv: MusesLevmarSolver,
         local_variable: dict[str, Any],
         **kwargs: Any,
     ) -> None:
@@ -103,10 +111,14 @@ class SolverLogFileWriter:
         # Open file
         self.fh = open(self.fname, "a")
 
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("start iteration"), ProcessLocation("end iteration")]
+
     def notify_process_location(
         self,
-        slv: MusesLevmarSolver,
         location: ProcessLocation,
+        slv: MusesLevmarSolver,
         local_variable: dict[str, Any],
         **kwargs: Any,
     ) -> None:
@@ -684,6 +696,7 @@ class MusesLevmarSolver:
     def __init__(
         self,
         cfunc: CostFunction,
+        process_location_observable: ProcessLocationObservable,
         max_iter: int,
         delta_value: float,
         conv_tolerance: list[float],
@@ -693,6 +706,7 @@ class MusesLevmarSolver:
         sing_tolerance: float = 1.0e-7,
     ) -> None:
         self.cfunc = cfunc
+        self.process_location_observable = process_location_observable
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
@@ -712,30 +726,6 @@ class MusesLevmarSolver:
         self.stop_code = -1
         self._observers: set[Any] = set()
 
-    def add_observer(self, obs: Any) -> None:
-        # Often we want weakref, so we don't prevent objects from
-        # being deleted just because they are observing this. But in
-        # this particular case, we actually do want to maintain the
-        # lifetime. These observers will do things like write out
-        # output, but have no real life outside of being attached to
-        # this class.  It is easy enough to change this to weakref if
-        # that proves useful
-        self._observers.add(obs)
-        if hasattr(obs, "notify_add"):
-            obs.notify_add(self)
-
-    def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
-        if hasattr(obs, "notify_remove"):
-            obs.notify_remove(self)
-
-    def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
-        # list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            self.remove_observer(obs)
-
     def notify_process_location(
         self,
         location: ProcessLocation | str,
@@ -745,13 +735,9 @@ class MusesLevmarSolver:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
-        for obs in self._observers:
-            obs.notify_process_location(
-                self,
-                loc,
-                {k: v for k, v in local_variable.items() if k != "self"},
-                **kwargs,
-            )
+        self.process_location_observable.notify_process_location(
+            loc, slv=self, local_variable=local_variable
+        )
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by set_state.

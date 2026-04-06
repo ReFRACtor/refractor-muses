@@ -49,13 +49,15 @@ class RsSetupRetState:
 
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
-        return [ProcessLocation("starting run_step"),]
-        
-    def notify_process_location(self, loc, retrieval_strategy = None, **kwargs):
+        return [
+            ProcessLocation("starting run_step"),
+        ]
+
+    def notify_process_location(self, loc, strategy_executor=None, **kwargs):
         t = RetrievalStepCaptureObserver.load_retrieval_state(
             self.directory / f"retrieval_state_step_{self.step_number}.json.gz"
         )
-        retrieval_strategy.strategy_executor.kwargs["ret_state"] = t
+        strategy_executor.kwargs["ret_state"] = t
         self.step_number += 1
 
 
