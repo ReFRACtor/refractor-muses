@@ -13,8 +13,8 @@ from .identifier import (
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
 from .retrieval_array import RetrievalGridArray, FullGridMappedArray
-from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
-import copy
+from .muses_strategy_context import MusesStrategyContext
+from .current_strategy_step import CurrentStrategyStep, CurrentStrategyStepDict
 import os
 import abc
 import typing
@@ -30,7 +30,7 @@ if typing.TYPE_CHECKING:
     from .input_file_helper import InputFileHelper, InputFilePath
 
 
-class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
+class OldCurrentStrategyStep(object, metaclass=abc.ABCMeta):
     """This contains information about the current strategy step."""
 
     @abc.abstractproperty
@@ -99,193 +99,6 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         state (e.g., update the apriori)
         """
         raise NotImplementedError
-
-
-class CurrentStrategyStepDict(CurrentStrategyStep, MusesStrategyContextMixin):
-    """Implementation of CurrentStrategyStep that uses a dict"""
-
-    def __init__(
-        self,
-        current_strategy_step_dict: dict,
-        strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
-    ) -> None:
-        MusesStrategyContextMixin.__init__(self, strategy_context)
-        self.spectral_window_handle_set = spectral_window_handle_set
-        self.current_strategy_step_dict = current_strategy_step_dict
-        self.is_skipped = False
-
-    @property
-    def retrieval_step_parameters(self) -> dict:
-        # Fill in some of the data that comes in retrieval config
-        res = copy.deepcopy(
-            self.current_strategy_step_dict["retrieval_step_parameters"]
-        )
-        if self.has_retrieval_config:
-            p = res["cost_function_params"]
-            p["delta_value"] = int(self.retrieval_config["LMDelta"].split()[0])
-            if p["conv_tolerance"] is None:
-                p["conv_tolerance"] = [
-                    float(self.retrieval_config["ConvTolerance_CostThresh"]),
-                    float(self.retrieval_config["ConvTolerance_pThresh"]),
-                    float(self.retrieval_config["ConvTolerance_JacThresh"]),
-                ]
-        return res
-
-    @property
-    def retrieval_elements(self) -> list[StateElementIdentifier]:
-        """List of retrieval elements that we retrieve for this step."""
-        return StateElementIdentifier.sort_identifier(
-            self.current_strategy_step_dict["retrieval_elements"]
-        )
-
-    @retrieval_elements.setter
-    def retrieval_elements(self, v: list[StateElementIdentifier]) -> None:
-        self.current_strategy_step_dict["retrieval_elements"] = v
-
-    @property
-    def retrieval_elements_not_updated(self) -> list[StateElementIdentifier]:
-        """List of retrieval elements that we retrieve for this step."""
-        return StateElementIdentifier.sort_identifier(
-            self.current_strategy_step_dict["retrieval_elements_not_updated"]
-        )
-
-    @retrieval_elements_not_updated.setter
-    def retrieval_elements_not_updated(self, v: list[StateElementIdentifier]) -> None:
-        self.current_strategy_step_dict["retrieval_elements_not_updated"] = v
-
-    @property
-    def instrument_name(self) -> list[InstrumentIdentifier]:
-        """List of instruments used in this step."""
-        sdict = self.spectral_window_handle_set.spectral_window_dict(self, None)
-        return InstrumentIdentifier.sort_identifier(list(sdict.keys()))
-
-    @property
-    def retrieval_type(self) -> RetrievalType:
-        """The retrieval type."""
-        return self.current_strategy_step_dict["retrieval_type"]
-
-    @property
-    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the MusesSpectralWindow
-        to use for that."""
-        return self.spectral_window_handle_set.spectral_window_dict(
-            self, self.filter_list_dict
-        )
-
-    @property
-    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
-        """Return a list of the error analysis interferents."""
-        return StateElementIdentifier.sort_identifier(
-            self.current_strategy_step_dict["error_analysis_interferents"]
-        )
-
-    def notify_step_solution(
-        self, current_state: CurrentState, xsol: RetrievalGridArray
-    ) -> None:
-        current_state.notify_step_solution(xsol.view(RetrievalGridArray))
-        for selem_id in self.current_strategy_step_dict["update_constraint_elements"]:
-            v = current_state.state_value(selem_id)
-            current_state.update_full_state_element(
-                selem_id, next_constraint_vector_fm=v
-            )
-
-    def muses_microwindows_fname(self) -> InputFilePath:
-        """This is very specific, but there is some complicated code used to generate the
-        microwindows file name. This is used to create the MusesSpectralWindow (by
-        one of the handlers). Also the QA data file name depends on this."""
-        mid = self.measurement_id
-        return MusesSpectralWindow.muses_microwindows_fname(
-            mid["viewingMode"],
-            mid["spectralWindowDirectory"],
-            self.retrieval_elements,
-            self.strategy_step.step_name,
-            self.retrieval_type,
-            self.current_strategy_step_dict.get("microwindow_file_name_override"),
-        )
-
-    @property
-    def strategy_step(self) -> StrategyStepIdentifier:
-        """Return the strategy step identifier"""
-        return self.current_strategy_step_dict["strategy_step"]
-
-    def __eq__(self, other: object) -> bool:
-        """This is useful for unit tests. I don't think we in general need to check
-        equality, but if so might want to check the logic here. This is set up so
-        we can check that two CurrentStrategyStepDict will give the same results in
-        a retrieval step, which may or may not be the right criteria for a more general
-        equality test."""
-
-        # To diagnose problem, can be useful to know exactly where we fail.
-        # Set to true to break on failure
-        break_on_fail = False
-        if not isinstance(other, CurrentStrategyStepDict):
-            if break_on_fail:
-                breakpoint()
-            return False
-        if sorted(list(self.current_strategy_step_dict.keys())) != sorted(
-            list(other.current_strategy_step_dict.keys())
-        ):
-            if break_on_fail:
-                breakpoint()
-            return False
-        for k in self.current_strategy_step_dict.keys():
-            if k == "spectral_window_dict":
-                if list(self.spectral_window_dict.keys()) != list(
-                    other.spectral_window_dict.keys()
-                ):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-                for k2 in self.spectral_window_dict.keys():
-                    if (
-                        self.spectral_window_dict[k2].muses_microwindows()
-                        != other.spectral_window_dict[k2].muses_microwindows()
-                    ):
-                        if break_on_fail:
-                            breakpoint()
-                        return False
-            elif k == "retrieval_step_parameters":
-                if sorted(list(self.retrieval_step_parameters.keys())) != sorted(
-                    list(other.retrieval_step_parameters.keys())
-                ):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-                d1 = self.retrieval_step_parameters["cost_function_params"]
-                d2 = other.retrieval_step_parameters["cost_function_params"]
-                if sorted(list(d1.keys())) != sorted(list(d2.keys())):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-                for k2 in d1.keys():
-                    if d1[k2] != d2[k2]:
-                        if break_on_fail:
-                            breakpoint()
-                        return False
-            elif k in ("retrieval_elements", "error_analysis_interferents"):
-                if StateElementIdentifier.sort_identifier(
-                    self.current_strategy_step_dict[k]
-                ) != StateElementIdentifier.sort_identifier(
-                    other.current_strategy_step_dict[k]
-                ):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-            elif k == "strategy_step":
-                if str(self.strategy_step) != str(other.strategy_step):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-            else:
-                if (
-                    self.current_strategy_step_dict[k]
-                    != other.current_strategy_step_dict[k]
-                ):
-                    if break_on_fail:
-                        breakpoint()
-                    return False
-        return True
 
 
 class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
@@ -942,6 +755,5 @@ __all__ = [
     "MusesStrategyModifyHandle",
     "modify_strategy_table",
     "MusesStrategyStepList",
-    "CurrentStrategyStep",
     "CurrentStrategyStepDict",
 ]

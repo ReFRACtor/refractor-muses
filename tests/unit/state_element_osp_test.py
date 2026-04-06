@@ -67,7 +67,9 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
     selem.update_state_element(step_initial_fm=np.array([3.0]))
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
     npt.assert_allclose(selem.step_initial_fm, [3.0])
-    cstep = CurrentStrategyStepDict({}, None, None)
+    cstep = CurrentStrategyStepDict({ "retrieval_type": RetrievalType("default"),
+                                      "strategy_step": StrategyStepIdentifier(1, "step_1"),
+                                     }, None, None)
     selem.notify_start_retrieval(cstep, rconfig)
     # After starting the retrieval, the retrieval_initial_value should be the step_initial_value
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])

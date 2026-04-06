@@ -10,7 +10,7 @@ from refractor.muses import (
 )
 from pathlib import Path
 from .cris_io import read_l1b
-from .ml import prediction, features_l1b # type: ignore
+from .ml import prediction, features_l1b  # type: ignore
 from loguru import logger
 from typing import Any
 import os
@@ -40,10 +40,15 @@ class RetrievalStrategyStepMl(RetrievalStrategyStep):
         # just gets all the "item" links
         l1b_file = []
         for lnk in self.stac_catalog.get_item_links():
-            l1b_file.extend([i.get_absolute_href() for i in lnk.resolve_stac_object().target.get_assets(role="data").values()]) # type:ignore[union-attr]
-        self.l1b = read_l1b(
-            l1b_file
-        )
+            l1b_file.extend(
+                [
+                    i.get_absolute_href()
+                    for i in lnk.resolve_stac_object()
+                    .target.get_assets(role="data")
+                    .values()
+                ]
+            )  # type:ignore[union-attr]
+        self.l1b = read_l1b(l1b_file)
         self.features = features_l1b(
             l1b=self.l1b, prior=None, ml_model_path=self.ml_model_path
         )
