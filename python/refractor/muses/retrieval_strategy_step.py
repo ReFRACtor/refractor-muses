@@ -226,6 +226,7 @@ class RetrievalStepCaptureObserver:
 
 __all__ = [
     "RetrievalStrategyStepSet",
+    "RetrievalStrategyStepHandle",
     "RetrievalStrategyStep",
     "RetrievalStrategyStepNotImplemented",
     "RetrievalStepCaptureObserver",

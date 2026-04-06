@@ -5,7 +5,6 @@ from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_irk_output import RetrievalIrkOutput
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
-from .muses_strategy_executor import MusesStrategyExecutor
 from .retrieval_debug_output import (
     RetrievalPickleResult,
     RetrievalPlotRadiance,

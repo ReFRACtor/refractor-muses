@@ -9,6 +9,8 @@ from refractor.muses import (
 )
 from loguru import logger
 
+# TODO Hopefully this can go away when we rework strategy step
+
 
 class DummySpectralWindowHandle(SpectralWindowHandle):
     """The machine learning code doesn't actually use a spectral window. Our
@@ -42,7 +44,7 @@ class DummySpectralWindowHandle(SpectralWindowHandle):
             ("TROPOMI_filename_BAND7", "TROPOMI"),
             ("TROPOMI_filename_BAND8", "TROPOMI"),
         ):
-            if vname in self.measurement_id:
+            if vname in ("CRIS_filename"):
                 iset.add(InstrumentIdentifier(iname))
         # If we don't recognize any of the instruments, we can't create a dict, so
         # return None

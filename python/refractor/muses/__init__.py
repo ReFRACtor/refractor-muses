@@ -304,6 +304,7 @@ from .retrieval_strategy import (
 from .retrieval_strategy_step import (
     RetrievalStepCaptureObserver,
     RetrievalStrategyStep,
+    RetrievalStrategyStepHandle,
     RetrievalStrategyStepNotImplemented,
     RetrievalStrategyStepSet,
 )
@@ -531,6 +532,7 @@ __all__ = [
     "RetrievalStrategyMemoryUse",
     "RetrievalStrategyStep",
     "RetrievalStrategyStepBT",
+    "RetrievalStrategyStepHandle",
     "RetrievalStrategyStepIRK",
     "RetrievalStrategyStepNotImplemented",
     "RetrievalStrategyStepOEBase",

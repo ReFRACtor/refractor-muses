@@ -137,7 +137,8 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # could in principle be different. We want to get away from having a run_dir
         # except for old_py_retrieve_wrapper code, so it is good to separate these
         # two ideas.
-        res["output_directory"] = res["outputDirectory"] / res["sessionID"]
+        if "outputDirectory" in res and "sessionID" in res:
+            res["output_directory"] = res["outputDirectory"] / res["sessionID"]
 
         # There really should be a liteDirectory included here, but
         # for some reason muses-py treats this differently as a hard

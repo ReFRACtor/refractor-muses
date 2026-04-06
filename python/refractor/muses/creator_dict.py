@@ -70,7 +70,7 @@ class CreatorDict(UserDict):
     def __missing__(self, created_type: Any) -> CreatorHandleSet:
         if created_type not in self._creator_class:
             raise KeyError(
-                f"The type {created_type} has not been registered with CratotrDict"
+                f"The type {created_type} has not been registered with CreatorDict"
             )
         self.data[created_type] = copy.deepcopy(
             self._creator_class[created_type].default_handle_set()

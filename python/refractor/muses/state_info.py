@@ -171,17 +171,18 @@ class StateInfo(UserDict, MusesStrategyContextMixin):
     def notify_update_strategy_context(
         self, strategy_context: MusesStrategyContext
     ) -> None:
-        self._sounding_metadata = SoundingMetadata.create_from_measurement_id(
-            self.measurement_id,
-            self.strategy.instrument_name[0],
-            self._creator_dict[rf.Observation].observation(
+        if self.has_measurement_id:
+            self._sounding_metadata = SoundingMetadata.create_from_measurement_id(
+                self.measurement_id,
                 self.strategy.instrument_name[0],
-                None,
-                None,
-                None,
-            ),
-            self.retrieval_config.input_file_helper,
-        )
+                self._creator_dict[rf.Observation].observation(
+                    self.strategy.instrument_name[0],
+                    None,
+                    None,
+                    None,
+                ),
+                self.retrieval_config.input_file_helper,
+            )
         if self._current_state_old is not None:
             # We previously called notify_update_strategy_context
             # "notify_update_target" when we had a single target in

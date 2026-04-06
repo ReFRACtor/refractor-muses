@@ -1,5 +1,11 @@
 from __future__ import annotations
-from refractor.muses import RetrievalStrategy
+from refractor.muses import (
+    RetrievalStrategy,
+    MusesSpectralWindowDict,
+    RetrievalStrategyStep,
+    RetrievalStrategyStepHandle,
+    RetrievalType,
+)
 from refractor.osr_ml import (
     DummySpectralWindowHandle,
     RetrievalStrategyStepMl,
@@ -8,8 +14,13 @@ from refractor.osr_ml import (
 
 rs = RetrievalStrategy(None)
 
-rs.spectral_window_handle_set.add_handle(DummySpectralWindowHandle(), priority_order=1)
-rs.retrieval_strategy_step_set.add_handle(RetrievalStrategyStepMl(), priority_order=1)
+rs.creator_dict[MusesSpectralWindowDict].add_handle(
+    DummySpectralWindowHandle(), priority_order=1
+)
+rs.creator_dict[RetrievalStrategyStep].add_handle(
+    RetrievalStrategyStepHandle(RetrievalStrategyStepMl, {RetrievalType("ml")}),
+    priority_order=1,
+)
 
 # Not sure if there is a cleaner way to handle this. But delete all the OE
 # output observers, and add the ML observer for output
