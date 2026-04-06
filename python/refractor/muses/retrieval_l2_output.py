@@ -115,8 +115,8 @@ class RetrievalL2Output(RetrievalOutput):
     def notify_process_location(
         self,
         location: ProcessLocation,
-        current_state: CurrentState | None=None,
-        retrieval_strategy_step: RetrievalStrategyStep | None=None,
+        current_state: CurrentState | None = None,
+        retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
         if location == ProcessLocation("retrieval done"):

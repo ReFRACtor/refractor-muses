@@ -5,8 +5,6 @@ from .creator_dict import CreatorDict
 from .qa_data_handle import QaFlag
 from .muses_levmar_solver import (
     MusesLevmarSolver,
-    VerboseSolverLogging,
-    SolverLogFileWriter,
 )
 from .cost_function import CostFunction
 from .observation_handle import mpy_radiance_from_observation_list
@@ -208,13 +206,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
             cost_function_params["conv_tolerance"],
             chi2_tolerance,
         )
-        # For now, assume we want verbose logging
-        # Move to retrieval_strategy
-        if False:
-            self.slv.add_observer(VerboseSolverLogging())
-        if False and self.rs.write_output:
-            levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.strategy_step.step_number:02d}_{self.strategy_step.step_name}/LevmarSolver-{self.strategy_step.step_name}.log"
-            self.slv.add_observer(SolverLogFileWriter(levmar_log_file))
         if self._saved_state is not None:
             # Skip solve if we have a saved state.
             self.slv.set_state(self._saved_state["slv"])

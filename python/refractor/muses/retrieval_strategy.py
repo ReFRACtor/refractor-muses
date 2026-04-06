@@ -5,6 +5,7 @@ from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_irk_output import RetrievalIrkOutput
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
+from .muses_strategy_executor import MusesStrategyExecutor
 from .retrieval_debug_output import (
     RetrievalPickleResult,
     RetrievalPlotRadiance,
@@ -14,6 +15,10 @@ from .retrieval_configuration import RetrievalConfiguration
 from .process_location_observable import ProcessLocationObservable
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
+from .muses_levmar_solver import (
+    VerboseSolverLogging,
+    SolverLogFileWriter,
+)
 from .state_element import StateElement, StateElementHandleSet
 from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .creator_dict import CreatorDict
@@ -125,12 +130,11 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         self.add_observer(RetrievalRadianceOutput(self.creator_dict))
         self.add_observer(RetrievalL2Output(self.creator_dict))
         self.add_observer(RetrievalIrkOutput(self.creator_dict))
-        # Similarly logic here is hardcoded.
-        # JLL: some MUSES diagnostics (esp. the solver steps in the levmar code)
-        # aren't observers yet, until they are, I need this boolean to turn them
-        # on.
-        self.write_output = writeOutput
+        # Assume we always want verbose logging in solver
+        self.add_observer(VerboseSolverLogging())
         if writeOutput:
+            levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.step_number:02d}_{self.step_name}/LevmarSolver-{self.step_name}.log"
+            self.add_observer(SolverLogFileWriter(levmar_log_file))
             # Depends on internal objects like strategy_table_dict. For now,
             # skip this
             # self.add_observer(RetrievalInputOutput())
@@ -402,8 +406,10 @@ class RetrievalStrategyCaptureObserver:
     """
 
     def __init__(
-            self, basefname: str, location_to_capture: str | ProcessLocation,
-            retrieval_strategy : RetrievalStrategy
+        self,
+        basefname: str,
+        location_to_capture: str | ProcessLocation,
+        retrieval_strategy: RetrievalStrategy,
     ) -> None:
         self.basefname = basefname
         self.retrieval_strategy = retrieval_strategy
@@ -421,18 +427,17 @@ class RetrievalStrategyCaptureObserver:
     def notify_process_location(
         self,
         location: ProcessLocation,
-        strategy_executor: MusesStrategyExecutor,
         **kwargs: Any,
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         fname = (
-            strategy_executor.retrieval_config["output_directory"]
-            / f"{self.basefname}_{strategy_executor.step_number}.pkl"
+            self.retrieval_strategy.retrieval_config["output_directory"]
+            / f"{self.basefname}_{self.retrieval_strategy.strategy_executor.step_number}.pkl"
         )
         # Don't want this class included in the pickle
-        strategy_executor.process_location_observable.remove_observer(self)
+        self.retrieval_strategy.process_location_observable.remove_observer(self)
         self.retrieval_strategy.save_pickle(fname, **kwargs)
-        strategy_executor.process_location_observable.add_observer(self)
+        self.retrieval_strategy.process_location_observable.add_observer(self)
 
 
 class RetrievalStrategyMemoryUse:

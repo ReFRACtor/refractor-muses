@@ -735,8 +735,10 @@ class MusesLevmarSolver:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
+        t = dict(local_variable)
+        t.pop("self", None)
         self.process_location_observable.notify_process_location(
-            loc, slv=self, local_variable=local_variable
+            loc, slv=self, local_variable=t
         )
 
     def get_state(self) -> dict[str, Any]:

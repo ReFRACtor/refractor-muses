@@ -122,8 +122,7 @@ class MusesStrategyExecutorMusesStrategy(
         self, location: str | ProcessLocation, **kwargs: Any
     ) -> None:
         self.process_location_observable.notify_process_location(
-            location, current_state=self.current_state, strategy_executor=self,
-            **kwargs
+            location, current_state=self.current_state, strategy_executor=self, **kwargs
         )
 
     def restart(self) -> None:
