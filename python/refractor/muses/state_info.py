@@ -215,7 +215,11 @@ class StateInfo(UserDict, MusesStrategyContextMixin):
             )
         # Make sure we have all the elements we are going to be using in
         # the retrieval, and we notify them about the step
-        if current_strategy_step is not None:
+        if (
+            current_strategy_step is not None
+            and hasattr(current_strategy_step, "retrieval_elements")
+            and hasattr(current_strategy_step, "error_analysis_interferents")
+        ):
             lst = current_strategy_step.retrieval_elements
             lst.extend(current_strategy_step.error_analysis_interferents)
             for sid in lst:

@@ -81,9 +81,10 @@ class RetrievalResult:
             self, current_strategy_step
         ).master_quality
         # Update current_state.propagated_qa
-        current_state.propagated_qa_update(
-            current_strategy_step.retrieval_elements, self.master_quality
-        )
+        if hasattr(current_strategy_step, "retrieval_elements"):
+            current_state.propagated_qa_update(
+                current_strategy_step.retrieval_elements, self.master_quality
+            )
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.state_value(StateElementIdentifier(state_name))[0]

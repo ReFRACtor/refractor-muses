@@ -5,6 +5,7 @@ from refractor.muses import (
     ProcessLocation,
     ProcessLocationObservable,
     CurrentState,
+    CurrentStrategyStep,
     CreatorDict,
     RetrievalType,
 )
@@ -44,10 +45,10 @@ class RetrievalStrategyStepMl(RetrievalStrategyStep):
                 [
                     i.get_absolute_href()
                     for i in lnk.resolve_stac_object()
-                    .target.get_assets(role="data")
+                    .target.get_assets(role="data")  # type:ignore[union-attr]
                     .values()
                 ]
-            )  # type:ignore[union-attr]
+            )
         self.l1b = read_l1b(l1b_file)
         self.features = features_l1b(
             l1b=self.l1b, prior=None, ml_model_path=self.ml_model_path
@@ -85,7 +86,7 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
 
     def retrieval_step(
         self,
-        retrieval_type: RetrievalType,
+        current_strategy_step: CurrentStrategyStep,
         creator_dict: CreatorDict,
         current_state: CurrentState,
         process_location_observable: ProcessLocationObservable,
@@ -93,7 +94,7 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
     ) -> RetrievalStrategyStep | None:
         if (
             self._retrieval_type_set is None
-            or retrieval_type in self._retrieval_type_set
+            or current_strategy_step.retrieval_type in self._retrieval_type_set
         ):
             return self._create_cls(
                 creator_dict,

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .muses_spectral_window import MusesSpectralWindow
 from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from .creator_dict import CreatorDict
 from .identifier import (
@@ -12,7 +11,7 @@ from .identifier import (
 )
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
-from .retrieval_array import RetrievalGridArray, FullGridMappedArray
+from .retrieval_array import FullGridMappedArray
 from .muses_strategy_context import MusesStrategyContext
 from .current_strategy_step import CurrentStrategyStep, CurrentStrategyStepDict
 import os
@@ -22,83 +21,11 @@ from collections import defaultdict
 from typing import Any, cast
 
 if typing.TYPE_CHECKING:
-    from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .retrieval_strategy import RetrievalStrategy
     from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
-    from .input_file_helper import InputFileHelper, InputFilePath
-
-
-class OldCurrentStrategyStep(object, metaclass=abc.ABCMeta):
-    """This contains information about the current strategy step."""
-
-    @abc.abstractproperty
-    def retrieval_elements(self) -> list[StateElementIdentifier]:
-        """List of retrieval elements that we retrieve for this step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_elements_not_updated(self) -> list[StateElementIdentifier]:
-        """List of element that we include in the retrieval step, but
-        should go back to the original value in the next step. This is
-        always a subset of retrieval_elements (and often an empty
-        subset)
-        """
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def instrument_name(self) -> list[InstrumentIdentifier]:
-        """List of instruments used in this step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_type(self) -> RetrievalType:
-        """The retrieval type."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the
-        MusesSpectralWindow to use for that.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
-        """Return a list of the error analysis interferents."""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def muses_microwindows_fname(self) -> InputFilePath:
-        """This is very specific, but there is some complicated code
-        used to generate the microwindows file name. This is used to
-        create the MusesSpectralWindow (by one of the handlers). Also
-        the QA data file name depends on this.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_step_parameters(self) -> dict:
-        """Any keywords to pass on to the RetrievalStrategyStep retrieve_step (e.g
-        arguments for cost function"""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def strategy_step(self) -> StrategyStepIdentifier:
-        """Return the strategy step identifier"""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def notify_step_solution(
-        self, current_state: CurrentState, xsol: RetrievalGridArray
-    ) -> None:
-        """Update the CurrentState with the solution of a retrieval
-        step. We have this as part of CurrentStrategyStep so we can
-        support any sort of more complicated logic for updating the
-        state (e.g., update the apriori)
-        """
-        raise NotImplementedError
+    from .input_file_helper import InputFileHelper
 
 
 class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
@@ -755,5 +682,4 @@ __all__ = [
     "MusesStrategyModifyHandle",
     "modify_strategy_table",
     "MusesStrategyStepList",
-    "CurrentStrategyStepDict",
 ]

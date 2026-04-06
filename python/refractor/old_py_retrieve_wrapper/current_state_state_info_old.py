@@ -11,6 +11,7 @@ from refractor.muses import (
     RetrievalConfiguration,
     MeasurementId,
     CurrentStrategyStep,
+    CurrentStrategyStepOE,
     MusesStrategy,
     ObservationHandleSet,
     StateElement,
@@ -468,30 +469,35 @@ class CurrentStateStateInfoOld(CurrentState):
         # when we need it here
         from .retrieval_info import RetrievalInfo
 
-        for selem_id in current_strategy_step.retrieval_elements:
-            selem = self.state_element_old(selem_id, other_name=False)
-            selem.update_initial_guess(current_strategy_step)
+        if hasattr(current_strategy_step, "retrieval_elements"):
+            for selem_id in current_strategy_step.retrieval_elements:
+                selem = self.state_element_old(selem_id, other_name=False)
+                selem.update_initial_guess(current_strategy_step)
 
-        self._retrieval_info = RetrievalInfo(
-            Path(retrieval_config["speciesDirectory"]),
-            current_strategy_step,
-            self,
-        )
+        if isinstance(current_strategy_step, CurrentStrategyStepOE):
+            self._retrieval_info = RetrievalInfo(
+                Path(retrieval_config["speciesDirectory"]),
+                current_strategy_step,
+                self,
+            )
+        else:
+            self._retrieval_info = None
 
         # Isn't really clear why RetrievalInfo is different, but for
         # now this update is needed. Without this we get different results.
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self._retrieval_info.n_totalParameters
-        if nparm > 0:
-            xig = self._retrieval_info.initial_guess_list[0:nparm]
-            self.update_state(
-                xig,
-                [],
-                retrieval_config,
-                current_strategy_step.strategy_step.step_number,
-            )
+        if self._retrieval_info is not None:
+            nparm = self._retrieval_info.n_totalParameters
+            if nparm > 0:
+                xig = self._retrieval_info.initial_guess_list[0:nparm]
+                self.update_state(
+                    xig,
+                    [],
+                    retrieval_config,
+                    current_strategy_step.strategy_step.step_number,
+                )
         self.clear_cache()
 
     def notify_update_target(
@@ -569,7 +575,12 @@ class CurrentStateStateInfoOld(CurrentState):
             self.get_initial_guess(current_strategy_step, retrieval_config)
             # Save some data needed by notify_step_solution
             self._retrieval_config = retrieval_config
-            self._do_not_update = current_strategy_step.retrieval_elements_not_updated
+            if hasattr(current_strategy_step, "retrieval_elements_not_updated"):
+                self._do_not_update = (
+                    current_strategy_step.retrieval_elements_not_updated
+                )
+            else:
+                self._do_not_update = []
             self._step = current_strategy_step.strategy_step.step_number
 
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:

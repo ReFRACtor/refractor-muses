@@ -47,6 +47,12 @@ from .current_state_state_info import (
     CostFunctionStateElementNotify,
     CurrentStateStateInfo,
 )
+from .current_strategy_step import (
+    CurrentStrategyStep,
+    CurrentStrategyStepDict,
+    CurrentStrategyStepImp,
+    CurrentStrategyStepOE,
+)
 from .docopt_simple import (
     docopt_simple,
 )
@@ -184,8 +190,6 @@ from .muses_spectrum_sampling import (
     MusesSpectrumSampling,
 )
 from .muses_strategy import (
-    CurrentStrategyStep,
-    CurrentStrategyStepDict,
     MusesStrategy,
     MusesStrategyHandle,
     MusesStrategyHandleSet,
@@ -420,6 +424,8 @@ __all__ = [
     "CurrentStateStateInfo",
     "CurrentStrategyStep",
     "CurrentStrategyStepDict",
+    "CurrentStrategyStepImp",
+    "CurrentStrategyStepOE",
     "DictFilterMetadata",
     "EmisState",
     "ErrorAnalysis",

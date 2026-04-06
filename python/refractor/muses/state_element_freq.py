@@ -376,8 +376,11 @@ class StateElementEmis(StateElementFreqShared):
         )
         # Grab microwindow information, needed in later calculations
         self.microwindows: list[dict] = []
-        for swin in current_strategy_step.spectral_window_dict.values():
-            self.microwindows.extend(swin.muses_microwindows())
+        # Only applies to CurrentStrategyStepOE, just skip if the current step
+        # doesn't have a spectral_window_dict.
+        if hasattr(current_strategy_step, "spectral_window_dict"):
+            for swin in current_strategy_step.spectral_window_dict.values():
+                self.microwindows.extend(swin.muses_microwindows())
         # Filter out the UV windows, this just isn't wanted in
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
@@ -502,8 +505,11 @@ class StateElementCloudExt(StateElementFreqShared):
         )
         # Grab microwindow information, needed in later calculations
         self.microwindows: list[dict] = []
-        for swin in current_strategy_step.spectral_window_dict.values():
-            self.microwindows.extend(swin.muses_microwindows())
+        # Only applies to CurrentStrategyStepOE, just skip if the current step
+        # doesn't have a spectral_window_dict.
+        if hasattr(current_strategy_step, "spectral_window_dict"):
+            for swin in current_strategy_step.spectral_window_dict.values():
+                self.microwindows.extend(swin.muses_microwindows())
         # Filter out the UV windows, this just isn't wanted in
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]

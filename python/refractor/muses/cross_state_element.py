@@ -276,14 +276,16 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         )
         self.retrieval_type = current_strategy_step.retrieval_type
         self._retrieve_both = False
-        if (
-            self.state_element_id_1 in current_strategy_step.retrieval_elements
-            and self.state_element_id_2 in current_strategy_step.retrieval_elements
-        ):
-            self._retrieve_both = True
-        self._retrieve_first = (
-            self.state_element_id_1 in current_strategy_step.retrieval_elements
-        )
+        self._retrieve_first = False
+        if hasattr(current_strategy_step, "retrieval_elements"):
+            if (
+                self.state_element_id_1 in current_strategy_step.retrieval_elements
+                and self.state_element_id_2 in current_strategy_step.retrieval_elements
+            ):
+                self._retrieve_both = True
+            self._retrieve_first = (
+                self.state_element_id_1 in current_strategy_step.retrieval_elements
+            )
 
     def notify_step_solution(
         self,

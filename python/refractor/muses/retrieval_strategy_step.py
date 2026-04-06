@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_context import MusesStrategyContext
     from .current_state import CurrentState
     from .process_location_observable import ProcessLocationObservable
+    from .current_strategy_step import CurrentStrategyStep
 
 
 class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
@@ -29,14 +30,14 @@ class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
 
     def retrieval_step(
         self,
-        retrieval_type: RetrievalType,
+        current_strategy_step: CurrentStrategyStep,
         creator_dict: CreatorDict,
         current_state: CurrentState,
         process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> RetrievalStrategyStep:
         return self.handle(
-            retrieval_type,
+            current_strategy_step,
             creator_dict,
             current_state,
             process_location_observable,
@@ -61,7 +62,7 @@ class RetrievalStrategyStepHandle(CreatorHandleWithContext):
 
     def retrieval_step(
         self,
-        retrieval_type: RetrievalType,
+        current_strategy_step: CurrentStrategyStep,
         creator_dict: CreatorDict,
         current_state: CurrentState,
         process_location_observable: ProcessLocationObservable,
@@ -69,7 +70,7 @@ class RetrievalStrategyStepHandle(CreatorHandleWithContext):
     ) -> RetrievalStrategyStep | None:
         if (
             self._retrieval_type_set is None
-            or retrieval_type in self._retrieval_type_set
+            or current_strategy_step.retrieval_type in self._retrieval_type_set
         ):
             return self._create_cls(
                 creator_dict, current_state, process_location_observable, **kwargs

@@ -179,11 +179,10 @@ class MusesStrategyExecutorMusesStrategy(
             f"Step: {self.current_strategy_step.strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
         rstep = self.creator_dict[RetrievalStrategyStep].retrieval_step(
-            self.current_strategy_step.retrieval_type,
+            self.current_strategy_step,
             self.creator_dict,
             self.current_state,
             self.process_location_observable,
-            **self.current_strategy_step.retrieval_step_parameters,
             **self.kwargs,
         )
         rstep.do_retrieval()

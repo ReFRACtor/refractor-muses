@@ -520,8 +520,14 @@ class CurrentStateStateInfo(CurrentState):
         if self.record is not None:
             self.record.notify_start_retrieval()
         if current_strategy_step is not None:
-            self._retrieval_element_id = current_strategy_step.retrieval_elements
-            self._sys_element_id = current_strategy_step.error_analysis_interferents
+            if hasattr(current_strategy_step, "retrieval_elements"):
+                self._retrieval_element_id = current_strategy_step.retrieval_elements
+            else:
+                self._retrieval_element_id = []
+            if hasattr(current_strategy_step, "error_analysis_interferents"):
+                self._sys_element_id = current_strategy_step.error_analysis_interferents
+            else:
+                self._sys_element_id = []
             self._step_directory = (
                 retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
@@ -548,8 +554,14 @@ class CurrentStateStateInfo(CurrentState):
         if current_strategy_step is not None:
             if self.record is not None:
                 self.record.notify_start_step()
-            self._retrieval_element_id = current_strategy_step.retrieval_elements
-            self._sys_element_id = current_strategy_step.error_analysis_interferents
+            if hasattr(current_strategy_step, "retrieval_elements"):
+                self._retrieval_element_id = current_strategy_step.retrieval_elements
+            else:
+                self._retrieval_element_id = []
+            if hasattr(current_strategy_step, "error_analysis_interferents"):
+                self._sys_element_id = current_strategy_step.error_analysis_interferents
+            else:
+                self._sys_element_id = []
             self._step_directory = (
                 retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"

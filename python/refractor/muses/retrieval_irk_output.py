@@ -155,7 +155,11 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.tatm_QA[:] = self.propagated_qa.tatm_qa
         irk_data.o3_QA[:] = self.propagated_qa.o3_qa
         irk_data.utctime = smeta.utc_time
-        if InstrumentIdentifier("OMI") in self.current_strategy_step.instrument_name:
+        if (
+            hasattr(self.current_strategy_step, "instrument_name")
+            and InstrumentIdentifier("OMI")
+            in self.current_strategy_step.instrument_name
+        ):
             obs = self.observation("OMI")
             blist = [str(i[0]) for i in obs.filter_data]
             sza = obs.solar_zenith

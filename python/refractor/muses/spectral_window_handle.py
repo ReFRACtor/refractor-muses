@@ -159,6 +159,8 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         for that instrument. Note because of the extra metadata and bad sample/full band
         handing we need we currently require a MusesSpectralWindow. We could perhaps
         relax this in the future if we have another way of handling this extra functionality."""
+        if not hasattr(current_strategy_step, "muses_microwindows_fname"):
+            return None
         fname = current_strategy_step.muses_microwindows_fname()
         logger.debug(
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"

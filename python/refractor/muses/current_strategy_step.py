@@ -35,14 +35,18 @@ class CurrentStrategyStep(object):
         """Return the strategy step identifier"""
         raise NotImplementedError()
 
+
 class CurrentStrategyStepImp(CurrentStrategyStep, MusesStrategyContextMixin):
     """Most of the time the retrieval type is just a fixed value, and we want
     the MusesStrategyContext. This adds this common behavior"""
 
     def __init__(
-            self, strategy_context: MusesStrategyContext, retrieval_type: RetrievalType, strategy_step: StrategyStepIdentifier
+        self,
+        strategy_context: MusesStrategyContext,
+        retrieval_type: RetrievalType,
+        strategy_step: StrategyStepIdentifier,
     ) -> None:
-        MusesStrategyContextMixin.__init__(self,strategy_context)
+        MusesStrategyContextMixin.__init__(self, strategy_context)
         self._retrieval_type = retrieval_type
         self._strategy_step = strategy_step
         self.is_skipped = False
@@ -55,7 +59,69 @@ class CurrentStrategyStepImp(CurrentStrategyStep, MusesStrategyContextMixin):
     def strategy_step(self) -> StrategyStepIdentifier:
         return self._strategy_step
 
-class CurrentStrategyStepDict(CurrentStrategyStepImp):
+
+class CurrentStrategyStepOE(CurrentStrategyStepImp):
+    """This has extra information needed in a OE retrieval  step"""
+
+    @abc.abstractproperty
+    def retrieval_elements(self) -> list[StateElementIdentifier]:
+        """List of retrieval elements that we retrieve for this step."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_elements_not_updated(self) -> list[StateElementIdentifier]:
+        """List of element that we include in the retrieval step, but
+        should go back to the original value in the next step. This is
+        always a subset of retrieval_elements (and often an empty
+        subset)
+        """
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def instrument_name(self) -> list[InstrumentIdentifier]:
+        """List of instruments used in this step."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
+        """Return a dictionary that maps instrument name to the
+        MusesSpectralWindow to use for that.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
+        """Return a list of the error analysis interferents."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def muses_microwindows_fname(self) -> InputFilePath:
+        """This is very specific, but there is some complicated code
+        used to generate the microwindows file name. This is used to
+        create the MusesSpectralWindow (by one of the handlers). Also
+        the QA data file name depends on this.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_step_parameters(self) -> dict:
+        """Any keywords to pass on to the RetrievalStrategyStep retrieve_step (e.g
+        arguments for cost function"""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def notify_step_solution(
+        self, current_state: CurrentState, xsol: RetrievalGridArray
+    ) -> None:
+        """Update the CurrentState with the solution of a retrieval
+        step. We have this as part of CurrentStrategyStep so we can
+        support any sort of more complicated logic for updating the
+        state (e.g., update the apriori)
+        """
+        raise NotImplementedError
+
+
+class CurrentStrategyStepDict(CurrentStrategyStepOE):
     """Implementation of CurrentStrategyStep that uses a dict"""
 
     def __init__(
@@ -64,9 +130,11 @@ class CurrentStrategyStepDict(CurrentStrategyStepImp):
         strategy_context: MusesStrategyContext,
         spectral_window_handle_set: SpectralWindowHandleSet,
     ) -> None:
-        super().__init__(strategy_context,
-                         current_strategy_step_dict["retrieval_type"],
-                         current_strategy_step_dict["strategy_step"])
+        super().__init__(
+            strategy_context,
+            current_strategy_step_dict["retrieval_type"],
+            current_strategy_step_dict["strategy_step"],
+        )
         self.spectral_window_handle_set = spectral_window_handle_set
         self.current_strategy_step_dict = current_strategy_step_dict
         self.is_skipped = False
@@ -239,4 +307,9 @@ class CurrentStrategyStepDict(CurrentStrategyStepImp):
         return True
 
 
-__all__ = ["CurrentStrategyStep", "CurrentStrategyStepImp", "CurrentStrategyStepDict"]
+__all__ = [
+    "CurrentStrategyStep",
+    "CurrentStrategyStepImp",
+    "CurrentStrategyStepDict",
+    "CurrentStrategyStepOE",
+]

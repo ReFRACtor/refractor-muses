@@ -11,13 +11,14 @@ from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import ProcessLocation
 from .retrieval_array import RetrievalGridArray
+from .current_strategy_step import CurrentStrategyStepOE
 from .retrieval_strategy_step import (
     RetrievalStrategyStep,
     RetrievalStrategyStepHandle,
     RetrievalStrategyStepSet,
 )
 import numpy as np
-from typing import Any
+from typing import Any, cast
 import typing
 
 if typing.TYPE_CHECKING:
@@ -31,6 +32,17 @@ if typing.TYPE_CHECKING:
 class RetrievalStrategyStepOEBase(RetrievalStrategyStep):
     """This is a RetrievalStrategyStep with the additional stuff needed
     for Optimal Estimation (e.g. creating a forward model"""
+
+    @property
+    def current_strategy_step(self) -> CurrentStrategyStepOE:
+        # We need to extra content in a CurrentStrategyStepOE. Add one
+        # place where we check and convert the more generate CurrentStrategyStep
+        # type
+        if not isinstance(super().current_strategy_step, CurrentStrategyStepOE):
+            raise RuntimeError(
+                "RetrievalStrategyStepOEBase needs a CurrentStrategyStepOE current strategy step"
+            )
+        return cast(CurrentStrategyStepOE, super().current_strategy_step)
 
     # Just to make the interface clear, we pull out the things we need
     # from RetrievalStrategy here. We may add to this list, or get these
@@ -74,6 +86,7 @@ class RetrievalStrategyStepOEBase(RetrievalStrategyStep):
             self.current_strategy_step.instrument_name,
             self.current_state,
             self.current_strategy_step.spectral_window_dict,
+            **self.current_strategy_step.retrieval_step_parameters,
             **self.kwargs,
         )
 
@@ -189,7 +202,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
     def run_retrieval(self) -> SolverResult:
         """run_retrieval"""
         self.cfunc = self.create_cost_function()
-        cost_function_params = self.kwargs["cost_function_params"]
+        cost_function_params = self.current_strategy_step.retrieval_step_parameters["cost_function_params"]
         self.notify_process_location(ProcessLocation("create_cost_function"))
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:

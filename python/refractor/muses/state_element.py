@@ -932,13 +932,19 @@ class StateElementImplementation(StateElement):
             self._constraint_vector_fm = self._next_constraint_vector_fm
             self._next_constraint_vector_fm = None
         self._value_fm = self._step_initial_fm.copy()
-        self._retrieved_this_step = (
-            self.state_element_id in current_strategy_step.retrieval_elements
-        )
-        self._initial_guess_not_updated = (
-            self.state_element_id
-            in current_strategy_step.retrieval_elements_not_updated
-        )
+        if hasattr(current_strategy_step, "retrieval_elements"):
+            self._retrieved_this_step = (
+                self.state_element_id in current_strategy_step.retrieval_elements
+            )
+        else:
+            self._retrieved_this_step = False
+        if hasattr(current_strategy_step, "retrieval_elements_not_updated"):
+            self._initial_guess_not_updated = (
+                self.state_element_id
+                in current_strategy_step.retrieval_elements_not_updated
+            )
+        else:
+            self._initial_guess_not_updated = False
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
