@@ -11,6 +11,7 @@ from .retrieval_debug_output import (
     RetrievalPlotResult,
 )
 from .retrieval_configuration import RetrievalConfiguration
+from .process_location_observable import ProcessLocationObservable
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
 from .state_element import StateElement, StateElementHandleSet
@@ -30,8 +31,6 @@ if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState
-    from .identifier import RetrievalType, StrategyStepIdentifier
-    from .muses_strategy_executor import CurrentStrategyStep
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -111,6 +110,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
         self._creator_dict = CreatorDict(self.strategy_context)
+        self._process_location_observable = ProcessLocationObservable()
 
         self._kwargs: dict[str, Any] = kwargs
 
@@ -121,10 +121,10 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
         # Right now, we hardcode the output observers. Probably want to
         # rework this
-        self.add_observer(RetrievalJacobianOutput())
-        self.add_observer(RetrievalRadianceOutput())
-        self.add_observer(RetrievalL2Output())
-        self.add_observer(RetrievalIrkOutput())
+        self.add_observer(RetrievalJacobianOutput(self.creator_dict))
+        self.add_observer(RetrievalRadianceOutput(self.creator_dict))
+        self.add_observer(RetrievalL2Output(self.creator_dict))
+        self.add_observer(RetrievalIrkOutput(self.creator_dict))
         # Similarly logic here is hardcoded.
         # JLL: some MUSES diagnostics (esp. the solver steps in the levmar code)
         # aren't observers yet, until they are, I need this boolean to turn them
@@ -134,10 +134,10 @@ class RetrievalStrategy(MusesStrategyContextMixin):
             # Depends on internal objects like strategy_table_dict. For now,
             # skip this
             # self.add_observer(RetrievalInputOutput())
-            self.add_observer(RetrievalPickleResult())
+            self.add_observer(RetrievalPickleResult(self.creator_dict))
             if writePlots:
-                self.add_observer(RetrievalPlotResult())
-                self.add_observer(RetrievalPlotRadiance())
+                self.add_observer(RetrievalPlotResult(self.creator_dict))
+                self.add_observer(RetrievalPlotRadiance(self.creator_dict))
 
         # For calling from py-retrieve, it is useful to delay the filename. See
         # script_retrieval_ms below
@@ -202,7 +202,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
             strategy_table_filename=self.strategy_table_filename,
             creator_dict=self.creator_dict,
         )
-        self.notify_update(ProcessLocation("update stac"))
+        self.notify_process_location(ProcessLocation("update stac"))
 
     def update_target(self, filename: str | os.PathLike[str]) -> None:
         """Set up to process a target, given the filename for the
@@ -226,7 +226,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
             ifile_hlp=self._ifile_hlp,
             creator_dict=self._creator_dict,
         )
-        self.notify_update(ProcessLocation("update target"))
+        self.notify_process_location(ProcessLocation("update target"))
 
     def script_retrieval_ms(
         self,
@@ -242,37 +242,27 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         self.update_target(filename)
         return self.retrieval_ms()
 
-    def add_observer(self, obs: Any) -> None:
-        # Often we want weakref, so we don't prevent objects from
-        # being deleted just because they are observing this. But in
-        # this particular case, we actually do want to maintain the
-        # lifetime. These observers will do things like write out
-        # output, but have no real life outside of being attached to
-        # this class.  It is easy enough to change this to weakref if
-        # that proves useful
-        self._observers.add(obs)
-        if hasattr(obs, "notify_add"):
-            obs.notify_add(self)
+    @property
+    def process_location_observable(self) -> ProcessLocationObservable:
+        return self._process_location_observable
 
+    def add_observer(self, obs: Any) -> None:
+        self.process_location_observable.add_observer(obs)
+        
     def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
-        if hasattr(obs, "notify_remove"):
-            obs.notify_remove(self)
+        self.process_location_observable.remove_observer(obs)
 
     def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
-        # list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            self.remove_observer(obs)
+        self.process_location_observable.clear_observers()
 
-    def notify_update(self, location: ProcessLocation | str, **kwargs: Any) -> None:
+    def notify_process_location(
+        self, location: ProcessLocation | str, **kwargs: Any
+    ) -> None:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
-        for obs in self._observers:
-            obs.notify_update(self, loc, **kwargs)
-
+        self.process_location_observable.notify_process_location(location, **kwargs)
+        
     @property
     def keyword_arguments(self) -> dict:
         """Keyword arguments, which can be used to pass arguments down
@@ -348,23 +338,8 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         return self.creator_dict[CrossStateElement]
 
     @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        res = self.strategy.current_strategy_step()
-        if res is None:
-            raise RuntimeError("Need current_strategy_step")
-        return res
-
-    @property
-    def strategy_step(self) -> StrategyStepIdentifier:
-        return self.current_strategy_step.strategy_step
-
-    @property
     def current_state(self) -> CurrentState:
         return self.strategy_executor.current_state
-
-    @property
-    def retrieval_type(self) -> RetrievalType:
-        return self.current_strategy_step.retrieval_type
 
     def save_pickle(
         self, save_pickle_file: str | os.PathLike[str], **kwargs: Any
@@ -421,7 +396,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
 class RetrievalStrategyCaptureObserver:
     """Helper class, pickles RetrievalStrategy at each time
-    notify_update is called. Intended for unit tests and other kinds
+    notify_process_location is called. Intended for unit tests and other kinds
     of debugging.
 
     """
@@ -435,15 +410,17 @@ class RetrievalStrategyCaptureObserver:
         else:
             self.location_to_capture = ProcessLocation(location_to_capture)
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [self.location_to_capture,]
+            
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
         **kwargs: Any,
     ) -> None:
-        if location != self.location_to_capture:
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         # I think we always want to store this in the run directory. We can
         # change this if not - but for now assume we always do that
         fname = (
@@ -465,7 +442,7 @@ class RetrievalStrategyMemoryUse:
 
         self.tr: None | tracker.SummaryTracker = None
 
-    def notify_update(
+    def notify_process_location(
         self,
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,

@@ -11,7 +11,7 @@ from .muses_levmar_solver import (
 from .cost_function import CostFunction
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
-from .identifier import RetrievalType, ProcessLocation
+from .identifier import ProcessLocation
 from .retrieval_array import RetrievalGridArray
 from .retrieval_strategy_step import (
     RetrievalStrategyStep,
@@ -85,12 +85,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
 
     def __init__(
         self,
-        retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> None:
-        super().__init__(retrieval_type, rs, creator_dict, **kwargs)
+        super().__init__(rs, creator_dict, **kwargs)
         self.slv: None | MusesLevmarSolver = None
         self.cfunc: None | CostFunction = None
         self.jacobian_sys: None | np.ndarray = None
@@ -116,7 +115,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
 
     def retrieval_step_body(self) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        self.notify_update(ProcessLocation("retrieval input"))
+        self.notify_process_location(ProcessLocation("retrieval input"))
         logger.info("Running run_retrieval ...")
 
         self.ret_res = self.run_retrieval()
@@ -132,7 +131,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
             f"Best iteration {self.ret_res.bestIteration} out of {self.ret_res.num_iterations}"
         )
         logger.info("---\n")
-        self.notify_update(ProcessLocation("run_retrieval_step"))
+        self.notify_process_location(ProcessLocation("run_retrieval_step"))
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and
         # error_analysis.  I think we can leave bad sample out,
@@ -164,7 +163,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
                             -1
                         ]
                     )
-        self.notify_update(ProcessLocation("systematic_jacobian"))
+        self.notify_process_location(ProcessLocation("systematic_jacobian"))
 
         # Note a side effect of this is calling current_state.update_previous_aposteriori_cov_fm
         # and current_state.propagated_qa.update. See discussion in RetrievalResult.
@@ -183,13 +182,13 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
             self.creator_dict[QaFlag],
             jacobian_sys=self.jacobian_sys,
         )
-        self.notify_update(ProcessLocation("retrieval step"))
+        self.notify_process_location(ProcessLocation("retrieval step"))
 
     def run_retrieval(self) -> SolverResult:
         """run_retrieval"""
         self.cfunc = self.create_cost_function()
         cost_function_params = self.kwargs["cost_function_params"]
-        self.notify_update(ProcessLocation("create_cost_function"))
+        self.notify_process_location(ProcessLocation("create_cost_function"))
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:
             r = mpy_radiance_from_observation_list(

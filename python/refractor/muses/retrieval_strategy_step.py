@@ -13,10 +13,8 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .muses_strategy_executor import CurrentStrategyStep
     from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_context import MusesStrategyContext
-    from .identifier import StrategyStepIdentifier
 
 
 class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
@@ -64,7 +62,7 @@ class RetrievalStrategyStepHandle(CreatorHandleWithContext):
             self._retrieval_type_set is None
             or retrieval_type in self._retrieval_type_set
         ):
-            return self._create_cls(retrieval_type, rs, creator_dict, **kwargs)
+            return self._create_cls(rs, creator_dict, **kwargs)
         return None
 
 
@@ -89,14 +87,12 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
 
     def __init__(
         self,
-        retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> None:
         super().__init__(creator_dict.strategy_context)
         self._saved_state: None | dict[str, Any] = None
-        self.retrieval_type = retrieval_type
         # TODO I think we will want to remove the direct use of RetrievalStrategy,
         # although I'm not sure. For now we use this.
         self.rs = rs
@@ -108,7 +104,7 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
     ) -> None:
         self.set_state(self.kwargs.get("ret_state", None))
         self.retrieval_step_body()
-        self.notify_update(ProcessLocation("end_retrieval_step"))
+        self.notify_process_location(ProcessLocation("end_retrieval_step"))
 
     @abc.abstractmethod
     def retrieval_step_body(self) -> None:
@@ -135,19 +131,9 @@ class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
         # in the rest of this object
         self._saved_state = d
 
-    def notify_update(self, ploc: ProcessLocation) -> None:
-        self.rs.notify_update(ploc, retrieval_strategy_step=self)
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        res = self.strategy.current_strategy_step()
-        if res is None:
-            raise RuntimeError("Need current_strategy_step")
-        return res
-
-    @property
-    def strategy_step(self) -> StrategyStepIdentifier:
-        return self.current_strategy_step.strategy_step
+    def notify_process_location(self, ploc: ProcessLocation) -> None:
+        self.rs.notify_process_location(ploc, retrieval_strategy=self.rs,
+                                        retrieval_strategy_step=self)
 
     @property
     def current_state(self) -> CurrentState:
@@ -184,7 +170,7 @@ CreatorDict.register(RetrievalStrategyStep, RetrievalStrategyStepSet)
 
 class RetrievalStepCaptureObserver:
     """Helper class, saves results of retrieval step so we can rerun skipping
-    much of the calculation. Data saved when notify_update is called.
+    much of the calculation. Data saved when notify_process_location is called.
     Intended for unit tests and other kinds of debugging.
 
     Note this only saves the RetrievalStepCapture.get_state(),
@@ -207,7 +193,7 @@ class RetrievalStepCaptureObserver:
     def load_retrieval_state(cls, fname: str | os.PathLike[str]) -> dict[str, Any]:
         return json.loads(gzip.open(fname, mode="rb").read().decode("utf-8"))
 
-    def notify_update(
+    def notify_process_location(
         self,
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
@@ -218,7 +204,7 @@ class RetrievalStepCaptureObserver:
             return
         if retrieval_strategy_step is None:
             return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         fname = (
             f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.json.gz"
         )

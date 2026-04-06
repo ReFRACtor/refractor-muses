@@ -889,7 +889,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         max_iter: int | None = None,
     ):
         super().__init__()
-        self.step_number = step_number
+        self._step_number_value = step_number
         self.retrieval_elements = retrieval_elements
         self.max_iter = max_iter
 
@@ -906,12 +906,12 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
             spectral_window_handle_set,
         )
         s.current_strategy_list[
-            self.step_number
+            self._step_number_value
         ].retrieval_elements = StateElementIdentifier.sort_identifier(
             self.retrieval_elements
         )
         if self.max_iter is not None:
-            s.current_strategy_list[self.step_number].retrieval_step_parameters[
+            s.current_strategy_list[self._step_number_value].retrieval_step_parameters[
                 "max_iter"
             ] = self.max_iter
         self.strategy_context.add_observer(s)

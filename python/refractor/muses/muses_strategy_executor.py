@@ -92,11 +92,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         raise NotImplementedError
 
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        """Return the CurrentStrategyStep for the current step."""
-        raise NotImplementedError()
-
 
 class MusesStrategyExecutorMusesStrategy(
     MusesStrategyExecutorRetrievalStrategyStep, MusesStrategyContextMixin
@@ -125,16 +120,10 @@ class MusesStrategyExecutorMusesStrategy(
         )
         MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
 
-    def notify_update(self, location: str | ProcessLocation, **kwargs: Any) -> None:
-        self.rs.notify_update(location, **kwargs)
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        """Return the CurrentStrategyStep for the current step."""
-        cstep = self.strategy.current_strategy_step()
-        if cstep is None:
-            raise RuntimeError("current_strategy_step called after the last step.")
-        return cstep
+    def notify_process_location(
+        self, location: str | ProcessLocation, **kwargs: Any
+    ) -> None:
+        self.rs.notify_process_location(location, retrieval_strategy=self.rs, **kwargs)
 
     def restart(self) -> None:
         """Set step to the first one."""
@@ -197,7 +186,7 @@ class MusesStrategyExecutorMusesStrategy(
             **self.kwargs,
         )
         rstep.do_retrieval()
-        self.notify_update(ProcessLocation("done retrieval_step"))
+        self.notify_process_location(ProcessLocation("done retrieval_step"))
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
     def execute_retrieval(self, stop_at_step: None | int = None) -> None:
@@ -220,11 +209,11 @@ class MusesStrategyExecutorMusesStrategy(
         particular step.
         """
         self.restart()
-        self.notify_update(ProcessLocation("initial set up done"))
+        self.notify_process_location(ProcessLocation("initial set up done"))
         while not self.is_done():
-            self.notify_update(ProcessLocation("starting run_step"))
+            self.notify_process_location(ProcessLocation("starting run_step"))
             self.notify_start_step()
-            self.notify_update(ProcessLocation("notify_start_step done"))
+            self.notify_process_location(ProcessLocation("notify_start_step done"))
             if (
                 stop_at_step is not None
                 and stop_at_step == self.current_strategy_step.strategy_step.step_number
@@ -232,14 +221,14 @@ class MusesStrategyExecutorMusesStrategy(
                 return
             self.run_step()
             self.next_step()
-        self.notify_update("retrieval done")
+        self.notify_process_location("retrieval done")
 
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
         """After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem."""
         while not self.is_done():
             self.notify_start_step()
-            self.notify_update(ProcessLocation("starting run_step"))
+            self.notify_process_location(ProcessLocation("starting run_step"))
             self.run_step()
             if (
                 stop_after_step is not None
@@ -248,7 +237,7 @@ class MusesStrategyExecutorMusesStrategy(
             ):
                 return
             self.next_step()
-        self.notify_update("retrieval done")
+        self.notify_process_location("retrieval done")
 
     def load_step_info(
         self,

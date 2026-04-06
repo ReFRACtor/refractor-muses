@@ -6,10 +6,16 @@ from dataclasses import dataclass, field
 from typing import Any, Self
 
 if typing.TYPE_CHECKING:
-    from .identifier import InstrumentIdentifier, FilterIdentifier
+    from .identifier import (
+        InstrumentIdentifier,
+        FilterIdentifier,
+        RetrievalType,
+        StrategyStepIdentifier,
+    )
+
     from .input_file_helper import InputFileHelper
     from .muses_observation import MeasurementId
-    from .muses_strategy import MusesStrategy
+    from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .creator_dict import CreatorDict
     import pystac
@@ -375,6 +381,29 @@ class MusesStrategyContextMixin:
         if res is None:
             raise RuntimeError("Need to call notify_update_strategy_context first")
         return res
+
+    @property
+    def current_strategy_step(self) -> CurrentStrategyStep:
+        res = self.strategy.current_strategy_step()
+        if res is None:
+            raise RuntimeError("Need current_strategy_step")
+        return res
+
+    @property
+    def strategy_step(self) -> StrategyStepIdentifier:
+        return self.current_strategy_step.strategy_step
+
+    @property
+    def step_number(self) -> int:
+        return self.strategy_step.step_number
+
+    @property
+    def step_name(self) -> str:
+        return self.strategy_step.step_name
+
+    @property
+    def retrieval_type(self) -> RetrievalType:
+        return self.current_strategy_step.retrieval_type
 
 
 __all__ = [

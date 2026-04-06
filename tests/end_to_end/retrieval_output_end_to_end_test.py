@@ -47,9 +47,11 @@ class RsSetupRetState:
         self.directory = directory
         self.step_number = 0
 
-    def notify_update(self, retrieval_strategy, loc, **kwargs):
-        if loc != ProcessLocation("starting run_step"):
-            return
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("starting run_step"),]
+        
+    def notify_process_location(self, loc, retrieval_strategy = None, **kwargs):
         t = RetrievalStepCaptureObserver.load_retrieval_state(
             self.directory / f"retrieval_state_step_{self.step_number}.json.gz"
         )

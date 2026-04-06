@@ -28,12 +28,11 @@ class RetrievalStrategyStepBT(RetrievalStrategyStepOEBase):
 
     def __init__(
         self,
-        retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> None:
-        super().__init__(retrieval_type, rs, creator_dict, **kwargs)
+        super().__init__(rs, creator_dict, **kwargs)
         self.frequency: None | np.ndarray = None
         self.obs_rad_all: None | np.ndarray = None
         self.rad_all: None | np.ndarray = None

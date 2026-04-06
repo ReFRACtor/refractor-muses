@@ -30,18 +30,19 @@ class RetrievalJacobianOutput(RetrievalOutput):
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         if len(glob(f"{self.out_fname}*")) == 0:
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             self.write_jacobian()

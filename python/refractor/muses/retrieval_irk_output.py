@@ -42,18 +42,19 @@ class RetrievalIrkOutput(RetrievalOutput):
             return self.retrieval_strategy_step.results_irk
         return None
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("IRK step")]
+    
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("IRK step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         self.out_fname = self.output_directory / "Products" / "Products_IRK.nc"
         os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
         self.write_irk()
@@ -184,7 +185,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             irk_data.BoresightNadirAngle[:] = self.state_value("PTGANG") * 180 / math.pi
 
         irk_data.soundingID = smeta.sounding_id
-        mid = self.retrieval_strategy.measurement_id
+        mid = self.measurement_id
         if "AIRS_ATrack_Index" in mid:
             irk_data.airs_granule = np.int16(mid["AIRS_Granule"])
             irk_data.airs_atrack_index = np.int16(mid["AIRS_ATrack_Index"])

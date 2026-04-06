@@ -13,6 +13,7 @@ from typing import Any, Callable
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .creator_dict import CreatorDict
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -26,24 +27,29 @@ def _new_from_init(cls, *args):  # type: ignore
 class RetrievalRadianceOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Radiance files."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        creator_dict: CreatorDict,
+    ) -> None:
+        super().__init__(creator_dict)
         self.myobsrad: None | dict = None
 
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+    
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.
             # It is special_name, which doesn't actually apply to the jacobian file.

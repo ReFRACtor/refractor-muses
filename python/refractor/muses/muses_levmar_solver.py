@@ -32,7 +32,7 @@ class SolverResult:
 class VerboseSolverLogging:
     """Observer of MusesLevmarSolver that adds some more verbose logging."""
 
-    def notify_update(
+    def notify_process_location(
         self,
         slv: MusesLevmarSolver,
         location: ProcessLocation,
@@ -103,7 +103,7 @@ class SolverLogFileWriter:
         # Open file
         self.fh = open(self.fname, "a")
 
-    def notify_update(
+    def notify_process_location(
         self,
         slv: MusesLevmarSolver,
         location: ProcessLocation,
@@ -736,7 +736,7 @@ class MusesLevmarSolver:
         for obs in lobs:
             self.remove_observer(obs)
 
-    def notify_update(
+    def notify_process_location(
         self,
         location: ProcessLocation | str,
         local_variable: dict[str, Any],
@@ -746,7 +746,7 @@ class MusesLevmarSolver:
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
         for obs in self._observers:
-            obs.notify_update(
+            obs.notify_process_location(
                 self,
                 loc,
                 {k: v for k, v in local_variable.items() if k != "self"},
@@ -1052,7 +1052,7 @@ class MusesLevmarSolver:
                 q_vector = np.copy(qNewton)
             qNorm = qNormNewton
 
-            self.notify_update("start iteration", locals())
+            self.notify_process_location("start iteration", locals())
 
             #  <<<<<<<<<<<<< ACCEPT NEWTON STEP OR FIND A NEW p >>>>>>>>>>>
             #  <<<<<<<<<<<< WHEN LEV. MAR. PARAMETER IS NOT ZERO >>>>>>>>>>
@@ -1592,7 +1592,7 @@ class MusesLevmarSolver:
             self.diag_lambda_rho_delta[self.iter_num, 1] = rho
             self.diag_lambda_rho_delta[self.iter_num, 2] = self.delta_value
 
-            self.notify_update("end step", locals())
+            self.notify_process_location("end step", locals())
 
             #  Anything that must be updated at the end of the current
             #  iteration for the next one (if any), and the decision
@@ -1654,7 +1654,7 @@ class MusesLevmarSolver:
             # end if (self.stop_code == 0):
 
             # Useful diagnostic while looking at muses-py/ReFRACtor.
-            self.notify_update("end iteration", locals())
+            self.notify_process_location("end iteration", locals())
 
             chi2 = resNextNorm2
             dof = radiance_fm_next.shape[0] - p_vector.shape[0] + 1

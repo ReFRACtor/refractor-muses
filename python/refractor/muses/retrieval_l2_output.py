@@ -16,14 +16,7 @@ from typing import Any, Callable
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-
-
-def _new_from_init(cls, *args):  # type: ignore
-    """For use with pickle, covers common case where we just store the
-    arguments needed to create an object."""
-    inst = cls.__new__(cls)
-    inst.__init__(*args)
-    return inst
+    from .creator_dict import CreatorDict
 
 
 class FileNumberHandle:
@@ -59,15 +52,17 @@ class FileNumberHandle:
 class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        creator_dict: CreatorDict,
+    ) -> None:
+        super().__init__(creator_dict)
+        self.strategy_context.add_observer(self)
         self.dataTATM: dict[str, Any] | None = None
         self.dataH2O: dict[str, Any] | None = None
         self.dataN2O: dict[str, Any] | None = None
         self.file_number_dict: dict[Path, FileNumberHandle] = {}
         self._species_list: list[str] | None = None
-
-    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
-        return (_new_from_init, (self.__class__,))
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
@@ -101,17 +96,7 @@ class RetrievalL2Output(RetrievalOutput):
             fnum.finalize()
         self.file_number_dict = {}
 
-    def notify_update(
-        self,
-        retrieval_strategy: RetrievalStrategy,
-        location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        # Start of a retrieval
-        if location == ProcessLocation("update target"):
+    def notify_update_strategy_context(self, strategy_context: MusesStrategyContext) -> None:
             # Save these, used in later lite files. Note these actually get
             # saved between steps, so we initialize these for the first step but
             # then leave them alone
@@ -119,11 +104,23 @@ class RetrievalL2Output(RetrievalOutput):
             self.dataH2O = None
             self.dataN2O = None
             self.file_number_dict = {}
+
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval done"), ProcessLocation("retrieval step")]
+    
+    def notify_process_location(
+        self,
+        location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
+        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().notify_process_location(location, retrieval_strategy, retrieval_strategy_step=retrieval_strategy_step)
         if location == ProcessLocation("retrieval done"):
             self.finalize_file_number()
-        if location != ProcessLocation("retrieval step"):
             return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         # Regenerate this for the current step
         self._species_list = None
         for self.spcname in self.species_list:

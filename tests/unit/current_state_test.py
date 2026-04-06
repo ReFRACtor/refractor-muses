@@ -22,14 +22,18 @@ from typing import Any
 
 
 class RetrievalStrategyStop:
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [
+            ProcessLocation("initial set up done"),
+        ]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         **kwargs: Any,
     ) -> None:
-        if location == ProcessLocation("initial set up done"):
-            raise StopIteration()
+        raise StopIteration()
 
 
 def test_current_state_dict():

@@ -1,5 +1,8 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from loguru import logger
+from .creator_dict import CreatorDict
+from .muses_strategy_context import MusesStrategyContextMixin
 from .identifier import (
     RetrievalType,
     ProcessLocation,
@@ -24,11 +27,9 @@ from typing import Any
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .retrieval_configuration import RetrievalConfiguration
     from .retrieval_result import RetrievalResult
     from .current_state import CurrentState
     from .sounding_metadata import SoundingMetadata
-    from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
     from .input_file_helper import InputFileHelper, InputFilePath
 
@@ -80,25 +81,26 @@ class ExtraL2Output:
 extra_l2_output = ExtraL2Output()
 
 
-class RetrievalOutput:
+class RetrievalOutput(MusesStrategyContextMixin):
     """Observer of RetrievalStrategy, common behavior for Products files."""
 
-    def notify_add(self, retrieval_strategy: RetrievalStrategy) -> None:
-        self.retrieval_strategy = retrieval_strategy
-
-    def notify_update(
+    def __init__(
         self,
-        retrieval_strategy: RetrievalStrategy,
+        creator_dict: CreatorDict,
+    ) -> None:
+        super().__init__(creator_dict.strategy_context)
+        self.creator_dict = creator_dict
+
+    def notify_process_location(
+        self,
         location: ProcessLocation,
+        retrieval_strategy: RetrievalStrategy | None = None,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.current_state = retrieval_strategy.current_state
         self.retrieval_strategy_step = retrieval_strategy_step
-
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        return self.retrieval_strategy.retrieval_config
 
     @property
     def step_directory(self) -> Path:
@@ -129,8 +131,8 @@ class RetrievalOutput:
 
     @property
     def special_tag(self) -> str:
-        if self.retrieval_strategy.retrieval_type != RetrievalType("default"):
-            return f"-{self.retrieval_strategy.retrieval_type.lower()}"
+        if self.retrieval_type != RetrievalType("default"):
+            return f"-{self.retrieval_type.lower()}"
         return ""
 
     @property
@@ -143,14 +145,6 @@ class RetrievalOutput:
             res = res.replace(",_OMI", "_OMI")  #  Change "H2O,O3,_OMI" to "H2O,O3_OMI"
         res = res.rstrip(", ")
         return res
-
-    @property
-    def step_number(self) -> int:
-        return self.retrieval_strategy.strategy_step.step_number
-
-    @property
-    def step_name(self) -> str:
-        return self.retrieval_strategy.strategy_step.step_name
 
     @property
     def results(self) -> RetrievalResult:
@@ -220,16 +214,8 @@ class RetrievalOutput:
             )
         return t
 
-    @property
-    def current_state(self) -> CurrentState:
-        return self.retrieval_strategy.current_state
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        return self.retrieval_strategy.current_strategy_step
-
     def observation(self, instrument_name: str) -> MusesObservation:
-        return self.retrieval_strategy.observation_handle_set.observation(
+        return self.creator_dict[rf.Observation].observation(
             InstrumentIdentifier(instrument_name), None, None, None
         )
 

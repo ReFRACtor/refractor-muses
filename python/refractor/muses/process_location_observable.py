@@ -34,6 +34,8 @@ class ProcessLocationObservable:
         self._observers: dict[Any, set[ProcessLocation] | None] = {}
 
     def add_observer(self, obs: Any) -> None:
+        if not hasattr(obs, "notify_process_location"):
+            raise RuntimeError(f"Bad observer added {obs}")
         if hasattr(obs, "observing_process_location"):
             self._observers[obs] = set(obs.observing_process_location)
         else:
@@ -59,6 +61,7 @@ class ProcessLocationObservable:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
-        for obs, pset in self._observers.items():
+        lobs = list(self._observers.items())
+        for obs, pset in lobs:
             if pset is None or loc in pset:
-                obs.notify_process_location(self, loc, **kwargs)
+                obs.notify_process_location(loc, **kwargs)

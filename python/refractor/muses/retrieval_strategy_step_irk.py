@@ -20,12 +20,11 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStepOEBase):
 
     def __init__(
         self,
-        retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> None:
-        super().__init__(retrieval_type, rs, creator_dict, **kwargs)
+        super().__init__(rs, creator_dict, **kwargs)
         self.results_irk: ResultIrk | None = None
 
     def retrieval_step_body(self) -> None:
@@ -43,7 +42,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStepOEBase):
             # unit testing where we use a precomputed result
             self.results_irk = ResultIrk()
             self.results_irk.set_state(self._saved_state["results_irk"])
-        self.notify_update(ProcessLocation("IRK step"))
+        self.notify_process_location(ProcessLocation("IRK step"))
 
     def get_state(self) -> dict[str, Any]:
         res: dict[str, Any] = {"results_irk": None}
