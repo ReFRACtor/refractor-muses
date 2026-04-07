@@ -55,6 +55,11 @@ class MusesRunDir:
                 shutil.copy(
                     refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
                 )
+        for f in ("strategy", "retrieval_config"):
+            if (refractor_sounding_dir / f"{f}.yaml").exists():
+                shutil.copy(
+                    refractor_sounding_dir / f"{f}.yaml", self.run_dir / f"{f}.yaml"
+                )
         if obs_sym_link:
             # Needed by py-retrieve OMI and TROPOMI code
             for f2 in refractor_sounding_dir.glob("*_obs.pkl"):

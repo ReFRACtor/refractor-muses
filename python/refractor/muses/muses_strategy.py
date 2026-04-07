@@ -8,6 +8,7 @@ from .identifier import (
     FilterIdentifier,
     IdentifierSortByWaveLength,
 )
+from .input_file_helper import InputFileHelper
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
 from .retrieval_array import FullGridMappedArray
@@ -20,6 +21,11 @@ from .current_strategy_step import (
 import os
 import abc
 import typing
+import yaml
+import pyaml
+import math
+from pathlib import Path
+import pandas as pd
 from collections import defaultdict
 from typing import Any, cast
 
@@ -30,6 +36,73 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .input_file_helper import InputFileHelper
 
+
+class TesStrategyTableReader:
+    """The '.asc' format for the strategy table needs to a bit of massaging
+    to read cleanly. The table uses the convention of '-' as a None/Null entry.
+    Also, some of the fields are arrays, which isn't always clear (so no marker
+    for a single entry, or that '-' actually means and empty array).
+
+    This class returns the massaged data. We also provide functions to convert
+    this to and from YAML. The YAML is just sugar for the old strategy tables.
+    I find it much easier to read and write, but has exactly the same content
+    as the '.asc' Tes files. However for non OE retrievals, we really do need
+    a YAML like file format because the content needed for a strategy step are
+    completely different for something like a ML retrieve strategy step.
+    """
+
+    def __init__(
+        self,
+        fname: str | os.PathLike[str] | InputFilePath,
+        ifile_help: InputFileHelper | None = None,
+    ) -> None:
+        if ifile_help is None:
+            ifile_help = InputFileHelper()
+        self._tes_file = ifile_help.open_tes(fname)
+
+    @property
+    def table(self) -> list[dict[str, Any]]:
+        res = []
+        for _, row in self._tes_file.checked_table.iterrows():
+            rdict = row.to_dict()
+            for k, v in dict(rdict).items():
+                if k in ("retrievalElements", "errorAnalysisInterferents", "donotupdate"):
+                    rdict[k] = [] if v == '-' else v.split(",")
+                else:
+                    rdict[k] = None if v == "-" else v
+            res.append(rdict)
+        return res
+
+    def to_yaml(self, fname : str | os.PathLike[str]) -> None:
+        '''Rewrite the table as a YAML file'''
+        with open(fname, "w") as fh:
+            print(pyaml.dump({'strategy' : self.table}, sort_keys=False, indent=4),file=fh)
+
+    @classmethod
+    def from_yaml(self, yaml_fname : str | os.PathLike[str], tes_fname : str | os.PathLike[str]) -> None:
+        # TODO This creates a readable file, but it doesn't space the columns to
+        # align. We could probably work up something to do that, but I'm not sure
+        # how often we will actually use this function
+        with open(yaml_fname, "r") as fh:
+            d = yaml.safe_load(fh)["strategy"]
+        d2 = []
+        for row in d:
+            rdict = {}
+            for k, v in row.items():
+                if k in ("retrievalElements", "errorAnalysisInterferents", "donotupdate"):
+                    rdict[k] = '-' if len(v) == 0 else ','.join(v)
+                else:
+                    rdict[k] = '-' if v is None else str(v)
+            d2.append(rdict)
+        df = pd.DataFrame(d2)
+        with open(tes_fname, "w") as fh:
+            print("TES_File_ID = L2: Strategy Table", file=fh)
+            print(f"Data_Size = {len(d)} x {len(d[0].keys())}", file=fh)
+            print("End_of_Header  ****  End_of_Header  ****  End_of_Header  ****  End_of_Header", file=fh)
+            print(" ".join(d[0].keys()), file=fh)
+            print(" ".join(["na",] * len(d[0].keys())), file=fh)
+            df.to_csv(fh, index=False, sep=' ', header=False)
+    
 
 class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for MusesStrategyHandle. Note we use duck typing, so
@@ -381,14 +454,18 @@ class MusesStrategyStepList(MusesStrategyImp):
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(strategy_context, spectral_window_handle_set)
-        fin = ifile_hlp.open_tes(filename)
+        if Path(filename).suffix == ".yaml":
+            ifile_hlp.notify_file_input(filename)
+            table = yaml.safe_load(open(filename, "r"))["strategy"]
+        elif Path(filename).suffix == ".asc":
+            table = TesStrategyTableReader(filename, ifile_hlp).table
         i2 = -1
-        for i, row in fin.checked_table.iterrows():
+        for i, row in enumerate(table):
             i2 += 1
             cstep = CurrentStrategyStepHandleOE(
                 strategy_context=strategy_context
             ).create_current_strategy_step(
-                i2, row.to_dict(), spectral_window_handle_set
+                i2, row, spectral_window_handle_set
             )
             res.current_strategy_list.append(cstep)
         return res
@@ -647,4 +724,5 @@ __all__ = [
     "MusesStrategyModifyHandle",
     "modify_strategy_table",
     "MusesStrategyStepList",
+    "TesStrategyTableReader",
 ]

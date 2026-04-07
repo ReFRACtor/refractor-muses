@@ -199,6 +199,7 @@ from .muses_strategy import (
     MusesStrategyImp,
     MusesStrategyModifyHandle,
     MusesStrategyStepList,
+    TesStrategyTableReader,
     modify_strategy_table,
 )
 from .muses_strategy_context import (
@@ -596,6 +597,7 @@ __all__ = [
     "TesFmObjectCreator",
     "TesForwardModelHandle",
     "TesSpectralWindow",
+    "TesStrategyTableReader",
     "UwisCamelOptions",
     "VerboseSolverLogging",
     "VmrHandleNeg",

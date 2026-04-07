@@ -285,15 +285,6 @@ class CurrentStrategyStepHandle(CreatorHandleWithContext):
 
 
 class CurrentStrategyStepHandleOE(CreatorHandleWithContext):
-    def _parse_state_elements(self, s: str) -> list[StateElementIdentifier]:
-        """Small logic used to handle the state element in the file"""
-        # We need to handle empty lists (which get expressed as "-", and also make
-        # sure the elements get put in the right order.
-        r = s.split(",")
-        if r[0] == "-":
-            return []
-        return [StateElementIdentifier(i) for i in r]
-
     def create_current_strategy_step(
         self,
         index: int,
@@ -310,20 +301,16 @@ class CurrentStrategyStepHandleOE(CreatorHandleWithContext):
         if RetrievalType(table_row["retrievalType"]) == RetrievalType("bt_ig_refine"):
             cost_function_params["conv_tolerance"] = [0.00001, 0.00001, 0.00001]
             cost_function_params["chi2_tolerance"] = 0.00001
-        retrieval_elements = self._parse_state_elements(table_row["retrievalElements"])
+        retrieval_elements = [StateElementIdentifier(i) for i in table_row["retrievalElements"]]
         strategy_step = StrategyStepIdentifier(index, table_row["stepName"])
         retrieval_step_parameters = {
             "cost_function_params": cost_function_params,
         }
         retrieval_type = RetrievalType(table_row["retrievalType"])
-        error_analysis_interferents = self._parse_state_elements(
-            table_row["errorAnalysisInterferents"]
-        )
+        error_analysis_interferents = [StateElementIdentifier(i) for i in table_row["errorAnalysisInterferents"]]
         # List of elements that we include in this step, but then
         # set back to their original value for the next step
-        retrieval_elements_not_updated = self._parse_state_elements(
-            table_row["donotupdate"]
-        )
+        retrieval_elements_not_updated = [StateElementIdentifier(i) for i in table_row["donotupdate"]]
         update_constraint_elements = []
         microwindow_file_name_override = table_row.get("specFile", None)
         # The py-retrieve strategy table just "knows" that certain

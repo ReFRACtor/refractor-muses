@@ -18,7 +18,7 @@ update-init:
 	cd python/refractor/muses && mkinit . -w --black --nomods --relative
 	cd python/refractor/muses_py_fm && mkinit . -w --black --nomods --relative
 	cd python/refractor/omi && mkinit . -w --black --nomods --relative
-#	cd python/refractor/osr_ml && mkinit . -w --black --nomods --relative
+	cd python/refractor/osr_ml && mkinit . -w --black --nomods --relative
 	cd python/refractor/tropomi && mkinit . -w --black --nomods --relative
 
 update-old-init:

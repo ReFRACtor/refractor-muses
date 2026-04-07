@@ -5,6 +5,7 @@ import re
 import copy
 from .input_file_helper import InputFileHelper
 from pathlib import Path
+import pyaml
 from typing import Any, Self, Iterator
 
 
@@ -199,6 +200,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
                 os.environ["strategy_table_dir"] = t
             else:
                 del os.environ["strategy_table_dir"]
+
+    def to_yaml(self, fname: str | os.PathLike[str]) -> None:
+        with open(fname, "w") as fh:
+            print(pyaml.dump({self._data}, sort_keys=False, indent=4),file=fh)
 
 
 class AdapterRetrievalConfiguration(collections.abc.Mapping):
