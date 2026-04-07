@@ -202,7 +202,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStepOEBase):
     def run_retrieval(self) -> SolverResult:
         """run_retrieval"""
         self.cfunc = self.create_cost_function()
-        cost_function_params = self.current_strategy_step.retrieval_step_parameters["cost_function_params"]
+        cost_function_params = self.current_strategy_step.retrieval_step_parameters[
+            "cost_function_params"
+        ]
         self.notify_process_location(ProcessLocation("create_cost_function"))
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:

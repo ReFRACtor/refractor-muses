@@ -2,7 +2,7 @@ from refractor.muses import (
     MusesRunDir,
     RetrievalConfiguration,
     SpectralWindowHandleSet,
-    CurrentStrategyStepDict,
+    CurrentStrategyStepOEImp,
     MeasurementIdFile,
     InstrumentIdentifier,
     FilterIdentifier,
@@ -42,30 +42,33 @@ def test_muses_py_spectral_window_handle(
         strategy_context
     )
     # For step 8
-    current_strategy_step = CurrentStrategyStepDict(
-        {
-            "retrieval_elements": [
-                StateElementIdentifier("H2O"),
-                StateElementIdentifier("O3"),
-                StateElementIdentifier("TSUR"),
-                StateElementIdentifier("CLOUDEXT"),
-                StateElementIdentifier("PCLOUD"),
-                StateElementIdentifier("OMICLOUDFRACTION"),
-                StateElementIdentifier("OMISURFACEALBEDOUV1"),
-                StateElementIdentifier("OMISURFACEALBEDOUV2"),
-                StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
-                StateElementIdentifier("OMINRADWAVUV1"),
-                StateElementIdentifier("OMINRADWAVUV2"),
-                StateElementIdentifier("OMIODWAVUV1"),
-                StateElementIdentifier("OMIODWAVUV2"),
-            ],
-            "strategy_step": StrategyStepIdentifier(8, "H2O,O3_OMI"),
-            "max_num_iterations": "15",
-            "retrieval_type": RetrievalType("joint"),
-        },
+    current_strategy_step = CurrentStrategyStepOEImp(
         strategy_context,
         swin_handle_set,
+        RetrievalType("joint"),
+        [
+            StateElementIdentifier("H2O"),
+            StateElementIdentifier("O3"),
+            StateElementIdentifier("TSUR"),
+            StateElementIdentifier("CLOUDEXT"),
+            StateElementIdentifier("PCLOUD"),
+            StateElementIdentifier("OMICLOUDFRACTION"),
+            StateElementIdentifier("OMISURFACEALBEDOUV1"),
+            StateElementIdentifier("OMISURFACEALBEDOUV2"),
+            StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
+            StateElementIdentifier("OMINRADWAVUV1"),
+            StateElementIdentifier("OMINRADWAVUV2"),
+            StateElementIdentifier("OMIODWAVUV1"),
+            StateElementIdentifier("OMIODWAVUV2"),
+        ],
+        StrategyStepIdentifier(8, "H2O,O3_OMI"),
+        {},
+        [],
+        [],
+        [],
+        None,
     )
+
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, strategy_context.filter_list_dict
     )
@@ -102,15 +105,17 @@ def test_muses_py_spectral_window_handle_empty_band(
         strategy_context
     )
     # For step 3
-    current_strategy_step = CurrentStrategyStepDict(
-        {
-            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
-            "strategy_step": StrategyStepIdentifier(3, "OMICLOUDFRACTION"),
-            "max_num_iterations": "10",
-            "retrieval_type": RetrievalType("OMICLOUD_IG_Refine"),
-        },
+    current_strategy_step = CurrentStrategyStepOEImp(
         strategy_context,
         swin_handle_set,
+        RetrievalType("OMICLOUD_IG_Refine"),
+        [StateElementIdentifier("OMICLOUDFRACTION")],
+        StrategyStepIdentifier(3, "OMICLOUDFRACTION"),
+        {},
+        [],
+        [],
+        [],
+        None,
     )
     swin_dict = swin_handle_set.spectral_window_dict(
         current_strategy_step, strategy_context.filter_list_dict

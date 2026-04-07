@@ -49,9 +49,12 @@ from .current_state_state_info import (
 )
 from .current_strategy_step import (
     CurrentStrategyStep,
-    CurrentStrategyStepDict,
+    CurrentStrategyStepHandle,
+    CurrentStrategyStepHandleOE,
+    CurrentStrategyStepHandleSet,
     CurrentStrategyStepImp,
     CurrentStrategyStepOE,
+    CurrentStrategyStepOEImp,
 )
 from .docopt_simple import (
     docopt_simple,
@@ -423,9 +426,12 @@ __all__ = [
     "CurrentStateRecordAndPlay",
     "CurrentStateStateInfo",
     "CurrentStrategyStep",
-    "CurrentStrategyStepDict",
+    "CurrentStrategyStepHandle",
+    "CurrentStrategyStepHandleOE",
+    "CurrentStrategyStepHandleSet",
     "CurrentStrategyStepImp",
     "CurrentStrategyStepOE",
+    "CurrentStrategyStepOEImp",
     "DictFilterMetadata",
     "EmisState",
     "ErrorAnalysis",

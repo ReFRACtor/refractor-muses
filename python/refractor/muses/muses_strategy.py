@@ -6,14 +6,17 @@ from .identifier import (
     StateElementIdentifier,
     RetrievalType,
     FilterIdentifier,
-    StrategyStepIdentifier,
     IdentifierSortByWaveLength,
 )
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
 from .retrieval_array import FullGridMappedArray
 from .muses_strategy_context import MusesStrategyContext
-from .current_strategy_step import CurrentStrategyStep, CurrentStrategyStepDict
+from .current_strategy_step import (
+    CurrentStrategyStep,
+    CurrentStrategyStepOEImp,
+    CurrentStrategyStepHandleOE,
+)
 import os
 import abc
 import typing
@@ -335,7 +338,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
 
 
 class MusesStrategyStepList(MusesStrategyImp):
-    """This implementation uses a list of CurrentStrategyStepDict."""
+    """This implementation uses a list of CurrentStrategyStep."""
 
     def __init__(
         self,
@@ -363,7 +366,7 @@ class MusesStrategyStepList(MusesStrategyImp):
         self._filter_list_dict: (
             dict[InstrumentIdentifier, list[FilterIdentifier]] | None
         ) = None
-        self.current_strategy_list: list[CurrentStrategyStepDict] = []
+        self.current_strategy_list: list[CurrentStrategyStep] = []
         self._cur_step_index = 0
         self._cur_step_count = 0
         self.strategy_context = strategy_context
@@ -382,52 +385,11 @@ class MusesStrategyStepList(MusesStrategyImp):
         i2 = -1
         for i, row in fin.checked_table.iterrows():
             i2 += 1
-            cost_function_params: dict[str, Any] = {
-                "max_iter": int(row["maxNumIterations"]),
-                "chi2_tolerance": None,
-                # Will fill in from strategy in CurrentStrategyStepDict
-                "delta_value": None,
-                "conv_tolerance": None,
-            }
-            if RetrievalType(row["retrievalType"]) == RetrievalType("bt_ig_refine"):
-                cost_function_params["conv_tolerance"] = [0.00001, 0.00001, 0.00001]
-                cost_function_params["chi2_tolerance"] = 0.00001
-            cstepdict = {
-                "retrieval_elements": res._parse_state_elements(
-                    row["retrievalElements"]
-                ),
-                "strategy_step": StrategyStepIdentifier(i2, row["stepName"]),
-                "retrieval_step_parameters": {
-                    "cost_function_params": cost_function_params,
-                },
-                "retrieval_type": RetrievalType(row["retrievalType"]),
-                "error_analysis_interferents": res._parse_state_elements(
-                    row["errorAnalysisInterferents"]
-                ),
-                # List of elements that we include in this step, but then
-                # set back to their original value for the next step
-                "retrieval_elements_not_updated": res._parse_state_elements(
-                    row["donotupdate"]
-                ),
-                # List of elements that we update the apriori to match what
-                # we retrieve
-                "update_constraint_elements": [],
-            }
-            cstep = CurrentStrategyStepDict(
-                cstepdict, strategy_context, spectral_window_handle_set
+            cstep = CurrentStrategyStepHandleOE(
+                strategy_context=strategy_context
+            ).create_current_strategy_step(
+                i2, row.to_dict(), spectral_window_handle_set
             )
-            # The py-retrieve strategy table just "knows" that certain
-            # retrieval types also update the apriori value. We duplicate this
-            # behavior, although it would be nice to have a cleaner way of doing this
-            # (e.g., maybe just have a update_constraint_elements column in the table?)
-            if cstep.retrieval_type == RetrievalType("tropomicloud_ig_refine"):
-                cstep.current_strategy_step_dict["update_constraint_elements"].append(
-                    StateElementIdentifier("TROPOMICLOUDFRACTION")
-                )
-            if cstep.retrieval_type == RetrievalType("omicloud_ig_refine"):
-                cstep.current_strategy_step_dict["update_constraint_elements"].append(
-                    StateElementIdentifier("OMICLOUDFRACTION")
-                )
             res.current_strategy_list.append(cstep)
         return res
 
@@ -472,7 +434,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 )
         return self._filter_list_dict
 
-    def _next_step_peek(self) -> CurrentStrategyStepDict | None:
+    def _next_step_peek(self) -> CurrentStrategyStep | None:
         """Return the value of the next step, without actually changing the current step.
         Returns None if we hit done before getting the next step"""
         i = 1
@@ -502,7 +464,8 @@ class MusesStrategyStepList(MusesStrategyImp):
         retrieval steps)"""
         res: set[StateElementIdentifier] = set()
         for cstep in self.current_strategy_list:
-            res.update(cstep.retrieval_elements)
+            if hasattr(cstep, "retrieval_elements"):
+                res.update(cstep.retrieval_elements)
         return StateElementIdentifier.sort_identifier(list(res))
 
     @property
@@ -511,7 +474,8 @@ class MusesStrategyStepList(MusesStrategyImp):
         retrieval steps)"""
         res: set[StateElementIdentifier] = set()
         for cstep in self.current_strategy_list:
-            res.update(cstep.error_analysis_interferents)
+            if hasattr(cstep, "error_analysis_interferents"):
+                res.update(cstep.error_analysis_interferents)
         return StateElementIdentifier.sort_identifier(list(res))
 
     @property
@@ -520,7 +484,8 @@ class MusesStrategyStepList(MusesStrategyImp):
         steps)"""
         res: set[InstrumentIdentifier] = set()
         for cstep in self.current_strategy_list:
-            res.update(cstep.instrument_name)
+            if hasattr(cstep, "instrument_name"):
+                res.update(cstep.instrument_name)
         return InstrumentIdentifier.sort_identifier(list(res))
 
     def restart(self) -> None:
@@ -559,7 +524,9 @@ class MusesStrategyStepList(MusesStrategyImp):
         # Look at all the bt_ig_refine, and only activate the one that contains species_igr
         found = False
         for cstate in self.current_strategy_list[self._cur_step_index + 1 :]:
-            if cstate.retrieval_type != RetrievalType("bt_ig_refine"):
+            if cstate.retrieval_type != RetrievalType("bt_ig_refine") or not hasattr(
+                cstate, "retrieval_elements"
+            ):
                 break
             if ",".join([str(s) for s in cstate.retrieval_elements]) != species_igr:
                 cstate.is_skipped = True
@@ -645,15 +612,13 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
             strategy_context,
             spectral_window_handle_set,
         )
-        s.current_strategy_list[
-            self._step_number_value
-        ].retrieval_elements = StateElementIdentifier.sort_identifier(
+        t = s.current_strategy_list[self._step_number_value]
+        assert isinstance(t, CurrentStrategyStepOEImp)
+        t.retrieval_elements = StateElementIdentifier.sort_identifier(
             self.retrieval_elements
         )
         if self.max_iter is not None:
-            s.current_strategy_list[self._step_number_value].retrieval_step_parameters[
-                "max_iter"
-            ] = self.max_iter
+            t.retrieval_step_parameters["max_iter"] = self.max_iter
         self.strategy_context.add_observer(s)
         return s
 

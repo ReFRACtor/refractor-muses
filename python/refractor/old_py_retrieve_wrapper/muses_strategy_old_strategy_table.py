@@ -2,7 +2,7 @@ from __future__ import annotations
 from refractor.muses import (
     CurrentState,
     CurrentStrategyStep,
-    CurrentStrategyStepDict,
+    CurrentStrategyStepOEImp,
     FilterIdentifier,
     InstrumentIdentifier,
     InputFileHelper,
@@ -136,13 +136,17 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
                 StateElementIdentifier(s) for s in self._stable.do_not_update_list
             ],
         }
-        cstep = CurrentStrategyStepDict(
-            cstepdict, self.strategy_context, self.spectral_window_handle_set
-        )
-        cstep.current_strategy_step_dict["spectral_window_dict"] = (
-            self.spectral_window_handle_set.spectral_window_dict(
-                cstep, self.filter_list_dict
-            )
+        cstep = CurrentStrategyStepOEImp(
+            self.strategy_context,
+            self.spectral_window_handle_set,
+            cstepdict["retrieval_type"],
+            cstepdict["retrieval_elements"],
+            cstepdict["strategy_step"],
+            cstepdict["retrieval_step_parameters"],
+            cstepdict["error_analysis_interferents"],
+            cstepdict["do_not_update_list"],
+            [],
+            None,
         )
         return cstep
 
