@@ -2,7 +2,7 @@
 #   mkinit . -w
 
 # <AUTOGEN_INIT>
-from .cris_colprior_from_l1b import (  # type: ignore
+from .cris_colprior_from_l1b import (
     cris_colprior_from_l1b,
 )
 from .cris_io import (
@@ -20,10 +20,10 @@ from .date_to_julian_day import (
 from .dummy_spectral_window_handle import (
     DummySpectralWindowHandle,
 )
-from .maps import (  # type: ignore
+from .maps import (
     map_data_1d,
 )
-from .ml import (  # type: ignore
+from .ml import (
     features_l1b,
     prediction,
 )
@@ -33,7 +33,9 @@ from .parula_cmap import (
 from .read_nc import (
     read_nc,
 )
-from .retrieval_ml_output import RetrievalMlOutput
+from .retrieval_ml_output import (
+    RetrievalMlOutput,
+)
 from .retrieval_strategy_step_ml import (
     RetrievalStrategyStepMl,
     RetrievalStrategyStepMlHandle,
@@ -44,6 +46,9 @@ from .rmsd_two_var import (
 
 __all__ = [
     "DummySpectralWindowHandle",
+    "RetrievalMlOutput",
+    "RetrievalStrategyStepMl",
+    "RetrievalStrategyStepMlHandle",
     "cris_colprior_from_l1b",
     "cris_pixel_corners",
     "date_to_julian_day",
@@ -58,5 +63,4 @@ __all__ = [
     "read_nc",
     "rmsd_two_var",
 ]
-
 # </AUTOGEN_INIT>
