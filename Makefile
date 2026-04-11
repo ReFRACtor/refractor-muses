@@ -68,3 +68,36 @@ mypy-simpler:
 # This adds options to check for missing typing info. We usually want this
 mypy:
 	PYTHONPATH=$(PWD)/python mypy --disallow-untyped-defs python/refractor
+
+# Documentation
+SPHINXBUILD   = sphinx-build
+SPHINXPROJ    = refractor-muses
+
+
+DOCSOURCEDIR = doc/src
+BUILDDIR = doc/_build
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINXBUILD) -M help "$(DOCSOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+.PHONY: help Makefile
+
+doc-html: 
+	@$(SPHINXBUILD) -M html "$(DOCSOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+
+doc-latex: 
+	@$(SPHINXBUILD) -M latex "$(DOCSOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+
+doc-latexpdf: 
+	@$(SPHINXBUILD) -M latexpdf "$(DOCSOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+
+#=================================================================
+# Upload documentation to github pages
+# *Note* I tend to forget this, but there needs to be a .nojekyll in
+# the github pages for github to serve the page right. This can be done
+# by just adding .nojekyll to doc/_build/html. Newer versions of
+# ghp-import have a "-n" option to add the .nojekyll file
+github-pages: doc-html
+	@echo "Note, this should usually be done from the main branch only"
+	ghp-import -n doc/_build/html -m "Update refractor documentation"
+	@echo "You now need to push the gh-pages branch to github for these to be visible (git push origin gh-pages)"
