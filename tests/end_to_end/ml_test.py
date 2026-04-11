@@ -44,7 +44,7 @@ def test_refractor_retrieve_ml_end_to_end(
         cris_ml_test_in_dir / "catalog.json",
     )
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        rs.strategy_table_filename,
+        cris_ml_test_in_dir / "Table.asc",
         ifile_hlp,
     )
     rconf["output_directory"] = dir
@@ -55,7 +55,7 @@ def test_refractor_retrieve_ml_end_to_end(
     rs.strategy_context.update_strategy_context(
         stac_catalog=stac,
         retrieval_config=rconf,
-        strategy_table_filename=rs.strategy_table_filename,
+        strategy_table_filename=cris_ml_test_in_dir / "Table.asc",
         creator_dict=rs.creator_dict,
     )
     try:

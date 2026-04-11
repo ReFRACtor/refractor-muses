@@ -248,7 +248,7 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, end_to_end_run_dir, tropomi_test_
                 name=StateElementIdentifier("O3_SCALED"),
             )
         )
-        rs.update_target(r.run_dir / "Table.asc")
+        rs.update_strategy_context(r.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

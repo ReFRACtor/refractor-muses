@@ -113,7 +113,7 @@ def set_up_run_to_location(
         ),
         priority_order=2,
     )
-    rs.update_target(run_dir / "Table.asc")
+    rs.update_strategy_context(run_dir)
     rstep, kwargs = run_step_to_location(
         rs, step_number, dir, location, include_ret_state=include_ret_state
     )

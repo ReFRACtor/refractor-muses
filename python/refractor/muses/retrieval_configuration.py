@@ -5,7 +5,7 @@ import re
 import copy
 from .input_file_helper import InputFileHelper
 from pathlib import Path
-import pyaml
+import pyaml  # type:ignore
 from typing import Any, Self, Iterator
 
 
@@ -75,6 +75,14 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     def __len__(self) -> int:
         return len(self._data)
+
+    @classmethod
+    def create_from_yaml(
+        cls,
+        fname: str | os.PathLike[str],
+        ifile_hlp: InputFileHelper | None = None,
+    ) -> Self:
+        raise NotImplementedError()
 
     @classmethod
     def create_from_strategy_file(
@@ -203,7 +211,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     def to_yaml(self, fname: str | os.PathLike[str]) -> None:
         with open(fname, "w") as fh:
-            print(pyaml.dump({self._data}, sort_keys=False, indent=4),file=fh)
+            print(pyaml.dump({self._data}, sort_keys=False, indent=4), file=fh)
 
 
 class AdapterRetrievalConfiguration(collections.abc.Mapping):

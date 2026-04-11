@@ -121,7 +121,7 @@ def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
-            rs.retrieval_ms()
+            rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
     cstate = rs.current_state

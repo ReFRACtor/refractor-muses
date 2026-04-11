@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import typing
+from loguru import logger
 from dataclasses import dataclass, field
 from typing import Any, Self
 
@@ -75,9 +76,7 @@ class MusesStrategyContext:
 
     def __init__(
         self,
-        strategy_table_filename: str | os.PathLike[str] | None = None,
-        measurement_id_fname: str | os.PathLike[str] = "./Measurement_ID.asc",
-        retrieval_config_fname: str | os.PathLike[str] = "./Table.asc",
+        strategy_directory: str | os.PathLike[str] | None = None,
         ifile_hlp: InputFileHelper | None = None,
         creator_dict: CreatorDict | None = None,
     ) -> None:
@@ -92,11 +91,9 @@ class MusesStrategyContext:
         # may be different in different places, even if the self._context_data
         # should be shared.
         self._observers: set[Any] = set()
-        if strategy_table_filename is not None:
-            self.create_from_table_filename(
-                strategy_table_filename,
-                measurement_id_fname=measurement_id_fname,
-                retrieval_config_fname=retrieval_config_fname,
+        if strategy_directory is not None:
+            self.create_from_directory(
+                strategy_directory,
                 ifile_hlp=ifile_hlp,
                 creator_dict=creator_dict,
             )
@@ -121,29 +118,62 @@ class MusesStrategyContext:
                     self._context_data.need_notify[obs] = False
         return self
 
-    def create_from_table_filename(
+    def create_from_directory(
         self,
-        strategy_table_filename: str | os.PathLike[str],
-        measurement_id_fname: str | os.PathLike[str] = "./Measurement_ID.asc",
-        retrieval_config_fname: str | os.PathLike[str] = "./Table.asc",
+        strategy_directory: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None = None,
         creator_dict: CreatorDict | None = None,
     ) -> None:
+        """We look at the directory, and if there is a strategy.yaml we read
+        that first. If we don't find that, we read a Table.asc file.
+        If there is a catalog.json file, we read that as a pystac file.
+        Otherwise we look for a MeasurementID.asc and read that.
+
+        If there is a retrieval_config.yaml file we read that for the
+        RetrievalConfiguration file, otherwise we read Table.asc (same
+        file as for strategy - this was the old py-retrieve standard).
+
+        We may want to extend the logic, although at some point it is
+        probably easier just to call update_strategy_context directly
+        with the objects you want.
+        """
+
         from .muses_observation import MeasurementIdFile
         from .retrieval_configuration import RetrievalConfiguration
         from .creator_dict import CreatorDict
 
         cdict = creator_dict if creator_dict is not None else CreatorDict(self)
+        dir = Path(strategy_directory).absolute()
+        if (dir / "retrieval_configuration.yaml").exists():
+            rconf = RetrievalConfiguration.create_from_yaml(
+                dir / "retrieval_configuration.yaml", ifile_hlp=ifile_hlp
+            )
+            logger.info(
+                f"Retrieval configuration filename: {dir / 'retrieval_configuration.yaml'}"
+            )
 
-        table_filename = Path(strategy_table_filename).absolute()
-        rconf_filename = table_filename.parent / retrieval_config_fname
-        mid_filename = table_filename.parent / measurement_id_fname
-        rconf = RetrievalConfiguration.create_from_strategy_file(
-            rconf_filename, ifile_hlp
-        )
-        mid = MeasurementIdFile(mid_filename, rconf)
+        else:
+            rconf = RetrievalConfiguration.create_from_strategy_file(
+                dir / "Table.asc", ifile_hlp=ifile_hlp
+            )
+            logger.info(f"Retrieval configuration filename: {dir / 'Table.asc'}")
+        stac_catalog = None
+        measurement_id = None
+        if (dir / "catalog.json").exists():
+            stac_catalog = pystac.Catalog.from_file(dir / "catalog.json")
+            logger.info(f"STAC catalog filename: {dir / 'catalog.json'}")
+
+        else:
+            measurement_id = MeasurementIdFile(dir / "Measurement_ID.asc", rconf)
+            logger.info(f"Measurement ID filename: {dir / 'Measurement_ID.asc'}")
+        if (dir / "strategy.yaml").exists():
+            strategy_table_filename = dir / "strategy.yaml"
+        else:
+            strategy_table_filename = dir / "Table.asc"
+        logger.info(f"Strategy table filename: {strategy_table_filename}")
         self.update_strategy_context(
-            measurement_id=mid,
+            measurement_id=measurement_id,
+            stac_catalog=stac_catalog,
             retrieval_config=rconf,
             creator_dict=cdict,
             strategy_table_filename=strategy_table_filename,

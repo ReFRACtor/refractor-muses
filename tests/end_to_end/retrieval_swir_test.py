@@ -49,7 +49,7 @@ def test_retrieval(tropomi_swir, ifile_hlp):
         lrad_second_order=False,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")
+    rs.update_strategy_context(tropomi_swir.run_dir)
     rs.retrieval_ms()
 
 
@@ -111,7 +111,7 @@ def test_co_fm(tropomi_swir, ifile_hlp):
         # absorption_gases=["CO",]
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(tropomi_swir.run_dir / "Table.asc")
+    rs.update_strategy_context(tropomi_swir.run_dir)
     cfcap = CostFunctionCapture()
     rs.add_observer(cfcap)
     try:
@@ -254,7 +254,7 @@ def test_simulated_retrieval(
         oss_training_data=oss_training_data,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
@@ -292,7 +292,7 @@ def test_simulated_retrieval(
         pickle.load(open(test_dir / "obs_sim.pkl", "rb")),
     )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     rs.retrieval_ms()
 
 
@@ -333,7 +333,7 @@ def test_radiance(
         oss_training_data=oss_training_data,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
@@ -380,7 +380,7 @@ def test_sim_albedo_0_9_retrieval(
             use_pca=True, use_lrad=False, lrad_second_order=False
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        rs.update_target(mrdir.run_dir / "Table.asc")
+        rs.update_strategy_context(mrdir.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
@@ -618,7 +618,7 @@ def test_scaled_sim_albedo_0_9_retrieval(
                 name=StateElementIdentifier("HDO_SCALED"),
             )
         )
-        rs.update_target(mrdir.run_dir / "Table.asc")
+        rs.update_strategy_context(mrdir.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

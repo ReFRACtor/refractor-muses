@@ -1,4 +1,8 @@
-from refractor.muses import MusesStrategyStepList, MusesSpectralWindowDict, TesStrategyTableReader
+from refractor.muses import (
+    MusesStrategyStepList,
+    MusesSpectralWindowDict,
+    TesStrategyTableReader,
+)
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
 import os
@@ -14,7 +18,7 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     os.chdir(rs.measurement_id.base_dir)
     # Comare with old py-retrieve code
     stable = MusesStrategyStepList.create_from_strategy_file(
-        #rs.measurement_id.base_dir / "Table.asc",
+        # rs.measurement_id.base_dir / "Table.asc",
         rs.measurement_id.base_dir / "strategy.yaml",
         rs.retrieval_config.input_file_helper,
         rs.creator_dict.strategy_context,
@@ -59,4 +63,3 @@ def test_tes_strategy_table_reader(isolated_dir, ifile_hlp, joint_tropomi_test_i
     TesStrategyTableReader.from_yaml("strategy.yaml", "Table.asc")
     f2 = TesStrategyTableReader("Table.asc")
     assert f.table == f2.table
-

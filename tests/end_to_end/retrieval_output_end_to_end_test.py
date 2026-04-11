@@ -111,7 +111,7 @@ def run_canned_results(directory: Path, input_directory: Path, ifile_hlp) -> Non
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.add_observer(RsSetupRetState(input_directory))
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_strategy_context(r.run_dir)
     rs.retrieval_ms()
 
 

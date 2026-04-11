@@ -149,7 +149,7 @@ def main() -> None:
             with logger.catch(reraise=True):
                 # Forward C++ logging in framework to the python logger
                 rf.PythonFpLogger.turn_on_logger(logger)
-                rs.update_target(f"{target_dir}/Table.asc")
+                rs.update_strategy_context(target_dir)
                 # if True:
                 if False:
                     # Fake error, for use in testing handling of this

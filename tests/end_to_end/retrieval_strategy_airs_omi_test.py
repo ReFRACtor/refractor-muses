@@ -88,7 +88,7 @@ def test_retrieval_strategy_airs_omi(
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_omi_test_refractor_lidort_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
+            rs.update_strategy_context(r.run_dir)
         elif run_pyretrieve:
             from refractor.muses_py_fm import (
                 MusesForwardModelHandle,
@@ -100,11 +100,11 @@ def test_retrieval_strategy_airs_omi(
             )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_omi_test_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
+            rs.update_strategy_context(r.run_dir)
         else:
             # Default handles for for refractor vlidoirt
             compare_dir = joint_omi_test_refractor_vlidort_expected_dir
-        rs.retrieval_ms()
+        rs.script_retrieval_ms(r.run_dir / "Table.asc")
     finally:
         logger.remove(lognum)
     diff_is_error = True
@@ -147,7 +147,7 @@ def test_load_step(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         ),
         priority_order=2,
     )
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_strategy_context(r.run_dir)
     step_number = 8
     dir = joint_omi_test_in_dir
     rs.load_step_info(

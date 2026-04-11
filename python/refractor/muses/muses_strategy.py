@@ -8,7 +8,7 @@ from .identifier import (
     FilterIdentifier,
     IdentifierSortByWaveLength,
 )
-from .input_file_helper import InputFileHelper
+from .input_file_helper import InputFileHelper, InputFilePath
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
 from .retrieval_array import FullGridMappedArray
@@ -21,13 +21,12 @@ from .current_strategy_step import (
 import os
 import abc
 import typing
-import yaml
-import pyaml
-import math
+import yaml  # type: ignore
+import pyaml  # type: ignore
 from pathlib import Path
 import pandas as pd
 from collections import defaultdict
-from typing import Any, cast
+from typing import Any, cast, Hashable
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -61,25 +60,33 @@ class TesStrategyTableReader:
         self._tes_file = ifile_help.open_tes(fname)
 
     @property
-    def table(self) -> list[dict[str, Any]]:
+    def table(self) -> list[dict[Hashable, Any]]:
         res = []
         for _, row in self._tes_file.checked_table.iterrows():
             rdict = row.to_dict()
             for k, v in dict(rdict).items():
-                if k in ("retrievalElements", "errorAnalysisInterferents", "donotupdate"):
-                    rdict[k] = [] if v == '-' else v.split(",")
+                if k in (
+                    "retrievalElements",
+                    "errorAnalysisInterferents",
+                    "donotupdate",
+                ):
+                    rdict[k] = [] if v == "-" else v.split(",")
                 else:
                     rdict[k] = None if v == "-" else v
             res.append(rdict)
         return res
 
-    def to_yaml(self, fname : str | os.PathLike[str]) -> None:
-        '''Rewrite the table as a YAML file'''
+    def to_yaml(self, fname: str | os.PathLike[str]) -> None:
+        """Rewrite the table as a YAML file"""
         with open(fname, "w") as fh:
-            print(pyaml.dump({'strategy' : self.table}, sort_keys=False, indent=4),file=fh)
+            print(
+                pyaml.dump({"strategy": self.table}, sort_keys=False, indent=4), file=fh
+            )
 
     @classmethod
-    def from_yaml(self, yaml_fname : str | os.PathLike[str], tes_fname : str | os.PathLike[str]) -> None:
+    def from_yaml(
+        self, yaml_fname: str | os.PathLike[str], tes_fname: str | os.PathLike[str]
+    ) -> None:
         # TODO This creates a readable file, but it doesn't space the columns to
         # align. We could probably work up something to do that, but I'm not sure
         # how often we will actually use this function
@@ -89,20 +96,35 @@ class TesStrategyTableReader:
         for row in d:
             rdict = {}
             for k, v in row.items():
-                if k in ("retrievalElements", "errorAnalysisInterferents", "donotupdate"):
-                    rdict[k] = '-' if len(v) == 0 else ','.join(v)
+                if k in (
+                    "retrievalElements",
+                    "errorAnalysisInterferents",
+                    "donotupdate",
+                ):
+                    rdict[k] = "-" if len(v) == 0 else ",".join(v)
                 else:
-                    rdict[k] = '-' if v is None else str(v)
+                    rdict[k] = "-" if v is None else str(v)
             d2.append(rdict)
         df = pd.DataFrame(d2)
         with open(tes_fname, "w") as fh:
             print("TES_File_ID = L2: Strategy Table", file=fh)
             print(f"Data_Size = {len(d)} x {len(d[0].keys())}", file=fh)
-            print("End_of_Header  ****  End_of_Header  ****  End_of_Header  ****  End_of_Header", file=fh)
+            print(
+                "End_of_Header  ****  End_of_Header  ****  End_of_Header  ****  End_of_Header",
+                file=fh,
+            )
             print(" ".join(d[0].keys()), file=fh)
-            print(" ".join(["na",] * len(d[0].keys())), file=fh)
-            df.to_csv(fh, index=False, sep=' ', header=False)
-    
+            print(
+                " ".join(
+                    [
+                        "na",
+                    ]
+                    * len(d[0].keys())
+                ),
+                file=fh,
+            )
+            df.to_csv(fh, index=False, sep=" ", header=False)
+
 
 class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for MusesStrategyHandle. Note we use duck typing, so
@@ -464,9 +486,7 @@ class MusesStrategyStepList(MusesStrategyImp):
             i2 += 1
             cstep = CurrentStrategyStepHandleOE(
                 strategy_context=strategy_context
-            ).create_current_strategy_step(
-                i2, row, spectral_window_handle_set
-            )
+            ).create_current_strategy_step(i2, row, spectral_window_handle_set)
             res.current_strategy_list.append(cstep)
         return res
 

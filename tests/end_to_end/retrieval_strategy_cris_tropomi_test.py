@@ -88,7 +88,7 @@ def test_retrieval_strategy_cris_tropomi(
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_tropomi_test_refractor_lidort_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
+            rs.update_strategy_context(r.run_dir)
         elif run_pyretrieve:
             from refractor.muses_py_fm import (
                 MusesForwardModelHandle,
@@ -100,12 +100,12 @@ def test_retrieval_strategy_cris_tropomi(
             )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_tropomi_test_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
+            rs.update_strategy_context(r.run_dir)
         else:
             # Default handles for refractor vlidort
             compare_dir = joint_tropomi_test_refractor_vlidort_expected_dir
 
-        rs.retrieval_ms()
+        rs.script_retrieval_ms(r.run_dir / "Table.asc")
     finally:
         logger.remove(lognum)
     diff_is_error = True

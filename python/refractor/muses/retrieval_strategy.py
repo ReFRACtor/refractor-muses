@@ -10,7 +10,6 @@ from .retrieval_debug_output import (
     RetrievalPlotRadiance,
     RetrievalPlotResult,
 )
-from .retrieval_configuration import RetrievalConfiguration
 from .process_location_observable import ProcessLocationObservable
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
@@ -29,7 +28,6 @@ import pickle
 from pathlib import Path
 from typing import Any
 import typing
-import pystac
 
 if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
@@ -142,14 +140,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
                 self.add_observer(RetrievalPlotResult(self.creator_dict))
                 self.add_observer(RetrievalPlotRadiance(self.creator_dict))
 
-        # For calling from py-retrieve, it is useful to delay the filename. See
-        # script_retrieval_ms below
-        if filename is not None:
-            if use_stac:
-                self.update_stac(filename)
-            else:
-                self.update_target(filename)
-
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms.
 
@@ -179,37 +169,18 @@ class RetrievalStrategy(MusesStrategyContextMixin):
     def creator_dict(self) -> CreatorDict:
         return self._creator_dict
 
-    def update_stac(self, filename: str | os.PathLike[str]) -> None:
-        """Not exactly clear how we want to handle a stac file vs
-        a single target. For now, we just keep this code separate.
-        As we get a bit more experience, we may be able to merge with
-        a single target - at some level these are the same things
-        "what is needed to run processing", but we don't know that
-        that interface should look like."""
-        logger.info(f"Strategy table filename: {filename}")
-
-        filename = Path(filename)
-        self._filename = filename.absolute()
-        self._capture_directory.rundir = filename.absolute().parent
-        rconf = RetrievalConfiguration.create_from_strategy_file(
-            self.strategy_table_filename,
-            self._ifile_hlp,
-        )
-
-        stac = pystac.Catalog.from_file(
-            self._output_directory / "config.json",
-        )
-        self.strategy_context.update_strategy_context(
-            stac_catalog=stac,
-            retrieval_config=rconf,
-            strategy_table_filename=self.strategy_table_filename,
-            creator_dict=self.creator_dict,
-        )
-        self.notify_process_location(ProcessLocation("update stac"))
-
-    def update_target(self, filename: str | os.PathLike[str]) -> None:
-        """Set up to process a target, given the filename for the
+    def update_strategy_context(self, strategy_dir: str | os.PathLike[str]) -> None:
+        """Set up to process a target, given the directory for the
         strategy table.
+
+        We look at the directory, and if there is a strategy.yaml we read
+        that first. If we don't find that, we read a Table.asc file.
+        If there is a catalog.json file, we read that as a pystac file.
+        Otherwise we look for a MeasurementID.asc and read that.
+
+        If there is a retrieval_config.yaml file we read that for the
+        RetrievalConfiguration file, otherwise we read Table.asc (same
+        file as for strategy - this was the old py-retrieve standard).
 
         A number of objects related to this one might do caching based
         on the target, e.g., read the input files once. py-retrieve
@@ -219,17 +190,14 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
         """
 
-        logger.info(f"Strategy table filename: {filename}")
-
-        filename = Path(filename)
-        self._filename = filename.absolute()
-        self._capture_directory.rundir = filename.absolute().parent
-        self.strategy_context.create_from_table_filename(
-            self.strategy_table_filename,
+        dir = Path(strategy_dir).absolute()
+        self._capture_directory.rundir = dir
+        self.strategy_context.create_from_directory(
+            dir,
             ifile_hlp=self._ifile_hlp,
             creator_dict=self._creator_dict,
         )
-        self.notify_process_location(ProcessLocation("update target"))
+        self.notify_process_location(ProcessLocation("update_strategy_context"))
 
     def script_retrieval_ms(
         self,
@@ -242,7 +210,7 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         # Ignore arguments other than filename.
         # We can clean this up if needed, perhaps delay the
         # initialization or something.
-        self.update_target(filename)
+        self.update_strategy_context(Path(filename).parent)
         return self.retrieval_ms()
 
     @property
@@ -314,11 +282,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         return Path(self._capture_directory.rundir)
 
     @property
-    def strategy_table_filename(self) -> Path:
-        """Name of the strategy table we are using."""
-        return self._filename
-
-    @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
         """The set of handles we use for mapping instrument name to a
         ForwardModel"""
@@ -388,8 +351,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         output_directory = Path(path).absolute() / res._capture_directory.runbase  # noqa: SLF001
         res._capture_directory.rundir = output_directory  # noqa: SLF001
-        res._filename = output_directory / res.strategy_table_filename.name  # noqa: SLF001
-        res._strategy_executor.strategy_table_filename = res._filename  # noqa: SLF001
         res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()  # noqa: SLF001
         res._retrieval_config.ifile_hlp = res.input_file_helper  # noqa: SLF001
         res._retrieval_config.base_dir = output_directory  # noqa: SLF001

@@ -66,7 +66,7 @@ def test_retrieval_strategy_airs_irk(
             )
             rs.add_observer(rscap2)
         compare_dir = airs_irk_test_expected_dir
-        rs.retrieval_ms()
+        rs.script_retrieval_ms(r.run_dir / "Table.asc")
     finally:
         logger.remove(lognum)
     diff_is_error = True
