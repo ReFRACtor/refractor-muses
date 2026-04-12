@@ -968,12 +968,17 @@ def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray
         return f[i_variable_name][:]
 
 
-# Default forward model is the VLIDORT one, so we are as close to
-# py-retrieve results as possible. Should look into changing to LIDORT,
-# which is faster
+# VLIDORT version, just for reference
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        OmiForwardModelHandle(use_vlidort=True),
+        priority_order=-1,
+    )
+
+# This is what the pipeline uses, so match this as the default version    
 ForwardModelHandleSet.add_default_handle(
-    OmiForwardModelHandle(use_vlidort=True),
+    OmiForwardModelHandle(use_pca=True,
+                          use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
-
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]

@@ -965,11 +965,16 @@ def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.nd
         return wav, deltawav, isrf
 
 
-# Default forward model is the VLIDORT one, so we are as close to
-# py-retrieve results as possible. Should look into changing to LIDORT,
-# which is faster
+# VLIDORT version, just for reference
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        TropomiForwardModelHandle(use_vlidort=True),
+        priority_order=-1,
+    )
+# This is what the pipeline uses, so match this as the default version    
 ForwardModelHandleSet.add_default_handle(
-    TropomiForwardModelHandle(use_vlidort=True),
+    TropomiForwardModelHandle(use_pca=True,
+                              use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
 
