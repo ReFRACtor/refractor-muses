@@ -19,12 +19,11 @@ from refractor.muses import (
 )
 import sys
 
-# Use refractor vlidort, lidort forward model, or use py-retrieve.
+# Use refractor vlidort, lidort forward model, or py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-run_lidort = False
-# run_lidort = True
-# run_pyretrieve = True
-run_pyretrieve = False
+run = "lidort"
+# run = "vlidort"
+# run = "py-retrieve"
 
 # Can use the older py_retrieve matching objects
 match_py_retrieve = False
@@ -77,7 +76,7 @@ def test_retrieval_strategy_airs_omi(
                 "retrieval_result", "retrieval step"
             )
             rs.add_observer(rscap2)
-        if run_lidort:
+        if run == "lidort":
             # Use refractor forward model.
             ihandle = OmiForwardModelHandle(
                 use_pca=True,
@@ -89,7 +88,7 @@ def test_retrieval_strategy_airs_omi(
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_omi_test_refractor_lidort_expected_dir
             rs.update_strategy_context(r.run_dir)
-        elif run_pyretrieve:
+        elif run == "py-retrieve":
             from refractor.muses_py_fm import (
                 MusesForwardModelHandle,
                 MusesOmiForwardModel,
@@ -101,7 +100,7 @@ def test_retrieval_strategy_airs_omi(
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_omi_test_expected_dir
             rs.update_strategy_context(r.run_dir)
-        else:
+        elif run == "vlidort":
             ihandle = OmiForwardModelHandle(
                 use_vlidort=True,
                 match_py_retrieve=match_py_retrieve,
@@ -109,6 +108,9 @@ def test_retrieval_strategy_airs_omi(
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to LIDORT version
             compare_dir = joint_omi_test_refractor_vlidort_expected_dir
+        else:
+            raise RuntimeError(f"Unknown run '{run}'")
+
         rs.script_retrieval_ms(r.run_dir / "Table.asc")
     finally:
         logger.remove(lognum)

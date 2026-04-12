@@ -949,7 +949,12 @@ class OmiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
             return None
-        logger.debug("Creating forward model using using OmiFmObjectCreator")
+        model_type = (
+            "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
+        )
+        logger.debug(
+            f"Creating {model_type} forward model using using OmiFmObjectCreator"
+        )
         obj_creator = OmiFmObjectCreator(
             current_state,
             self.retrieval_config,
@@ -975,10 +980,9 @@ if False:
         priority_order=-1,
     )
 
-# This is what the pipeline uses, so match this as the default version    
+# This is what the pipeline uses, so match this as the default version
 ForwardModelHandleSet.add_default_handle(
-    OmiForwardModelHandle(use_pca=True,
-                          use_lrad=False, lrad_second_order=False),
+    OmiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]

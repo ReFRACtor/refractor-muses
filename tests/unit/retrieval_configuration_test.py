@@ -7,4 +7,4 @@ def test_retrieval_configuration(ifile_hlp, omi_test_in_dir, isolated_dir):
     )
     print(dict(rconf))
     # Need to get this fully workin
-    #rconf.to_yaml("retrieval_config.yaml")
+    # rconf.to_yaml("retrieval_config.yaml")

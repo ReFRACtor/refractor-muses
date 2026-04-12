@@ -971,10 +971,9 @@ if False:
         TropomiForwardModelHandle(use_vlidort=True),
         priority_order=-1,
     )
-# This is what the pipeline uses, so match this as the default version    
+# This is what the pipeline uses, so match this as the default version
 ForwardModelHandleSet.add_default_handle(
-    TropomiForwardModelHandle(use_pca=True,
-                              use_lrad=False, lrad_second_order=False),
+    TropomiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
 
