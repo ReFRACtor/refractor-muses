@@ -11,7 +11,8 @@ from refractor.muses import (
     MusesStrategyContext,
     MusesStrategyImp,
     RetrievalType,
-    SpectralWindowHandleSet,
+    CreatorDict,
+    MusesSpectralWindowDict,
     StateElementIdentifier,
     StrategyStepIdentifier,
 )
@@ -32,9 +33,9 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         self,
         filename: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
     ):
-        super().__init__(spectral_window_handle_set)
+        super().__init__(creator_dict)
         self._stable = StrategyTable(filename, ifile_hlp=ifile_hlp)
 
     def is_next_bt(self) -> bool:
@@ -138,7 +139,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         }
         cstep = CurrentStrategyStepOEImp(
             self.strategy_context,
-            self.spectral_window_handle_set,
+            self.creator_dict[MusesSpectralWindowDict],
             cstepdict["retrieval_type"],
             cstepdict["retrieval_elements"],
             cstepdict["strategy_step"],
@@ -160,7 +161,7 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
@@ -169,7 +170,7 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
         res = MusesStrategyOldStrategyTable(
             self.retrieval_config["run_dir"] / "Table.asc",
             self.retrieval_config.input_file_helper,
-            spectral_window_handle_set,
+            creator_dict,
         )
         self.strategy_context.add_observer(res)
         return res

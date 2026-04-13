@@ -255,7 +255,7 @@ class MusesStrategyContext:
         filter_list_dict: None
         | dict[InstrumentIdentifier, list[FilterIdentifier]] = None,
     ) -> None:
-        from .muses_strategy import MusesStrategy
+        from .muses_strategy import MusesStrategy, CurrentStrategyStep
         from .spectral_window_handle import MusesSpectralWindowDict
 
         # Note, it is important these get created before we start the
@@ -265,6 +265,7 @@ class MusesStrategyContext:
         # they are created on first use here.
         strategy_creator = creator_dict[MusesStrategy]
         swin_creator = creator_dict[MusesSpectralWindowDict]
+        _ = creator_dict[CurrentStrategyStep]
         # We are assuming out creators are pointing at the same context. Catch
         # this is not, we have some logic error at a higher level
         if id(strategy_creator.strategy_context._context_data) != id(  # noqa: SLF001
@@ -287,7 +288,7 @@ class MusesStrategyContext:
         # this once we have the measurement_id/stac_catalog/retrieval_config.
         if self._context_data.strategy is None:
             self._context_data.strategy = strategy_creator.muses_strategy(
-                swin_creator,
+                creator_dict,
                 strategy_table_filename=strategy_table_filename,
             )
         if filter_list_dict is not None:

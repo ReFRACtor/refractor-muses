@@ -21,7 +21,7 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
         rs.measurement_id.base_dir / "Table.asc",
         rs.retrieval_config.input_file_helper,
         rs.creator_dict.strategy_context,
-        rs.creator_dict[MusesSpectralWindowDict],
+        rs.creator_dict,
     )
     stable_old = MusesStrategyOldStrategyTable(
         rs.measurement_id.base_dir / "Table.asc",

@@ -50,11 +50,9 @@ class MusesRunDir:
             # compare our new code against. For these cases, we need to old symbolic links.
             (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir.path_for_muses_py))
             (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir.path_for_muses_py))
-        for fnm in ("DateTime.asc","catalog.json"):
+        for fnm in ("DateTime.asc", "catalog.json"):
             if (refractor_sounding_dir / fnm).exists():
-                shutil.copy(
-                    refractor_sounding_dir / fnm, self.run_dir / fnm
-                )
+                shutil.copy(refractor_sounding_dir / fnm, self.run_dir / fnm)
         if not osp_sym_link and (refractor_sounding_dir / "strategy.yaml").exists():
             # Favor newer yaml versions of these files, unless we have osp_sym_link which
             # indirectly means we are using py-retrieve (which doesn't support the newer

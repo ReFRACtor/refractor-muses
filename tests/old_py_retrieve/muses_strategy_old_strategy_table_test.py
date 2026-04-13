@@ -16,7 +16,7 @@ def test_muses_strategy_old(joint_omi_step_8_osp_sym_link):
     stable = MusesStrategyOldStrategyTable(
         rs.measurement_id.base_dir / "Table.asc",
         rs.input_file_helper,
-        rs.creator_dict[MusesSpectralWindowDict],
+        rs.creator_dict,
     )
     stable.notify_update_strategy_context(rs.strategy_context)
     print(stable.filter_list_dict)

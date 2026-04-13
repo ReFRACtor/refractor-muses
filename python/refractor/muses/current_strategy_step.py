@@ -258,7 +258,7 @@ class CurrentStrategyStepHandleSet(CreatorHandleWithContextSet):
     """Create a CurrentStrategyStep"""
 
     def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
-        super().__init__("current_strategy_step", strategy_context)
+        super().__init__("create_current_strategy_step", strategy_context)
 
     # This is kind of specific to the kind of strategy files we have. For
     # now we just take a dict of keyword/values. We can perhaps rework this

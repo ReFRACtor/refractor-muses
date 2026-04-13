@@ -1,10 +1,8 @@
 from refractor.muses import (
     MusesRunDir,
-    RetrievalConfiguration,
-    MeasurementIdFile,
     MusesStrategyContext,
 )
-from refractor.osr_ml import read_l1b, features_l1b, prediction
+from refractor.osr_ml import features_l1b, prediction
 
 
 def test_cris_co_ml(cris_ml_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
@@ -23,7 +21,7 @@ def test_cris_co_ml(cris_ml_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
                 .values()
             ]
         )
-    features = features_l1b(l1b=l1b, prior=None, ml_model_path=cris_ml_dir)
+    features = features_l1b(l1b=l1b_file, prior=None, ml_model_path=cris_ml_dir)
     instrument = "CRIS-JPSS-1"
     species = "CO"
     pred = prediction(

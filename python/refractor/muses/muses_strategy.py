@@ -9,14 +9,13 @@ from .identifier import (
     IdentifierSortByWaveLength,
 )
 from .input_file_helper import InputFileHelper, InputFilePath
-from .spectral_window_handle import SpectralWindowHandleSet
+from .spectral_window_handle import SpectralWindowHandleSet, MusesSpectralWindowDict
 from .current_state import CurrentState
 from .retrieval_array import FullGridMappedArray
 from .muses_strategy_context import MusesStrategyContext
 from .current_strategy_step import (
     CurrentStrategyStep,
     CurrentStrategyStepOEImp,
-    CurrentStrategyStepHandleOE,
 )
 import os
 import abc
@@ -47,7 +46,7 @@ class TesStrategyTableReader:
     I find it much easier to read and write, but has exactly the same content
     as the '.asc' Tes files. However for non OE retrievals, we really do need
     a YAML like file format because the content needed for a strategy step are
-    completely different for something like a ML retrieve strategy step.
+    completely different for something like a ML retrieval strategy step.
     """
 
     def __init__(
@@ -141,7 +140,7 @@ class MusesStrategyHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     def muses_strategy(
         self,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given context,
@@ -159,11 +158,11 @@ class MusesStrategyHandleSet(CreatorHandleWithContextSet):
 
     def muses_strategy(
         self,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given strategy_context."""
-        return self.handle(self.strategy_context, spectral_window_handle_set, **kwargs)
+        return self.handle(self.strategy_context, creator_dict, **kwargs)
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
@@ -403,20 +402,25 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 class MusesStrategyImp(MusesStrategy):
     """Base class for the way we generally implement a MusesStrategy"""
 
-    def __init__(self, spectral_window_handle_set: SpectralWindowHandleSet) -> None:
-        self._spectral_window_handle_set = spectral_window_handle_set
+    def __init__(self, creator_dict: CreatorDict) -> None:
+        self._creator_dict = creator_dict
 
     @property
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
-        return self._spectral_window_handle_set
+        return self._creator_dict[MusesSpectralWindowDict]
+
+    @property
+    def creator_dict(self) -> CreatorDict:
+        """The CreatorDict"""
+        return self._creator_dict
 
 
 class MusesStrategyFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
         strategy_table_filename: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
@@ -424,14 +428,12 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
             fname = self.retrieval_config["run_dir"] / "strategy.yaml"
         else:
             fname = self.retrieval_config["run_dir"] / "Table.asc"
-        
+
         res = MusesStrategyStepList.create_from_strategy_file(
-            strategy_table_filename
-            if strategy_table_filename is not None
-            else fname,
+            strategy_table_filename if strategy_table_filename is not None else fname,
             self.retrieval_config.input_file_helper,
             strategy_context,
-            spectral_window_handle_set,
+            creator_dict,
         )
         self.strategy_context.add_observer(res)
         return res
@@ -443,7 +445,7 @@ class MusesStrategyStepList(MusesStrategyImp):
     def __init__(
         self,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
     ) -> None:
         """This uses a list of CurrentStrategyStep,
         self.current_strategy_list.  Note that there is a bit of
@@ -462,7 +464,7 @@ class MusesStrategyStepList(MusesStrategyImp):
         CurrentStrategyStepDict.
 
         """
-        super().__init__(spectral_window_handle_set)
+        super().__init__(creator_dict)
         self._filter_list_dict: (
             dict[InstrumentIdentifier, list[FilterIdentifier]] | None
         ) = None
@@ -477,10 +479,10 @@ class MusesStrategyStepList(MusesStrategyImp):
         filename: str | os.PathLike[str],
         ifile_hlp: InputFileHelper,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
     ) -> MusesStrategyStepList:
         """Create a MusesStrategyStepList from a strategy table file."""
-        res = cls(strategy_context, spectral_window_handle_set)
+        res = cls(strategy_context, creator_dict)
         if Path(filename).suffix == ".yaml":
             table = ifile_hlp.open_yaml(filename)["strategy"]
         elif Path(filename).suffix == ".asc":
@@ -488,9 +490,9 @@ class MusesStrategyStepList(MusesStrategyImp):
         i2 = -1
         for i, row in enumerate(table):
             i2 += 1
-            cstep = CurrentStrategyStepHandleOE(
-                strategy_context=strategy_context
-            ).create_current_strategy_step(i2, row, spectral_window_handle_set)
+            cstep = creator_dict[CurrentStrategyStep].create_current_strategy_step(
+                i2, row, creator_dict[MusesSpectralWindowDict]
+            )
             res.current_strategy_list.append(cstep)
         return res
 
@@ -704,7 +706,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
         strategy_context: MusesStrategyContext,
-        spectral_window_handle_set: SpectralWindowHandleSet,
+        creator_dict: CreatorDict,
         **kwargs: Any,
     ) -> MusesStrategy | None:
         if (self.retrieval_config["run_dir"] / "strategy.yaml").exists():
@@ -715,7 +717,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
             fname,
             self.retrieval_config.input_file_helper,
             strategy_context,
-            spectral_window_handle_set,
+            creator_dict,
         )
         t = s.current_strategy_list[self._step_number_value]
         assert isinstance(t, CurrentStrategyStepOEImp)
