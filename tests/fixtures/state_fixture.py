@@ -29,9 +29,8 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
         joint_tropomi_test_in_dir,
         ifile_hlp,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename,
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml",
         ifile_hlp,
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
@@ -41,7 +40,7 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
         measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename,
+        r.run_dir / "strategy.yaml",
         rconfig.input_file_helper,
         strategy_context,
         cdict[MusesSpectralWindowDict],
@@ -87,9 +86,9 @@ def tropomi_swir_shandle(
         josh_osp_dir,
         gmao_dir,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir)
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml",
+        InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir)
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     cdict = CreatorDict()
@@ -98,7 +97,7 @@ def tropomi_swir_shandle(
         measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename,
+        r.run_dir / "strategy.yaml",
         rconfig.input_file_helper,
         strategy_context,
         cdict[MusesSpectralWindowDict],
@@ -141,8 +140,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         joint_omi_test_in_dir,
         ifile_hlp,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
+    rconfig = RetrievalConfiguration.create_from_yaml(r.run_dir / "retrieval_config.yaml", ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
@@ -150,7 +148,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename,
+        r.run_dir / "strategy.yaml",
         rconfig.input_file_helper,
         strategy_context,
         cdict[MusesSpectralWindowDict],
@@ -195,8 +193,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
 @pytest.fixture(scope="function")
 def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
     r = MusesRunDir(tes_test_in_dir, ifile_hlp)
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
+    rconfig = RetrievalConfiguration.create_from_yaml(r.run_dir / "retrieval_config.yaml", ifile_hlp)
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     cdict = CreatorDict()
     strategy_context = cdict.strategy_context
@@ -204,7 +201,7 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
         measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename,
+        r.run_dir / "strategy.yaml",
         rconfig.input_file_helper,
         strategy_context,
         cdict[MusesSpectralWindowDict],

@@ -17,8 +17,8 @@ import pytest
 
 def test_measurement_id(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
     r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     mid = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     assert float(mid["OMI_Longitude"]) == pytest.approx(-154.7512664794922)
@@ -34,8 +34,8 @@ def test_measurement_id(isolated_dir, ifile_hlp, joint_omi_test_in_dir):
 
 def test_simulated_obs(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
     r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp)
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {

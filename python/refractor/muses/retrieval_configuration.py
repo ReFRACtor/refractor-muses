@@ -5,6 +5,7 @@ import re
 import copy
 from .input_file_helper import InputFileHelper
 from pathlib import Path
+import subprocess
 import pyaml  # type:ignore
 from typing import Any, Self, Iterator
 
@@ -81,8 +82,22 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         cls,
         fname: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None = None,
+        output_directory: str | os.PathLike[str] | None = None
     ) -> Self:
-        raise NotImplementedError()
+        fnm = Path(fname)
+        res = cls(
+            base_dir=fnm.parent,
+            ifile_hlp=ifile_hlp,
+        )
+        res._data = res.input_file_helper.open_yaml(fnm)["retrieval_configuration"]
+        # Put in the output directory. The run_dir is in principle different, but
+        # generally the same. Set to the same value
+        if output_directory is not None:
+            res._data["output_directory"] = Path(output_directory)
+        else:
+            res._data["output_directory"] = fnm.parent
+        res._data["run_dir"] = res._data["output_directory"]
+        return res
 
     @classmethod
     def create_from_strategy_file(
@@ -198,8 +213,11 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             os.environ["strategy_table_dir"] = str(self.base_dir)
             v = os.path.expandvars(os.path.expanduser(v))
             m = re.match(r"^\.\./OSP/(.*)", v)
+            m2 = re.match(r"^\$OSP/(.*)", v)
             if m:
                 v = self.input_file_helper.osp_dir / m[1]
+            elif m2:
+                v = self.input_file_helper.osp_dir / m2[1]
             elif re.match(r"^\.\./", v) or re.match(r"^\./", v):
                 v = (self.base_dir / v).resolve()
             return v
@@ -210,8 +228,53 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
                 del os.environ["strategy_table_dir"]
 
     def to_yaml(self, fname: str | os.PathLike[str]) -> None:
+        # There are things in retrieval_configuration that are just left over and
+        # not used anywhere. Go through each key and check that it is actually used
+        # before include. This might catch things that just happen to have a string
+        # somewhere that matches (i.e., not read from retrieval config).
+        #
+        # We have a list of excluded items, found in the code base but not actually
+        # coming from retrieval config
+        exclude_key = (
+            "GMAO_Directory",
+            "TES_File_ID",
+            "Data_Size",
+            "comment",
+            "sessionID",
+            "outputDirectory",
+            "ElanorOSPDir",
+            "tableOptionsFilename",
+            "allTESPressureLevelsFilename",
+            "date",
+            "defaultStrategyTableFilename",
+            "maxOPD",
+            "note",
+            "output_directory",
+            "run_dir",
+        )
+        data_save = {}
+        search_loc = Path(os.path.dirname(__file__)).parent
+        for k in sorted(self._data.keys()):
+            if k not in exclude_key:
+                res = subprocess.run(
+                    f"cd {search_loc} && git grep {k}",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if res.returncode == 0:
+                    # Useful initially for finding the exclude_key list. Keep around,
+                    # might be useful again
+                    if False:
+                        print(f"Doing {k}", flush=True)
+                        print("------------------------------------", flush=True)
+                        print(res.stdout, flush=True)
+                    if isinstance(self._data[k], str):
+                        data_save[k] = re.sub(r"\.\./OSP", "$OSP", self._data[k])
+                    else:
+                        data_save[k] = self._data[k]
         with open(fname, "w") as fh:
-            print(pyaml.dump({self._data}, sort_keys=False, indent=4), file=fh)
+            print(pyaml.dump({"retrieval_configuration": data_save}, indent=4), file=fh)
 
 
 class AdapterRetrievalConfiguration(collections.abc.Mapping):

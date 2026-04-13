@@ -50,16 +50,27 @@ class MusesRunDir:
             # compare our new code against. For these cases, we need to old symbolic links.
             (path_prefix / "OSP").symlink_to(str(ifile_hlp.osp_dir.path_for_muses_py))
             (path_prefix / "GMAO").symlink_to(str(ifile_hlp.gmao_dir.path_for_muses_py))
-        for f in ("Table", "DateTime"):
-            if (refractor_sounding_dir / f"{f}.asc").exists():
+        for fnm in ("DateTime.asc","catalog.json"):
+            if (refractor_sounding_dir / fnm).exists():
                 shutil.copy(
-                    refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
+                    refractor_sounding_dir / fnm, self.run_dir / fnm
                 )
-        for f in ("strategy", "retrieval_config"):
-            if (refractor_sounding_dir / f"{f}.yaml").exists():
-                shutil.copy(
-                    refractor_sounding_dir / f"{f}.yaml", self.run_dir / f"{f}.yaml"
-                )
+        if not osp_sym_link and (refractor_sounding_dir / "strategy.yaml").exists():
+            # Favor newer yaml versions of these files, unless we have osp_sym_link which
+            # indirectly means we are using py-retrieve (which doesn't support the newer
+            # yaml files)
+            for f in ("strategy", "retrieval_config"):
+                if (refractor_sounding_dir / f"{f}.yaml").exists():
+                    shutil.copy(
+                        refractor_sounding_dir / f"{f}.yaml", self.run_dir / f"{f}.yaml"
+                    )
+        else:
+            for f in ("Table",):
+                if (refractor_sounding_dir / f"{f}.asc").exists():
+                    shutil.copy(
+                        refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
+                    )
+
         if obs_sym_link:
             # Needed by py-retrieve OMI and TROPOMI code
             for f2 in refractor_sounding_dir.glob("*_obs.pkl"):
@@ -69,46 +80,47 @@ class MusesRunDir:
                 shutil.copy(
                     refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
                 )
-        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc")
-        dout = dict(d)
-        for k in (
-            "AIRS_filename",
-            "OMI_filename",
-            "OMI_Cloud_filename",
-            "CRIS_filename",
-            "TES_filename_L2",
-            "TES_filename_L1B",
-            "OCO2_filename",
-            "OCO2_filename_l1b",
-            "TROPOMI_filename_BAND3",
-            "TROPOMI_filename_BAND7",
-            "TROPOMI_filename_BAND8",
-            "TROPOMI_IRR_filename",
-            "TROPOMI_IRR_SIR_filename",
-            "TROPOMI_Cloud_filename",
-        ):
-            if k in d:
-                f2 = Path(d[k])
-                # If this starts with a ".", assume we want a file in the sounding director.
-                # otherwise we want the one in the input directory.
-                if f2.parent == Path("."):
-                    freplace = refractor_sounding_dir / f2.name
-                else:
-                    freplace = refractor_sounding_dir.parent / f2.name
-                # Special handling for CRIS_filename, it uses the
-                # string nasa_fsr normally found in the path to
-                # know the type of file. Since we are mucking with the
-                # path and removing the nasa_fsr directory this breaks
-                # muses-py. We work around this by embedding this string
-                # in the file name - this is enough to satisfy the
-                # logic in muses-py for determining the file type.
-                # refractor_test_data already has the file
-                # available with this additional piece in the name -
-                # we manually added a symbolic link with this name.
-                if k == "CRIS_filename":
-                    freplace = refractor_sounding_dir.parent / f"nasa_fsr_{f2.name}"
-                dout[k] = str(freplace)
-        TesFile.write(dout, str(self.run_dir / "Measurement_ID.asc"))
+        if (refractor_sounding_dir / "Measurement_ID.asc").exists():
+            d = TesFile(refractor_sounding_dir / "Measurement_ID.asc")
+            dout = dict(d)
+            for k in (
+                "AIRS_filename",
+                "OMI_filename",
+                "OMI_Cloud_filename",
+                "CRIS_filename",
+                "TES_filename_L2",
+                "TES_filename_L1B",
+                "OCO2_filename",
+                "OCO2_filename_l1b",
+                "TROPOMI_filename_BAND3",
+                "TROPOMI_filename_BAND7",
+                "TROPOMI_filename_BAND8",
+                "TROPOMI_IRR_filename",
+                "TROPOMI_IRR_SIR_filename",
+                "TROPOMI_Cloud_filename",
+            ):
+                if k in d:
+                    f2 = Path(d[k])
+                    # If this starts with a ".", assume we want a file in the sounding director.
+                    # otherwise we want the one in the input directory.
+                    if f2.parent == Path("."):
+                        freplace = refractor_sounding_dir / f2.name
+                    else:
+                        freplace = refractor_sounding_dir.parent / f2.name
+                    # Special handling for CRIS_filename, it uses the
+                    # string nasa_fsr normally found in the path to
+                    # know the type of file. Since we are mucking with the
+                    # path and removing the nasa_fsr directory this breaks
+                    # muses-py. We work around this by embedding this string
+                    # in the file name - this is enough to satisfy the
+                    # logic in muses-py for determining the file type.
+                    # refractor_test_data already has the file
+                    # available with this additional piece in the name -
+                    # we manually added a symbolic link with this name.
+                    if k == "CRIS_filename":
+                        freplace = refractor_sounding_dir.parent / f"nasa_fsr_{f2.name}"
+                    dout[k] = str(freplace)
+            TesFile.write(dout, str(self.run_dir / "Measurement_ID.asc"))
 
     def run_retrieval(
         self,

@@ -18,8 +18,7 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     os.chdir(rs.measurement_id.base_dir)
     # Comare with old py-retrieve code
     stable = MusesStrategyStepList.create_from_strategy_file(
-        # rs.measurement_id.base_dir / "Table.asc",
-        rs.measurement_id.base_dir / "strategy.yaml",
+        rs.measurement_id.base_dir / "Table.asc",
         rs.retrieval_config.input_file_helper,
         rs.creator_dict.strategy_context,
         rs.creator_dict[MusesSpectralWindowDict],

@@ -14,8 +14,8 @@ import numpy.testing as npt
 
 
 def test_osp_state_element(ifile_hlp, omi_test_in_dir):
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        omi_test_in_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     apriori_value = np.array(
         [
@@ -138,8 +138,8 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
 
 def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
     """Check that the constraint matrix update for specific retrieval types is handled correctly"""
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        omi_test_in_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     apriori_value = np.array(
         [

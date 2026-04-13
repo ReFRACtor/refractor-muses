@@ -5,6 +5,7 @@ import typing
 from loguru import logger
 from dataclasses import dataclass, field
 from typing import Any, Self
+import pystac
 
 if typing.TYPE_CHECKING:
     from .identifier import (
@@ -19,7 +20,6 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .creator_dict import CreatorDict
-    import pystac
 
 
 @dataclass
@@ -144,9 +144,9 @@ class MusesStrategyContext:
 
         cdict = creator_dict if creator_dict is not None else CreatorDict(self)
         dir = Path(strategy_directory).absolute()
-        if (dir / "retrieval_configuration.yaml").exists():
+        if (dir / "retrieval_config.yaml").exists():
             rconf = RetrievalConfiguration.create_from_yaml(
-                dir / "retrieval_configuration.yaml", ifile_hlp=ifile_hlp
+                dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
             )
             logger.info(
                 f"Retrieval configuration filename: {dir / 'retrieval_configuration.yaml'}"

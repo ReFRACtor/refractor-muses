@@ -420,10 +420,15 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         strategy_table_filename: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesStrategy | None:
+        if (self.retrieval_config["run_dir"] / "strategy.yaml").exists():
+            fname = self.retrieval_config["run_dir"] / "strategy.yaml"
+        else:
+            fname = self.retrieval_config["run_dir"] / "Table.asc"
+        
         res = MusesStrategyStepList.create_from_strategy_file(
             strategy_table_filename
             if strategy_table_filename is not None
-            else self.retrieval_config["run_dir"] / "Table.asc",
+            else fname,
             self.retrieval_config.input_file_helper,
             strategy_context,
             spectral_window_handle_set,
@@ -477,8 +482,7 @@ class MusesStrategyStepList(MusesStrategyImp):
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(strategy_context, spectral_window_handle_set)
         if Path(filename).suffix == ".yaml":
-            ifile_hlp.notify_file_input(filename)
-            table = yaml.safe_load(open(filename, "r"))["strategy"]
+            table = ifile_hlp.open_yaml(filename)["strategy"]
         elif Path(filename).suffix == ".asc":
             table = TesStrategyTableReader(filename, ifile_hlp).table
         i2 = -1
@@ -703,8 +707,12 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         spectral_window_handle_set: SpectralWindowHandleSet,
         **kwargs: Any,
     ) -> MusesStrategy | None:
+        if (self.retrieval_config["run_dir"] / "strategy.yaml").exists():
+            fname = self.retrieval_config["run_dir"] / "strategy.yaml"
+        else:
+            fname = self.retrieval_config["run_dir"] / "Table.asc"
         s = MusesStrategyStepList.create_from_strategy_file(
-            self.retrieval_config["run_dir"] / "Table.asc",
+            fname,
             self.retrieval_config.input_file_helper,
             strategy_context,
             spectral_window_handle_set,

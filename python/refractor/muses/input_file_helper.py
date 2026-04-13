@@ -7,7 +7,8 @@ import netCDF4
 import pyhdf  # type: ignore
 import re
 import h5py  # type: ignore
-from typing import Any, Iterator
+import yaml  # type: ignore
+from typing import Any, Iterator, Hashable
 import abc
 import shutil
 
@@ -452,6 +453,13 @@ class InputFileHelper:
     def open_tes(self, fname: str | os.PathLike[str] | InputFilePath) -> TesFile:
         self.notify_file_input(fname)
         return TesFile(str(fname) if isinstance(fname, InputFilePath) else fname)
+
+    def open_yaml(
+        self, fname: str | os.PathLike[str] | InputFilePath
+    ) -> dict[Hashable, Any]:
+        self.notify_file_input(fname)
+        with open(str(fname) if isinstance(fname, InputFilePath) else fname, "r") as fh:
+            return yaml.safe_load(fh)
 
     def open_hdf4_sd(
         self, fname: str | os.PathLike[str] | InputFilePath
