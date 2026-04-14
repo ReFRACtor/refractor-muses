@@ -1,7 +1,16 @@
 from __future__ import annotations
-from .docopt_simple import docopt_simple
+from .docopt_simple import docopt_simple, DocOptSimple
 from .retrieval_strategy import RetrievalStrategy
-from .input_file_helper import InputFileHelper
+from .input_file_helper import InputFileHelper, InputFileRecord
+from .retrieval_configuration import RetrievalConfiguration
+
+# Import other refractor package so we get any configuration/handles set up.
+# Ignore ruff warnings, we are importing this for side effects, we don't directly
+# use the imports
+import refractor.muses_py_fm  # noqa: F401
+import refractor.omi  # noqa: F401
+import refractor.tropomi  # noqa: F401
+import refractor.osr_ml  # noqa: F401
 from loguru import logger
 import sys
 import glob
@@ -11,11 +20,10 @@ import socket
 import subprocess
 import warnings
 import refractor.framework as rf  # type: ignore
-import refractor.muses
 import pystac
 from pathlib import Path
 from multiprocessing import Process
-from typing import Any, cast
+from typing import Any
 
 version = "1.0.0"
 usage = """Usage:
@@ -93,9 +101,9 @@ def onerror(err: BaseException) -> None:
 
 
 def retrieve_wrap(
-    args: refractor.muses.DocOptSimple,
+    args: DocOptSimple,
     mpi_rank: int,
-    rs: refractor.muses.RetrievalStrategy,
+    rs: RetrievalStrategy,
     target_dir: str,
     in_process: bool = False,
 ) -> None:
@@ -113,7 +121,7 @@ def retrieve_wrap(
         # directory along side the log file
         if args.debug:
             rs.input_file_helper.add_observer(
-                refractor.muses.InputFileRecord(f"{target_dir}/input_file_list.log")
+                InputFileRecord(f"{target_dir}/input_file_list.log")
             )
         with logger.catch(reraise=True):
             # Forward C++ logging in framework to the python logger
@@ -154,8 +162,8 @@ def retrieve_wrap(
 
 
 def process_targets(
-    args: refractor.muses.DocOptSimple,
-    rs: refractor.muses.RetrievalStrategy,
+    args: DocOptSimple,
+    rs: RetrievalStrategy,
     target_dir_list: list[str],
     mpi_rank: int,
     hostname: str,
@@ -209,20 +217,20 @@ def process_targets(
 
 
 def process_stac(
-    args: refractor.muses.DocOptSimple,
-    rs: refractor.muses.RetrievalStrategy,
+    args: DocOptSimple,
+    rs: RetrievalStrategy,
 ) -> None:
     if args.output_dir is not None:
         subprocess.run(["mkdir", "-p", args.output_dir])
     rconfig_fname = Path(args.retrieval_config)
     if rconfig_fname.suffix in (".yaml", ".yml"):
-        rconfig = refractor.muses.RetrievalConfiguration.create_from_yaml(
+        rconfig = RetrievalConfiguration.create_from_yaml(
             rconfig_fname,
             ifile_hlp=rs.input_file_helper,
             output_directory=args.output_dir,
         )
     else:
-        rconfig = refractor.muses.RetrievalConfiguration.create_from_strategy_file(
+        rconfig = RetrievalConfiguration.create_from_strategy_file(
             rconfig_fname,
             ifile_hlp=rs.input_file_helper,
             output_directory=args.output_dir,
@@ -240,14 +248,6 @@ def process_stac(
 
 
 def main() -> None:
-    # Import other refractor package so we get any configuration/handles set up.
-    # Ignore ruff warnings, we are importing this for side effects, we don't directly
-    # use the imports
-    import refractor.muses_py_fm  # noqa: F401
-    import refractor.omi  # noqa: F401
-    import refractor.tropomi  # noqa: F401
-    import refractor.osr_ml  # noqa: F401
-
     args = docopt_simple(usage, version=version)
     # warnings to logger
     showwarning_ = warnings.showwarning
@@ -337,10 +337,10 @@ def main() -> None:
         # At least for now, we execute stac file directly. We might add
         # looping over this later, but for now just run directly
         if args.stac:
-            process_stac(cast(refractor.muses.DocOptSimple,args), cast(refractor.muses.RetrievalStrategy, rs))
+            process_stac(args, rs)
         else:
             process_targets(
-                cast(refractor.muses.DocOptSimple, args), cast(refractor.muses.RetrievalStrategy, rs), target_dir_list, mpi_rank, hostname, success_dir, error_dir
+                args, rs, target_dir_list, mpi_rank, hostname, success_dir, error_dir
             )
 
     logger.info("refractor-retrieve is done ...")

@@ -2,6 +2,9 @@ from refractor.muses import (
     RetrievalStrategy,
     RetrievalConfiguration,
 )
+
+# Import to grab the registration of objects needed
+import refractor.osr_ml  # noqa: F401
 import subprocess
 from loguru import logger
 import os

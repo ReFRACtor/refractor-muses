@@ -1,6 +1,7 @@
 from __future__ import annotations
 from refractor.muses import (
     RetrievalStrategyStep,
+    RetrievalStrategyStepSet,
     RetrievalStrategyStepHandle,
     ProcessLocation,
     ProcessLocationObservable,
@@ -80,9 +81,6 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
         # These should perhaps come from current step
         self.instrument = instrument
         self.species = species
-        # May want to get this from a different place, but for now use
-        # environment variable
-        self.ml_model_path = Path(os.environ["MUSES_ML_PATH"])
 
     def retrieval_step(
         self,
@@ -92,6 +90,9 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
         process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> RetrievalStrategyStep | None:
+        # May want to get this from a different place, but for now use
+        # environment variable
+        ml_model_path = Path(os.environ["MUSES_ML_PATH"])
         if (
             self._retrieval_type_set is None
             or current_strategy_step.retrieval_type in self._retrieval_type_set
@@ -100,13 +101,25 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
                 creator_dict,
                 current_state,
                 process_location_observable,
-                ml_model_path=self.ml_model_path,
+                ml_model_path=ml_model_path,
                 instrument=self.instrument,
                 species=self.species,
                 **kwargs,
             )
         return None
 
+
+# TODO  Get instrument and species from strategy table
+RetrievalStrategyStepSet.add_default_handle(
+    RetrievalStrategyStepMlHandle(
+        RetrievalStrategyStepMl,
+        {
+            RetrievalType("ML"),
+        },
+        "CRIS-JPSS-1",
+        "CO",
+    )
+)
 
 __all__ = [
     "RetrievalStrategyStepMl",
