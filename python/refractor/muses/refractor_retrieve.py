@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .docopt_simple import docopt_simple, DocOptSimple
+from .docopt_simple import docopt_simple
 from .retrieval_strategy import RetrievalStrategy
 from .input_file_helper import InputFileHelper
 from loguru import logger
@@ -15,7 +15,7 @@ import refractor.muses
 import pystac
 from pathlib import Path
 from multiprocessing import Process
-from typing import Any
+from typing import Any, cast
 
 version = "1.0.0"
 usage = """Usage:
@@ -212,6 +212,8 @@ def process_stac(
     args: refractor.muses.DocOptSimple,
     rs: refractor.muses.RetrievalStrategy,
 ) -> None:
+    if args.output_dir is not None:
+        subprocess.run(["mkdir", "-p", args.output_dir])
     rconfig_fname = Path(args.retrieval_config)
     if rconfig_fname.suffix in (".yaml", ".yml"):
         rconfig = refractor.muses.RetrievalConfiguration.create_from_yaml(
@@ -225,6 +227,7 @@ def process_stac(
             ifile_hlp=rs.input_file_helper,
             output_directory=args.output_dir,
         )
+    loghid = logger.add(f"{rconfig['output_directory']}/refractor-retrieve.log")
     stac_catalog = pystac.Catalog.from_file(args.stac_catalog)
     rs.strategy_context.update_strategy_context(
         creator_dict=rs.creator_dict,
@@ -232,6 +235,8 @@ def process_stac(
         retrieval_config=rconfig,
         strategy_table_filename=args.strategy_table,
     )
+    rs.retrieval_ms()
+    logger.remove(loghid)
 
 
 def main() -> None:
@@ -332,10 +337,10 @@ def main() -> None:
         # At least for now, we execute stac file directly. We might add
         # looping over this later, but for now just run directly
         if args.stac:
-            process_stac(args, rs)
+            process_stac(cast(refractor.muses.DocOptSimple,args), cast(refractor.muses.RetrievalStrategy, rs))
         else:
             process_targets(
-                args, rs, target_dir_list, mpi_rank, hostname, success_dir, error_dir
+                cast(refractor.muses.DocOptSimple, args), cast(refractor.muses.RetrievalStrategy, rs), target_dir_list, mpi_rank, hostname, success_dir, error_dir
             )
 
     logger.info("refractor-retrieve is done ...")
