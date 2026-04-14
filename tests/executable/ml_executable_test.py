@@ -32,40 +32,18 @@ def test_refractor_retrieve_ml(
     starting point, but this might change.
     """
     dir = end_to_end_run_dir / "refractor_retrieve_ml"
+    subprocess.run(["rm", "-r", str(dir)])
+    subprocess.run(["mkdir", "-p", str(dir)])
     # Isn't clear how to handle the ML files. This will perhaps end up in the OSP
     # directory. For now, we pass in an environment variable so this is kind of
     # like MUSES_OSP_PATH
+    # TODO Put this into configuration file
     os.environ["MUSES_ML_PATH"] = str(cris_ml_dir)
-    config_file = (
-        Path(os.path.dirname(__file__)).parent
-        / "sample_config"
-        / "refractor_config_ml.py"
+    logger.info(
+        f'Running "refractor-retrieve stac {cris_ml_test_in_dir}/retrieval_config.yaml {cris_ml_test_in_dir}/strategy.yaml {cris_ml_test_in_dir}/catalog.json {dir}"'
     )
-    r = MusesRunDir(
-        cris_ml_test_in_dir,
-        ifile_hlp,
-        path_prefix=dir,
+    subprocess.run(
+        f"refractor-retrieve stac {cris_ml_test_in_dir}/retrieval_config.yaml {cris_ml_test_in_dir}/strategy.yaml {cris_ml_test_in_dir}/catalog.json {dir}",
+        shell=True,
+        check=True,
     )
-    # Temp, so we can directly look at stuff. We might just make a separate unit
-    # test for this
-    if False:
-        logger.info(
-            f'Running "refractor-retrieve --refractor-config {config_file} --targets {r.run_dir}"'
-        )
-        subprocess.run(
-            f"refractor-retrieve --refractor-config {config_file} --targets {r.run_dir}",
-            shell=True,
-            check=True,
-        )
-    else:
-        spec = importlib.util.spec_from_file_location("refractor_config", config_file)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        sys.modules["refractor_config"] = module
-        rs = module.rs
-        rs.update_target(f"{r.run_dir}/Table.asc")
-        try:
-            lognum = logger.add(dir / "retrieve.log")
-            rs.retrieval_ms()
-        finally:
-            logger.remove(lognum)

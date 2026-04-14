@@ -104,7 +104,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         cls,
         fname: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None = None,
-        output_directory: str | os.PathLike[str] | None = None
+        output_directory: str | os.PathLike[str] | None = None,
     ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent

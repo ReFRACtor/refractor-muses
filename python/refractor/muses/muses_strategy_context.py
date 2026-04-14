@@ -97,7 +97,7 @@ class MusesStrategyContext:
                 strategy_directory,
                 ifile_hlp=ifile_hlp,
                 creator_dict=creator_dict,
-                output_directory=output_directory
+                output_directory=output_directory,
             )
 
     def merge(self, other: MusesStrategyContext) -> Self:
@@ -125,7 +125,7 @@ class MusesStrategyContext:
         strategy_directory: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None = None,
         creator_dict: CreatorDict | None = None,
-        output_directory: str | os.PathLike[str] | None = None
+        output_directory: str | os.PathLike[str] | None = None,
     ) -> None:
         """We look at the directory, and if there is a strategy.yaml we read
         that first. If we don't find that, we read a Table.asc file.
@@ -149,8 +149,9 @@ class MusesStrategyContext:
         dir = Path(strategy_directory).absolute()
         if (dir / "retrieval_config.yaml").exists():
             rconf = RetrievalConfiguration.create_from_yaml(
-                dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp,
-                output_directory=output_directory
+                dir / "retrieval_config.yaml",
+                ifile_hlp=ifile_hlp,
+                output_directory=output_directory,
             )
             logger.info(
                 f"Retrieval configuration filename: {dir / 'retrieval_configuration.yaml'}"
@@ -158,8 +159,9 @@ class MusesStrategyContext:
 
         else:
             rconf = RetrievalConfiguration.create_from_strategy_file(
-                dir / "Table.asc", ifile_hlp=ifile_hlp,
-                output_directory=output_directory
+                dir / "Table.asc",
+                ifile_hlp=ifile_hlp,
+                output_directory=output_directory,
             )
             logger.info(f"Retrieval configuration filename: {dir / 'Table.asc'}")
         stac_catalog = None

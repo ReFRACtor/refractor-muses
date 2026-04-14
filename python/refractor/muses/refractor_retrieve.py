@@ -206,7 +206,10 @@ def process_targets(
                 subprocess.run(["touch", f"{error_dir}/{indicator}"])
 
 
-def process_stac() -> None:
+def process_stac(
+    args: DocOptSimple,
+    rs: RetrievalStrategy,
+) -> None:
     pass
 
 
@@ -267,7 +270,10 @@ def main() -> None:
     )
 
     # Set up for MPI run, if needed
-    target_dir_full_list = glob.glob(os.path.expanduser(args.targets))
+    if args.targets is None:
+        target_dir_full_list = []
+    else:
+        target_dir_full_list = glob.glob(os.path.expanduser(args.targets))
     if args.mpi:
         from mpi4py import MPI
 
@@ -294,10 +300,10 @@ def main() -> None:
     else:
         # We just process everything if we aren't using MPI.
         target_dir_list = target_dir_full_list
-        mpi_rank=-1
-        hostname="localhost"
-        success_dir="not_used"
-        error_dir="not_used"
+        mpi_rank = -1
+        hostname = "localhost"
+        success_dir = "not_used"
+        error_dir = "not_used"
 
     logger.info(f"Number of tasks: {len(target_dir_list)}")
 
@@ -305,7 +311,7 @@ def main() -> None:
         # At least for now, we execute stac file directly. We might add
         # looping over this later, but for now just run directly
         if args.stac:
-            process_stac()
+            process_stac(args, rs)
         else:
             process_targets(
                 args, rs, target_dir_list, mpi_rank, hostname, success_dir, error_dir
