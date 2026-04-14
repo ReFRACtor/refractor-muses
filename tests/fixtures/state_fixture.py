@@ -17,7 +17,6 @@ from refractor.muses import (
     InputFileHelper,
     StateInfo,
     CreatorDict,
-    MusesSpectralWindowDict,
 )
 from loguru import logger
 import sys

@@ -38,6 +38,13 @@ class CurrentStrategyStep(object):
         raise NotImplementedError
 
     @abc.abstractproperty
+    def has_spectral_window(self) -> bool:
+        """Not all strategy steps have a spectral window associated with them. We
+        need to know this for the filter_list_dict calculation, so indicate if this
+        is available or not."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
     def retrieval_type(self) -> RetrievalType:
         """The retrieval type."""
         raise NotImplementedError()
@@ -72,6 +79,10 @@ class CurrentStrategyStepImp(CurrentStrategyStep, MusesStrategyContextMixin):
     @is_skipped.setter
     def is_skipped(self, v: bool) -> None:
         self._is_skipped = v
+
+    @property
+    def has_spectral_window(self) -> bool:
+        return True
 
     @property
     def retrieval_type(self) -> RetrievalType:
@@ -268,7 +279,7 @@ class CurrentStrategyStepHandleSet(CreatorHandleWithContextSet):
         index: int,
         table_row: dict,
         spectral_window_handle_set: SpectralWindowHandleSet,
-    ) -> CurrentStrategyStep:
+    ) -> CurrentStrategyStep | None:
         """This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results"""
         return self.handle(index, table_row, spectral_window_handle_set)
@@ -280,7 +291,7 @@ class CurrentStrategyStepHandle(CreatorHandleWithContext):
         index: int,
         table_row: dict,
         spectral_window_handle_set: SpectralWindowHandleSet,
-    ) -> CurrentStrategyStep:
+    ) -> CurrentStrategyStep | None:
         raise NotImplementedError()
 
 
@@ -290,7 +301,7 @@ class CurrentStrategyStepHandleOE(CreatorHandleWithContext):
         index: int,
         table_row: dict,
         spectral_window_handle_set: SpectralWindowHandleSet,
-    ) -> CurrentStrategyStep:
+    ) -> CurrentStrategyStep | None:
         cost_function_params: dict[str, Any] = {
             "max_iter": int(table_row["maxNumIterations"]),
             "chi2_tolerance": None,
@@ -345,7 +356,9 @@ class CurrentStrategyStepHandleOE(CreatorHandleWithContext):
         )
 
 
-CurrentStrategyStepHandleSet.add_default_handle(CurrentStrategyStepHandleOE())
+CurrentStrategyStepHandleSet.add_default_handle(
+    CurrentStrategyStepHandleOE(), priority_order=-1
+)
 # Register creator set
 CreatorDict.register(CurrentStrategyStep, CurrentStrategyStepHandleSet)
 

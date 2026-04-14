@@ -14,6 +14,10 @@ from .cris_io import (
 from .cris_pixel_corners import (
     cris_pixel_corners,
 )
+from .current_strategy_step_ml import (
+    CurrentStrategyStepHandleMl,
+    CurrentStrategyStepMl,
+)
 from .date_to_julian_day import (
     date_to_julian_day,
 )
@@ -45,6 +49,8 @@ from .rmsd_two_var import (
 )
 
 __all__ = [
+    "CurrentStrategyStepHandleMl",
+    "CurrentStrategyStepMl",
     "DummySpectralWindowHandle",
     "RetrievalMlOutput",
     "RetrievalStrategyStepMl",

@@ -1,5 +1,4 @@
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
-from refractor.muses import MusesSpectralWindowDict
 from fixtures.require_check import require_muses_py
 import os
 import pytest

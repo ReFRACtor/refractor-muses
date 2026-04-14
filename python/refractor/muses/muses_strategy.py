@@ -520,12 +520,13 @@ class MusesStrategyStepList(MusesStrategyImp):
                 InstrumentIdentifier, dict[FilterIdentifier, float]
             ] = defaultdict(dict)
             for cstep in self.current_strategy_list:
-                sdict = self.spectral_window_handle_set.spectral_window_dict(
-                    cstep, None
-                )
-                for k, v in sdict.items():
-                    for fid, swav in v.filter_name_list():
-                        filter_list_dict_t[k][fid] = swav
+                if cstep.has_spectral_window:
+                    sdict = self.spectral_window_handle_set.spectral_window_dict(
+                        cstep, None
+                    )
+                    for k, v in sdict.items():
+                        for fid, swav in v.filter_name_list():
+                            filter_list_dict_t[k][fid] = swav
 
             self._filter_list_dict = {}
             for k2, v2 in filter_list_dict_t.items():

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .docopt_simple import docopt_simple
+from .docopt_simple import docopt_simple, DocOptSimple
 from .retrieval_strategy import RetrievalStrategy
 from .input_file_helper import InputFileHelper
 from loguru import logger
@@ -11,16 +11,27 @@ import socket
 import subprocess
 import warnings
 import refractor.framework as rf  # type: ignore
+import refractor.muses
 from multiprocessing import Process
 from typing import Any
 
 version = "1.0.0"
 usage = """Usage:
+  refractor-retrieve stac [options] <retrieval_config> <strategy_file> <stac_file> [<output_dir>]
   refractor-retrieve -t <dirlist> [options] | --targets=<dirlist> [options]
   refractor-retrieve -h | --help
   refractor-retrieve -v | --version
 
-Run a retrieval over a set of target/sounding directories
+Run a retrieval over a set of target/sounding directories, or on a stac file.
+
+For the stac file, the directory structure tends to be difference so we directly
+take the retrieval configuaration file, the strategy file, and the stac file. You
+can optionally give an output directory, otherwise we use the same directory as the
+stac file is in. Note that retrieval configuration and strategy file can either be
+the old Table.asc format file, or separate YAML files. The YAML are easier to read
+in my opinion, and I suggest that unless you need backwards comparability. The YAML
+file also support retrieval steps other than Optimal Estimation (OE), e.g.,
+Machine Learning (ML),  while the Table.asc only support OE.
 
 Options:
   -h --help
@@ -56,8 +67,10 @@ Options:
       We always use ReFRACtor
 
   --refractor-config=f
-      Use the given refractor config file. If not supplied, we fall back to using
-      the old py-retrieve forward models.
+      Use the given refractor python config file. If not supplied, we fall back to using
+      the old py-retrieve forward models. Note that this is a different file
+      than the retrieval_config.yaml or Table.asc format files. We could merge these
+      together, but at least for now I think it makes sense to treat them as different.
 
   --plots
       Generate plots for a subset of the species
@@ -71,6 +84,132 @@ Options:
 """
 
 
+def onerror(err: BaseException) -> None:
+    logger.info("refractor-retrieve is done ...")
+    logger.info("Exiting with code 1")
+    sys.exit(1)
+
+
+def retrieve_wrap(
+    args: DocOptSimple,
+    mpi_rank: int,
+    rs: RetrievalStrategy,
+    target_dir: str,
+    in_process: bool = False,
+) -> None:
+    """Wrapper so we can run a sounding in a separate process, so any memory leaks
+    don't grow."""
+    try:
+        # Move or add logging to local file
+        if args.mpi:
+            # If we aren't using MPI, then presumably we are running a terminal
+            # where we want to see the output. So only remove stdout in mpi.
+            logger.remove()
+        loghid = logger.add(f"{target_dir}/refractor-retrieve.log")
+
+        # Capture the names of input files read while the software is running into the target
+        # directory along side the log file
+        if args.debug:
+            rs.input_file_helper.add_observer(
+                refractor.muses.InputFileRecord(f"{target_dir}/input_file_list.log")
+            )
+        with logger.catch(reraise=True):
+            # Forward C++ logging in framework to the python logger
+            rf.PythonFpLogger.turn_on_logger(logger)
+            rs.update_strategy_context(target_dir)
+            # if True:
+            if False:
+                # Fake error, for use in testing handling of this
+                if mpi_rank == 4:
+                    raise RuntimeError("Fake retrieval error")
+            rs.retrieval_ms()
+            logger.info(f"Success: {os.path.basename(target_dir)}")
+    except:  # noqa: E722
+        logger.info(f"Failure: {os.path.basename(target_dir)}")
+        if in_process:
+            # Reraising the exception causes a printout at the top level we want
+            # to avoid, so just exit
+            sys.exit(1)
+        else:
+            # Otherwise, just reraise the error
+            raise
+    finally:
+        # We ran into a weird seg fault on exit, presumably some lifetime issue.
+        # Related somehow to the rf.PythonFpLogger (although not clear exactly what
+        # is happening - we have rf.PythonFpLogger turned on and see the seg fault,
+        # off and we don't).
+        #
+        # We only need this logger when we are doing a retrieval, so we just
+        # manually turn this off after each target is run, and back on for
+        # the next target. This isn't strictly necessary, we could probably
+        # use sys.atexit or something similiar. But this is easy and sufficient
+        # to fix the seg fault issue.
+        rf.PythonFpLogger.turn_off_logger()
+        logger.remove(loghid)
+        if args.mpi:
+            # Add back stdout, to capture any other logging not tied to target
+            logger.add(sys.stdout)
+
+
+def process_targets(
+    args: DocOptSimple,
+    rs: RetrievalStrategy,
+    target_dir_list: list[str],
+    mpi_rank: int,
+    hostname: str,
+    success_dir: str,
+    error_dir: str,
+) -> None:
+    for target_dir in target_dir_list:
+        # For MPI, skip anything already run. Just by convention, this isn't
+        # done without MPI (the assumption being that this is just a small number of
+        # target that we want to run, e.g., for testing).
+        if args.mpi:
+            indicator = f"{os.path.basename(target_dir)}-{hostname}_{mpi_rank}"
+            if os.path.isfile(f"{success_dir}/{indicator}"):
+                logger.info(
+                    f"node: {hostname}, rank: {mpi_rank}, already successfully processed. Skipping: {os.path.basename(target_dir)}"
+                )
+                continue
+            if os.path.isfile(f"{error_dir}/{indicator}"):
+                logger.info(
+                    f"node: {hostname}, rank: {mpi_rank}, errored out in a previous run. Skipping: {os.path.basename(target_dir)}"
+                )
+                continue
+        # Special case of 1 target, run directly. This makes debugging an issue
+        # easier - so you run the sounding you are interested in and everything
+        # happens in the same process space.
+        if len(target_dir_list) == 1:
+            # For testing, force use of Process even with small test data set
+            # if False:
+            try:
+                retrieve_wrap(args, mpi_rank, rs, target_dir)
+                run_exitcode: int | None = 0
+            except:  # noqa: E722
+                run_exitcode = 1
+        else:
+            # Otherwise, run in a separate process space to avoid accumulation of
+            # memory from small memory leaks in processing a sounding.
+            p = Process(
+                target=retrieve_wrap, args=(args, mpi_rank, rs, target_dir, True)
+            )
+            p.start()
+            p.join()
+            run_exitcode = p.exitcode
+        if run_exitcode is not None and run_exitcode == 0:
+            logger.info(f"Success: {os.path.basename(target_dir)}")
+            if args.mpi:
+                subprocess.run(["touch", f"{success_dir}/{indicator}"])
+        else:
+            logger.info(f"Failure: {os.path.basename(target_dir)}")
+            if args.mpi:
+                subprocess.run(["touch", f"{error_dir}/{indicator}"])
+
+
+def process_stac() -> None:
+    pass
+
+
 def main() -> None:
     # Import other refractor package so we get any configuration/handles set up.
     # Ignore ruff warnings, we are importing this for side effects, we don't directly
@@ -78,9 +217,9 @@ def main() -> None:
     import refractor.muses_py_fm  # noqa: F401
     import refractor.omi  # noqa: F401
     import refractor.tropomi  # noqa: F401
+    import refractor.osr_ml  # noqa: F401
 
     args = docopt_simple(usage, version=version)
-
     # warnings to logger
     showwarning_ = warnings.showwarning
 
@@ -127,62 +266,6 @@ def main() -> None:
         osp_dir=args.osp_dir, osp_delta_dir=args.osp_delta_dir, gmao_dir=args.gmao_dir
     )
 
-    def retrieve_wrap(
-        rs: RetrievalStrategy, target_dir: str, in_process: bool = False
-    ) -> None:
-        """Wrapper so we can run a sounding in a separate process, so any memory leaks
-        don't grow."""
-        try:
-            # Move or add logging to local file
-            if args.mpi:
-                # If we aren't using MPI, then presumably we are running a terminal
-                # where we want to see the output. So only remove stdout in mpi.
-                logger.remove()
-            loghid = logger.add(f"{target_dir}/refractor-retrieve.log")
-
-            # Capture the names of input files read while the software is running into the target
-            # directory along side the log file
-            if args.debug:
-                rs.input_file_helper.add_observer(
-                    refractor.muses.InputFileRecord(f"{target_dir}/input_file_list.log")
-                )
-            with logger.catch(reraise=True):
-                # Forward C++ logging in framework to the python logger
-                rf.PythonFpLogger.turn_on_logger(logger)
-                rs.update_strategy_context(target_dir)
-                # if True:
-                if False:
-                    # Fake error, for use in testing handling of this
-                    if mpi_rank == 4:
-                        raise RuntimeError("Fake retrieval error")
-                rs.retrieval_ms()
-                logger.info(f"Success: {os.path.basename(target_dir)}")
-        except:  # noqa: E722
-            logger.info(f"Failure: {os.path.basename(target_dir)}")
-            if in_process:
-                # Reraising the exception causes a printout at the top level we want
-                # to avoid, so just exit
-                sys.exit(1)
-            else:
-                # Otherwise, just reraise the error
-                raise
-        finally:
-            # We ran into a weird seg fault on exit, presumably some lifetime issue.
-            # Related somehow to the rf.PythonFpLogger (although not clear exactly what
-            # is happening - we have rf.PythonFpLogger turned on and see the seg fault,
-            # off and we don't).
-            #
-            # We only need this logger when we are doing a retrieval, so we just
-            # manually turn this off after each target is run, and back on for
-            # the next target. This isn't strictly necessary, we could probably
-            # use sys.atexit or something similiar. But this is easy and sufficient
-            # to fix the seg fault issue.
-            rf.PythonFpLogger.turn_off_logger()
-            logger.remove(loghid)
-            if args.mpi:
-                # Add back stdout, to capture any other logging not tied to target
-                logger.add(sys.stdout)
-
     # Set up for MPI run, if needed
     target_dir_full_list = glob.glob(os.path.expanduser(args.targets))
     if args.mpi:
@@ -211,57 +294,22 @@ def main() -> None:
     else:
         # We just process everything if we aren't using MPI.
         target_dir_list = target_dir_full_list
+        mpi_rank=-1
+        hostname="localhost"
+        success_dir="not_used"
+        error_dir="not_used"
 
     logger.info(f"Number of tasks: {len(target_dir_list)}")
 
-    def onerror(err: BaseException) -> None:
-        logger.info("refractor-retrieve is done ...")
-        logger.info("Exiting with code 1")
-        sys.exit(1)
-
     with logger.catch(onerror=onerror):
-        for target_dir in target_dir_list:
-            # For MPI, skip anything already run. Just by convention, this isn't
-            # done without MPI (the assumption being that this is just a small number of
-            # target that we want to run, e.g., for testing).
-            if args.mpi:
-                indicator = f"{os.path.basename(target_dir)}-{hostname}_{mpi_rank}"
-                if os.path.isfile(f"{success_dir}/{indicator}"):
-                    logger.info(
-                        f"node: {hostname}, rank: {mpi_rank}, already successfully processed. Skipping: {os.path.basename(target_dir)}"
-                    )
-                    continue
-                if os.path.isfile(f"{error_dir}/{indicator}"):
-                    logger.info(
-                        f"node: {hostname}, rank: {mpi_rank}, errored out in a previous run. Skipping: {os.path.basename(target_dir)}"
-                    )
-                    continue
-            # Special case of 1 target, run directly. This makes debugging an issue
-            # easier - so you run the sounding you are interested in and everything
-            # happens in the same process space.
-            if len(target_dir_list) == 1:
-                # For testing, force use of Process even with small test data set
-                # if False:
-                try:
-                    retrieve_wrap(rs, target_dir)
-                    run_exitcode: int | None = 0
-                except:  # noqa: E722
-                    run_exitcode = 1
-            else:
-                # Otherwise, run in a separate process space to avoid accumulation of
-                # memory from small memory leaks in processing a sounding.
-                p = Process(target=retrieve_wrap, args=(rs, target_dir, True))
-                p.start()
-                p.join()
-                run_exitcode = p.exitcode
-            if run_exitcode is not None and run_exitcode == 0:
-                logger.info(f"Success: {os.path.basename(target_dir)}")
-                if args.mpi:
-                    subprocess.run(["touch", f"{success_dir}/{indicator}"])
-            else:
-                logger.info(f"Failure: {os.path.basename(target_dir)}")
-                if args.mpi:
-                    subprocess.run(["touch", f"{error_dir}/{indicator}"])
+        # At least for now, we execute stac file directly. We might add
+        # looping over this later, but for now just run directly
+        if args.stac:
+            process_stac()
+        else:
+            process_targets(
+                args, rs, target_dir_list, mpi_rank, hostname, success_dir, error_dir
+            )
 
     logger.info("refractor-retrieve is done ...")
     logger.info("Exiting with code 0")

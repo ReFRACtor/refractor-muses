@@ -121,6 +121,9 @@ def test_refractor_retrieve_airs_omi(
     anything. We just check that we can run, we don't bother checking
     the output.  That is done at lower levels of testing.
 
+    We use MPI here, just to test that out. However we only have 1 target, so
+    this really isn't needed here.
+
     """
     dir = end_to_end_run_dir / "refractor_retrieve_airs_omi"
     subprocess.run(["rm", "-r", str(dir)])
@@ -130,7 +133,7 @@ def test_refractor_retrieve_airs_omi(
         path_prefix=dir,
     )
     subprocess.run(
-        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
+        f"refractor-retrieve --mpi --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
         shell=True,
         check=True,
     )
