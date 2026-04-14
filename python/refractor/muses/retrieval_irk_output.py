@@ -4,6 +4,7 @@ import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 import numpy as np
 import math
 import typing
@@ -232,6 +233,8 @@ class RetrievalIrkOutput(RetrievalOutput):
         logger.info(f"Writing: {self.out_fname}")
         self.cdf_write(irk_data.__dict__, self.out_fname, struct_units)
 
+
+ProcessLocationObservable.register_default_observer(RetrievalIrkOutput)
 
 __all__ = [
     "RetrievalIrkOutput",

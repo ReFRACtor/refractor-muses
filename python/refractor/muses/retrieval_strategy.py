@@ -1,22 +1,9 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .refractor_capture_directory import RefractorCaptureDirectory
-from .retrieval_l2_output import RetrievalL2Output
-from .retrieval_irk_output import RetrievalIrkOutput
-from .retrieval_radiance_output import RetrievalRadianceOutput
-from .retrieval_jacobian_output import RetrievalJacobianOutput
-from .retrieval_debug_output import (
-    RetrievalPickleResult,
-    RetrievalPlotRadiance,
-    RetrievalPlotResult,
-)
 from .process_location_observable import ProcessLocationObservable
 from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
 from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
-from .muses_levmar_solver import (
-    VerboseSolverLogging,
-    SolverLogFileWriter,
-)
 from .state_element import StateElement, StateElementHandleSet
 from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .creator_dict import CreatorDict
@@ -97,15 +84,12 @@ class RetrievalStrategy(MusesStrategyContextMixin):
 
     """
 
-    # TODO Add handling of writeOutput, writePlots, debug. I think we
-    # can probably do that by just adding Observers
     def __init__(
         self,
         filename: str | os.PathLike[str] | None,
-        writeOutput: bool = False,
-        writePlots: bool = False,
+        write_debug_output: bool = False,
+        write_plots: bool = False,
         ifile_hlp: InputFileHelper | None = None,
-        use_stac: bool = False,
         **kwargs: Any,
     ) -> None:
         MusesStrategyContextMixin.__init__(self, MusesStrategyContext())
@@ -120,24 +104,18 @@ class RetrievalStrategy(MusesStrategyContextMixin):
             self.creator_dict, self.process_location_observable
         )
 
-        # Right now, we hardcode the output observers. Probably want to
-        # rework this
-        self.add_observer(RetrievalJacobianOutput(self.creator_dict))
-        self.add_observer(RetrievalRadianceOutput(self.creator_dict))
-        self.add_observer(RetrievalL2Output(self.creator_dict))
-        self.add_observer(RetrievalIrkOutput(self.creator_dict))
-        # Assume we always want verbose logging in solver
-        self.add_observer(VerboseSolverLogging())
-        if writeOutput:
-            levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.step_number:02d}_{self.step_name}/LevmarSolver-{self.step_name}.log"
-            self.add_observer(SolverLogFileWriter(levmar_log_file))
-            # Depends on internal objects like strategy_table_dict. For now,
-            # skip this
-            # self.add_observer(RetrievalInputOutput())
-            self.add_observer(RetrievalPickleResult(self.creator_dict))
-            if writePlots:
-                self.add_observer(RetrievalPlotResult(self.creator_dict))
-                self.add_observer(RetrievalPlotRadiance(self.creator_dict))
+        # Set up process location observers to all the defaults. This is what
+        # handles generating output files and extra logging
+
+        # Used by SolverLogFileWriter if we happen to include that
+        # We need pull this into SolverLogFileWriter, see note there. But leave this
+        # here short term for reference.
+        # levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.step_number:02d}_{self.step_name}/LevmarSolver-{self.step_name}.log"
+        self._process_location_observable.add_default_observer(
+            write_debug_output=write_debug_output,
+            write_plots=write_plots,
+            creator_dict=self.creator_dict,
+        )
 
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms.

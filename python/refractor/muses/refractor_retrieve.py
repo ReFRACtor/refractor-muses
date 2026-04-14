@@ -289,7 +289,7 @@ def main() -> None:
         rs: RetrievalStrategy = module.rs
     else:
         rs = RetrievalStrategy(
-            filename=None, writeOutput=write_debug_output, writePlots=args.plots
+            filename=None, write_debug_output=write_debug_output, write_plots=args.plots
         )
     rs.input_file_helper = InputFileHelper(
         osp_dir=args.osp_dir, osp_delta_dir=args.osp_delta_dir, gmao_dir=args.gmao_dir

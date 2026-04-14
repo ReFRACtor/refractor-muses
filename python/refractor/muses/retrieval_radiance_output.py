@@ -5,6 +5,7 @@ import os
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 from pathlib import Path
 import numpy as np
 import typing
@@ -27,11 +28,8 @@ def _new_from_init(cls, *args):  # type: ignore
 class RetrievalRadianceOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Radiance files."""
 
-    def __init__(
-        self,
-        creator_dict: CreatorDict,
-    ) -> None:
-        super().__init__(creator_dict)
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        super().__init__(creator_dict, **kwargs)
         self.myobsrad: None | dict = None
 
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
@@ -198,6 +196,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
             * len(my_data),
         )
 
+
+ProcessLocationObservable.register_default_observer(RetrievalRadianceOutput)
 
 __all__ = [
     "RetrievalRadianceOutput",

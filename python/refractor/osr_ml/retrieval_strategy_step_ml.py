@@ -90,13 +90,13 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
         process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
     ) -> RetrievalStrategyStep | None:
-        # May want to get this from a different place, but for now use
-        # environment variable
-        ml_model_path = Path(os.environ["MUSES_ML_PATH"])
         if (
             self._retrieval_type_set is None
             or current_strategy_step.retrieval_type in self._retrieval_type_set
         ):
+            # May want to get this from a different place, but for now use
+            # environment variable
+            ml_model_path = Path(os.environ["MUSES_ML_PATH"])
             return self._create_cls(
                 creator_dict,
                 current_state,

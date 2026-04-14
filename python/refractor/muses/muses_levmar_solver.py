@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .cost_function import CostFunction
 from .identifier import ProcessLocation
+from .process_location_observable import ProcessLocationObservable
 import numpy as np
 import os
 from pathlib import Path
@@ -9,10 +10,6 @@ from attrs import frozen
 import math
 from loguru import logger
 import typing
-
-if typing.TYPE_CHECKING:
-    from .process_location_observable import ProcessLocationObservable
-
 
 @frozen
 class SolverResult:
@@ -35,6 +32,9 @@ class SolverResult:
 
 class VerboseSolverLogging:
     """Observer of MusesLevmarSolver that adds some more verbose logging."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        pass
 
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
@@ -98,8 +98,8 @@ class VerboseSolverLogging:
 class SolverLogFileWriter:
     """Observer of MusesLevmarSolver that write information to a separate log file."""
 
-    def __init__(self, log_file: str | os.PathLike[str]) -> None:
-        self.fname = Path(log_file)
+    def __init__(self, levmar_log_file: str | os.PathLike[str], **kwarg: Any) -> None:
+        self.fname = Path(levmar_log_file)
         self.fname.parent.mkdir(parents=True, exist_ok=True)
         self.fh = open(self.fname, "w")
 
@@ -1983,6 +1983,15 @@ class MusesLevmarSolver:
         # return (cs, sn)
         return (cs, sn)
 
+
+ProcessLocationObservable.register_default_observer(VerboseSolverLogging)
+# TODO, We need to figure out how to add this. The issue is that we don't have
+# a way yet to set up the levmar_log_file name. This shouldn't be too hard to
+# figure out when we have a chance to look at this - just look take the
+# strategy_context and create a file each time the step number changes. But we will
+# want to test this. Note we should get the strategy_context from the creator_dict
+# passed in by ProcessLocationObservable.add_default_observer
+#ProcessLocationObservable.register_default_debug_observer(SolverLogFileWriter)
 
 __all__ = [
     "SolverResult",

@@ -7,6 +7,7 @@ from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 from .misc import AttrDictAdapter
 from .muses_altitude_pge import MusesAltitudePge
+from .process_location_observable import ProcessLocationObservable
 
 from pathlib import Path
 import numpy as np
@@ -53,11 +54,8 @@ class FileNumberHandle:
 class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
-    def __init__(
-        self,
-        creator_dict: CreatorDict,
-    ) -> None:
-        super().__init__(creator_dict)
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        super().__init__(creator_dict, **kwargs)
         self.strategy_context.add_observer(self)
         self.dataTATM: dict[str, Any] | None = None
         self.dataH2O: dict[str, Any] | None = None
@@ -1138,6 +1136,9 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         return o_data
+
+
+ProcessLocationObservable.register_default_observer(RetrievalL2Output)
 
 
 __all__ = [

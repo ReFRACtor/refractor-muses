@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from .process_location_observable import ProcessLocationObservable
 from loguru import logger
 import os
 import pickle
@@ -149,6 +150,10 @@ class RetrievalPlotRadiance(RetrievalOutput):
             None,
         )
 
+
+ProcessLocationObservable.register_default_debug_observer(RetrievalPickleResult)
+ProcessLocationObservable.register_default_plot_observer(RetrievalPlotResult)
+ProcessLocationObservable.register_default_plot_observer(RetrievalPlotRadiance)
 
 __all__ = [
     "RetrievalInputOutput",

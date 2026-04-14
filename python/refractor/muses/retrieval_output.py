@@ -83,10 +83,7 @@ extra_l2_output = ExtraL2Output()
 class RetrievalOutput(MusesStrategyContextMixin):
     """Observer of RetrievalStrategy, common behavior for Products files."""
 
-    def __init__(
-        self,
-        creator_dict: CreatorDict,
-    ) -> None:
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
         super().__init__(creator_dict.strategy_context)
         self.creator_dict = creator_dict
 

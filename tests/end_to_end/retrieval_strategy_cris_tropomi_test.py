@@ -57,8 +57,8 @@ def test_retrieval_strategy_cris_tropomi(
         # to the run and isn't actually used in determining if our output is
         # good. Normally have this turned off, and we test the plotting etc.
         # Separately.
-        # writeOutput=True,
-        # writePlots=True,
+        # write_debug_output=True,
+        # write_plots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
@@ -149,8 +149,8 @@ def test_retrieval_cris(
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
         ifile_hlp=ifile_hlp,
-        # writeOutput=True,
-        # writePlots=True,
+        # write_debug_output=True,
+        # write_plots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

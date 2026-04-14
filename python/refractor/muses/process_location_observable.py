@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .identifier import ProcessLocation
-from typing import Any
+from typing import Any, Type
 
 
 class ProcessLocationObservable:
@@ -29,6 +29,10 @@ class ProcessLocationObservable:
     if they leave that function off, we notify the objects about every ProcessLocation
     event.
     """
+
+    default_observer_list: set[Type[object]] = set()
+    default_debug_observer_list: set[Type[object]] = set()
+    default_plot_observer_list: set[Type[object]] = set()
 
     def __init__(self) -> None:
         self._observers: dict[Any, set[ProcessLocation] | None] = {}
@@ -65,3 +69,43 @@ class ProcessLocationObservable:
         for obs, pset in lobs:
             if pset is None or loc in pset:
                 obs.notify_process_location(loc, **kwargs)
+
+    def add_default_observer(
+        self,
+        write_debug_output: bool = False,
+        write_plots: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Add the default observers that have been registered. These can then
+        be modified, but most of the time we want to start with the default set and
+        possible add extra.
+
+        We have a set of observers for when we are writing debug output
+        and writing plots. These just are useful to group the observers into things
+        we always want, thing we want when debugging, and things we want with generating
+        plots."""
+        for cls in self.default_observer_list:
+            self.add_observer(cls(**kwargs))
+        if write_debug_output:
+            for cls in self.default_debug_observer_list:
+                self.add_observer(cls(**kwargs))
+        if write_plots:
+            for cls in self.default_plot_observer_list:
+                self.add_observer(cls(**kwargs))
+
+    @classmethod
+    def register_default_observer(cls, obs_cls: Type[object]) -> None:
+        cls.default_observer_list.add(obs_cls)
+
+    @classmethod
+    def register_default_debug_observer(cls, obs_cls: Type[object]) -> None:
+        cls.default_debug_observer_list.add(obs_cls)
+
+    @classmethod
+    def register_default_plot_observer(cls, obs_cls: Type[object]) -> None:
+        cls.default_plot_observer_list.add(obs_cls)
+
+
+__all__ = [
+    "ProcessLocationObservable",
+]

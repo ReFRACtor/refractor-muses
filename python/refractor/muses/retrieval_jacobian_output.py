@@ -6,6 +6,7 @@ from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .order_species import is_atmospheric_species
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 from pathlib import Path
 import numpy as np
 import typing
@@ -151,6 +152,8 @@ class RetrievalJacobianOutput(RetrievalOutput):
             * len(my_data2),
         )
 
+
+ProcessLocationObservable.register_default_observer(RetrievalJacobianOutput)
 
 __all__ = [
     "RetrievalJacobianOutput",
