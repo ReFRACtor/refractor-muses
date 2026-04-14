@@ -11,13 +11,9 @@
 # or something like that
 
 import pytest
-from refractor.muses import MusesRunDir
 from loguru import logger
 import os
-from pathlib import Path
 import subprocess
-import importlib.util
-import sys
 
 
 @pytest.mark.long_executable_test

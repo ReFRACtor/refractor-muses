@@ -1,5 +1,4 @@
 from refractor.muses import (
-    MusesRunDir,
     MusesStrategyContext,
 )
 from refractor.osr_ml import features_l1b, prediction, read_l1b

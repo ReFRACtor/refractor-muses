@@ -109,7 +109,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         **kwargs: Any,
     ) -> None:
         MusesStrategyContextMixin.__init__(self, MusesStrategyContext())
-        self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
         self._creator_dict = CreatorDict(self.strategy_context)
         self._process_location_observable = ProcessLocationObservable()
@@ -191,7 +190,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         """
 
         dir = Path(strategy_dir).absolute()
-        self._capture_directory.rundir = dir
         self.strategy_context.create_from_directory(
             dir,
             ifile_hlp=self._ifile_hlp,
@@ -276,12 +274,6 @@ class RetrievalStrategy(MusesStrategyContextMixin):
         self._ifile_hlp = val
 
     @property
-    def _output_directory(self) -> Path:
-        """Directory we are running in (e.g. where the strategy table and measurement id files
-        are)"""
-        return Path(self._capture_directory.rundir)
-
-    @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
         """The set of handles we use for mapping instrument name to a
         ForwardModel"""
@@ -312,7 +304,11 @@ class RetrievalStrategy(MusesStrategyContextMixin):
     ) -> None:
         """Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy."""
-        self._capture_directory.save_directory(self._output_directory)
+        self._capture_directory = RefractorCaptureDirectory()
+        self._capture_directory.rundir = self.retrieval_config["output_directory"]
+        self._capture_directory.save_directory(
+            self.retrieval_config["output_directory"]
+        )
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
     def load_step_info(

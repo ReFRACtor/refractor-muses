@@ -12,12 +12,14 @@ import subprocess
 import warnings
 import refractor.framework as rf  # type: ignore
 import refractor.muses
+import pystac
+from pathlib import Path
 from multiprocessing import Process
 from typing import Any
 
 version = "1.0.0"
 usage = """Usage:
-  refractor-retrieve stac [options] <retrieval_config> <strategy_file> <stac_file> [<output_dir>]
+  refractor-retrieve stac [options] <retrieval_config> <strategy_table> <stac_catalog> [<output_dir>]
   refractor-retrieve -t <dirlist> [options] | --targets=<dirlist> [options]
   refractor-retrieve -h | --help
   refractor-retrieve -v | --version
@@ -91,9 +93,9 @@ def onerror(err: BaseException) -> None:
 
 
 def retrieve_wrap(
-    args: DocOptSimple,
+    args: refractor.muses.DocOptSimple,
     mpi_rank: int,
-    rs: RetrievalStrategy,
+    rs: refractor.muses.RetrievalStrategy,
     target_dir: str,
     in_process: bool = False,
 ) -> None:
@@ -152,8 +154,8 @@ def retrieve_wrap(
 
 
 def process_targets(
-    args: DocOptSimple,
-    rs: RetrievalStrategy,
+    args: refractor.muses.DocOptSimple,
+    rs: refractor.muses.RetrievalStrategy,
     target_dir_list: list[str],
     mpi_rank: int,
     hostname: str,
@@ -207,10 +209,29 @@ def process_targets(
 
 
 def process_stac(
-    args: DocOptSimple,
-    rs: RetrievalStrategy,
+    args: refractor.muses.DocOptSimple,
+    rs: refractor.muses.RetrievalStrategy,
 ) -> None:
-    pass
+    rconfig_fname = Path(args.retrieval_config)
+    if rconfig_fname.suffix in (".yaml", ".yml"):
+        rconfig = refractor.muses.RetrievalConfiguration.create_from_yaml(
+            rconfig_fname,
+            ifile_hlp=rs.input_file_helper,
+            output_directory=args.output_dir,
+        )
+    else:
+        rconfig = refractor.muses.RetrievalConfiguration.create_from_strategy_file(
+            rconfig_fname,
+            ifile_hlp=rs.input_file_helper,
+            output_directory=args.output_dir,
+        )
+    stac_catalog = pystac.Catalog.from_file(args.stac_catalog)
+    rs.strategy_context.update_strategy_context(
+        creator_dict=rs.creator_dict,
+        stac_catalog=stac_catalog,
+        retrieval_config=rconfig,
+        strategy_table_filename=args.strategy_table,
+    )
 
 
 def main() -> None:
