@@ -4,15 +4,16 @@ from refractor.muses import (
     ProcessLocation,
     RetrievalStrategyStep,
     CurrentState,
+    ProcessLocationObservable
 )
 from loguru import logger
 from typing import Any
 
 
 class RetrievalMlOutput:
-    def notify_add(self, retrieval_strategy: RetrievalStrategy) -> None:
-        self.retrieval_strategy = retrieval_strategy
-
+    def __init__(self, **kwargs: Any):
+        pass
+    
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [
@@ -29,3 +30,8 @@ class RetrievalMlOutput:
         logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         self.retrieval_strategy_step = retrieval_strategy_step
         logger.info("Fake output")
+
+ProcessLocationObservable.register_default_observer(RetrievalMlOutput)
+    
+__all__ = ["RetrievalMlOutput",]        
+        
