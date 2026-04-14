@@ -2,15 +2,13 @@ from refractor.muses import (
     MusesRunDir,
     MusesStrategyContext,
 )
-from refractor.osr_ml import features_l1b, prediction
+from refractor.osr_ml import features_l1b, prediction, read_l1b
 
 
 def test_cris_co_ml(cris_ml_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
     """Basic test of using machine learning to predict CO. This is pulled from the
     troppy notebook https://github-fn.jpl.nasa.gov/fwerner/troppy/blob/main/troppy/notebooks/ml/CRIS/CO/09_cris_ml_predict_noprior_keras.ipynb"""
-    r = MusesRunDir(cris_ml_test_in_dir, ifile_hlp)
-    ctx = MusesStrategyContext()
-    ctx.create_from_directory(r.run_dir)
+    ctx = MusesStrategyContext(cris_ml_test_in_dir, output_directory=isolated_dir)
     l1b_file = []
     for lnk in ctx.stac_catalog.get_item_links():
         l1b_file.extend(
@@ -21,7 +19,8 @@ def test_cris_co_ml(cris_ml_test_in_dir, cris_ml_dir, isolated_dir, ifile_hlp):
                 .values()
             ]
         )
-    features = features_l1b(l1b=l1b_file, prior=None, ml_model_path=cris_ml_dir)
+    l1b = read_l1b(files=l1b_file)
+    features = features_l1b(l1b=l1b, prior=None, ml_model_path=cris_ml_dir)
     instrument = "CRIS-JPSS-1"
     species = "CO"
     pred = prediction(

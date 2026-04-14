@@ -104,6 +104,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         cls,
         fname: str | os.PathLike[str],
         ifile_hlp: InputFileHelper | None = None,
+        output_directory: str | os.PathLike[str] | None = None
     ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent
@@ -155,13 +156,18 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             res["pressure_species_input"] = list(f.checked_table["Pressure"])
 
         # Make run dir available
-        res["run_dir"] = strategy_table_dir
+        if output_directory is not None:
+            res["run_dir"] = Path(output_directory)
+        else:
+            res["run_dir"] = strategy_table_dir
 
         # This is usually the same as run_dir, but have as a separate entry (and
         # could in principle be different. We want to get away from having a run_dir
         # except for old_py_retrieve_wrapper code, so it is good to separate these
         # two ideas.
-        if "outputDirectory" in res and "sessionID" in res:
+        if output_directory is not None:
+            res["output_directory"] = Path(output_directory)
+        elif "outputDirectory" in res and "sessionID" in res:
             res["output_directory"] = res["outputDirectory"] / res["sessionID"]
 
         # There really should be a liteDirectory included here, but
