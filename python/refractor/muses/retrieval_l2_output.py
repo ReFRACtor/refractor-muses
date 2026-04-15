@@ -470,7 +470,7 @@ class RetrievalL2Output(RetrievalOutput):
                     instruments = [w['instrument'] for w in all_windows]
                     species_lists = [w['speciesList'] for w in all_windows]
 
-                    species_data.MICROWINDOW = np.column_stack([starts, ends]).astype(np.float32)
+                    species_data.MICROWINDOW = np.array([starts, ends]).astype(np.float32)
                     species_data.MICROWINDOW_INSTRUMENT = np.array(instruments, dtype='object')
                     species_data.MICROWINDOW_SPECIES = np.array(species_lists, dtype='object')
         except Exception as e:
