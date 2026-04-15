@@ -429,6 +429,9 @@ class RetrievalL2Output(RetrievalOutput):
             "lmresults_delta".upper(): self.results.LMResults_delta[
                 self.results.bestIteration
             ],
+            "MICROWINDOW": np.zeros(shape=(2, 0), dtype=np.float32) - 999,
+            "MICROWINDOW_INSTRUMENT": np.array([], dtype="object"),
+            "MICROWINDOW_SPECIES": np.array([], dtype="object"),
         }
 
         if self.state_sd_wavenumber("EMIS").shape[0] == 0:
@@ -450,6 +453,32 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RADIANCEMAXIMUMSNR = self.results.radianceMaximumSNR
         species_data.RESIDUALNORMFINAL = self.results.residualNormFinal
         species_data.RESIDUALNORMINITIAL = self.results.residualNormInitial
+
+        if hasattr(self.current_strategy_step, "spectral_window_dict"):
+            swindict = self.current_strategy_step.spectral_window_dict
+            starts = [
+                win["start"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            ends = [
+                win["endd"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            instruments = [
+                win["instrument"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            species_list = [
+                win["speciesList"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            species_data.MICROWINDOW = np.array([starts, ends]).astype(np.float32)
+            species_data.MICROWINDOW_INSTRUMENT = np.array(instruments, dtype="object")
+            species_data.MICROWINDOW_SPECIES = np.array(species_list, dtype="object")
 
         smeta = self.sounding_metadata
 

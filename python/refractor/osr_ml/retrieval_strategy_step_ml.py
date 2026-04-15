@@ -53,7 +53,9 @@ class RetrievalStrategyStepMl(RetrievalStrategyStep):
             logger.info(f"Reading {fn}")
             self.retrieval_config.input_file_helper.notify_file_input(fn)
         self.l1b = read_l1b(l1b_file)
-        self.retrieval_config.input_file_helper.notify_file_input(self.ml_model_path / "features_order.txt")
+        self.retrieval_config.input_file_helper.notify_file_input(
+            self.ml_model_path / "features_order.txt"
+        )
         self.features = features_l1b(
             l1b=self.l1b, prior=None, ml_model_path=self.ml_model_path
         )
