@@ -15,7 +15,6 @@ from .cris_io import read_l1b
 from .ml import prediction, features_l1b  # type: ignore
 from loguru import logger
 from typing import Any
-import os
 
 
 class RetrievalStrategyStepMl(RetrievalStrategyStep):
@@ -50,12 +49,17 @@ class RetrievalStrategyStepMl(RetrievalStrategyStep):
                     .values()
                 ]
             )
+        for fn in l1b_file:
+            logger.info(f"Reading {fn}")
+            self.retrieval_config.input_file_helper.notify_file_input(fn)
         self.l1b = read_l1b(l1b_file)
+        self.retrieval_config.input_file_helper.notify_file_input(self.ml_model_path / "features_order.txt")
         self.features = features_l1b(
             l1b=self.l1b, prior=None, ml_model_path=self.ml_model_path
         )
         self.pred = prediction(
             mdl_api="sequential",
+            ifile_hlp=self.retrieval_config.input_file_helper,
             path=self.ml_model_path,
             prefix=self.instrument + "_" + self.species + "_ret_col",
             # Until we get weights sorted out
@@ -74,13 +78,8 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
         self,
         cls: type[RetrievalStrategyStep],
         retrieval_type_set: set[RetrievalType],
-        instrument: str,
-        species: str,
     ) -> None:
         super().__init__(cls, retrieval_type_set)
-        # These should perhaps come from current step
-        self.instrument = instrument
-        self.species = species
 
     def retrieval_step(
         self,
@@ -94,30 +93,30 @@ class RetrievalStrategyStepMlHandle(RetrievalStrategyStepHandle):
             self._retrieval_type_set is None
             or current_strategy_step.retrieval_type in self._retrieval_type_set
         ):
-            # May want to get this from a different place, but for now use
-            # environment variable
-            ml_model_path = Path(os.environ["MUSES_ML_PATH"])
+            if not hasattr(current_strategy_step, "instrument_name") or not hasattr(
+                current_strategy_step, "species_name"
+            ):
+                raise RuntimeError(
+                    "Strategy step needs to have instrument_name and species_name"
+                )
             return self._create_cls(
                 creator_dict,
                 current_state,
                 process_location_observable,
-                ml_model_path=ml_model_path,
-                instrument=self.instrument,
-                species=self.species,
+                ml_model_path=self.retrieval_config["muses_ml_path"],
+                instrument=current_strategy_step.instrument_name,
+                species=current_strategy_step.species_name,
                 **kwargs,
             )
         return None
 
 
-# TODO  Get instrument and species from strategy table
 RetrievalStrategyStepSet.add_default_handle(
     RetrievalStrategyStepMlHandle(
         RetrievalStrategyStepMl,
         {
             RetrievalType("ML"),
         },
-        "CRIS-JPSS-1",
-        "CO",
     )
 )
 

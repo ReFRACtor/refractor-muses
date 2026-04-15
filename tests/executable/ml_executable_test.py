@@ -12,14 +12,11 @@
 
 import pytest
 from loguru import logger
-import os
 import subprocess
 
 
 @pytest.mark.long_executable_test
-def test_refractor_retrieve_ml(
-    ifile_hlp, cris_ml_dir, cris_ml_test_in_dir, end_to_end_run_dir
-):
+def test_refractor_retrieve_ml(ifile_hlp, cris_ml_test_in_dir, end_to_end_run_dir):
     """This is a top level running of the machine learning retrieval.
     Note that this runs fairly different than our OE retrievals, rather
     than running on a single sounding to runs on all of them for an input
@@ -30,11 +27,6 @@ def test_refractor_retrieve_ml(
     dir = end_to_end_run_dir / "refractor_retrieve_ml"
     subprocess.run(["rm", "-r", str(dir)])
     subprocess.run(["mkdir", "-p", str(dir)])
-    # Isn't clear how to handle the ML files. This will perhaps end up in the OSP
-    # directory. For now, we pass in an environment variable so this is kind of
-    # like MUSES_OSP_PATH
-    # TODO Put this into configuration file
-    os.environ["MUSES_ML_PATH"] = str(cris_ml_dir)
     logger.info(
         f'Running "refractor-retrieve stac {cris_ml_test_in_dir}/retrieval_config.yaml {cris_ml_test_in_dir}/strategy.yaml {cris_ml_test_in_dir}/catalog.json {dir}"'
     )

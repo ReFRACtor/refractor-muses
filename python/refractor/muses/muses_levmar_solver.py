@@ -9,7 +9,7 @@ from typing import Any
 from attrs import frozen
 import math
 from loguru import logger
-import typing
+
 
 @frozen
 class SolverResult:
@@ -1991,7 +1991,7 @@ ProcessLocationObservable.register_default_observer(VerboseSolverLogging)
 # strategy_context and create a file each time the step number changes. But we will
 # want to test this. Note we should get the strategy_context from the creator_dict
 # passed in by ProcessLocationObservable.add_default_observer
-#ProcessLocationObservable.register_default_debug_observer(SolverLogFileWriter)
+# ProcessLocationObservable.register_default_debug_observer(SolverLogFileWriter)
 
 __all__ = [
     "SolverResult",

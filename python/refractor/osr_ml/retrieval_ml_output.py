@@ -1,10 +1,9 @@
 from __future__ import annotations
 from refractor.muses import (
-    RetrievalStrategy,
     ProcessLocation,
     RetrievalStrategyStep,
     CurrentState,
-    ProcessLocationObservable
+    ProcessLocationObservable,
 )
 from loguru import logger
 from typing import Any
@@ -13,7 +12,7 @@ from typing import Any
 class RetrievalMlOutput:
     def __init__(self, **kwargs: Any):
         pass
-    
+
     @property
     def observing_process_location(self) -> list[ProcessLocation]:
         return [
@@ -31,7 +30,9 @@ class RetrievalMlOutput:
         self.retrieval_strategy_step = retrieval_strategy_step
         logger.info("Fake output")
 
+
 ProcessLocationObservable.register_default_observer(RetrievalMlOutput)
-    
-__all__ = ["RetrievalMlOutput",]        
-        
+
+__all__ = [
+    "RetrievalMlOutput",
+]

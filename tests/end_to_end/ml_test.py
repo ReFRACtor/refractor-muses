@@ -1,28 +1,24 @@
 from refractor.muses import (
     RetrievalStrategy,
     RetrievalConfiguration,
+    InputFileRecord,
 )
 
 # Import to grab the registration of objects needed
 import refractor.osr_ml  # noqa: F401
 import subprocess
 from loguru import logger
-import os
 import pystac
 
 
 def test_refractor_retrieve_ml_end_to_end(
-    ifile_hlp, cris_ml_dir, cris_ml_test_in_dir, end_to_end_run_dir
+    ifile_hlp, cris_ml_test_in_dir, end_to_end_run_dir
 ):
     dir = end_to_end_run_dir / "refractor_retrieve_ml"
     subprocess.run(["rm", "-r", dir])
     subprocess.run(["mkdir", "-p", dir])
-    # Isn't clear how to handle the ML files. This will perhaps end up in the OSP
-    # directory. For now, we pass in an environment variable so this is kind of
-    # like MUSES_OSP_PATH
-    # TODO Move into configuration file
-    os.environ["MUSES_ML_PATH"] = str(cris_ml_dir)
     rs = RetrievalStrategy(None, ifile_hlp=ifile_hlp)
+    rs.input_file_helper.add_observer(InputFileRecord(dir / "input_list.log"))
     rconfig = RetrievalConfiguration.create_from_yaml(
         cris_ml_test_in_dir / "retrieval_config.yaml",
         ifile_hlp=rs.input_file_helper,

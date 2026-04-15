@@ -18,6 +18,8 @@ from __future__ import annotations
 import numpy as np
 import h5py  # type:ignore
 from scipy.stats import pearsonr
+from refractor.muses import InputFileHelper
+from loguru import logger
 
 from .rmsd_two_var import rmsd_two_var
 
@@ -257,6 +259,7 @@ def prediction(
     load_weights: bool = False,
     load_fullmodel: bool = True,
     path: str | os.PathLike[str] = "",
+    ifile_hlp: InputFileHelper | None = None,
     prefix: str = "",
     suffix: str = "",
     extra_suffix: str = "",
@@ -414,12 +417,18 @@ def prediction(
     ##########################################################################
 
     # Load the model weights, if necessary
+    if ifile_hlp is not None:
+        ifile_hlp.notify_file_input(file_in_weights)
+    logger.info(f"Reading file {file_in_weights}")
     if load_weights is True:
         mdl.load_weights(file_in_weights)
     if load_fullmodel is True:
         mdl = load_model(file_in_weights)
 
     # Read scaling factors
+    if ifile_hlp is not None:
+        ifile_hlp.notify_file_input(file_in_scale)
+    logger.info(f"Reading file {file_in_scale}")
     file = h5py.File(file_in_scale, "r")
     features_mean = file["features_mean"][:]
     features_std = file["features_std"][:]
@@ -487,11 +496,17 @@ def prediction(
 
     # Encode the features, if necessary
     if enc_features is True:
+        if ifile_hlp is not None:
+            ifile_hlp.notify_file_input(file_in_enc_features_weights)
+        logger.info(f"Reading file {file_in_enc_features_weights}")
         enc_features_mdl = load_model(file_in_enc_features_weights)
         features = enc_features_mdl.encoder(features)
 
     # Decode the labels, if necessary
     if enc_labels is True:
+        if ifile_hlp is not None:
+            ifile_hlp.notify_file_input(file_in_enc_labels_weights)
+        logger.info(f"Reading file {file_in_enc_labels_weights}")
         enc_labels_mdl = load_model(file_in_enc_labels_weights)
         labels = np.array(enc_labels_mdl.decoder(labels))
 
