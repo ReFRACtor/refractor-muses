@@ -465,11 +465,14 @@ class RetrievalL2Output(RetrievalOutput):
 
                 # Build the arrays if we found any windows (same as py-retrieve)
                 if len(all_windows) > 0:
-                    import pandas as pd
-                    df = pd.DataFrame.from_dict(all_windows)
-                    species_data.MICROWINDOW = df[['start', 'endd']].to_numpy().T.astype(np.float32)
-                    species_data.MICROWINDOW_INSTRUMENT = df['instrument'].to_numpy(dtype='object')
-                    species_data.MICROWINDOW_SPECIES = df['speciesList'].to_numpy(dtype='object')
+                    starts = [w['start'] for w in all_windows]
+                    ends = [w['endd'] for w in all_windows]
+                    instruments = [w['instrument'] for w in all_windows]
+                    species_lists = [w['speciesList'] for w in all_windows]
+
+                    species_data.MICROWINDOW = np.column_stack([starts, ends]).astype(np.float32)
+                    species_data.MICROWINDOW_INSTRUMENT = np.array(instruments, dtype='object')
+                    species_data.MICROWINDOW_SPECIES = np.array(species_lists, dtype='object')
         except Exception as e:
             logger.warning(f"Could not extract microwindow information: {e}")
             # Leave as empty arrays
