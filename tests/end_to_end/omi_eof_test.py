@@ -56,11 +56,11 @@ def test_eof_omi(ifile_hlp, omi_test_in_dir, end_to_end_run_dir):
     rs.state_element_handle_set.add_handle(
         OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2"))
     )
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_strategy_context(r.run_dir)
     try:
         lognum = logger.add(dir / "retrieve.log")
         rscap = RetrievalStrategyCaptureObserver(
-            "retrieval_strategy_retrieval_step", "starting run_step"
+            "retrieval_strategy_retrieval_step", "starting run_step", rs
         )
         rs.add_observer(rscap)
         rs.retrieval_ms()
@@ -142,7 +142,7 @@ def test_eof_airs_omi(ifile_hlp, end_to_end_run_dir, joint_omi_eof_test_in_dir):
     rs.state_element_handle_set.add_handle(
         OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2"))
     )
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_strategy_context(r.run_dir)
     try:
         lognum = logger.add(dir / "retrieve.log")
         rs.retrieval_ms()

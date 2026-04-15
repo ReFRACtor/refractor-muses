@@ -1,4 +1,3 @@
-# type: ignore
 """
 Title        :  maps.py
 What is it   :  Routines to plot cartopy maps
@@ -20,6 +19,7 @@ Modf          : 20250124 - added pixels keyqord to map_data_1d()
 
 # Import modules
 # =======================================
+from __future__ import annotations
 import numpy as np
 
 import matplotlib
@@ -33,6 +33,7 @@ import cartopy.feature as cfeature  # type: ignore
 from .parula_cmap import parula_cmap
 
 import warnings
+from typing import Any
 
 warnings.filterwarnings("ignore")
 
@@ -40,46 +41,46 @@ warnings.filterwarnings("ignore")
 # Functions
 # =======================================
 def map_data_1d(
-    ax=None,
-    projection="PlateCarree",
-    lon=None,
-    lat=None,
-    lon_pixels=None,
-    lat_pixels=None,
-    var=None,
-    mask=None,
-    cmap=None,
-    boundaries=None,
-    log_norm=False,
-    style="dots",
-    markersize=1,
-    coastlines_res="10m",
-    borders=True,
-    extent=[-180, 180, -90, 90],
-    bottom_labels=True,
-    top_labels=True,
-    left_labels=True,
-    right_labels=True,
-    xlocator=[-135, -90, -45, 0, 45, 90, 135],
-    ylocator=[-90, -45, 0, 45, 90],
-    grid_fs=8,
-    cbar_ticks=None,
-    cbar_fraction=0.0188,
-    cbar_pad=0.08,
-    cbar_orientation="horizontal",
-    cbar_aspect=96,
-    cbar_no_minorticks=False,
-    cbar_minor_nbins=None,
-    cbar_label="",
-    cbar_rotation=0,
-    cbar_labelpad=5,
-    cbar_fs=12,
-    cbar_do=True,
-    add_text=None,
-    add_text_fs=12,
-    fig_title="",
-    fig_title_pad=0,
-):
+    ax: Any = None,
+    projection: str = "PlateCarree",
+    lon: Any = None,
+    lat: Any = None,
+    lon_pixels: Any = None,
+    lat_pixels: Any = None,
+    var: Any = None,
+    mask: Any = None,
+    cmap: Any = None,
+    boundaries: Any = None,
+    log_norm: bool = False,
+    style: str = "dots",
+    markersize: int = 1,
+    coastlines_res: str = "10m",
+    borders: bool = True,
+    extent: list[float] = [-180, 180, -90, 90],
+    bottom_labels: bool = True,
+    top_labels: bool = True,
+    left_labels: bool = True,
+    right_labels: bool = True,
+    xlocator: list[float] = [-135, -90, -45, 0, 45, 90, 135],
+    ylocator: list[float] = [-90, -45, 0, 45, 90],
+    grid_fs: int = 8,
+    cbar_ticks: Any = None,
+    cbar_fraction: float = 0.0188,
+    cbar_pad: float = 0.08,
+    cbar_orientation: str = "horizontal",
+    cbar_aspect: int = 96,
+    cbar_no_minorticks: bool = False,
+    cbar_minor_nbins: Any = None,
+    cbar_label: str = "",
+    cbar_rotation: int = 0,
+    cbar_labelpad: int = 5,
+    cbar_fs: int | float = 12,
+    cbar_do: bool = True,
+    add_text: Any = None,
+    add_text_fs: int | float = 12,
+    fig_title: str = "",
+    fig_title_pad: int | float = 0,
+) -> None:
     ##############
     # Plots a map with 1d longitude, latitude, and data arrays.
     #
@@ -127,7 +128,7 @@ def map_data_1d(
 
     # Define colormap
     if cmap is None:
-        cmap = matplotlib.cm.Spectral_r
+        cmap = matplotlib.cm.Spectral_r  # type:ignore[attr-defined]
     if cmap == "Parula":
         cmap = parula_cmap()
 
@@ -135,7 +136,7 @@ def map_data_1d(
     if boundaries is None:
         boundaries = np.linspace(np.percentile(var, 1), np.percentile(var, 99), 41)
     if log_norm is False:
-        norm = matplotlib.colors.BoundaryNorm(boundaries, cmap.N, clip=True)
+        norm: Any = matplotlib.colors.BoundaryNorm(boundaries, cmap.N, clip=True)
     else:
         norm = matplotlib.colors.LogNorm(vmin=boundaries[0], vmax=boundaries[-1])
         boundaries = None

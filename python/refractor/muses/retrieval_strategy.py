@@ -1,25 +1,12 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .refractor_capture_directory import RefractorCaptureDirectory
-from .retrieval_l2_output import RetrievalL2Output
-from .retrieval_irk_output import RetrievalIrkOutput
-from .retrieval_radiance_output import RetrievalRadianceOutput
-from .retrieval_jacobian_output import RetrievalJacobianOutput
-from .retrieval_debug_output import (
-    RetrievalPickleResult,
-    RetrievalPlotRadiance,
-    RetrievalPlotResult,
-)
-from .retrieval_strategy_step import (
-    RetrievalStrategyStepSet,
-)
-from .retrieval_configuration import RetrievalConfiguration
-from .muses_observation import MeasurementIdFile
-from .muses_strategy_executor import (
-    MusesStrategyExecutorMusesStrategy,
-)
-from .spectral_window_handle import SpectralWindowHandleSet
-from .qa_data_handle import QaDataHandleSet
-from .cost_function_creator import CostFunctionCreator
+from .process_location_observable import ProcessLocationObservable
+from .muses_strategy_executor import MusesStrategyExecutorMusesStrategy
+from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
+from .state_element import StateElement, StateElementHandleSet
+from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
+from .creator_dict import CreatorDict
 from .identifier import ProcessLocation
 from .input_file_helper import InputFileHelper
 from loguru import logger
@@ -31,15 +18,8 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
-    from .forward_model_combine import ForwardModelCombine
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .cost_function import CostFunction
-    from .muses_strategy import MusesStrategy, MusesStrategyHandleSet
-    from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
-    from .state_info import StateElementHandleSet
-    from .cross_state_element import CrossStateElementHandleSet
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -47,7 +27,7 @@ if typing.TYPE_CHECKING:
 # This implements mpy.ReplaceFunctionObject, but we don't actually derive from
 # that so we don't depend on mpy being available.
 # class RetrievalStrategy(mpy.ReplaceFunctionObject):
-class RetrievalStrategy:
+class RetrievalStrategy(MusesStrategyContextMixin):
     """This is a replacement for script_retrieval_ms, that tries to do
     a few things:
 
@@ -104,65 +84,38 @@ class RetrievalStrategy:
 
     """
 
-    # TODO Add handling of writeOutput, writePlots, debug. I think we
-    # can probably do that by just adding Observers
     def __init__(
         self,
         filename: str | os.PathLike[str] | None,
-        writeOutput: bool = False,
-        writePlots: bool = False,
+        write_debug_output: bool = False,
+        write_plots: bool = False,
         ifile_hlp: InputFileHelper | None = None,
         **kwargs: Any,
     ) -> None:
-        self._capture_directory = RefractorCaptureDirectory()
+        MusesStrategyContextMixin.__init__(self, MusesStrategyContext())
         self._observers: set[Any] = set()
+        self._creator_dict = CreatorDict(self.strategy_context)
+        self._process_location_observable = ProcessLocationObservable()
 
-        self._cost_function_creator = CostFunctionCreator(rs=self)
-        self._forward_model_handle_set = (
-            self._cost_function_creator.forward_model_handle_set
-        )
-        self._observation_handle_set = (
-            self._cost_function_creator.observation_handle_set
-        )
         self._kwargs: dict[str, Any] = kwargs
 
         self._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()
-        self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
-        self._retrieval_strategy_step_set = (
-            self.strategy_executor.retrieval_strategy_step_set
+        self._strategy_executor = MusesStrategyExecutorMusesStrategy(
+            self.creator_dict, self.process_location_observable
         )
-        self._spectral_window_handle_set = (
-            self.strategy_executor.spectral_window_handle_set
-        )
-        self._muses_strategy_handle_set = (
-            self.strategy_executor.muses_strategy_handle_set
-        )
-        self._qa_data_handle_set = self.strategy_executor.qa_data_handle_set
 
-        # Right now, we hardcode the output observers. Probably want to
-        # rework this
-        self.add_observer(RetrievalJacobianOutput())
-        self.add_observer(RetrievalRadianceOutput())
-        self.add_observer(RetrievalL2Output())
-        self.add_observer(RetrievalIrkOutput())
-        # Similarly logic here is hardcoded.
-        # JLL: some MUSES diagnostics (esp. the solver steps in the levmar code)
-        # aren't observers yet, until they are, I need this boolean to turn them
-        # on.
-        self.write_output = writeOutput
-        if writeOutput:
-            # Depends on internal objects like strategy_table_dict. For now,
-            # skip this
-            # self.add_observer(RetrievalInputOutput())
-            self.add_observer(RetrievalPickleResult())
-            if writePlots:
-                self.add_observer(RetrievalPlotResult())
-                self.add_observer(RetrievalPlotRadiance())
+        # Set up process location observers to all the defaults. This is what
+        # handles generating output files and extra logging
 
-        # For calling from py-retrieve, it is useful to delay the filename. See
-        # script_retrieval_ms below
-        if filename is not None:
-            self.update_target(filename)
+        # Used by SolverLogFileWriter if we happen to include that
+        # We need pull this into SolverLogFileWriter, see note there. But leave this
+        # here short term for reference.
+        # levmar_log_file = f"{self.retrieval_config['output_directory']}/Step{self.step_number:02d}_{self.step_name}/LevmarSolver-{self.step_name}.log"
+        self._process_location_observable.add_default_observer(
+            write_debug_output=write_debug_output,
+            write_plots=write_plots,
+            creator_dict=self.creator_dict,
+        )
 
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms.
@@ -189,9 +142,22 @@ class RetrievalStrategy:
             return self.script_retrieval_ms(**parms)
         return None
 
-    def update_target(self, filename: str | os.PathLike[str]) -> None:
-        """Set up to process a target, given the filename for the
+    @property
+    def creator_dict(self) -> CreatorDict:
+        return self._creator_dict
+
+    def update_strategy_context(self, strategy_dir: str | os.PathLike[str]) -> None:
+        """Set up to process a target, given the directory for the
         strategy table.
+
+        We look at the directory, and if there is a strategy.yaml we read
+        that first. If we don't find that, we read a Table.asc file.
+        If there is a catalog.json file, we read that as a pystac file.
+        Otherwise we look for a MeasurementID.asc and read that.
+
+        If there is a retrieval_config.yaml file we read that for the
+        RetrievalConfiguration file, otherwise we read Table.asc (same
+        file as for strategy - this was the old py-retrieve standard).
 
         A number of objects related to this one might do caching based
         on the target, e.g., read the input files once. py-retrieve
@@ -201,36 +167,13 @@ class RetrievalStrategy:
 
         """
 
-        logger.info(f"Strategy table filename: {filename}")
-
-        filename = Path(filename)
-        self._filename = filename.absolute()
-        self._capture_directory.rundir = filename.absolute().parent
-        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
-            self.strategy_table_filename,
-            self._ifile_hlp,
+        dir = Path(strategy_dir).absolute()
+        self.strategy_context.create_from_directory(
+            dir,
+            ifile_hlp=self._ifile_hlp,
+            creator_dict=self._creator_dict,
         )
-        self._measurement_id = MeasurementIdFile(
-            self.run_dir / "Measurement_ID.asc",
-            self.retrieval_config,
-            # Chicken and egg problem for filter_list_dict. We need a MeasurementId
-            # to update the strategy_executor, and then need the strategy_executor to
-            # get the filter_list_dict. So we put a dummy in, and then fill this in
-            # in the next step.
-            {},
-        )
-        self.strategy_executor.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
-        self.measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
-        self.cost_function_creator.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
-        self.strategy_executor.notify_update_target(
-            self.measurement_id, self.retrieval_config
-        )
-        self.retrieval_strategy_step_set.notify_update_target(self)
-        self.notify_update(ProcessLocation("update target"))
+        self.notify_process_location(ProcessLocation("update_strategy_context"))
 
     def script_retrieval_ms(
         self,
@@ -243,39 +186,29 @@ class RetrievalStrategy:
         # Ignore arguments other than filename.
         # We can clean this up if needed, perhaps delay the
         # initialization or something.
-        self.update_target(filename)
+        self.update_strategy_context(Path(filename).parent)
         return self.retrieval_ms()
 
+    @property
+    def process_location_observable(self) -> ProcessLocationObservable:
+        return self._process_location_observable
+
     def add_observer(self, obs: Any) -> None:
-        # Often we want weakref, so we don't prevent objects from
-        # being deleted just because they are observing this. But in
-        # this particular case, we actually do want to maintain the
-        # lifetime. These observers will do things like write out
-        # output, but have no real life outside of being attached to
-        # this class.  It is easy enough to change this to weakref if
-        # that proves useful
-        self._observers.add(obs)
-        if hasattr(obs, "notify_add"):
-            obs.notify_add(self)
+        self.process_location_observable.add_observer(obs)
 
     def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
-        if hasattr(obs, "notify_remove"):
-            obs.notify_remove(self)
+        self.process_location_observable.remove_observer(obs)
 
     def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
-        # list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            self.remove_observer(obs)
+        self.process_location_observable.clear_observers()
 
-    def notify_update(self, location: ProcessLocation | str, **kwargs: Any) -> None:
+    def notify_process_location(
+        self, location: ProcessLocation | str, **kwargs: Any
+    ) -> None:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
-        for obs in self._observers:
-            obs.notify_update(self, loc, **kwargs)
+        self.process_location_observable.notify_process_location(location, **kwargs)
 
     @property
     def keyword_arguments(self) -> dict:
@@ -310,13 +243,6 @@ class RetrievalStrategy:
         return self._strategy_executor
 
     @property
-    def strategy(self) -> MusesStrategy:
-        """The MusesStrategy used to describe the strategy"""
-        if self.strategy_executor.strategy is None:
-            raise RuntimeError("Call update_target before this function")
-        return self.strategy_executor.strategy
-
-    @property
     def input_file_helper(self) -> InputFileHelper:
         """The InputFileHelper used to read input data."""
         return self._ifile_hlp
@@ -326,119 +252,41 @@ class RetrievalStrategy:
         self._ifile_hlp = val
 
     @property
-    def run_dir(self) -> Path:
-        """Directory we are running in (e.g. where the strategy table and measurement id files
-        are)"""
-        return Path(self._capture_directory.rundir)
-
-    @property
-    def strategy_table_filename(self) -> Path:
-        """Name of the strategy table we are using."""
-        return self._filename
-
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        """Configuration parameters for the retrieval."""
-        return self._retrieval_config
-
-    @property
-    def measurement_id(self) -> MeasurementIdFile:
-        """Measurement ID for the current target."""
-        return self._measurement_id
-
-    @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
         """The set of handles we use for mapping instrument name to a
         ForwardModel"""
-        return self._forward_model_handle_set
+        return self.creator_dict[rf.ForwardModel]
 
     @property
     def observation_handle_set(self) -> ObservationHandleSet:
         """The set of handles we use for mapping instrument name to a
         MusesObservation"""
-        return self._observation_handle_set
+        return self.creator_dict[rf.Observation]
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
         """The set of handles we use for each state element."""
-        return self._strategy_executor.state_element_handle_set
+        return self.creator_dict[StateElement]
 
     @property
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         """The set of handles we use for each state element."""
-        return self._strategy_executor.cross_state_element_handle_set
-
-    @property
-    def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
-        """The set of handles for determining the RetrievalStrategyStep."""
-        return self._retrieval_strategy_step_set
-
-    @property
-    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
-        """The set of handles for determining the MusesSpectralWindow."""
-        return self._spectral_window_handle_set
-
-    @property
-    def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
-        """The set of handles for determining the MusesStrategy."""
-        return self._muses_strategy_handle_set
-
-    @property
-    def qa_data_handle_set(self) -> QaDataHandleSet:
-        """The set of handles for determining the QA flag file name."""
-        return self._qa_data_handle_set
-
-    @property
-    def strategy_step(self) -> StrategyStepIdentifier:
-        return self.current_strategy_step.strategy_step
-
-    @property
-    def instrument_name_all_step(self) -> list[InstrumentIdentifier]:
-        return self.strategy_executor.instrument_name_all_step
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        return self.strategy_executor.current_strategy_step
+        return self.creator_dict[CrossStateElement]
 
     @property
     def current_state(self) -> CurrentState:
         return self.strategy_executor.current_state
-
-    @property
-    def retrieval_type(self) -> RetrievalType:
-        return self.current_strategy_step.retrieval_type
-
-    @property
-    def cost_function_creator(self) -> CostFunctionCreator:
-        return self._cost_function_creator
-
-    def create_cost_function(
-        self,
-    ) -> CostFunction:
-        """Create cost function"""
-        # This gets uses in
-        # RetrievalStrategyStep and perhaps we should just pass the
-        # strategy_executor to the constructor.  But for now, make
-        # explicit that we need this.
-        return self.strategy_executor.create_cost_function()
-
-    def create_forward_model_combine(
-        self,
-        use_systematic: bool = False,
-        include_bad_sample: bool = False,
-    ) -> ForwardModelCombine:
-        """Create ForwardModelCombine"""
-        return self.strategy_executor.create_forward_model_combine(
-            use_systematic=use_systematic,
-            include_bad_sample=include_bad_sample,
-        )
 
     def save_pickle(
         self, save_pickle_file: str | os.PathLike[str], **kwargs: Any
     ) -> None:
         """Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy."""
-        self._capture_directory.save_directory(self.run_dir)
+        self._capture_directory = RefractorCaptureDirectory()
+        self._capture_directory.rundir = self.retrieval_config["output_directory"]
+        self._capture_directory.save_directory(
+            self.retrieval_config["output_directory"]
+        )
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
     def load_step_info(
@@ -475,53 +323,55 @@ class RetrievalStrategy:
 
         """
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
-        res._capture_directory.rundir = (  # noqa: SLF001
-            Path(path).absolute() / res._capture_directory.runbase  # noqa: SLF001
-        )
-        res._filename = res.run_dir / res.strategy_table_filename.name  # noqa: SLF001
-        res._strategy_executor.strategy_table_filename = res._filename  # noqa: SLF001
+        output_directory = Path(path).absolute() / res._capture_directory.runbase  # noqa: SLF001
+        res._capture_directory.rundir = output_directory  # noqa: SLF001
         res._ifile_hlp = ifile_hlp if ifile_hlp is not None else InputFileHelper()  # noqa: SLF001
         res._retrieval_config.ifile_hlp = res.input_file_helper  # noqa: SLF001
-        res._retrieval_config.base_dir = res.run_dir  # noqa: SLF001
+        res._retrieval_config.base_dir = output_directory  # noqa: SLF001
         res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)  # noqa: SLF001
         return res, kwargs
 
 
 class RetrievalStrategyCaptureObserver:
     """Helper class, pickles RetrievalStrategy at each time
-    notify_update is called. Intended for unit tests and other kinds
+    notify_process_location is called. Intended for unit tests and other kinds
     of debugging.
 
     """
 
     def __init__(
-        self, basefname: str, location_to_capture: str | ProcessLocation
+        self,
+        basefname: str,
+        location_to_capture: str | ProcessLocation,
+        retrieval_strategy: RetrievalStrategy,
     ) -> None:
         self.basefname = basefname
+        self.retrieval_strategy = retrieval_strategy
         if isinstance(location_to_capture, ProcessLocation):
             self.location_to_capture = location_to_capture
         else:
             self.location_to_capture = ProcessLocation(location_to_capture)
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [
+            self.location_to_capture,
+        ]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         **kwargs: Any,
     ) -> None:
-        if location != self.location_to_capture:
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        # I think we always want to store this in the run directory. We can
-        # change this if not - but for now assume we always do that
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         fname = (
-            retrieval_strategy.run_dir
-            / f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
+            self.retrieval_strategy.retrieval_config["output_directory"]
+            / f"{self.basefname}_{self.retrieval_strategy.strategy_executor.step_number}.pkl"
         )
         # Don't want this class included in the pickle
-        retrieval_strategy.remove_observer(self)
-        retrieval_strategy.save_pickle(fname, **kwargs)
-        retrieval_strategy.add_observer(self)
+        self.retrieval_strategy.process_location_observable.remove_observer(self)
+        self.retrieval_strategy.save_pickle(fname, **kwargs)
+        self.retrieval_strategy.process_location_observable.add_observer(self)
 
 
 class RetrievalStrategyMemoryUse:
@@ -533,7 +383,7 @@ class RetrievalStrategyMemoryUse:
 
         self.tr: None | tracker.SummaryTracker = None
 
-    def notify_update(
+    def notify_process_location(
         self,
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,

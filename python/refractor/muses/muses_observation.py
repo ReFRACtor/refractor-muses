@@ -20,6 +20,7 @@ from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIden
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class MeasurementId(collections.abc.Mapping):
@@ -37,9 +38,6 @@ class MeasurementId(collections.abc.Mapping):
        live in the Measurement_ID.asc file but don't because it is
        convenient to store them elsewhere - for example the
        omi_calibration_filename which comes from the strategy file.
-       3. When reading the data, we often need to know the specific
-       filters we will be working with, e.g., so we only read that
-       data out of the sounding files.
 
     3. We also want to bring in the RetrievalConfiguration data, the
        separation between the two is pretty arbitrary and we tend to
@@ -55,14 +53,6 @@ class MeasurementId(collections.abc.Mapping):
     dict with the values).
 
     """
-
-    @abc.abstractproperty
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        raise NotImplementedError
 
     def __getitem__(self, key: str) -> Any:
         raise NotImplementedError
@@ -80,24 +70,8 @@ class MeasurementIdDict(MeasurementId):
     def __init__(
         self,
         measurement_dict: dict,
-        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ) -> None:
         self.measurement_dict = measurement_dict
-        self._filter_list_dict = filter_list_dict
-
-    @property
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        return self._filter_list_dict
-
-    @filter_list_dict.setter
-    def filter_list_dict(
-        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
-    ) -> None:
-        self._filter_list_dict = val
 
     def __getitem__(self, key: str) -> Any:
         return self.measurement_dict[key]
@@ -117,32 +91,16 @@ class MeasurementIdFile(MeasurementId):
         self,
         fname: str | os.PathLike[str],
         retrieval_config: RetrievalConfiguration,
-        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
         self._p = retrieval_config.input_file_helper.open_tes(self.fname)
-        self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
 
     def __hash__(self) -> int:
         # We need a unique hash to separate MeasurementIds. I think just using the
         # absolute file name will do that.
         return hash(self.fname.absolute())
-
-    @property
-    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
-        """The complete list of filters we will be processing (so for
-        all retrieval steps)
-
-        """
-        return self._filter_list_dict
-
-    @filter_list_dict.setter
-    def filter_list_dict(
-        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
-    ) -> None:
-        self._filter_list_dict = val
 
     def __getitem__(self, key: str) -> Any:
         if key in self._p:
@@ -267,7 +225,7 @@ class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
         "radianceStep".
 
         Note this is similar but distinct from the filter_list_dict
-        used in MeasurementId. That list corresponds to specific data
+        used in MusesStrategyContext. That list corresponds to specific data
         read from a file. Often this is the same as the filter data
         used in "radianceStep", but in some cases py-retrieve wants to
         think of data as different filters even if it is read from one
@@ -916,14 +874,9 @@ class SimulatedObservationHandle(ObservationHandle):
     def __init__(
         self, instrument_name: InstrumentIdentifier, obs: MusesObservation
     ) -> None:
+        super().__init__()
         self.instrument_name = instrument_name
         self.obs = obs
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
-        self.measurement_id = measurement_id
 
     def observation(
         self,
@@ -953,13 +906,12 @@ class MusesObservationHandle(ObservationHandle):
         instrument_name: InstrumentIdentifier,
         obs_cls: type[MusesObservationClassType],
     ) -> None:
+        super().__init__(add_as_context_observer=True)
         self.instrument_name = instrument_name
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
         self.existing_obs: MusesObservation | None = None
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
 
     def __getstate__(self) -> dict[str, Any]:
         # If we pickle, don't include the stashed obs
@@ -971,14 +923,14 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.existing_obs = None
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
         # Need to read new data when the target changes
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        logger.debug(
+            f"Call to {self.__class__.__name__}::notify_update_strategy_context"
+        )
         self.existing_obs = None
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
 
     def observation(
         self,
@@ -990,11 +942,10 @@ class MusesObservationHandle(ObservationHandle):
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target before observation")
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
             self.measurement_id,
+            self.filter_list_dict[self.instrument_name],
             self.existing_obs,
             current_state,
             spec_win,
@@ -1016,13 +967,24 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
     then the next time a observation gets read in a unit test we can read the pickle
     file."""
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def __init__(
+        self,
+        instrument_name: InstrumentIdentifier,
+        obs_cls: type[MusesObservationClassType],
     ) -> None:
-        super().notify_update_target(measurement_id, retrieval_config)
-        pname = measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
-        if pname.exists():
-            self.existing_obs = pickle.load(open(pname, "rb"))
+        super().__init__(instrument_name, obs_cls)
+        self.pname: Path | None = None
+
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
+    ) -> None:
+        super().notify_update_strategy_context(strategy_context)
+        if hasattr(self.measurement_id, "base_dir"):
+            self.pname = (
+                self.measurement_id.base_dir / f"{self.instrument_name}_obs.pkl"
+            )
+        if self.pname is not None and self.pname.exists():
+            self.existing_obs = pickle.load(open(self.pname, "rb"))
 
     def observation(
         self,
@@ -1032,8 +994,6 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
         fm_sv: rf.StateVector | None,
         **kwargs: Any,
     ) -> MusesObservation | None:
-        if self.measurement_id is None:
-            raise RuntimeError("Call notify_update_target first")
         might_save = self.existing_obs is None
         res = super().observation(
             instrument_name,
@@ -1042,9 +1002,13 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             fm_sv,
             **kwargs,
         )
-        if res is not None and might_save and self.existing_obs is not None:
-            pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
-            pickle.dump(self.existing_obs, open(pname, "wb"))
+        if (
+            self.pname is not None
+            and res is not None
+            and might_save
+            and self.existing_obs is not None
+        ):
+            pickle.dump(self.existing_obs, open(self.pname, "wb"))
         return res
 
 

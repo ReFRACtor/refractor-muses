@@ -3,7 +3,7 @@ import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     StateElementIdentifier,
-    CurrentStrategyStep,
+    CurrentStrategyStepOE,
     RetrievalResult,
     AttrDictAdapter,
 )
@@ -28,7 +28,7 @@ class RetrievalInfo:
     def __init__(
         self,
         species_dir: Path,
-        current_strategy_step: CurrentStrategyStep,
+        current_strategy_step: CurrentStrategyStepOE,
         current_state: CurrentStateStateInfoOld,
     ):
         self.retrieval_dict = self.init_data(
@@ -272,7 +272,7 @@ class RetrievalInfo:
 
     def init_interferents(
         self,
-        current_strategy_step: CurrentStrategyStep,
+        current_strategy_step: CurrentStrategyStepOE,
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: AttrDictAdapter,
     ) -> None:
@@ -296,7 +296,7 @@ class RetrievalInfo:
     def add_species(
         self,
         species_name: str,
-        current_strategy_step: CurrentStrategyStep,
+        current_strategy_step: CurrentStrategyStepOE,
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: AttrDictAdapter,
     ) -> None:
@@ -451,7 +451,7 @@ class RetrievalInfo:
     def init_data(
         self,
         species_dir: Path,
-        current_strategy_step: CurrentStrategyStep,
+        current_strategy_step: CurrentStrategyStepOE,
         current_state: CurrentStateStateInfoOld,
     ) -> dict[str, Any]:
         # This is a reworking of get_species_information in muses-py

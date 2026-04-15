@@ -11,11 +11,13 @@ def test_muses_strategy_old(joint_omi_step_8_osp_sym_link):
     # Old strategy table code assumes we are in the run dir. Our new
     # refractor version doesn't have that limit, but we are testing the
     # old one here.
-    os.chdir(rs.run_dir)
+    os.chdir(rs.measurement_id.base_dir)
     stable = MusesStrategyOldStrategyTable(
-        rs.run_dir / "Table.asc", rs.input_file_helper, rs.spectral_window_handle_set
+        rs.measurement_id.base_dir / "Table.asc",
+        rs.input_file_helper,
+        rs.creator_dict,
     )
-    stable.notify_update_target(rs.measurement_id, rs.retrieval_config)
+    stable.notify_update_strategy_context(rs.strategy_context)
     print(stable.filter_list_dict)
     print(stable.retrieval_elements)
     print(stable.error_analysis_interferents)

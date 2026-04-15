@@ -1,4 +1,5 @@
 import pytest
+import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     MusesRunDir,
     MusesObservationHandlePickleSave,
@@ -9,13 +10,13 @@ from refractor.muses import (
     MusesTesObservation,
     MusesObservationHandle,
     InstrumentIdentifier,
-    ObservationHandleSet,
     MeasurementIdFile,
     SoundingMetadata,
     MusesStrategyStepList,
     RetrievalConfiguration,
     InputFileHelper,
     StateInfo,
+    CreatorDict,
 )
 from loguru import logger
 import sys
@@ -27,37 +28,44 @@ def cris_tropomi_shandle(ifile_hlp, joint_tropomi_test_in_dir, isolated_dir):
         joint_tropomi_test_in_dir,
         ifile_hlp,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename,
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml",
         ifile_hlp,
     )
-    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
     )
-    strat.notify_update_target(measurement_id, rconfig)
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        r.run_dir / "strategy.yaml",
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict,
+    )
+    strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("CRIS"), MusesCrisObservation
-        )
+        ),
+        priority_order=100,
     )
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(strat.instrument_name[0], None, None, None),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -77,21 +85,32 @@ def tropomi_swir_shandle(
         josh_osp_dir,
         gmao_dir,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir)
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml",
+        InputFileHelper(osp_dir=josh_osp_dir, gmao_dir=gmao_dir),
     )
-    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
+    )
     strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper, osp_dir=josh_osp_dir
+        r.run_dir / "strategy.yaml",
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict,
+        osp_dir=josh_osp_dir,
     )
-    strat.notify_update_target(measurement_id, rconfig)
+    strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
-        MusesObservationHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiObservation)
+        MusesObservationHandle(
+            InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -103,8 +122,7 @@ def tropomi_swir_shandle(
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -121,26 +139,36 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         joint_omi_test_in_dir,
         ifile_hlp,
     )
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
-    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp
     )
-    strat.notify_update_target(measurement_id, rconfig)
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
+    )
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        r.run_dir / "strategy.yaml",
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict,
+    )
+    strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("AIRS"), MusesAirsObservation
-        )
+        ),
+        priority_order=100,
     )
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("OMI"), MusesOmiObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -152,8 +180,7 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     return (
         measurement_id,
         rconfig,
@@ -167,21 +194,30 @@ def airs_omi_shandle(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
 @pytest.fixture(scope="function")
 def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
     r = MusesRunDir(tes_test_in_dir, ifile_hlp)
-    tfilename = r.run_dir / "Table.asc"
-    rconfig = RetrievalConfiguration.create_from_strategy_file(tfilename, ifile_hlp)
-    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
-    strat = MusesStrategyStepList.create_from_strategy_file(
-        tfilename, rconfig.input_file_helper
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp
     )
-    strat.notify_update_target(measurement_id, rconfig)
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
+    cdict = CreatorDict()
+    strategy_context = cdict.strategy_context
+    strategy_context.update_strategy_context(
+        measurement_id=measurement_id, retrieval_config=rconfig, creator_dict=cdict
+    )
+    strat = MusesStrategyStepList.create_from_strategy_file(
+        r.run_dir / "strategy.yaml",
+        rconfig.input_file_helper,
+        strategy_context,
+        cdict,
+    )
+    strat.notify_update_strategy_context(strategy_context)
     measurement_id.filter_list_dict = strat.filter_list_dict
-    obs_hset = ObservationHandleSet()
+    obs_hset = cdict[rf.Observation]
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
             InstrumentIdentifier("TES"), MusesTesObservation
-        )
+        ),
+        priority_order=100,
     )
-    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -193,8 +229,7 @@ def tes_shandle(ifile_hlp, tes_test_in_dir, isolated_dir):
         ),
         rconfig.input_file_helper,
     )
-    sinfo = StateInfo()
-    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sinfo = StateInfo(cdict)
     logger.add(sys.stderr, level="DEBUG")
     return (
         measurement_id,

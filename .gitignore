@@ -33,3 +33,6 @@ t2*
 temp*
 try*.py
 end_to_end_run
+
+# Documentation
+doc/_build

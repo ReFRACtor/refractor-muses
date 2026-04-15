@@ -47,13 +47,17 @@ class RsSetupRetState:
         self.directory = directory
         self.step_number = 0
 
-    def notify_update(self, retrieval_strategy, loc, **kwargs):
-        if loc != ProcessLocation("starting run_step"):
-            return
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [
+            ProcessLocation("starting run_step"),
+        ]
+
+    def notify_process_location(self, loc, strategy_executor=None, **kwargs):
         t = RetrievalStepCaptureObserver.load_retrieval_state(
             self.directory / f"retrieval_state_step_{self.step_number}.json.gz"
         )
-        retrieval_strategy.strategy_executor.kwargs["ret_state"] = t
+        strategy_executor.kwargs["ret_state"] = t
         self.step_number += 1
 
 
@@ -107,7 +111,7 @@ def run_canned_results(directory: Path, input_directory: Path, ifile_hlp) -> Non
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.add_observer(RsSetupRetState(input_directory))
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_strategy_context(r.run_dir)
     rs.retrieval_ms()
 
 

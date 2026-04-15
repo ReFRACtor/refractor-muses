@@ -22,11 +22,8 @@ from .retrieval_array import (
 if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .identifier import RetrievalType, StrategyStepIdentifier
-    from .muses_observation import MeasurementId
     from .muses_strategy import CurrentStrategyStep
-    from .muses_strategy import MusesStrategy
-    from .observation_handle import ObservationHandleSet
-    from .state_info import StateElement, StateElementHandleSet
+    from .state_element import StateElement
     from .record_and_play_func import CurrentStateRecordAndPlay
     from .sounding_metadata import SoundingMetadata
     from .cost_function import CostFunction
@@ -1026,10 +1023,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Similar to step_directory, retrieval_type is used by RefractorUip. Supply that."""
         raise NotImplementedError()
 
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        raise NotImplementedError()
-
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         pass
 
@@ -1038,16 +1031,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        pass
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-    ) -> None:
-        """Have updated the target we are processing."""
         pass
 
     def notify_start_step(

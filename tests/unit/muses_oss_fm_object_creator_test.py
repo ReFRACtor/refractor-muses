@@ -3,6 +3,7 @@ from refractor.muses import (
     StateElementIdentifier,
     CrisFmObjectCreator,
     AirsFmObjectCreator,
+    CostFunction,
 )
 from refractor.muses_py_fm import (
     MusesCrisForwardModel,
@@ -11,6 +12,7 @@ from refractor.muses_py_fm import (
 from fixtures.require_check import require_muses_py_fm
 import numpy as np
 import numpy.testing as npt
+import pickle
 
 
 @require_muses_py_fm
@@ -48,6 +50,16 @@ def test_muses_cris_forward_model_oss(joint_tropomi_step_12_no_run_dir):
     jaccmp = scmp.spectral_range.data_ad.jacobian
     npt.assert_allclose(rad, radcmp)
     npt.assert_allclose(jac, jaccmp)
+    # Currently broken, we need to come back and figure out why serialization
+    # isn't working.
+    if False:
+        # Problem is notify_cost_function that was added. This can't be pickled
+        # We really should just remove the UIP all together, but short term probably
+        # isn't worth worrying about this - we can just avoid pickling until we
+        # get this working
+        fm.notify_cost_function = None
+        t = pickle.dumps(fm)
+        _ = pickle.loads(t)
 
 
 @require_muses_py_fm
@@ -83,7 +95,12 @@ def test_muses_cris_forward_model_pan_oss(joint_tropomi_step_4_no_run_dir):
         ]
     )
     # Default forward model is MusesCrisForwardModelOss
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     cfunc.parameters = parm_with_neg
     print(cfunc.fm_sv)
     fm = cfunc.fm_list[0]

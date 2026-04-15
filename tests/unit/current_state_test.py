@@ -22,14 +22,18 @@ from typing import Any
 
 
 class RetrievalStrategyStop:
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [
+            ProcessLocation("initial set up done"),
+        ]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         **kwargs: Any,
     ) -> None:
-        if location == ProcessLocation("initial set up done"):
-            raise StopIteration()
+        raise StopIteration()
 
 
 def test_current_state_dict():
@@ -117,7 +121,7 @@ def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
-            rs.retrieval_ms()
+            rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
     cstate = rs.current_state

@@ -176,8 +176,7 @@ def test_refractor_fm_refractor(
         tropomi_test_in_dir / "Table.asc",
         ifile_hlp=ifile_hlp,
     )
-    flist = {"TROPOMI": ["BAND3"]}
-    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf)
     r = RefractorTropOmiFm(
         obs,
         mid,
@@ -253,10 +252,7 @@ def test_refractor_joint_fm_refractor(
         joint_tropomi_test_in_dir / "Table.asc",
         ifile_hlp=ifile_hlp,
     )
-    flist = {"TROPOMI": ["BAND3"]}
-    mid = MeasurementIdFile(
-        joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
-    )
+    mid = MeasurementIdFile(joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf)
     r = RefractorTropOmiFm(
         obs_tropomi,
         mid,
@@ -358,8 +354,7 @@ def test_refractor_detailed_fm_refractor(
         tropomi_test_in_dir / "Table.asc",
         ifile_hlp=ifile_hlp,
     )
-    flist = {"TROPOMI": ["BAND3"]}
-    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf)
     # Do a lidort run, just to leave PCA out of our checks
     r = RefractorTropOmiFm(
         tropomi_obs_step_2,

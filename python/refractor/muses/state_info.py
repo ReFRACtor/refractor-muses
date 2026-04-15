@@ -1,17 +1,17 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .current_state import PropagatedQA
 from .sounding_metadata import SoundingMetadata
-from .state_element import StateElementHandleSet, StateElement
-from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
+from .state_element import StateElement
+from .cross_state_element import CrossStateElement
+from .muses_strategy_context import MusesStrategyContext, MusesStrategyContextMixin
 from .identifier import StateElementIdentifier
 import typing
-import copy
 from collections import UserDict
 
 if typing.TYPE_CHECKING:
-    from .observation_handle import ObservationHandleSet
-    from .muses_observation import MeasurementId
-    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .muses_strategy import CurrentStrategyStep
+    from .creator_dict import CreatorDict
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state import CurrentState
     from .retrieval_array import RetrievalGridArray, RetrievalGrid2dArray
@@ -27,39 +27,21 @@ class CrossStateInfo(UserDict):
     def __init__(
         self,
         state_info: StateInfo,
-        cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
+        creator_dict: CreatorDict,
     ) -> None:
         super().__init__()
-
-        if cross_state_element_handle_set is not None:
-            self.cross_state_element_handle_set = cross_state_element_handle_set
-        else:
-            self.cross_state_element_handle_set = copy.deepcopy(
-                CrossStateElementHandleSet.default_handle_set()
-            )
         self.state_info = state_info
+        self._creator_dict = creator_dict
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        self.cross_state_element_handle_set.notify_update_target(
-            measurement_id,
-            retrieval_config,
-            strategy,
-            observation_handle_set,
-            sounding_metadata,
-        )
         self.data = {}
 
     def __missing__(
         self, ky: tuple[StateElementIdentifier, StateElementIdentifier]
     ) -> CrossStateElement:
-        self.data[ky] = self.cross_state_element_handle_set.cross_state_element(
+        self.data[ky] = self._creator_dict[CrossStateElement].cross_state_element(
             self.state_info[ky[0]], self.state_info[ky[1]]
         )
         return self.data[ky]
@@ -99,7 +81,7 @@ class CrossStateInfo(UserDict):
             )
 
 
-class StateInfo(UserDict):
+class StateInfo(UserDict, MusesStrategyContextMixin):
     """This class maintains the full state as we perform a retrieval.
     This class is closely tied to CurrentStateStateInfo, it isn't clear
     if we perhaps want to merge theses classes at some point. But right
@@ -112,19 +94,14 @@ class StateInfo(UserDict):
 
     def __init__(
         self,
-        state_element_handle_set: StateElementHandleSet | None = None,
-        cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
+        creator_dict: CreatorDict,
         include_old_state_info: bool = False,
     ) -> None:
-        super().__init__()
-        if state_element_handle_set is not None:
-            self.state_element_handle_set = state_element_handle_set
-        else:
-            self.state_element_handle_set = copy.deepcopy(
-                StateElementHandleSet.default_handle_set()
-            )
+        UserDict.__init__(self)
+        MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
+        self._creator_dict = creator_dict
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
-        self._cross_state_info = CrossStateInfo(self, cross_state_element_handle_set)
+        self._cross_state_info = CrossStateInfo(self, creator_dict)
         self._sounding_metadata: SoundingMetadata | None = None
         self.propagated_qa = PropagatedQA()
         self._current_state_old = None
@@ -142,14 +119,12 @@ class StateInfo(UserDict):
             self._current_state_old = (
                 state_element_old_wrapper_handle._current_state_old  # noqa: SLF001
             )
+        self.strategy_context.add_observer(self)
 
-    @property
-    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
-        return self._cross_state_info.cross_state_element_handle_set
-
-    @cross_state_element_handle_set.setter
-    def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
-        self._cross_state_info.cross_state_element_handle_set = val
+    def __hash__(self) -> int:
+        """Simple hash, just so this can be an observer. Dict aren't hashable in
+        general, but we just want to identify if the same object has been added."""
+        return id(self)
 
     @property
     def cross_state_info(self) -> CrossStateInfo:
@@ -190,46 +165,38 @@ class StateInfo(UserDict):
     @property
     def sounding_metadata(self) -> SoundingMetadata:
         if self._sounding_metadata is None:
-            raise RuntimeError("Need to call notify_update_target first")
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         return self._sounding_metadata
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        self._sounding_metadata = SoundingMetadata.create_from_measurement_id(
-            measurement_id,
-            strategy.instrument_name[0],
-            observation_handle_set.observation(
-                strategy.instrument_name[0],
-                None,
-                None,
-                None,
-            ),
-            retrieval_config.input_file_helper,
-        )
-        if self._current_state_old is not None:
-            self._current_state_old.notify_update_target(
-                measurement_id, retrieval_config, strategy, observation_handle_set
+        if self.has_measurement_id:
+            self._sounding_metadata = SoundingMetadata.create_from_measurement_id(
+                self.measurement_id,
+                self.strategy.instrument_name[0],
+                self._creator_dict[rf.Observation].observation(
+                    self.strategy.instrument_name[0],
+                    None,
+                    None,
+                    None,
+                ),
+                self.retrieval_config.input_file_helper,
             )
-        self.state_element_handle_set.notify_update_target(
-            measurement_id,
-            retrieval_config,
-            strategy,
-            observation_handle_set,
-            self._sounding_metadata,
-            self,
-        )
-        self._cross_state_info.notify_update_target(
-            measurement_id,
-            retrieval_config,
-            strategy,
-            observation_handle_set,
-            self._sounding_metadata,
-        )
+        if self._current_state_old is not None:
+            # We previously called notify_update_strategy_context
+            # "notify_update_target" when we had a single target in
+            # the run directory. We changed the name to reflect
+            # support for a stac_catalog (which has multiple targets).
+            # But is isn't worth updating the old_py_retrieve_wrapper
+            # code, so just forward this to the old name if we are
+            # using the old state info
+            self._current_state_old.notify_update_target(
+                self.measurement_id,
+                self.retrieval_config,
+                self.strategy,
+                self._creator_dict[rf.Observation],
+            )
         self.data = {}
         self.propagated_qa = PropagatedQA()
         self._brightness_temperature_data = {}
@@ -248,7 +215,11 @@ class StateInfo(UserDict):
             )
         # Make sure we have all the elements we are going to be using in
         # the retrieval, and we notify them about the step
-        if current_strategy_step is not None:
+        if (
+            current_strategy_step is not None
+            and hasattr(current_strategy_step, "retrieval_elements")
+            and hasattr(current_strategy_step, "error_analysis_interferents")
+        ):
             lst = current_strategy_step.retrieval_elements
             lst.extend(current_strategy_step.error_analysis_interferents)
             for sid in lst:
@@ -296,8 +267,8 @@ class StateInfo(UserDict):
         self._cross_state_info.notify_step_solution(xsol, current_state)
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
-        self.data[state_element_id] = self.state_element_handle_set.state_element(
-            state_element_id
+        self.data[state_element_id] = self._creator_dict[StateElement].state_element(
+            state_element_id, self._creator_dict[rf.Observation], self
         )
         # Create all the cross terms, so any coupling gets set up
         for sid in self.keys():

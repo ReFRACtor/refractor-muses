@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .cost_function import CostFunction
 from .identifier import ProcessLocation
+from .process_location_observable import ProcessLocationObservable
 import numpy as np
 import os
 from pathlib import Path
@@ -32,10 +33,17 @@ class SolverResult:
 class VerboseSolverLogging:
     """Observer of MusesLevmarSolver that adds some more verbose logging."""
 
-    def notify_update(
+    def __init__(self, **kwargs: Any) -> None:
+        pass
+
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("start iteration"), ProcessLocation("end iteration")]
+
+    def notify_process_location(
         self,
-        slv: MusesLevmarSolver,
         location: ProcessLocation,
+        slv: MusesLevmarSolver,
         local_variable: dict[str, Any],
         **kwargs: Any,
     ) -> None:
@@ -90,8 +98,8 @@ class VerboseSolverLogging:
 class SolverLogFileWriter:
     """Observer of MusesLevmarSolver that write information to a separate log file."""
 
-    def __init__(self, log_file: str | os.PathLike[str]) -> None:
-        self.fname = Path(log_file)
+    def __init__(self, levmar_log_file: str | os.PathLike[str], **kwarg: Any) -> None:
+        self.fname = Path(levmar_log_file)
         self.fname.parent.mkdir(parents=True, exist_ok=True)
         self.fh = open(self.fname, "w")
 
@@ -103,10 +111,14 @@ class SolverLogFileWriter:
         # Open file
         self.fh = open(self.fname, "a")
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("start iteration"), ProcessLocation("end iteration")]
+
+    def notify_process_location(
         self,
-        slv: MusesLevmarSolver,
         location: ProcessLocation,
+        slv: MusesLevmarSolver,
         local_variable: dict[str, Any],
         **kwargs: Any,
     ) -> None:
@@ -684,6 +696,7 @@ class MusesLevmarSolver:
     def __init__(
         self,
         cfunc: CostFunction,
+        process_location_observable: ProcessLocationObservable,
         max_iter: int,
         delta_value: float,
         conv_tolerance: list[float],
@@ -693,6 +706,7 @@ class MusesLevmarSolver:
         sing_tolerance: float = 1.0e-7,
     ) -> None:
         self.cfunc = cfunc
+        self.process_location_observable = process_location_observable
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
@@ -712,31 +726,7 @@ class MusesLevmarSolver:
         self.stop_code = -1
         self._observers: set[Any] = set()
 
-    def add_observer(self, obs: Any) -> None:
-        # Often we want weakref, so we don't prevent objects from
-        # being deleted just because they are observing this. But in
-        # this particular case, we actually do want to maintain the
-        # lifetime. These observers will do things like write out
-        # output, but have no real life outside of being attached to
-        # this class.  It is easy enough to change this to weakref if
-        # that proves useful
-        self._observers.add(obs)
-        if hasattr(obs, "notify_add"):
-            obs.notify_add(self)
-
-    def remove_observer(self, obs: Any) -> None:
-        self._observers.discard(obs)
-        if hasattr(obs, "notify_remove"):
-            obs.notify_remove(self)
-
-    def clear_observers(self) -> None:
-        # We change self._observers, in our loop so grab a copy of the
-        # list before we start
-        lobs = list(self._observers)
-        for obs in lobs:
-            self.remove_observer(obs)
-
-    def notify_update(
+    def notify_process_location(
         self,
         location: ProcessLocation | str,
         local_variable: dict[str, Any],
@@ -745,13 +735,11 @@ class MusesLevmarSolver:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
-        for obs in self._observers:
-            obs.notify_update(
-                self,
-                loc,
-                {k: v for k, v in local_variable.items() if k != "self"},
-                **kwargs,
-            )
+        t = dict(local_variable)
+        t.pop("self", None)
+        self.process_location_observable.notify_process_location(
+            loc, slv=self, local_variable=t
+        )
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by set_state.
@@ -1052,7 +1040,7 @@ class MusesLevmarSolver:
                 q_vector = np.copy(qNewton)
             qNorm = qNormNewton
 
-            self.notify_update("start iteration", locals())
+            self.notify_process_location("start iteration", locals())
 
             #  <<<<<<<<<<<<< ACCEPT NEWTON STEP OR FIND A NEW p >>>>>>>>>>>
             #  <<<<<<<<<<<< WHEN LEV. MAR. PARAMETER IS NOT ZERO >>>>>>>>>>
@@ -1592,7 +1580,7 @@ class MusesLevmarSolver:
             self.diag_lambda_rho_delta[self.iter_num, 1] = rho
             self.diag_lambda_rho_delta[self.iter_num, 2] = self.delta_value
 
-            self.notify_update("end step", locals())
+            self.notify_process_location("end step", locals())
 
             #  Anything that must be updated at the end of the current
             #  iteration for the next one (if any), and the decision
@@ -1654,7 +1642,7 @@ class MusesLevmarSolver:
             # end if (self.stop_code == 0):
 
             # Useful diagnostic while looking at muses-py/ReFRACtor.
-            self.notify_update("end iteration", locals())
+            self.notify_process_location("end iteration", locals())
 
             chi2 = resNextNorm2
             dof = radiance_fm_next.shape[0] - p_vector.shape[0] + 1
@@ -1995,6 +1983,15 @@ class MusesLevmarSolver:
         # return (cs, sn)
         return (cs, sn)
 
+
+ProcessLocationObservable.register_default_observer(VerboseSolverLogging)
+# TODO, We need to figure out how to add this. The issue is that we don't have
+# a way yet to set up the levmar_log_file name. This shouldn't be too hard to
+# figure out when we have a chance to look at this - just look take the
+# strategy_context and create a file each time the step number changes. But we will
+# want to test this. Note we should get the strategy_context from the creator_dict
+# passed in by ProcessLocationObservable.add_default_observer
+# ProcessLocationObservable.register_default_debug_observer(SolverLogFileWriter)
 
 __all__ = [
     "SolverResult",

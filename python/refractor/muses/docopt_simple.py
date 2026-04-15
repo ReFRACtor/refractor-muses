@@ -94,4 +94,5 @@ def docopt_simple(
 
 __all__ = [
     "docopt_simple",
+    "DocOptSimple",
 ]

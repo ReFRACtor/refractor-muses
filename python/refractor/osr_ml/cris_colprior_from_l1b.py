@@ -1,4 +1,3 @@
-# type: ignore
 """
 Title	: cris_colprior_from_l1b.py
 To Run	: from cris_colprior_from_l1b import cris_colprior_from_l1b
@@ -14,22 +13,22 @@ Modf	: 20250204 - added x_cutoff to cris_colprior_from_l1b()
 import numpy as np
 
 from scipy.interpolate import NearestNDInterpolator, griddata, RegularGridInterpolator
-
+from typing import Any
 
 # Functions and classes
 # =======================================
 
 
 def cris_colprior_from_l1b(
-    l1b=None,
-    l2muses=None,
-    x_cutoff=9,
-    near_loc=False,
-    full_interp=False,
-    prior_not_colprior=False,
-    col_not_colprior=False,
-    verbose=0,
-):
+    l1b: Any = None,
+    l2muses: Any = None,
+    x_cutoff: int = 9,
+    near_loc: bool = False,
+    full_interp: bool = False,
+    prior_not_colprior: bool = False,
+    col_not_colprior: bool = False,
+    verbose: int = 0,
+) -> np.ndarray:
     ##############
     # Find a L2 MUSES column prior for every L1b along_index and cross_index.
     # Missing values are filled by nearest-neightbor interpolation.
@@ -92,13 +91,14 @@ def cris_colprior_from_l1b(
                 dummy_interp = prior_array[i_g, :, :, 0, i_l]
                 if np.isfinite(np.nanmax(dummy_interp)):
                     mask = np.where(~np.isnan(dummy_interp))
-                    interp = NearestNDInterpolator(
+                    interp = NearestNDInterpolator(  # type:ignore[arg-type]
                         np.transpose(mask), dummy_interp[mask]
                     )
                     for i_ai in range(0, 45):
                         for i_ci in range(0, 30):
                             prior_array_inter[i_g, i_ai, i_ci, :, i_l] = interp(
-                                i_ai, i_ci
+                                i_ai,  # type:ignore[arg-type]
+                                i_ci,  # type:ignore[arg-type]
                             )
 
         # Set invalid values to -999.99

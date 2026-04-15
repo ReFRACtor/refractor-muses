@@ -1,18 +1,19 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
+from .creator_dict import CreatorDict
 import refractor.framework as rf  # type: ignore
 import abc
 from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MeasurementId, MusesObservation
+    from .muses_observation import MusesObservation
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
-    from .retrieval_configuration import RetrievalConfiguration
+    from .muses_strategy_context import MusesStrategyContext
 
 
-class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class ForwardModelHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for ForwardModelHandle. Note we use duck typing, so
     you don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that
@@ -32,14 +33,6 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
     related parts should be independent.
 
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     @abc.abstractmethod
     def forward_model(
@@ -63,14 +56,14 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class ForwardModelHandleSet(CreatorHandleSet):
+class ForwardModelHandleSet(CreatorHandleWithContextSet):
     """This takes the instrument name and RefractorUip, and creates a
     ForwardModel and Observation for that instrument.
 
     """
 
-    def __init__(self) -> None:
-        super().__init__("forward_model")
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        super().__init__("forward_model", strategy_context)
 
     def forward_model(
         self,
@@ -92,6 +85,9 @@ class ForwardModelHandleSet(CreatorHandleSet):
 
         return self.handle(instrument_name, current_state, obs, fm_sv, **kwargs)
 
+
+# Register creator set
+CreatorDict.register(rf.ForwardModel, ForwardModelHandleSet)
 
 __all__ = [
     "ForwardModelHandle",

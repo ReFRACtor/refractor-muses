@@ -113,7 +113,7 @@ def set_up_run_to_location(
         ),
         priority_order=2,
     )
-    rs.update_target(run_dir / "Table.asc")
+    rs.update_strategy_context(run_dir)
     rstep, kwargs = run_step_to_location(
         rs, step_number, dir, location, include_ret_state=include_ret_state
     )
@@ -135,11 +135,15 @@ def run_step_to_location(
         def __init__(self):
             self.retrieval_strategy_step = None
 
-        def notify_update(
-            self, retrieval_strategy, loc, retrieval_strategy_step=None, **kwargs
+        @property
+        def observing_process_location(self) -> list[ProcessLocation]:
+            return [
+                ProcessLocation(location),
+            ]
+
+        def notify_process_location(
+            self, loc, retrieval_strategy=None, retrieval_strategy_step=None, **kwargs
         ):
-            if loc != ProcessLocation(location):
-                return
             self.retrieval_strategy_step = retrieval_strategy_step
             self.kwargs = kwargs
             raise StopIteration()

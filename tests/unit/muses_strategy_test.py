@@ -1,4 +1,8 @@
-from refractor.muses import MusesStrategyStepList
+from refractor.muses import (
+    MusesStrategyStepList,
+    MusesSpectralWindowDict,
+    TesStrategyTableReader,
+)
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
 import os
@@ -11,18 +15,21 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     # Old strategy table code assumes we are in the run dir. Our new
     # refractor version doesn't have that limit, but we are testing against
     # the old one here.
-    os.chdir(rs.run_dir)
+    os.chdir(rs.measurement_id.base_dir)
     # Comare with old py-retrieve code
     stable = MusesStrategyStepList.create_from_strategy_file(
-        rs.run_dir / "Table.asc",
+        rs.measurement_id.base_dir / "Table.asc",
         rs.retrieval_config.input_file_helper,
-        rs.spectral_window_handle_set,
+        rs.creator_dict.strategy_context,
+        rs.creator_dict,
     )
     stable_old = MusesStrategyOldStrategyTable(
-        rs.run_dir / "Table.asc", rs.input_file_helper, rs.spectral_window_handle_set
+        rs.measurement_id.base_dir / "Table.asc",
+        rs.input_file_helper,
+        rs.creator_dict[MusesSpectralWindowDict],
     )
-    stable.notify_update_target(rs.measurement_id, rs.retrieval_config)
-    stable_old.notify_update_target(rs.measurement_id, rs.retrieval_config)
+    stable.notify_update_strategy_context(rs.strategy_context)
+    stable_old.notify_update_strategy_context(rs.strategy_context)
     assert stable.filter_list_dict == stable_old.filter_list_dict
     assert [str(i) for i in stable.retrieval_elements] == stable_old.retrieval_elements
     assert [
@@ -47,3 +54,11 @@ def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
         # assert stable.current_strategy_step() == stable_old.current_strategy_step()
         stable.next_step(cstate)
         stable_old.next_step(cstate)
+
+
+def test_tes_strategy_table_reader(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
+    f = TesStrategyTableReader(joint_tropomi_test_in_dir / "Table.asc", ifile_hlp)
+    f.to_yaml("strategy.yaml")
+    TesStrategyTableReader.from_yaml("strategy.yaml", "Table.asc")
+    f2 = TesStrategyTableReader("Table.asc")
+    assert f.table == f2.table

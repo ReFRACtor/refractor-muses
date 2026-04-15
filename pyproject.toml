@@ -11,7 +11,8 @@ authors= [
 ]
 dependencies=[
  'numpy', 'docopt-ng', 'loguru', 'refractor-framework', "mpi4py", "scipy",
- "attrs", "h5py", "pandas", "pyhdf", "pytz", "scipy", "texttable"
+ "attrs", "h5py", "pandas", "pyhdf", "pytz", "scipy", "texttable",
+ "pystac", "pyaml"
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,8 @@ ml = ["scipy", "matplotlib", "cartopy", "tensorflow", "netcdf4", "juypterlab",
       "scikit-learn"]
 # py_retrieve for backwards testing, and existing OSS and vlidort code
 py_retrieve= ["py-retrieve", "muses-oss", "muses-vlidort"]
+# For documentation
+doc = ["ghp-import", "plantuml", "sphinx", "sphinxcontrib-plantuml"]
 
 [tool.setuptools.packages.find]
 where = ["python"] 

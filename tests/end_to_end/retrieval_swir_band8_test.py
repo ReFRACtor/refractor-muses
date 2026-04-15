@@ -27,7 +27,7 @@ def test_band8_retrieval(tropomi_swir, ifile_hlp):
         use_pca=True, use_lrad=False, lrad_second_order=False
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")
+    rs.update_strategy_context(tropomi_swir.run_dir)
     # This doesn't execute yet for band 8. We'll work through issues here by
     # debugging, and put the first problems in the next section to work through
     # them

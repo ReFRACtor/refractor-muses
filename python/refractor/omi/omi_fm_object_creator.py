@@ -24,7 +24,6 @@ import typing
 if typing.TYPE_CHECKING:
     from refractor.muses import (
         CurrentState,
-        MeasurementId,
         RetrievalConfiguration,
         MusesObservation,
     )
@@ -937,16 +936,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
 class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -958,9 +949,12 @@ class OmiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
-        logger.debug("Creating forward model using using OmiFmObjectCreator")
+        model_type = (
+            "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
+        )
+        logger.debug(
+            f"Creating {model_type} forward model using using OmiFmObjectCreator"
+        )
         obj_creator = OmiFmObjectCreator(
             current_state,
             self.retrieval_config,
@@ -979,12 +973,16 @@ def _omi_ils_read_variable(i_filename: Path, i_variable_name: str) -> np.ndarray
         return f[i_variable_name][:]
 
 
-# Default forward model is the VLIDORT one, so we are as close to
-# py-retrieve results as possible. Should look into changing to LIDORT,
-# which is faster
+# VLIDORT version, just for reference
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        OmiForwardModelHandle(use_vlidort=True),
+        priority_order=-1,
+    )
+
+# This is what the pipeline uses, so match this as the default version
 ForwardModelHandleSet.add_default_handle(
-    OmiForwardModelHandle(use_vlidort=True),
+    OmiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
-
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]

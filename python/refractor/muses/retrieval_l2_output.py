@@ -7,23 +7,18 @@ from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 from .misc import AttrDictAdapter
 from .muses_altitude_pge import MusesAltitudePge
+from .process_location_observable import ProcessLocationObservable
 
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Callable
+from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-
-
-def _new_from_init(cls, *args):  # type: ignore
-    """For use with pickle, covers common case where we just store the
-    arguments needed to create an object."""
-    inst = cls.__new__(cls)
-    inst.__init__(*args)
-    return inst
+    from .muses_strategy_context import MusesStrategyContext
+    from .creator_dict import CreatorDict
+    from .current_state import CurrentState
 
 
 class FileNumberHandle:
@@ -59,15 +54,14 @@ class FileNumberHandle:
 class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
-    def __init__(self) -> None:
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        super().__init__(creator_dict, **kwargs)
+        self.strategy_context.add_observer(self)
         self.dataTATM: dict[str, Any] | None = None
         self.dataH2O: dict[str, Any] | None = None
         self.dataN2O: dict[str, Any] | None = None
         self.file_number_dict: dict[Path, FileNumberHandle] = {}
         self._species_list: list[str] | None = None
-
-    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
-        return (_new_from_init, (self.__class__,))
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
@@ -101,29 +95,39 @@ class RetrievalL2Output(RetrievalOutput):
             fnum.finalize()
         self.file_number_dict = {}
 
-    def notify_update(
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
+    ) -> None:
+        # Save these, used in later lite files. Note these actually get
+        # saved between steps, so we initialize these for the first step but
+        # then leave them alone
+        self.dataTATM = None
+        self.dataH2O = None
+        self.dataN2O = None
+        self.file_number_dict = {}
+
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval done"), ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
+        current_state: CurrentState | None = None,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        # Start of a retrieval
-        if location == ProcessLocation("update target"):
-            # Save these, used in later lite files. Note these actually get
-            # saved between steps, so we initialize these for the first step but
-            # then leave them alone
-            self.dataTATM = None
-            self.dataH2O = None
-            self.dataN2O = None
-            self.file_number_dict = {}
         if location == ProcessLocation("retrieval done"):
             self.finalize_file_number()
-        if location != ProcessLocation("retrieval step"):
             return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
+        assert current_state is not None
+        assert retrieval_strategy_step is not None
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
         # Regenerate this for the current step
         self._species_list = None
         for self.spcname in self.species_list:
@@ -425,6 +429,9 @@ class RetrievalL2Output(RetrievalOutput):
             "lmresults_delta".upper(): self.results.LMResults_delta[
                 self.results.bestIteration
             ],
+            "MICROWINDOW": np.zeros(shape=(2, 0), dtype=np.float32) - 999,
+            "MICROWINDOW_INSTRUMENT": np.array([], dtype="object"),
+            "MICROWINDOW_SPECIES": np.array([], dtype="object"),
         }
 
         if self.state_sd_wavenumber("EMIS").shape[0] == 0:
@@ -446,6 +453,32 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RADIANCEMAXIMUMSNR = self.results.radianceMaximumSNR
         species_data.RESIDUALNORMFINAL = self.results.residualNormFinal
         species_data.RESIDUALNORMINITIAL = self.results.residualNormInitial
+
+        if hasattr(self.current_strategy_step, "spectral_window_dict"):
+            swindict = self.current_strategy_step.spectral_window_dict
+            starts = [
+                win["start"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            ends = [
+                win["endd"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            instruments = [
+                win["instrument"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            species_list = [
+                win["speciesList"]
+                for swin in swindict.values()
+                for win in swin.muses_microwindows()
+            ]
+            species_data.MICROWINDOW = np.array([starts, ends]).astype(np.float32)
+            species_data.MICROWINDOW_INSTRUMENT = np.array(instruments, dtype="object")
+            species_data.MICROWINDOW_SPECIES = np.array(species_list, dtype="object")
 
         smeta = self.sounding_metadata
 
@@ -1132,6 +1165,9 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         return o_data
+
+
+ProcessLocationObservable.register_default_observer(RetrievalL2Output)
 
 
 __all__ = [

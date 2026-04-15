@@ -4,16 +4,16 @@ import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 import numpy as np
 import math
 import typing
 from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .misc import ResultIrk
-    from .current_state import PropagatedQA
+    from .current_state import PropagatedQA, CurrentState
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -32,6 +32,7 @@ class RetrievalIrkOutput(RetrievalOutput):
 
     @property
     def propagated_qa(self) -> PropagatedQA:
+        assert self.current_state is not None
         return self.current_state.propagated_qa
 
     @property
@@ -42,24 +43,29 @@ class RetrievalIrkOutput(RetrievalOutput):
             return self.retrieval_strategy_step.results_irk
         return None
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("IRK step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("IRK step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         self.out_fname = self.output_directory / "Products" / "Products_IRK.nc"
         os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
         self.write_irk()
 
     def write_irk(self) -> None:
-        if self.results_irk is None:
+        if self.results_irk is None or self.current_state is None:
             return
 
         # Copy of write_products_irk_one, so we can try cleaning this up a bit
@@ -150,7 +156,11 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.tatm_QA[:] = self.propagated_qa.tatm_qa
         irk_data.o3_QA[:] = self.propagated_qa.o3_qa
         irk_data.utctime = smeta.utc_time
-        if InstrumentIdentifier("OMI") in self.current_strategy_step.instrument_name:
+        if (
+            hasattr(self.current_strategy_step, "instrument_name")
+            and InstrumentIdentifier("OMI")
+            in self.current_strategy_step.instrument_name
+        ):
             obs = self.observation("OMI")
             blist = [str(i[0]) for i in obs.filter_data]
             sza = obs.solar_zenith
@@ -184,7 +194,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             irk_data.BoresightNadirAngle[:] = self.state_value("PTGANG") * 180 / math.pi
 
         irk_data.soundingID = smeta.sounding_id
-        mid = self.retrieval_strategy.measurement_id
+        mid = self.measurement_id
         if "AIRS_ATrack_Index" in mid:
             irk_data.airs_granule = np.int16(mid["AIRS_Granule"])
             irk_data.airs_atrack_index = np.int16(mid["AIRS_ATrack_Index"])
@@ -223,6 +233,8 @@ class RetrievalIrkOutput(RetrievalOutput):
         logger.info(f"Writing: {self.out_fname}")
         self.cdf_write(irk_data.__dict__, self.out_fname, struct_units)
 
+
+ProcessLocationObservable.register_default_observer(RetrievalIrkOutput)
 
 __all__ = [
     "RetrievalIrkOutput",

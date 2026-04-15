@@ -1934,6 +1934,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
     def create_from_id(
         cls,
         mid: MeasurementId,
+        filter_list: list[FilterIdentifier],
         existing_obs: MusesTropomiObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
@@ -1971,7 +1972,7 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 mp=mp,
             )
         else:
-            channel_list = mid.filter_list_dict[InstrumentIdentifier("TROPOMI")]
+            channel_list = filter_list
             if current_state is not None:
                 coeff, mp = current_state.object_state(
                     cls.state_element_name_list_from_filter(channel_list)
@@ -2292,6 +2293,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
     def create_from_id(
         cls,
         mid: MeasurementId,
+        filter_list: list[FilterIdentifier],
         existing_obs: MusesOmiObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
@@ -2323,7 +2325,7 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 mp=mp,
             )
         else:
-            channel_list = mid.filter_list_dict[InstrumentIdentifier("OMI")]
+            channel_list = filter_list
             if current_state is not None:
                 coeff, mp = current_state.object_state(
                     cls.state_element_name_list_from_filter(channel_list)

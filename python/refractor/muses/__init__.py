@@ -19,10 +19,17 @@ from .cost_function import (
 )
 from .cost_function_creator import (
     CostFunctionCreator,
+    CostFunctionHandle,
+    CostFunctionHandleSet,
+)
+from .creator_dict import (
+    CreatorDict,
 )
 from .creator_handle import (
     CreatorHandle,
     CreatorHandleSet,
+    CreatorHandleWithContext,
+    CreatorHandleWithContextSet,
 )
 from .cross_state_element import (
     CrossStateElement,
@@ -40,7 +47,17 @@ from .current_state_state_info import (
     CostFunctionStateElementNotify,
     CurrentStateStateInfo,
 )
+from .current_strategy_step import (
+    CurrentStrategyStep,
+    CurrentStrategyStepHandle,
+    CurrentStrategyStepHandleOE,
+    CurrentStrategyStepHandleSet,
+    CurrentStrategyStepImp,
+    CurrentStrategyStepOE,
+    CurrentStrategyStepOEImp,
+)
 from .docopt_simple import (
+    DocOptSimple,
     docopt_simple,
 )
 from .emis_state import (
@@ -177,15 +194,18 @@ from .muses_spectrum_sampling import (
     MusesSpectrumSampling,
 )
 from .muses_strategy import (
-    CurrentStrategyStep,
-    CurrentStrategyStepDict,
     MusesStrategy,
     MusesStrategyHandle,
     MusesStrategyHandleSet,
     MusesStrategyImp,
     MusesStrategyModifyHandle,
     MusesStrategyStepList,
+    TesStrategyTableReader,
     modify_strategy_table,
+)
+from .muses_strategy_context import (
+    MusesStrategyContext,
+    MusesStrategyContextMixin,
 )
 from .muses_strategy_executor import (
     MusesStrategyExecutor,
@@ -220,10 +240,14 @@ from .priority_handle_set import (
     NoHandleFound,
     PriorityHandleSet,
 )
+from .process_location_observable import (
+    ProcessLocationObservable,
+)
 from .qa_data_handle import (
     MusesPyQaDataHandle,
     QaDataHandle,
     QaDataHandleSet,
+    QaFlag,
     QaFlagValue,
     QaFlagValueFile,
 )
@@ -289,8 +313,8 @@ from .retrieval_strategy import (
 from .retrieval_strategy_step import (
     RetrievalStepCaptureObserver,
     RetrievalStrategyStep,
+    RetrievalStrategyStepHandle,
     RetrievalStrategyStepNotImplemented,
-    RetrievalStrategyStepRetrieve,
     RetrievalStrategyStepSet,
 )
 from .retrieval_strategy_step_bt import (
@@ -299,11 +323,16 @@ from .retrieval_strategy_step_bt import (
 from .retrieval_strategy_step_irk import (
     RetrievalStrategyStepIRK,
 )
+from .retrieval_strategy_step_oe import (
+    RetrievalStrategyStepOEBase,
+    RetrievalStrategyStepRetrieve,
+)
 from .sounding_metadata import (
     SoundingMetadata,
 )
 from .spectral_window_handle import (
     MusesPySpectralWindowHandle,
+    MusesSpectralWindowDict,
     SpectralWindowHandle,
     SpectralWindowHandleSet,
 )
@@ -379,9 +408,14 @@ __all__ = [
     "CompareForwardModel",
     "CostFunction",
     "CostFunctionCreator",
+    "CostFunctionHandle",
+    "CostFunctionHandleSet",
     "CostFunctionStateElementNotify",
+    "CreatorDict",
     "CreatorHandle",
     "CreatorHandleSet",
+    "CreatorHandleWithContext",
+    "CreatorHandleWithContextSet",
     "CrisFmObjectCreator",
     "CrisForwardModelHandle",
     "CrossStateElement",
@@ -394,8 +428,14 @@ __all__ = [
     "CurrentStateRecordAndPlay",
     "CurrentStateStateInfo",
     "CurrentStrategyStep",
-    "CurrentStrategyStepDict",
+    "CurrentStrategyStepHandle",
+    "CurrentStrategyStepHandleOE",
+    "CurrentStrategyStepHandleSet",
+    "CurrentStrategyStepImp",
+    "CurrentStrategyStepOE",
+    "CurrentStrategyStepOEImp",
     "DictFilterMetadata",
+    "DocOptSimple",
     "EmisState",
     "ErrorAnalysis",
     "FileFilterMetadata",
@@ -446,8 +486,11 @@ __all__ = [
     "MusesRefractiveIndex",
     "MusesRunDir",
     "MusesSpectralWindow",
+    "MusesSpectralWindowDict",
     "MusesSpectrumSampling",
     "MusesStrategy",
+    "MusesStrategyContext",
+    "MusesStrategyContextMixin",
     "MusesStrategyExecutor",
     "MusesStrategyExecutorMusesStrategy",
     "MusesStrategyExecutorRetrievalStrategyStep",
@@ -472,9 +515,11 @@ __all__ = [
     "PointingAngleSurface",
     "PriorityHandleSet",
     "ProcessLocation",
+    "ProcessLocationObservable",
     "PropagatedQA",
     "QaDataHandle",
     "QaDataHandleSet",
+    "QaFlag",
     "QaFlagValue",
     "QaFlagValueFile",
     "RadianceResultSummary",
@@ -502,8 +547,10 @@ __all__ = [
     "RetrievalStrategyMemoryUse",
     "RetrievalStrategyStep",
     "RetrievalStrategyStepBT",
+    "RetrievalStrategyStepHandle",
     "RetrievalStrategyStepIRK",
     "RetrievalStrategyStepNotImplemented",
+    "RetrievalStrategyStepOEBase",
     "RetrievalStrategyStepRetrieve",
     "RetrievalStrategyStepSet",
     "RetrievalType",
@@ -552,6 +599,7 @@ __all__ = [
     "TesFmObjectCreator",
     "TesForwardModelHandle",
     "TesSpectralWindow",
+    "TesStrategyTableReader",
     "UwisCamelOptions",
     "VerboseSolverLogging",
     "VmrHandleNeg",

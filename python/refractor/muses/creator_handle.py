@@ -1,6 +1,15 @@
 from __future__ import annotations
 from .priority_handle_set import PriorityHandleSet
-from typing import Any
+from .muses_strategy_context import (
+    MusesStrategyContext,
+    MusesStrategyContextMixin,
+)
+import copy
+from typing import Any, Self
+import typing
+
+if typing.TYPE_CHECKING:
+    from .creator_dict import CreatorDict
 
 
 class CreatorHandleSet(PriorityHandleSet):
@@ -28,25 +37,11 @@ class CreatorHandleSet(PriorityHandleSet):
     already written we make use of it.
 
     In practice you create a simple CreatorHandle class that just
-    creates the something like a ForwardModel or Observation, and
+    creates something like a ForwardModel or Observation, and
     register with the CreatorHandleSet, e.g., ForwardModelHandleSet or
     ObservationHandleSet.  Take a look at the existing examples
     (e.g. the unit tests) - the design seems complicated but is
-    actually pretty simple to use in pratice.
-
-    Note a CreatorHandle can assume that it called for the same
-    target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next (e.g., read a L1B file once).
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and the creator_func_name
-    because they have different scopes (notify_update_target for the
-    full retrieval, creator_func_name for a retrieval step). If a
-    CreatorHandle doesn't care about the target, it can just ignore
-    this function call.
+    actually pretty simple to use in practice.
     """
 
     def __init__(self, creator_func_name: str) -> None:
@@ -54,11 +49,6 @@ class CreatorHandleSet(PriorityHandleSet):
         "observation")."""
         super().__init__()
         self.creator_func_name = creator_func_name
-
-    def notify_update_target(self, *args: Any, **kwargs: Any) -> None:
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(*args, **kwargs)
 
     def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
         """Process a registered function"""
@@ -68,26 +58,69 @@ class CreatorHandleSet(PriorityHandleSet):
         return (True, res)
 
 
+class CreatorHandleWithContextSet(CreatorHandleSet):
+    """This is CreatorHandleSet that also has a
+    MusesStrategyContext. This is pretty common, a lot of our objects
+    handles need the context to produce objects.
+
+    Note a CreatorHandleWithContext can assume that it called for the
+    same MusesStrategyContext, until MusesStrategyContext sends a
+    notify_update_strategy_context message. So if it makes sense,
+    these objects can do internal caching for things that don't change
+    when the MusesStrategyContext is the same. These objects should
+    register as observers of MusesStrategyContext to get the
+    notify_update_strategy_context message if needed. See for example
+    MusesPyQaDataHandle.
+
+    We had considered just passing the MusesStrategyContext to handle_h
+    like any other argument. However it makes sense to instead treat this
+    as different because the lifecycles are different. We tend to call
+    handle_h for each retrieval step, but the MusesStrategyContext only
+    changes at the very beginning of a retrieval. So it makes sense to
+    treat these as different, although this means MusesStrategyContext
+    is like a "hidden" argument. I think the trade off is reasonable,
+    but know that the handle_h has access to the MusesStrategyContext as
+    well as whatever argument get passed to handle_h.
+    """
+
+    def __init__(
+        self,
+        creator_func_name: str,
+        strategy_context: MusesStrategyContext | None = None,
+    ) -> None:
+        """Constructor, takes the name of the creator function (e.g.,
+        "observation")."""
+        super().__init__(creator_func_name)
+        self.strategy_context = (
+            strategy_context if strategy_context is not None else MusesStrategyContext()
+        )
+
+    @classmethod
+    def default_handle_set_with_context(
+        cls, strategy_context: MusesStrategyContext
+    ) -> Self:
+        """Like default_handle_set, but also set of the strategy_context. This is
+        a copy, so it can be modified without changing default_handle_set"""
+        res = copy.deepcopy(cls.default_handle_set())
+        res.strategy_context.merge(strategy_context)
+        return res
+
+    def notify_add_creator_dict(self, cdict: CreatorDict) -> None:
+        self.strategy_context.merge(cdict.strategy_context)
+
+    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
+        """Process a registered function"""
+        # Check if we need to get a notification message, see MusesStrategyContext
+        # for a discussion of this
+        self.strategy_context.notify_if_needed(h)
+        return super().handle_h(h, *args, **kwargs)
+
+
 class CreatorHandle:
     """Base class for handles used by CreatorHandleSet. Note we use
     duck typing, so you don't actually need to derive from this
     object. But it can be useful because it 1) provides the interface
     and 2) documents that a class is intended for this.
-
-    Note a CreatorHandle can assume that it called for the same
-    target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next (e.g., read a L1B file once).
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and the creator_func_name
-    because they have different scopes (notify_update_target for the
-    full retrieval, creator_func_name for a retrieval step). If a
-    CreatorHandle doesn't care about the target, it can just ignore
-    this function call.
-
     """
 
     def _dispatch(self, func_name: str, *args: Any, **kwargs: Any) -> Any:
@@ -101,16 +134,63 @@ class CreatorHandle:
         """
         return getattr(self, func_name)(*args, **kwargs)
 
-    def notify_update_target(self, *args: Any) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
-
     # Derived classes should add a creator function, e.g. observation.
     # This should either return an object if we can create it, or None
     # if we can't (and the CreatorHandleSet goes on to try the next
     # handle.  def observation(self, *args):
 
 
-__all__ = ["CreatorHandleSet", "CreatorHandle"]
+class CreatorHandleWithContext(CreatorHandle, MusesStrategyContextMixin):
+    """This with a CreatorHandle with the addition of support for the
+    MusesStrategyContext.
+
+    Note a CreatorHandleWithContext can assume that it called for the same
+    MusesStrategyContext, until notify_update_strategy_context is
+    called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the MusesStrategyContext
+    is the same from one call to the next (e.g., read a L1B file
+    once).
+
+    notify_update_strategy_context will also be called before the
+    first time the objects are created. So Objects can defer
+    initialization that needs the MusesStrategyContext, and a
+    guaranteed to get this message. Objects should register as
+    observers to get the message if the need it.
+
+    We had considered just passing the MusesStrategyContext to
+    handle_h like any other argument. However it makes sense to
+    instead treat this as different because the lifecycles are
+    different. We tend to call handle_h for each retrieval step, but
+    the MusesStrategyContext only changes at the very beginning of a
+    retrieval. So it makes sense to treat these as different, although
+    this means MusesStrategyContext is like a "hidden" argument. I
+    think the trade off is reasonable, but know that the handle_h has
+    access to the MusesStrategyContext as well as whatever argument
+    get passed to handle_h
+
+    """
+
+    def __init__(
+        self,
+        add_as_context_observer: bool = False,
+        strategy_context: MusesStrategyContext | None = None,
+    ) -> None:
+        MusesStrategyContextMixin.__init__(self, strategy_context)
+        self.add_as_context_observer = add_as_context_observer
+
+    def notify_add_handle(self, hset: CreatorHandleWithContextSet) -> None:
+        self.strategy_context = hset.strategy_context
+        # Because it is a common case, we just handle adding this as
+        # an observer if the derived class requested this.
+        # Note that the class should add a notify_update_strategy_context
+        # if it is an observer.
+        if self.add_as_context_observer:
+            self.strategy_context.add_observer(self)
+
+
+__all__ = [
+    "CreatorHandleSet",
+    "CreatorHandleWithContextSet",
+    "CreatorHandle",
+    "CreatorHandleWithContext",
+]

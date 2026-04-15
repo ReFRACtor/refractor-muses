@@ -1,9 +1,9 @@
 from __future__ import annotations
 from refractor.muses import (
+    CostFunction,
     CurrentState,
     CurrentStrategyStep,
     ForwardModelHandle,
-    MeasurementId,
     MusesObservation,
     MusesRunDir,
     RetrievalConfiguration,
@@ -49,7 +49,7 @@ def test_retrieval(tropomi_swir, ifile_hlp):
         lrad_second_order=False,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")
+    rs.update_strategy_context(tropomi_swir.run_dir)
     rs.retrieval_ms()
 
 
@@ -59,11 +59,13 @@ class CostFunctionCapture:
     def __init__(self):
         self.location_to_capture = ProcessLocation("create_cost_function")
 
-    def notify_update(
-        self, retrieval_strategy, location, retrieval_strategy_step=None, **kwargs
-    ):
-        if location != self.location_to_capture:
-            return
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [
+            self.location_to_capture,
+        ]
+
+    def notify_process_location(self, location, retrieval_strategy_step=None, **kwargs):
         self.cost_function = retrieval_strategy_step.cfunc
         raise StopIteration()
 
@@ -109,7 +111,7 @@ def test_co_fm(tropomi_swir, ifile_hlp):
         # absorption_gases=["CO",]
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(tropomi_swir.run_dir / "Table.asc")
+    rs.update_strategy_context(tropomi_swir.run_dir)
     cfcap = CostFunctionCapture()
     rs.add_observer(cfcap)
     try:
@@ -252,14 +254,19 @@ def test_simulated_retrieval(
         oss_training_data=oss_training_data,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     pickle.dump(cfunc, open(test_dir / "cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
@@ -285,7 +292,7 @@ def test_simulated_retrieval(
         pickle.load(open(test_dir / "obs_sim.pkl", "rb")),
     )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     rs.retrieval_ms()
 
 
@@ -326,14 +333,19 @@ def test_radiance(
         oss_training_data=oss_training_data,
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(mrdir.run_dir / "Table.asc")
+    rs.update_strategy_context(mrdir.run_dir)
     os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
-    cfunc = rs.strategy_executor.create_cost_function()
+    cfunc = rs.creator_dict[CostFunction].cost_function(
+        rs.creator_dict,
+        rs.current_strategy_step.instrument_name,
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict,
+    )
     cstate = rs.current_state
     # Print out a description of the full state, so we can look at the problem
     # with the albedo
@@ -368,7 +380,7 @@ def test_sim_albedo_0_9_retrieval(
             use_pca=True, use_lrad=False, lrad_second_order=False
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        rs.update_target(mrdir.run_dir / "Table.asc")
+        rs.update_strategy_context(mrdir.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
@@ -515,12 +527,8 @@ class ScaledTropomiFmObjectCreator(TropomiSwirFmObjectCreator):
 
 class ScaledTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.measurement_id = None
-
-    def notify_update_target(self, measurement_id: MeasurementId):
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        self.measurement_id = measurement_id
 
     def forward_model(
         self,
@@ -610,7 +618,7 @@ def test_scaled_sim_albedo_0_9_retrieval(
                 name=StateElementIdentifier("HDO_SCALED"),
             )
         )
-        rs.update_target(mrdir.run_dir / "Table.asc")
+        rs.update_strategy_context(mrdir.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

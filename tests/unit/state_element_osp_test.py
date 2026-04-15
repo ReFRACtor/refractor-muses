@@ -5,7 +5,8 @@ from refractor.muses import (
     StateElementOspFile,
     RetrievalConfiguration,
     RetrievalType,
-    CurrentStrategyStepDict,
+    CurrentStrategyStepOEImp,
+    CurrentStrategyStepImp,
     StrategyStepIdentifier,
 )
 import numpy as np
@@ -13,8 +14,8 @@ import numpy.testing as npt
 
 
 def test_osp_state_element(ifile_hlp, omi_test_in_dir):
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        omi_test_in_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     apriori_value = np.array(
         [
@@ -67,7 +68,9 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
     selem.update_state_element(step_initial_fm=np.array([3.0]))
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
     npt.assert_allclose(selem.step_initial_fm, [3.0])
-    cstep = CurrentStrategyStepDict({}, None)
+    cstep = CurrentStrategyStepImp(
+        None, RetrievalType("default"), StrategyStepIdentifier(1, "step_1")
+    )
     selem.notify_start_retrieval(cstep, rconfig)
     # After starting the retrieval, the retrieval_initial_value should be the step_initial_value
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
@@ -75,13 +78,16 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
     npt.assert_allclose(selem.value_fm, [0.0])
 
     # Have a step where we retrieve our element
-    cstep_ret = CurrentStrategyStepDict(
-        {
-            "retrieval_elements": [StateElementIdentifier("OMIODWAVUV1")],
-            "retrieval_type": RetrievalType("default"),
-            "retrieval_elements_not_updated": [],
-            "strategy_step": StrategyStepIdentifier(1, "step_1"),
-        },
+    cstep_ret = CurrentStrategyStepOEImp(
+        None,
+        None,
+        RetrievalType("default"),
+        [StateElementIdentifier("OMIODWAVUV1")],
+        StrategyStepIdentifier(1, "step_1"),
+        {},
+        [],
+        [],
+        [],
         None,
     )
     selem.update_state_element(step_initial_fm=np.array([4.0]))
@@ -132,8 +138,8 @@ def test_osp_state_element(ifile_hlp, omi_test_in_dir):
 
 def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
     """Check that the constraint matrix update for specific retrieval types is handled correctly"""
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        omi_test_in_dir / "Table.asc", ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        omi_test_in_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     apriori_value = np.array(
         [
@@ -169,13 +175,16 @@ def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
         ]
     )
     npt.assert_allclose(selem.constraint_matrix, cmatrix1)
-    cstep_ret = CurrentStrategyStepDict(
-        {
-            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
-            "retrieval_type": RetrievalType("omicloud_ig_refine"),
-            "retrieval_elements_not_updated": [],
-            "strategy_step": StrategyStepIdentifier(1, "step_1"),
-        },
+    cstep_ret = CurrentStrategyStepOEImp(
+        None,
+        None,
+        RetrievalType("omicloud_ig_refine"),
+        [StateElementIdentifier("OMICLOUDFRACTION")],
+        StrategyStepIdentifier(1, "step_1"),
+        {},
+        [],
+        [],
+        [],
         None,
     )
     selem.notify_start_step(cstep_ret, rconfig)
@@ -188,13 +197,16 @@ def test_osp_state_element_constraint(ifile_hlp, omi_test_in_dir):
     )
     npt.assert_allclose(selem.constraint_matrix, cmatrix2)
     # And goes back when step changes
-    cstep_ret = CurrentStrategyStepDict(
-        {
-            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
-            "retrieval_type": RetrievalType("not_special_step"),
-            "retrieval_elements_not_updated": [],
-            "strategy_step": StrategyStepIdentifier(1, "step_1"),
-        },
+    cstep_ret = CurrentStrategyStepOEImp(
+        None,
+        None,
+        RetrievalType("not_special_step"),
+        [StateElementIdentifier("OMICLOUDFRACTION")],
+        StrategyStepIdentifier(1, "step_1"),
+        {},
+        [],
+        [],
+        [],
         None,
     )
     selem.notify_start_step(cstep_ret, rconfig)

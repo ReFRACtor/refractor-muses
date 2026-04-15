@@ -1,5 +1,9 @@
 from __future__ import annotations
-from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
+from .retrieval_strategy_step import (
+    RetrievalStrategyStepSet,
+    RetrievalStrategyStepHandle,
+)
+from .retrieval_strategy_step_oe import RetrievalStrategyStepOEBase
 from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
 from loguru import logger
@@ -8,13 +12,12 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
+    from .creator_dict import CreatorDict
     from .current_state import CurrentState
-    from .retrieval_configuration import RetrievalConfiguration
-    from .muses_strategy import MusesStrategy
+    from .process_location_observable import ProcessLocationObservable
 
 
-class RetrievalStrategyStepBT(RetrievalStrategyStep):
+class RetrievalStrategyStepBT(RetrievalStrategyStepOEBase):
     """Brightness Temperature strategy step. This handles steps with
     the retrieval type "BT". This then selects one of the following
     BT_IG_Refine steps to execute.
@@ -24,15 +27,19 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.notify_update_target(None)
+    def __init__(
+        self,
+        creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            creator_dict, current_state, process_location_observable, **kwargs
+        )
         self.frequency: None | np.ndarray = None
         self.obs_rad_all: None | np.ndarray = None
         self.rad_all: None | np.ndarray = None
-
-    def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by
@@ -55,34 +62,12 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             res["rad_all"] = self.rad_all.tolist()
         return res
 
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: dict
-    ) -> bool:
-        if retrieval_type != RetrievalType("bt"):
-            return False
-        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        logger.info("Running run_forward_model ...")
-        self.calculate_bt(
-            rs,
-            rs.retrieval_config,
-            rs.strategy,
-            rs.strategy_step.step_number,
-            rs.current_state,
-        )
-        logger.info(f"Step: {rs.strategy_step}")
-        return True
-
-    def calculate_bt(
-        self,
-        rs: RetrievalStrategy,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        step: int,
-        cstate: CurrentState,
-    ) -> None:
+    def retrieval_step_body(self) -> None:
         """Calculate brightness temperature, and use to update
         cstate.brightness_temperature_data. We also update TSUR and
         CLOUDEXT in current state."""
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
+        logger.info("Running run_forward_model ...")
         # Note from py-retrieve: issue with negative radiances, so take mean
         #
         # I'm not actually sure that is true, we filter out bad samples. But
@@ -93,7 +78,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             self.obs_rad_all = np.array(self._saved_state["obs_rad_all"])
             self.rad_all = np.array(self._saved_state["rad_all"])
         else:
-            fm = rs.create_forward_model_combine()
+            fm = self.create_forward_model_combine()
             self.frequency = fm.spectral_domain_all().data
             self.obs_rad_all = fm.obs_radiance_all().spectral_range.data
             # True here means skip the jacobian calculation. This doesn't actually matter
@@ -113,12 +98,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
         # If next step is NOT BT, evaluate what to do with "cloud". Otherwise,
         # we are done.
-        if strategy.is_next_bt():
-            cstate.set_brightness_temperature_data(step, btdata)
+        if self.strategy.is_next_bt():
+            self.current_state.set_brightness_temperature_data(
+                self.strategy_step.step_number, btdata
+            )
             return
 
-        cfile = retrieval_config.input_file_helper.open_tes(
-            retrieval_config["CloudParameterFilename"],
+        cfile = self.retrieval_config.input_file_helper.open_tes(
+            self.retrieval_config["CloudParameterFilename"],
         )
         BTLow = np.array(cfile.checked_table["BT_low"])
         BTHigh = np.array(cfile.checked_table["BT_high"])
@@ -136,17 +123,17 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
         # for IGR and TSUR modification for TSUR, must be daytime land
         if (
-            not cstate.sounding_metadata.is_day
-            or cstate.sounding_metadata.surface_type in ("OCEAN", "FRESH")
+            not self.current_state.sounding_metadata.is_day
+            or self.current_state.sounding_metadata.surface_type in ("OCEAN", "FRESH")
         ) and "TSUR" in btdata["species_igr"]:
             logger.info("Must be land, daytime for TSUR IGR")
             btdata["species_igr"] = None
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
-            newv = cstate.state_value("CLOUDEXT").copy()
+            newv = self.current_state.state_value("CLOUDEXT").copy()
             newv[:] = cloudIG[row][0]
-            cstate.update_full_state_element(
+            self.current_state.update_full_state_element(
                 StateElementIdentifier("CLOUDEXT"),
                 step_initial_fm=newv.copy(),
                 value_fm=newv.copy(),
@@ -155,15 +142,18 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         if tsurIG[row] != 0:
             # use difference in observed - fit to change TSUR.  Note, we
             # assume weak clouds.
-            newv = cstate.state_value("TSUR")
+            newv = self.current_state.state_value("TSUR")
             newv = newv + btdata["obs"] - btdata["fit"]
-            cstate.update_full_state_element(
+            self.current_state.update_full_state_element(
                 StateElementIdentifier("TSUR"),
                 step_initial_fm=newv.copy(),
                 value_fm=newv.copy(),
                 constraint_vector_fm=newv.copy(),
             )
-        cstate.set_brightness_temperature_data(step, btdata)
+        self.current_state.set_brightness_temperature_data(
+            self.strategy_step.step_number, btdata
+        )
+        logger.info(f"Step: {self.strategy_step}")
 
     def bt(self, frequency: float, rad: float) -> float:
         """converts from radiance (W/cm2/cm-1/sr) to BT (erg/sec/cm2/cm-1/sr)"""
@@ -175,7 +165,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         return radcn2 * frequency / math.log(1 + (radcn1 * frequency**3 / rad))
 
 
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())
+RetrievalStrategyStepSet.add_default_handle(
+    RetrievalStrategyStepHandle(
+        RetrievalStrategyStepBT,
+        {
+            RetrievalType("bt"),
+        },
+    )
+)
 __all__ = [
     "RetrievalStrategyStepBT",
 ]

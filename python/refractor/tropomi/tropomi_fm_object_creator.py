@@ -21,7 +21,7 @@ import h5py  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation, RetrievalConfiguration
+    from refractor.muses import MusesObservation, RetrievalConfiguration
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
@@ -917,15 +917,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs: Any) -> None:
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.retrieval_config: None | RetrievalConfiguration = None
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.retrieval_config = retrieval_config
 
     def forward_model(
         self,
@@ -937,8 +930,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
-        if self.retrieval_config is None:
-            raise RuntimeError("Call notify_update_target first")
         model_type = (
             "VLIDORT" if self.creator_kwargs.get("use_vlidort", False) else "LIDORT"
         )
@@ -974,11 +965,15 @@ def _tropomi_ils(i_fn: Path, i_band: int) -> tuple[np.ndarray, np.ndarray, np.nd
         return wav, deltawav, isrf
 
 
-# Default forward model is the VLIDORT one, so we are as close to
-# py-retrieve results as possible. Should look into changing to LIDORT,
-# which is faster
+# VLIDORT version, just for reference
+if False:
+    ForwardModelHandleSet.add_default_handle(
+        TropomiForwardModelHandle(use_vlidort=True),
+        priority_order=-1,
+    )
+# This is what the pipeline uses, so match this as the default version
 ForwardModelHandleSet.add_default_handle(
-    TropomiForwardModelHandle(use_vlidort=True),
+    TropomiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
     priority_order=-1,
 )
 

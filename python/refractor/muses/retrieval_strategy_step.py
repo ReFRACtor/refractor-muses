@@ -1,17 +1,10 @@
 from __future__ import annotations
 import abc
 from loguru import logger
-from .priority_handle_set import PriorityHandleSet
-from .muses_levmar_solver import (
-    MusesLevmarSolver,
-    VerboseSolverLogging,
-    SolverLogFileWriter,
-)
-from .observation_handle import mpy_radiance_from_observation_list
-from .retrieval_result import RetrievalResult
+from .creator_dict import CreatorDict
+from .creator_handle import CreatorHandleWithContext, CreatorHandleWithContextSet
 from .identifier import RetrievalType, ProcessLocation
-from .retrieval_array import RetrievalGridArray
-import numpy as np
+from .muses_strategy_context import MusesStrategyContextMixin
 import json
 import gzip
 import os
@@ -20,110 +13,114 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .retrieval_result import RetrievalResult
-    from .cost_function import CostFunction
-    from .muses_levmar_solver import SolverResult
-
-# TODO clean up the usage for various internal objects of
-# RetrievalStrategy, we want to rework this anyways as we introduce
-# the MusesStrategyExecutor.
+    from .muses_strategy_context import MusesStrategyContext
+    from .current_state import CurrentState
+    from .process_location_observable import ProcessLocationObservable
+    from .current_strategy_step import CurrentStrategyStep
 
 
-class RetrievalStrategyStepSet(PriorityHandleSet):
+class RetrievalStrategyStepSet(CreatorHandleWithContextSet):
     """This takes the retrieval_type and determines a
-    RetrievalStrategyStep to handle this. It then does the retrieval
-    step.
-
-    Note RetrievalStrategyStep can assume that they are called for the
-    same target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next.
-
+    RetrievalStrategyStep to handle this, returning it so it can
+    be called.
     """
 
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        super().__init__("retrieval_step", strategy_context)
+
     def retrieval_step(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> None:
-        self.handle(retrieval_type, rs, **kwargs)
-
-    def notify_update_target(self, rs: RetrievalStrategy) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(rs)
-
-    def handle_h(
         self,
-        h: RetrievalStrategyStep,
-        retrieval_type: RetrievalType,
-        rs: RetrievalStrategy,
+        current_strategy_step: CurrentStrategyStep,
+        creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
-    ) -> tuple[bool, None]:
-        return h.retrieval_step(retrieval_type, rs, **kwargs)
+    ) -> RetrievalStrategyStep:
+        return self.handle(
+            current_strategy_step,
+            creator_dict,
+            current_state,
+            process_location_observable,
+            **kwargs,
+        )
 
 
-class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
+class RetrievalStrategyStepHandle(CreatorHandleWithContext):
+    """Right now our strategy steps just key off of the retrieval_type
+    being in a set (or None to match any). We have this handle for
+    this case. We can certainly create other CreatorHandle if we have
+    RetrievalStrategyStep with more complicated selection logic."""
+
+    def __init__(
+        self,
+        cls: type[RetrievalStrategyStep],
+        retrieval_type_set: set[RetrievalType] | None = None,
+    ) -> None:
+        super().__init__()
+        self._create_cls = cls
+        self._retrieval_type_set = retrieval_type_set
+
+    def retrieval_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
+        **kwargs: Any,
+    ) -> RetrievalStrategyStep | None:
+        if (
+            self._retrieval_type_set is None
+            or current_strategy_step.retrieval_type in self._retrieval_type_set
+        ):
+            return self._create_cls(
+                creator_dict, current_state, process_location_observable, **kwargs
+            )
+        return None
+
+
+class RetrievalStrategyStep(MusesStrategyContextMixin, metaclass=abc.ABCMeta):
     """Do the retrieval step indicated by retrieval_type
-
-    Note RetrievalStrategyStep can assume that they are called for the
-    same target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next.
 
     We *only* maintain state between steps in CurrentState (other than
     possibly internal caching for performance). If the same
     RetrievalStrategyStep is called with the same CurrentState, it
-    will produce the same output.
+    will produce the same output (possibly slower, if internal caching
+    isn't the same).
 
     A RetrievalStrategyStep *only* modifies CurrentState and produces
     output through side effects. Note that the RetrievalStrategyStep
     doesn't directly produce output, instead we use the
     Observer/Observable pattern to decouple generation of output. A
-    RetrievalStrategyStep calls RetrievalStrategy.notify_update_target
+    RetrievalStrategyStep calls ProcessLocationObserver.notify_process_location
     at points during the processing, where the Observer can do
     whatever with the processing (e.g, produce an output file).
 
     """
 
-    def __init__(self) -> None:
-        self._uip = None
-        self._saved_state: None | dict[str, Any] = None
-        self.results: None | RetrievalResult = None
-
-    def notify_update_target(self, rs: RetrievalStrategy) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
-
-    def retrieval_step(
+    def __init__(
         self,
-        retrieval_type: RetrievalType,
-        rs: RetrievalStrategy,
-        ret_state: None | dict[str, Any] = None,
+        creator_dict: CreatorDict,
+        current_state: CurrentState,
+        process_location_observable: ProcessLocationObservable,
         **kwargs: Any,
-    ) -> tuple[bool, None]:
-        """Returns (True, None) if we handle the retrieval step,
-        (False, None) otherwise
+    ) -> None:
+        super().__init__(creator_dict.strategy_context)
+        self._saved_state: None | dict[str, Any] = None
+        self.creator_dict = creator_dict
+        self.current_state = current_state
+        self.process_location_observable = process_location_observable
+        self.kwargs = kwargs
 
-        """
-        self.set_state(ret_state)
-        was_handled = self.retrieval_step_body(retrieval_type, rs, **kwargs)
-        if was_handled:
-            rs.notify_update(
-                ProcessLocation("end_retrieval_step"), retrieval_strategy_step=self
-            )
-        return (was_handled, None)
+    def do_retrieval(
+        self,
+    ) -> None:
+        self.set_state(self.kwargs.get("ret_state", None))
+        self.retrieval_step_body()
+        self.notify_process_location(ProcessLocation("end_retrieval_step"))
 
     @abc.abstractmethod
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> bool:
-        """Returns True if we handle the retrieval step, False otherwise"""
-        raise NotImplementedError()
+    def retrieval_step_body(self) -> None:
+        """Actual do the retrieval step"""
 
     def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by
@@ -146,27 +143,10 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # in the rest of this object
         self._saved_state = d
 
-    def radiance_step(self) -> dict[str, Any]:
-        """We have a few places that need the old py-retrieve dict
-        version of our observation data. This function calculates
-        that- it is just a reformatting of our observation data.
-        """
-        # I don't think this ever gets called by something that doesn't have
-        # a cfunc, but go ahead and have handling for this just in case
-        if hasattr(self, "cfunc"):
-            return mpy_radiance_from_observation_list(
-                self.cfunc.obs_list, include_bad_sample=True
-            )
-        else:
-            return {}
-
-    def radiance_full(self, rs: RetrievalStrategy) -> dict[str, Any]:
-        """The full set of radiance, for all instruments and full band."""
-        olist = [
-            rs.observation_handle_set.observation(iname, None, None, None)
-            for iname in rs.instrument_name_all_step
-        ]
-        return mpy_radiance_from_observation_list(olist, full_band=True)
+    def notify_process_location(self, ploc: ProcessLocation) -> None:
+        self.process_location_observable.notify_process_location(
+            ploc, current_state=self.current_state, retrieval_strategy_step=self
+        )
 
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -181,177 +161,25 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 
     """
 
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> bool:
-        if retrieval_type not in (
-            RetrievalType("forwardmodel"),
-            RetrievalType("omi_radiance_calibration"),
-        ):
-            return False
+    def retrieval_step_body(self) -> None:
         raise RuntimeError(
-            f"We don't currently support retrieval_type {retrieval_type}"
+            f"We don't currently support retrieval_type {self.retrieval_type}"
         )
 
 
-class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
-    """Strategy step that does a retrieval (e.g., the default strategy
-    step)."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.notify_update_target(None)
-        self.slv: None | MusesLevmarSolver = None
-        self.cfunc: None | CostFunction = None
-        self.jacobian_sys: None | np.ndarray = None
-
-    def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        # Nothing currently needed
-
-    def get_state(self) -> dict[str, Any]:
-        """Return a dictionary of values that can be used by
-        set_state.  This allows us to skip pieces of the retrieval
-        step. This is similar to a pickle serialization (which we also
-        support), but only saves the things that change when we update
-        the parameters.
-
-        This is useful for unit tests of side effects of doing the
-        retrieval step (e.g., generating output files) without needing
-        to actually run the retrieval.
-
-        """
-        res: dict[str, Any] = {"slv": None, "jacobian_sys": None}
-        if self.slv is not None:
-            res["slv"] = self.slv.get_state()
-        if self.jacobian_sys is not None:
-            res["jacobian_sys"] = self.jacobian_sys.tolist()
-        return res
-
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> bool:
-        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        rs.notify_update(
-            ProcessLocation("retrieval input"), retrieval_strategy_step=self
-        )
-        logger.info("Running run_retrieval ...")
-
-        self.ret_res = self.run_retrieval(rs, **kwargs)
-        if self.cfunc is None:
-            raise RuntimeError("self.cfunc should not be None")
-        # self.cfunc.parameters set to the best iteration solution in MusesLevmarSolver
-        rs.current_strategy_step.notify_step_solution(
-            rs.current_state, self.cfunc.parameters.view(RetrievalGridArray)
-        )
-        logger.info("\n---")
-        logger.info(str(rs.strategy_step))
-        logger.info(
-            f"Best iteration {self.ret_res.bestIteration} out of {self.ret_res.num_iterations}"
-        )
-        logger.info("---\n")
-        rs.notify_update(
-            ProcessLocation("run_retrieval_step"), retrieval_strategy_step=self
-        )
-
-        # TODO jacobian_sys is only used in error_analysis_wrapper and
-        # error_analysis.  I think we can leave bad sample out,
-        # although I'm not positive. Would be nice not to have special
-        # handling to add bad samples if we turn around and weed them
-        # out.
-        #
-        # For right now, these are required, we would need to update
-        # the error analysis to work without bad samples
-        self.jacobian_sys = None
-        if len(rs.current_state.systematic_state_element_id) > 0:
-            if self._saved_state is not None:
-                # Skip forward model if we have a saved state.
-                self.jacobian_sys = np.array(self._saved_state["jacobian_sys"])
-            else:
-                logger.info("Running run_forward_model for systematic jacobians ...")
-                fm_sys = rs.create_forward_model_combine(
-                    use_systematic=True,
-                    include_bad_sample=True,
-                )
-                self.jacobian_sys = fm_sys.model_measure_diff_jacobian().transpose()[
-                    np.newaxis, :, :
-                ]
-                # Sanity check, if we need to look at this
-                if False:
-                    assert (
-                        self.jacobian_sys[:, :, self.cfunc.good_point()].shape[-1]
-                        == self.cfunc.max_a_posteriori.model_measure_diff_jacobian_fm.transpose().shape[
-                            -1
-                        ]
-                    )
-        rs.notify_update(
-            ProcessLocation("systematic_jacobian"), retrieval_strategy_step=self
-        )
-
-        # Note a side effect of this is calling current_state.update_previous_aposteriori_cov_fm
-        # and current_state.propagated_qa.update. See discussion in RetrievalResult.
-        self.results = RetrievalResult(
-            self.ret_res,
-            rs.current_state,
-            rs.current_strategy_step,
-            self.cfunc.obs_list,
-            self.radiance_full(rs),
-            rs.current_state.propagated_qa,
-            rs.qa_data_handle_set,
-            jacobian_sys=self.jacobian_sys,
-        )
-        rs.notify_update(
-            ProcessLocation("retrieval step"), retrieval_strategy_step=self
-        )
-        return True
-
-    def run_retrieval(
-        self, rs: RetrievalStrategy, cost_function_params: dict = {}, **kwargs: Any
-    ) -> SolverResult:
-        """run_retrieval"""
-        self.cfunc = rs.create_cost_function()
-        rs.notify_update(
-            ProcessLocation("create_cost_function"), retrieval_strategy_step=self
-        )
-        chi2_tolerance = cost_function_params["chi2_tolerance"]
-        if chi2_tolerance is None:
-            r = self.radiance_step()["NESR"]
-            chi2_tolerance = 2.0 / len(r)  # theoretical value for tolerance
-        logger.info(f"Initial State vector:\n{self.cfunc.fm_sv}")
-        self.slv = MusesLevmarSolver(
-            self.cfunc,
-            cost_function_params["max_iter"],
-            cost_function_params["delta_value"],
-            cost_function_params["conv_tolerance"],
-            chi2_tolerance,
-        )
-        # For now, assume we want verbose logging
-        if True:
-            self.slv.add_observer(VerboseSolverLogging())
-        if rs.write_output:
-            levmar_log_file = f"{rs.run_dir}/Step{rs.strategy_step.step_number:02d}_{rs.strategy_step.step_name}/LevmarSolver-{rs.strategy_step.step_name}.log"
-            self.slv.add_observer(SolverLogFileWriter(levmar_log_file))
-        if self._saved_state is not None:
-            # Skip solve if we have a saved state.
-            self.slv.set_state(self._saved_state["slv"])
-        else:
-            if cost_function_params["max_iter"] > 0:
-                self.slv.solve()
-        logger.info(f"Solved State vector:\n{self.cfunc.fm_sv}")
-        return self.slv.retrieval_results()
-
-
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
-# Anything that isn't one of the special types is a generic retrieval, so
-# set to this as the lowest priority fall back
 RetrievalStrategyStepSet.add_default_handle(
-    RetrievalStrategyStepRetrieve(), priority_order=-1
+    RetrievalStrategyStepHandle(
+        RetrievalStrategyStepNotImplemented,
+        {RetrievalType("forwardmodel"), RetrievalType("omi_radiance_calibration")},
+    )
 )
+
+CreatorDict.register(RetrievalStrategyStep, RetrievalStrategyStepSet)
 
 
 class RetrievalStepCaptureObserver:
     """Helper class, saves results of retrieval step so we can rerun skipping
-    much of the calculation. Data saved when notify_update is called.
+    much of the calculation. Data saved when notify_process_location is called.
     Intended for unit tests and other kinds of debugging.
 
     Note this only saves the RetrievalStepCapture.get_state(),
@@ -374,7 +202,7 @@ class RetrievalStepCaptureObserver:
     def load_retrieval_state(cls, fname: str | os.PathLike[str]) -> dict[str, Any]:
         return json.loads(gzip.open(fname, mode="rb").read().decode("utf-8"))
 
-    def notify_update(
+    def notify_process_location(
         self,
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
@@ -385,7 +213,7 @@ class RetrievalStepCaptureObserver:
             return
         if retrieval_strategy_step is None:
             return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         fname = (
             f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.json.gz"
         )
@@ -399,8 +227,8 @@ class RetrievalStepCaptureObserver:
 
 __all__ = [
     "RetrievalStrategyStepSet",
+    "RetrievalStrategyStepHandle",
     "RetrievalStrategyStep",
     "RetrievalStrategyStepNotImplemented",
-    "RetrievalStrategyStepRetrieve",
     "RetrievalStepCaptureObserver",
 ]

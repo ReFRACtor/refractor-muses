@@ -5,14 +5,16 @@ import os
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 from pathlib import Path
 import numpy as np
 import typing
 from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .creator_dict import CreatorDict
+    from .current_state import CurrentState
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -26,24 +28,30 @@ def _new_from_init(cls, *args):  # type: ignore
 class RetrievalRadianceOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Radiance files."""
 
-    def __init__(self) -> None:
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        super().__init__(creator_dict, **kwargs)
         self.myobsrad: None | dict = None
 
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.
             # It is special_name, which doesn't actually apply to the jacobian file.
@@ -188,6 +196,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
             * len(my_data),
         )
 
+
+ProcessLocationObservable.register_default_observer(RetrievalRadianceOutput)
 
 __all__ = [
     "RetrievalRadianceOutput",

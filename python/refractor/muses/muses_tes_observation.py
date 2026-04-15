@@ -467,6 +467,7 @@ class MusesTesObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
+        filter_list: list[FilterIdentifier],
         existing_obs: MusesTesObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
@@ -490,7 +491,6 @@ class MusesTesObservation(MusesObservationImp):
             )
         else:
             # Read the data from disk, because it doesn't already exist.
-            filter_list = mid.filter_list_dict[InstrumentIdentifier("TES")]
             filename = mid["TES_filename_L1B"]
             l1b_index = [int(i) for i in mid["TES_filename_L1B_Index"].split(",")]
             l1b_avgflag = False if int(mid["TES_L1B_Average_Flag"]) == 0 else True

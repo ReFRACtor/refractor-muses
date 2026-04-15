@@ -5,12 +5,11 @@
 import pytest
 from fixtures.compare_run import compare_run
 
-# Use refractor vlidort, lidort forward model, or use py-retrieve.
+# Use refractor vlidort, lidort forward model, or py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-run_lidort = False
-# run_lidort = True
-# run_pyretrieve = True
-run_pyretrieve = False
+run = "lidort"
+# run = "vlidort"
+# run = "py-retrieve"
 
 
 @pytest.mark.compare_test
@@ -28,12 +27,14 @@ def test_compare_retrieval_cris_tropomi(
     # diff_is_error = True
     dir = end_to_end_run_dir / "retrieval_strategy_cris_tropomi"
     diff_is_error = False
-    if run_lidort:
+    if run == "lidort":
         compare_dir = joint_tropomi_test_refractor_lidort_expected_dir
-    elif run_pyretrieve:
+    elif run == "py-retrieve":
         compare_dir = joint_tropomi_test_expected_dir
-    else:
+    elif run == "vlidort":
         compare_dir = joint_tropomi_test_refractor_vlidort_expected_dir
+    else:
+        raise RuntimeError(f"Unknown run '{run}'")
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
@@ -52,12 +53,14 @@ def test_compare_retrieval_airs_omi(
     # diff_is_error = True
     diff_is_error = False
     dir = end_to_end_run_dir / "retrieval_strategy_airs_omi"
-    if run_lidort:
+    if run == "lidort":
         compare_dir = joint_omi_test_refractor_lidort_expected_dir
-    elif run_pyretrieve:
+    elif run == "py-retrieve":
         compare_dir = joint_omi_test_expected_dir
-    else:
+    elif run == "vlidort":
         compare_dir = joint_omi_test_refractor_vlidort_expected_dir
+    else:
+        raise RuntimeError(f"Unknown run '{run}'")
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 

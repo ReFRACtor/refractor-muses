@@ -77,12 +77,14 @@ class RetrievalResult:
         self._column_result_summary = ColumnResultSummary(
             self.current_state, self._error_analysis
         )
-        master_flag = qa_data_handle_set.qa_flag(self, current_strategy_step)
-        self.master_quality = 1 if master_flag == "GOOD" else 0
+        self.master_quality = qa_data_handle_set.qa_flag(
+            self, current_strategy_step
+        ).master_quality
         # Update current_state.propagated_qa
-        current_state.propagated_qa_update(
-            current_strategy_step.retrieval_elements, self.master_quality
-        )
+        if hasattr(current_strategy_step, "retrieval_elements"):
+            current_state.propagated_qa_update(
+                current_strategy_step.retrieval_elements, self.master_quality
+            )
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.state_value(StateElementIdentifier(state_name))[0]

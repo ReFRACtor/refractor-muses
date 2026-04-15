@@ -1,8 +1,11 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
+from .creator_dict import CreatorDict
+from .identifier import StateElementIdentifier
 from loguru import logger
 import abc
 import os
+from dataclasses import dataclass
 import numpy as np
 from typing import Any
 import typing
@@ -12,10 +15,8 @@ import texttable  # type: ignore
 if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .muses_strategy import CurrentStrategyStep
-    from .muses_observation import MeasurementId
-    from .retrieval_configuration import RetrievalConfiguration
     from .input_file_helper import InputFileHelper, InputFilePath
-    from refractor.muses_py_fm import FakeStateInfo
+    from .muses_strategy_context import MusesStrategyContext
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -78,27 +79,28 @@ class QaFlagValueFile(QaFlagValue):
         return self.tbl["Use_For_Master"].astype(bool).tolist()
 
 
-class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
-    """Base class for QaDatawHandle. Note we use duck typing,
+@dataclass
+class QaFlag:
+    master_flag: str
+
+    @property
+    def master_quality(self) -> int:
+        return 1 if self.master_flag == "GOOD" else 0
+
+
+class QaDataHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
+    """Base class for QaDataHandle. Note we use duck typing,
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
     that a class is intended for this.
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being
-        retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     @abc.abstractmethod
     def qa_flag(
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
-    ) -> str | None:
+    ) -> QaFlag:
         """This does the QA calculation, and returns the master quality flag
         results. A good result returns "GOOD". None if this handle can't process the
         flag.
@@ -106,17 +108,17 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class QaDataHandleSet(CreatorHandleSet):
+class QaDataHandleSet(CreatorHandleWithContextSet):
     """This takes a RetrievalResult and updates it with QA data."""
 
-    def __init__(self) -> None:
-        super().__init__("qa_flag")
+    def __init__(self, strategy_context: MusesStrategyContext | None = None) -> None:
+        super().__init__("qa_flag", strategy_context)
 
     def qa_flag(
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
-    ) -> str | None:
+    ) -> QaFlag:
         """This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results"""
         return self.handle(retrieval_result, current_strategy_step)
@@ -134,36 +136,38 @@ class MusesPyQaDataHandle(QaDataHandle):
     """
 
     def __init__(self) -> None:
+        super().__init__(add_as_context_observer=True)
         self.viewing_mode = None
         self.qa_flag_directory = None
         self.ifile_hlp: InputFileHelper | None = None
 
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
-        # We'll add grabbing the stuff out of RetrievalConfiguration
-        # in a bit
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        logger.debug(
+            f"Call to {self.__class__.__name__}::notify_update_strategy_context"
+        )
         # Not all retrievals have QA. Just short circuit the set up if we
         # aren't doing anything with QA. This would cause errors later, but it
         # *should* be the case that we if don't have QA support we don't try to
         # create a QA file
-        if "QualityFlagDirectory" in measurement_id:
-            self.run_dir = (
-                retrieval_config["outputDirectory"] / retrieval_config["sessionID"]
-            )
-            self.viewing_mode = retrieval_config["viewingMode"]
-            self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
-        self.ifile_hlp = retrieval_config.input_file_helper
+        if (
+            self.has_retrieval_config
+            and self.has_measurement_id
+            and "QualityFlagDirectory" in self.measurement_id
+        ):
+            self.viewing_mode = self.retrieval_config["viewingMode"]
+            self.qa_flag_directory = self.measurement_id["QualityFlagDirectory"]
+            self.ifile_hlp = self.retrieval_config.input_file_helper
 
     def quality_flag_file_name(
         self, current_strategy_step: CurrentStrategyStep
     ) -> InputFilePath:
         """Return the quality file name."""
         if self.viewing_mode is None or self.ifile_hlp is None:
-            raise RuntimeError("Need to call notify_update_target first")
+            raise RuntimeError("Need to call notify_update_strategy_context first")
 
         # Name is derived from the microwindows file name
         mwfname = current_strategy_step.muses_microwindows_fname()
@@ -187,33 +191,28 @@ class MusesPyQaDataHandle(QaDataHandle):
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
-    ) -> str:
+    ) -> QaFlag:
         """This does the QA calculation, and returns the master quality flag
         results. A good result returns "GOOD".
         """
-        # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeStateInfo
-
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         if self.ifile_hlp is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        fstate_info = FakeStateInfo(retrieval_result.current_state)
+            raise RuntimeError("Need to call notify_update_strategy_context first")
         master = self.write_quality_flags(
             QaFlagValueFile(
                 self.quality_flag_file_name(current_strategy_step), self.ifile_hlp
             ),
             retrieval_result,
-            fstate_info,
         )
         logger.info(f"Master Quality: {master}")
-        return master
+        return QaFlag(master_flag=master)
 
     def write_quality_flags(
         self,
         qa_flag_value: QaFlagValue,
         results: RetrievalResult,
-        stateInfo: FakeStateInfo,
     ) -> str:
+        cstate = results.current_state
         strs = [
             "radianceResidualRMS",
             "radianceResidualMean",
@@ -257,7 +256,7 @@ class MusesPyQaDataHandle(QaDataHandle):
             0,
             0,
             results.cloudODAve,
-            stateInfo.current["PCLOUD"][0],
+            cstate.state_value(StateElementIdentifier("PCLOUD"))[0],
             results.Desert_Emiss_QA,
             results.emisDev,
             results.cloudODVar,
@@ -282,12 +281,14 @@ class MusesPyQaDataHandle(QaDataHandle):
             results.O3_tropo_consistency,
         ]
 
-        if stateInfo.current["TSUR"] >= 1:
-            values_list[2] = (
-                stateInfo.current["TSUR"]
-                - stateInfo.current["values"][stateInfo.species.index("TATM"), 0]
-            )
-            values_list[3] = stateInfo.current["TSUR"] - stateInfo.constraint["TSUR"]
+        tsur = cstate.state_value(StateElementIdentifier("TSUR"))[0]
+        tsur_constraint = cstate.state_constraint_vector(
+            StateElementIdentifier("TSUR")
+        )[0]
+        tatmsur = cstate.state_value(StateElementIdentifier("TATM"))[0]
+        if tsur >= 1:
+            values_list[2] = tsur - tatmsur
+            values_list[3] = tsur - tsur_constraint
 
         ind_radiance = np.where(results.radianceResidualRMS > -990)[0]
         ind_both = []
@@ -400,6 +401,8 @@ class MusesPyQaDataHandle(QaDataHandle):
 
 # For now, just fall back to the old muses-py code.
 QaDataHandleSet.add_default_handle(MusesPyQaDataHandle())
+# Register creator set
+CreatorDict.register(QaFlag, QaDataHandleSet)
 
 __all__ = [
     "QaDataHandle",
@@ -407,4 +410,5 @@ __all__ = [
     "MusesPyQaDataHandle",
     "QaFlagValue",
     "QaFlagValueFile",
+    "QaFlag",
 ]

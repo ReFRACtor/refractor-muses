@@ -6,14 +6,15 @@ from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .order_species import is_atmospheric_species
 from .misc import AttrDictAdapter
+from .process_location_observable import ProcessLocationObservable
 from pathlib import Path
 import numpy as np
 import typing
 from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .current_state import CurrentState
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -30,18 +31,23 @@ class RetrievalJacobianOutput(RetrievalOutput):
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         if len(glob(f"{self.out_fname}*")) == 0:
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             self.write_jacobian()
@@ -146,6 +152,8 @@ class RetrievalJacobianOutput(RetrievalOutput):
             * len(my_data2),
         )
 
+
+ProcessLocationObservable.register_default_observer(RetrievalJacobianOutput)
 
 __all__ = [
     "RetrievalJacobianOutput",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from .process_location_observable import ProcessLocationObservable
 from loguru import logger
 import os
 import pickle
@@ -8,8 +9,8 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .current_state import CurrentState
 
 # We don't have all this in place yet, but put a few samples in place for output
 # triggered by having "writeOutput" which is controlled by the --debug flag set
@@ -27,18 +28,23 @@ class RetrievalInputOutput(RetrievalOutput):
     def windows(self):  # type: ignore
         return self.retrieval_strategy.microwindows
 
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.input_directory, exist_ok=True)
         # May need to extend this logic here
         # detectorsUse = [1]
@@ -60,36 +66,46 @@ class RetrievalInputOutput(RetrievalOutput):
 
 
 class RetrievalPickleResult(RetrievalOutput):
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.elanor_directory, exist_ok=True)
         with open(self.elanor_directory / "results.pkl", "wb") as fh:
             pickle.dump(self.results.__dict__, fh)
 
 
 class RetrievalPlotResult(RetrievalOutput):
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.step_directory, exist_ok=True)
         # Just skip if we don't have muses_py. This is a pretty involved function, and
         # I'm not even sure these plots are used anymore. In any case, this is debug output
@@ -104,18 +120,23 @@ class RetrievalPlotResult(RetrievalOutput):
 
 
 class RetrievalPlotRadiance(RetrievalOutput):
-    def notify_update(
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
+
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if location != ProcessLocation("retrieval step"):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        super().notify_process_location(
+            location,
+            current_state,
+            retrieval_strategy_step=retrieval_strategy_step,
+        )
+        logger.debug(f"Call to {self.__class__.__name__}::notify_process_location")
         os.makedirs(self.analysis_directory, exist_ok=True)
         # Just skip if we don't have muses_py. This is a pretty involved function, and
         # I'm not even sure these plots are used anymore. In any case, this is debug output
@@ -129,6 +150,10 @@ class RetrievalPlotRadiance(RetrievalOutput):
             None,
         )
 
+
+ProcessLocationObservable.register_default_debug_observer(RetrievalPickleResult)
+ProcessLocationObservable.register_default_plot_observer(RetrievalPlotResult)
+ProcessLocationObservable.register_default_plot_observer(RetrievalPlotRadiance)
 
 __all__ = [
     "RetrievalInputOutput",

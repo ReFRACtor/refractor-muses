@@ -1,5 +1,6 @@
 from __future__ import annotations
-from .creator_handle import CreatorHandleSet, CreatorHandle
+from .creator_handle import CreatorHandleWithContextSet, CreatorHandleWithContext
+from .creator_dict import CreatorDict
 from .current_state import CurrentState
 import refractor.framework as rf  # type: ignore
 import abc
@@ -8,11 +9,11 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .current_state import CurrentState
     from .muses_spectral_window import MusesSpectralWindow
     from .identifier import InstrumentIdentifier
-    from .retrieval_configuration import RetrievalConfiguration
+    from .muses_strategy_context import MusesStrategyContext
 
 
 def mpy_radiance_from_observation_list(
@@ -69,7 +70,7 @@ def mpy_radiance_from_observation_list(
     }
 
 
-class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
+class ObservationHandle(CreatorHandleWithContext, metaclass=abc.ABCMeta):
     """Base class for ObservationHandle. Note we use duck typing, so
     you don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents that
@@ -89,13 +90,6 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
     related parts should be independent.
 
     """
-
-    def notify_update_target(
-        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        # Default is to do nothing
-        pass
 
     @abc.abstractmethod
     def observation(
@@ -126,14 +120,17 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class ObservationHandleSet(CreatorHandleSet):
+class ObservationHandleSet(CreatorHandleWithContextSet):
     """This takes the instrument name and creates an Observation for
     that instrument.
 
     """
 
-    def __init__(self) -> None:
-        super().__init__("observation")
+    def __init__(
+        self,
+        strategy_context: MusesStrategyContext | None = None,
+    ) -> None:
+        super().__init__("observation", strategy_context)
 
     def observation(
         self,
@@ -146,6 +143,9 @@ class ObservationHandleSet(CreatorHandleSet):
         """Create an Observation for the given instrument."""
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
 
+
+# Register creator set
+CreatorDict.register(rf.Observation, ObservationHandleSet)
 
 __all__ = [
     "ObservationHandleSet",

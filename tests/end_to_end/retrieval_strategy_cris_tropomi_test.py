@@ -12,12 +12,11 @@ from refractor.muses import (
 )
 from fixtures.require_check import require_muses_py_fm
 
-# Use refractor vlidort, lidort forward model, or use py-retrieve.
+# Use refractor vlidort, lidort forward model, or py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-run_lidort = False
-# run_lidort = True
-# run_pyretrieve = True
-run_pyretrieve = False
+run = "lidort"
+# run = "vlidort"
+# run = "py-retrieve"
 
 # Can use the older py_retrieve matching objects
 match_py_retrieve = False
@@ -58,8 +57,8 @@ def test_retrieval_strategy_cris_tropomi(
         # to the run and isn't actually used in determining if our output is
         # good. Normally have this turned off, and we test the plotting etc.
         # Separately.
-        # writeOutput=True,
-        # writePlots=True,
+        # write_debug_output=True,
+        # write_plots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
@@ -77,7 +76,7 @@ def test_retrieval_strategy_cris_tropomi(
                 "retrieval_result", "systematic_jacobian"
             )
             rs.add_observer(rscap2)
-        if run_lidort:
+        if run == "lidort":
             # Use refractor forward model.
             ihandle = TropomiForwardModelHandle(
                 use_pca=True,
@@ -88,8 +87,8 @@ def test_retrieval_strategy_cris_tropomi(
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_tropomi_test_refractor_lidort_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
-        elif run_pyretrieve:
+            rs.update_strategy_context(r.run_dir)
+        elif run == "py-retrieve":
             from refractor.muses_py_fm import (
                 MusesForwardModelHandle,
                 MusesTropomiForwardModel,
@@ -100,12 +99,19 @@ def test_retrieval_strategy_cris_tropomi(
             )
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             compare_dir = joint_tropomi_test_expected_dir
-            rs.update_target(f"{r.run_dir}/Table.asc")
-        else:
-            # Default handles for refractor vlidort
+            rs.update_strategy_context(r.run_dir)
+        elif run == "vlidort":
+            ihandle = TropomiForwardModelHandle(
+                use_vlidort=True,
+                match_py_retrieve=match_py_retrieve,
+            )
+            rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+            # Different expected results. Close, but not identical to LIDORT version
             compare_dir = joint_tropomi_test_refractor_vlidort_expected_dir
+        else:
+            raise RuntimeError(f"Unknown run '{run}'")
 
-        rs.retrieval_ms()
+        rs.script_retrieval_ms(r.run_dir / "Table.asc")
     finally:
         logger.remove(lognum)
     diff_is_error = True
@@ -143,8 +149,8 @@ def test_retrieval_cris(
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
         ifile_hlp=ifile_hlp,
-        # writeOutput=True,
-        # writePlots=True,
+        # write_debug_output=True,
+        # write_plots=True,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

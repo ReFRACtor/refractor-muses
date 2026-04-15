@@ -7,7 +7,6 @@ from refractor.muses import (
     CurrentState,
     CurrentStrategyStep,
     ForwardModelHandle,
-    MeasurementId,
     MusesObservation,
     MusesRunDir,
     RetrievalConfiguration,
@@ -171,12 +170,8 @@ class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
 
 class ScaledTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
+        super().__init__()
         self.creator_kwargs = creator_kwargs
-        self.measurement_id = None
-
-    def notify_update_target(self, measurement_id: MeasurementId):
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        self.measurement_id = measurement_id
 
     def forward_model(
         self,
@@ -253,7 +248,7 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, end_to_end_run_dir, tropomi_test_
                 name=StateElementIdentifier("O3_SCALED"),
             )
         )
-        rs.update_target(r.run_dir / "Table.asc")
+        rs.update_strategy_context(r.run_dir)
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)

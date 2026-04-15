@@ -9,7 +9,7 @@ from .retrieval_array import (
     FullGrid2dArray,
 )
 from .identifier import StateElementIdentifier
-from .state_element import StateElementHandleSet, StateElement
+from .state_element import StateElement
 import numpy as np
 import scipy  # type: ignore
 import refractor.framework as rf  # type: ignore
@@ -26,12 +26,10 @@ if typing.TYPE_CHECKING:
     from .sounding_metadata import SoundingMetadata
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
-    from .muses_strategy import MusesStrategy
-    from .observation_handle import ObservationHandleSet
-    from .muses_observation import MeasurementId
+    from .muses_strategy_context import MusesStrategyContext
     from .state_info import StateElement
-    from .cross_state_element import CrossStateElementHandleSet
     from .cost_function import CostFunction
+    from .state_info import StateInfo
 
 
 class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
@@ -55,13 +53,9 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
 
-    def __init__(
-        self,
-    ) -> None:
-        from .state_info import StateInfo
-
+    def __init__(self, state_info: StateInfo) -> None:
         super().__init__()
-        self._state_info = StateInfo()
+        self._state_info = state_info
         self._step_directory: None | Path = None
         self._strategy_step: None | StrategyStepIdentifier = None
         self._retrieval_type: None | RetrievalType = None
@@ -72,6 +66,7 @@ class CurrentStateStateInfo(CurrentState):
         self._current_state_old = self._state_info._current_state_old  # noqa: SLF001
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
+        self._state_info.strategy_context.add_observer(self)
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
@@ -479,22 +474,6 @@ class CurrentStateStateInfo(CurrentState):
     ) -> FullGridMappedArray | None:
         return self.state_element(state_element_id).pressure_list_fm
 
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        return self._state_info.state_element_handle_set
-
-    @state_element_handle_set.setter
-    def state_element_handle_set(self, val: StateElementHandleSet) -> None:
-        self._state_info.state_element_handle_set = val
-
-    @property
-    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
-        return self._state_info.cross_state_element_handle_set
-
-    @cross_state_element_handle_set.setter
-    def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
-        self._state_info.cross_state_element_handle_set = val
-
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach StateElement to get notified when current state changes.
         #
@@ -516,22 +495,21 @@ class CurrentStateStateInfo(CurrentState):
                 )
             )
 
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
+    def notify_update_strategy_context(
+        self, strategy_context: MusesStrategyContext
     ) -> None:
-        self._state_info.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set
-        )
-        self._covariance_state_element_name = StateElementIdentifier.sort_identifier(
-            list(
-                set(strategy.retrieval_elements)
-                | set(strategy.error_analysis_interferents)
+        strategy = strategy_context.strategy
+        if strategy is not None:
+            self._covariance_state_element_name = (
+                StateElementIdentifier.sort_identifier(
+                    list(
+                        set(strategy.retrieval_elements)
+                        | set(strategy.error_analysis_interferents)
+                    )
+                )
             )
-        )
+        else:
+            self._covariance_state_element_name = []
         self.clear_cache()
 
     def notify_start_retrieval(
@@ -542,10 +520,16 @@ class CurrentStateStateInfo(CurrentState):
         if self.record is not None:
             self.record.notify_start_retrieval()
         if current_strategy_step is not None:
-            self._retrieval_element_id = current_strategy_step.retrieval_elements
-            self._sys_element_id = current_strategy_step.error_analysis_interferents
+            if hasattr(current_strategy_step, "retrieval_elements"):
+                self._retrieval_element_id = current_strategy_step.retrieval_elements
+            else:
+                self._retrieval_element_id = []
+            if hasattr(current_strategy_step, "error_analysis_interferents"):
+                self._sys_element_id = current_strategy_step.error_analysis_interferents
+            else:
+                self._sys_element_id = []
             self._step_directory = (
-                retrieval_config["run_dir"]
+                retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             self._strategy_step = current_strategy_step.strategy_step
@@ -570,10 +554,16 @@ class CurrentStateStateInfo(CurrentState):
         if current_strategy_step is not None:
             if self.record is not None:
                 self.record.notify_start_step()
-            self._retrieval_element_id = current_strategy_step.retrieval_elements
-            self._sys_element_id = current_strategy_step.error_analysis_interferents
+            if hasattr(current_strategy_step, "retrieval_elements"):
+                self._retrieval_element_id = current_strategy_step.retrieval_elements
+            else:
+                self._retrieval_element_id = []
+            if hasattr(current_strategy_step, "error_analysis_interferents"):
+                self._sys_element_id = current_strategy_step.error_analysis_interferents
+            else:
+                self._sys_element_id = []
             self._step_directory = (
-                retrieval_config["run_dir"]
+                retrieval_config["output_directory"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             self._strategy_step = current_strategy_step.strategy_step

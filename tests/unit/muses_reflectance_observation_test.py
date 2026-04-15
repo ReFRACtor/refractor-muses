@@ -21,8 +21,8 @@ def test_create_muses_tropomi_observation(
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
     r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp)
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -34,9 +34,7 @@ def test_create_muses_tropomi_observation(
             FilterIdentifier("1A1"),
         ],
     }
-    measurement_id = MeasurementIdFile(
-        r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
-    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     # This is the microwindows file for step 12, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
@@ -58,6 +56,7 @@ def test_create_muses_tropomi_observation(
     )
     obs = MusesTropomiObservation.create_from_id(
         measurement_id,
+        filter_list_dict[InstrumentIdentifier("TROPOMI")],
         None,
         cs,
         swin_dict[InstrumentIdentifier("TROPOMI")],
@@ -76,8 +75,8 @@ def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
     r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
-    rconfig = RetrievalConfiguration.create_from_strategy_file(
-        r.run_dir / "Table.asc", ifile_hlp=ifile_hlp
+    rconfig = RetrievalConfiguration.create_from_yaml(
+        r.run_dir / "retrieval_config.yaml", ifile_hlp=ifile_hlp
     )
     # Determined by looking a the full run
     filter_list_dict = {
@@ -89,9 +88,7 @@ def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in
             FilterIdentifier("1A1"),
         ],
     }
-    measurement_id = MeasurementIdFile(
-        r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
-    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig)
     # This is the microwindows file for step 8, determined by just running the full
     # retrieval and noting the file used
     mwfile = (
@@ -116,6 +113,7 @@ def test_create_muses_omi_observation(isolated_dir, ifile_hlp, joint_omi_test_in
     )
     obs = MusesOmiObservation.create_from_id(
         measurement_id,
+        filter_list_dict[InstrumentIdentifier("OMI")],
         None,
         cs,
         swin_dict[InstrumentIdentifier("OMI")],

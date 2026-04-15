@@ -17,3 +17,5 @@ ReFRACtor/MUSES
 ---------------
 
 This repository contains code for integrating ReFRACtor with the MUSES pipeline.
+
+Documentation at [refractor-muses](https://github.jpl.nasa.gov/pages/refractor/refractor-muses).

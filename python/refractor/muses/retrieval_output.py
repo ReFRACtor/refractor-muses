@@ -1,5 +1,8 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from loguru import logger
+from .creator_dict import CreatorDict
+from .muses_strategy_context import MusesStrategyContextMixin
 from .identifier import (
     RetrievalType,
     ProcessLocation,
@@ -22,13 +25,10 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .retrieval_configuration import RetrievalConfiguration
     from .retrieval_result import RetrievalResult
     from .current_state import CurrentState
     from .sounding_metadata import SoundingMetadata
-    from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
     from .input_file_helper import InputFileHelper, InputFilePath
 
@@ -80,25 +80,23 @@ class ExtraL2Output:
 extra_l2_output = ExtraL2Output()
 
 
-class RetrievalOutput:
+class RetrievalOutput(MusesStrategyContextMixin):
     """Observer of RetrievalStrategy, common behavior for Products files."""
 
-    def notify_add(self, retrieval_strategy: RetrievalStrategy) -> None:
-        self.retrieval_strategy = retrieval_strategy
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        super().__init__(creator_dict.strategy_context)
+        self.creator_dict = creator_dict
 
-    def notify_update(
+    def notify_process_location(
         self,
-        retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
-        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        current_state: CurrentState,
+        retrieval_strategy_step: RetrievalStrategyStep,
         **kwargs: Any,
     ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.current_state = current_state
         self.retrieval_strategy_step = retrieval_strategy_step
-
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        return self.retrieval_strategy.retrieval_config
 
     @property
     def step_directory(self) -> Path:
@@ -118,13 +116,10 @@ class RetrievalOutput:
 
     @property
     def output_directory(self) -> Path:
-        # This is usually the same as the self.retrieval_strategy.run_dir, but
+        # This is usually the same as the self.retrieval_config["run_dir"], but
         # could in principle be different. So we calculate this the same way
         # muses-py does
-        return (
-            self.retrieval_config["outputDirectory"]
-            / self.retrieval_config["sessionID"]
-        )
+        return self.retrieval_config["output_directory"]
 
     @property
     def lite_directory(self) -> InputFilePath:
@@ -132,8 +127,8 @@ class RetrievalOutput:
 
     @property
     def special_tag(self) -> str:
-        if self.retrieval_strategy.retrieval_type != RetrievalType("default"):
-            return f"-{self.retrieval_strategy.retrieval_type.lower()}"
+        if self.retrieval_type != RetrievalType("default"):
+            return f"-{self.retrieval_type.lower()}"
         return ""
 
     @property
@@ -148,17 +143,10 @@ class RetrievalOutput:
         return res
 
     @property
-    def step_number(self) -> int:
-        return self.retrieval_strategy.strategy_step.step_number
-
-    @property
-    def step_name(self) -> str:
-        return self.retrieval_strategy.strategy_step.step_name
-
-    @property
     def results(self) -> RetrievalResult:
         if (
             self.retrieval_strategy_step is None
+            or not hasattr(self.retrieval_strategy_step, "results")
             or self.retrieval_strategy_step.results is None
         ):
             raise RuntimeError("retrieval_strategy_step.results needs to not be None")
@@ -222,16 +210,8 @@ class RetrievalOutput:
             )
         return t
 
-    @property
-    def current_state(self) -> CurrentState:
-        return self.retrieval_strategy.current_state
-
-    @property
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        return self.retrieval_strategy.current_strategy_step
-
     def observation(self, instrument_name: str) -> MusesObservation:
-        return self.retrieval_strategy.observation_handle_set.observation(
+        return self.creator_dict[rf.Observation].observation(
             InstrumentIdentifier(instrument_name), None, None, None
         )
 
