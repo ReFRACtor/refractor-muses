@@ -425,6 +425,9 @@ class RetrievalL2Output(RetrievalOutput):
             "lmresults_delta".upper(): self.results.LMResults_delta[
                 self.results.bestIteration
             ],
+            "MICROWINDOW": np.zeros(shape=(2, 0), dtype=np.float32) - 999,
+            "MICROWINDOW_INSTRUMENT": np.array([], dtype='object'),
+            "MICROWINDOW_SPECIES": np.array([], dtype='object'),
         }
 
         if self.state_sd_wavenumber("EMIS").shape[0] == 0:
@@ -446,6 +449,30 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RADIANCEMAXIMUMSNR = self.results.radianceMaximumSNR
         species_data.RESIDUALNORMFINAL = self.results.residualNormFinal
         species_data.RESIDUALNORMINITIAL = self.results.residualNormInitial
+
+        # Extract microwindows from current_strategy_step spectral windows
+        # This is the source of truth - what was used as input to the forward model
+        # Match py-retrieve write_products_one.py:169-173
+        try:
+            if hasattr(self, 'current_strategy_step') and self.current_strategy_step is not None:
+                spectral_window_dict = self.current_strategy_step.spectral_window_dict
+
+                # Collect all microwindows across all instruments using muses_microwindows()
+                all_windows = []
+                for instrument_name, spec_win in spectral_window_dict.items():
+                    # muses_microwindows() returns list of dicts with 'start', 'endd', 'instrument', 'speciesList'
+                    all_windows.extend(spec_win.muses_microwindows())
+
+                # Build the arrays if we found any windows (same as py-retrieve)
+                if len(all_windows) > 0:
+                    import pandas as pd
+                    df = pd.DataFrame.from_dict(all_windows)
+                    species_data.MICROWINDOW = df[['start', 'endd']].to_numpy().T.astype(np.float32)
+                    species_data.MICROWINDOW_INSTRUMENT = df['instrument'].to_numpy(dtype='object')
+                    species_data.MICROWINDOW_SPECIES = df['speciesList'].to_numpy(dtype='object')
+        except Exception as e:
+            logger.warning(f"Could not extract microwindow information: {e}")
+            # Leave as empty arrays
 
         smeta = self.sounding_metadata
 
