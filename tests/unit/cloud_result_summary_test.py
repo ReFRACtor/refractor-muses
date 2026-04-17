@@ -7,7 +7,7 @@ def test_cloud_result_summary(joint_tropomi_step_12_output):
     rs, rstep, _ = joint_tropomi_step_12_output
     current_state = rs.current_state
     result_list = rstep.results.resultsList
-    e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
+    e = ErrorAnalysis(rstep.results)
     csum = CloudResultSummary(current_state, result_list, e)
     if False:
         print(f"""

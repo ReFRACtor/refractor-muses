@@ -12,7 +12,7 @@ def test_error_analysis(isolated_dir, joint_tropomi_test_in_dir, ifile_hlp):
         "retrieval step",
         ifile_hlp,
     )
-    e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
+    e = ErrorAnalysis(rstep.results)
     if False:
         with np.printoptions(precision=12):
             print(f"""

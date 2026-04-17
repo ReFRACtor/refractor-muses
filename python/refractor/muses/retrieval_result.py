@@ -68,9 +68,7 @@ class RetrievalResult:
             )
             for slc in self._filter_result_summary.filter_slice
         ]
-        self._error_analysis = ErrorAnalysis(
-            self.current_state, self.current_strategy_step, self
-        )
+        self._error_analysis = ErrorAnalysis(self)
         self._cloud_result_summary = CloudResultSummary(
             self.current_state, self.resultsList, self._error_analysis
         )

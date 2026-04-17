@@ -1,15 +1,14 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .misc import AttrDictAdapter
+from .identifier import StateElementIdentifier
 import numpy as np
 import math
 from loguru import logger
 import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
-    from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
-    from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
 
 
 class ErrorAnalysis:
@@ -26,44 +25,171 @@ class ErrorAnalysis:
 
     def __init__(
         self,
-        current_state: CurrentState,
-        current_strategy_step: CurrentStrategyStep,
         retrieval_result: RetrievalResult,
     ) -> None:
-        # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
-
+        self.current_state = retrieval_result.current_state
         # TODO Clean up passing in RetrievalResult, instead we should just pass in the
         # pieces we need.
-        fstate_info = FakeStateInfo(current_state)
-        fretrieval_info = FakeRetrievalInfo(current_state)
         offDiagonalSys = self.error_analysis_wrapper(
             retrieval_result.rstep,
-            fretrieval_info,
-            fstate_info,
             retrieval_result,
         )
         # Update current state with new aposteriori_cov_fm.
-        current_state.update_previous_aposteriori_cov_fm(self.Sx, offDiagonalSys)
+        self.current_state.update_previous_aposteriori_cov_fm(self.Sx, offDiagonalSys)
+
+    @property
+    def n_totalParametersFM(self) -> int:
+        return len(self.current_state.forward_model_state_vector_element_list)
+
+    @property
+    def n_parametersFM(self) -> list[int]:
+        return [
+            self.current_state.fm_sv_loc[sid][1]
+            for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    @property
+    def n_parameters(self) -> list[int]:
+        return [
+            self.current_state.retrieval_sv_loc[sid][1]
+            for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    @property
+    def parameterStart(self) -> list[int]:
+        return [
+            self.current_state.retrieval_sv_loc[sid][0]
+            for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    @property
+    def parameterEnd(self) -> list[int]:
+        return [
+            self.current_state.retrieval_sv_loc[sid][0]
+            + self.current_state.retrieval_sv_loc[sid][1]
+            - 1
+            for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    @property
+    def mapToParameters(self) -> np.ndarray | None:
+        return self.current_state.map_to_parameter_matrix
+
+    @property
+    def mapType(self) -> list[str | rf.StateMapping]:
+        return [
+            self._map_type(sid) for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    def _map_type(self, sid: StateElementIdentifier) -> str | rf.StateMapping:
+        from refractor.muses import StateMappingUpdateArray
+
+        smap = self.current_state.state_mapping(sid, include_subset=False)
+        if isinstance(smap, rf.StateMappingLinear):
+            return "linear"
+        elif isinstance(smap, rf.StateMappingLog):
+            return "log"
+        elif isinstance(smap, StateMappingUpdateArray):
+            return "linear"
+        elif smap.name == "state mapping, log":
+            return "log"
+        elif smap.name == "log, state mapping":
+            return "log"
+        raise RuntimeError(f"Don't recognize state mapping {smap}")
+
+    @property
+    def initialGuessListFM(self) -> np.ndarray:
+        return self.current_state.initial_guess_full
+
+    @property
+    def constraintVector(self) -> np.ndarray:
+        return self.current_state.constraint_vector(fix_negative=True)
+
+    @property
+    def doUpdateFM(self) -> np.ndarray:
+        return self.current_state.updated_fm_flag
+
+    @property
+    def speciesListFM(self) -> list[str]:
+        return [
+            str(i) for i in self.current_state.forward_model_state_vector_element_list
+        ]
+
+    @property
+    def speciesList(self) -> list[str]:
+        return [str(i) for i in self.current_state.retrieval_state_vector_element_list]
+
+    @property
+    def n_totalParametersSys(self) -> int:
+        return len(self.current_state.systematic_model_state_vector_element_list)
+
+    @property
+    def pressureListFM(self) -> np.ndarray:
+        pdata: list[np.ndarray] = []
+        # Convention of muses-py is to use [-2] for items that aren't on
+        # pressure levels
+        for sid in self.current_state.retrieval_state_element_id:
+            d = self.current_state.pressure_list_fm(sid)
+            if d is not None:
+                pdata.append(d)
+            else:
+                pdata.append(np.array([-2.0]))
+        return np.concatenate(pdata)
+
+    @property
+    def n_totalParameters(self) -> int:
+        return len(self.current_state.retrieval_state_vector_element_list)
+
+    @property
+    def constraintVectorListFM(self) -> np.ndarray:
+        return self.current_state.constraint_vector_full
+
+    @property
+    def mapToState(self) -> np.ndarray | None:
+        return self.current_state.basis_matrix
+
+    @property
+    def n_species(self) -> int:
+        return len(self.current_state.retrieval_state_element_id)
+
+    @property
+    def species(self) -> list[str]:
+        return [str(i) for i in self.current_state.retrieval_state_element_id]
+
+    @property
+    def parameterStartFM(self) -> list[int]:
+        return [
+            self.current_state.fm_sv_loc[sid][0]
+            for sid in self.current_state.retrieval_state_element_id
+        ]
+
+    @property
+    def parameterEndFM(self) -> list[int]:
+        return [
+            self.current_state.fm_sv_loc[sid][0]
+            + self.current_state.fm_sv_loc[sid][1]
+            - 1
+            for sid in self.current_state.retrieval_state_element_id
+        ]
 
     def error_analysis_wrapper(
         self,
         radiance: AttrDictAdapter,
-        retrieval: FakeRetrievalInfo,
-        stateInfo: FakeStateInfo,
         retrieval_result: RetrievalResult,
     ) -> np.ndarray | None:
         # expected noise
         data_error = radiance.NESR
         bad_pixel = data_error < 0
 
-        cstate = retrieval_result.current_state
-        if cstate.map_to_parameter_matrix is None or cstate.basis_matrix is None:
+        if (
+            self.current_state.map_to_parameter_matrix is None
+            or self.current_state.basis_matrix is None
+        ):
             raise RuntimeError("Missing basis matrix")
         my_map = AttrDictAdapter(
             {
-                "toPars": np.copy(cstate.map_to_parameter_matrix),
-                "toState": np.copy(cstate.basis_matrix),
+                "toPars": np.copy(self.current_state.map_to_parameter_matrix),
+                "toState": np.copy(self.current_state.basis_matrix),
             }
         )
 
@@ -98,7 +224,7 @@ class ErrorAnalysis:
             for i in range(jacobian_sys.shape[0]):
                 jacobian_sys[i, :] /= data_error
 
-            Sb = cstate.Sb
+            Sb = self.current_state.Sb
             self._Sb = Sb
 
         for ii in range(jacobian.shape[0]):
@@ -108,30 +234,28 @@ class ErrorAnalysis:
         jacobian = my_map.toState @ jacobian_fm
 
         # AT_LINE 177 Error_Analysis_Wrapper.pro
-        Sa = cstate.Sa
+        Sa = self.current_state.Sa
         self._Sa = Sa
 
-        ret_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
-        con_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
+        ret_vector = np.zeros(shape=(self.n_totalParametersFM), dtype=np.float64)
+        con_vector = np.zeros(shape=(self.n_totalParametersFM), dtype=np.float64)
 
-        for ispecie in range(retrieval.n_species):
-            species_name = retrieval.species[ispecie]
-            ind1FM = retrieval.parameterStartFM[ispecie]
-            ind2FM = retrieval.parameterEndFM[ispecie]
+        for ispecie in range(self.n_species):
+            species_name = self.species[ispecie]
+            ind1FM = self.parameterStartFM[ispecie]
+            ind2FM = self.parameterEndFM[ispecie]
 
             ret_vector[ind1FM : ind2FM + 1] = self.get_vector(
                 retrieval_result.resultsList,
-                retrieval,
                 species_name,
             )
             con_vector[ind1FM : ind2FM + 1] = self.get_vector(
-                retrieval.constraintVector,
-                retrieval,
+                self.constraintVector,
                 species_name,
             )
 
             if (
-                retrieval.mapType[ispecie].lower() == "log"
+                self.mapType[ispecie].lower() == "log"
             ):  # Note the spelling of 'mapType' in retrieval object.
                 ret_vector[ind1FM : ind2FM + 1] = np.log(
                     ret_vector[ind1FM : ind2FM + 1]
@@ -150,14 +274,13 @@ class ErrorAnalysis:
             Sa,
             jacobian_sys,
             Sb,
-            cstate.constraint_matrix,
+            self.current_state.constraint_matrix,
             constraintVector,
             resultVector,
             data_error,
             actual_data_residual,
             retrieval_result,
-            retrieval,
-            cstate.error_current_values,
+            self.current_state.error_current_values,
         )
         return offDiagonalSys
 
@@ -179,7 +302,6 @@ class ErrorAnalysis:
         dataError: np.ndarray,
         actualDataResidual: np.ndarray,
         retrieval_result: RetrievalResult,
-        retrieval: FakeRetrievalInfo,
         errorCurrentValues: np.ndarray,
     ) -> np.ndarray | None:
         o_offDiagonalSys = None
@@ -191,7 +313,7 @@ class ErrorAnalysis:
         self._KtSyK = kappa
         self._KtSyKFM = kappaFM
 
-        doUpdateFM = retrieval.doUpdateFM[0 : retrieval.n_totalParametersFM]
+        doUpdateFM = self.doUpdateFM[0 : self.n_totalParametersFM]
         dontUpdateFM = 1 - doUpdateFM
 
         my_id = np.asarray(np.identity(S_inv.shape[1]), dtype=np.float64)
@@ -245,9 +367,9 @@ class ErrorAnalysis:
         self._Sx_crossState = self._Sx_smooth.copy()
 
         # override the block diagonal terms with smooth_self and crossstate
-        species_list_fs = np.asarray(retrieval.speciesListFM)
-        for ii in range(retrieval.n_species):
-            species = retrieval.species[ii]
+        species_list_fs = np.asarray(self.speciesListFM)
+        for ii in range(self.n_species):
+            species = self.species[ii]
             indMe0 = np.where(species_list_fs == species)[0]
 
             if len(indMe0) > 1:
@@ -319,14 +441,14 @@ class ErrorAnalysis:
             self._Sx_ret_smooth + self._Sx_ret_crossState - Sx_smooth_ret
         )
         self._A_ret = kappa @ S_inv @ my_map.toPars
-        self._deviationVsErrorSpecies = np.zeros((retrieval.n_species,))
-        self._deviationVsRetrievalCovarianceSpecies = np.zeros((retrieval.n_species,))
-        self._deviationVsAprioriCovarianceSpecies = np.zeros((retrieval.n_species,))
-        self._degreesOfFreedomForSignal = np.zeros((retrieval.n_species,))
-        self._degreesOfFreedomNoise = np.zeros((retrieval.n_species,))
-        for ii in range(retrieval.n_species):
-            m1f = retrieval.parameterStartFM[ii]
-            m2f = retrieval.parameterEndFM[ii]
+        self._deviationVsErrorSpecies = np.zeros((self.n_species,))
+        self._deviationVsRetrievalCovarianceSpecies = np.zeros((self.n_species,))
+        self._deviationVsAprioriCovarianceSpecies = np.zeros((self.n_species,))
+        self._degreesOfFreedomForSignal = np.zeros((self.n_species,))
+        self._degreesOfFreedomNoise = np.zeros((self.n_species,))
+        for ii in range(self.n_species):
+            m1f = self.parameterStartFM[ii]
+            m2f = self.parameterEndFM[ii]
             x = self._A[m1f : m2f + 1, m1f : m2f + 1]
 
             if (m2f - m1f) > 0:
@@ -336,8 +458,8 @@ class ErrorAnalysis:
                 self._degreesOfFreedomForSignal[ii] = x
                 self._degreesOfFreedomNoise[ii] = 1 - x
 
-            m1 = retrieval.parameterStart[ii]
-            m2 = retrieval.parameterEnd[ii]
+            m1 = self.parameterStart[ii]
+            m2 = self.parameterEnd[ii]
 
             if not np.all(np.isfinite(kappa)):
                 raise RuntimeError("kappa is not finite")
@@ -376,8 +498,8 @@ class ErrorAnalysis:
             reduced_index = np.where(indf < jacobian.shape[1])[0]
             indf = indf[reduced_index]
 
-        value = np.zeros(shape=(retrieval.n_totalParameters), dtype=np.float64)
-        for ii in range(retrieval.n_totalParameters):
+        value = np.zeros(shape=(self.n_totalParameters), dtype=np.float64)
+        for ii in range(self.n_totalParameters):
             K = jacobian[ii, indf]
             resid_vector = actualDataResidual[indf]
             if np.sum(K * K) > 0:  # when K is very small, k*k becomes zero.
@@ -391,11 +513,11 @@ class ErrorAnalysis:
 
         K = np.copy(jacobian)
         dL = actualDataResidual / dataError
-        for jj in range(retrieval.n_totalParameters):
+        for jj in range(self.n_totalParameters):
             K[jj, :] = K[jj, :] * dataError
 
-        valueRet = np.zeros(shape=(retrieval.n_totalParameters), dtype=np.float64)
-        for ii in range(retrieval.n_totalParameters):
+        valueRet = np.zeros(shape=(self.n_totalParameters), dtype=np.float64)
+        for ii in range(self.n_totalParameters):
             myK = K[ii, :]
             resid_vector = dL
             # K.dL / |K| / |NESR|
@@ -410,11 +532,11 @@ class ErrorAnalysis:
 
         dL = actualDataResidual / dataError
         K = np.copy(jacobianFM)
-        for jj in range(retrieval.n_totalParametersFM):
+        for jj in range(self.n_totalParametersFM):
             K[jj, :] = K[jj, :] * dataError
 
-        value = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
-        for ii in range(retrieval.n_totalParametersFM):
+        value = np.zeros(shape=(self.n_totalParametersFM), dtype=np.float64)
+        for ii in range(self.n_totalParametersFM):
             myK = K[ii, :]
             resid_vector = dL
             # K.dL / |K| / |NESR|
@@ -430,11 +552,11 @@ class ErrorAnalysis:
         self._KDotDL_list = valueRet
         self._KDotDL = np.amax(np.abs(value))
         self._KDotDL_species = []
-        self._KDotDL_byspecies = np.zeros((retrieval.n_species,))
-        for ii in range(retrieval.n_species):
-            m1 = retrieval.parameterStart[ii]
-            m2 = retrieval.parameterEnd[ii]
-            self._KDotDL_species.append(retrieval.speciesList[m1])
+        self._KDotDL_byspecies = np.zeros((self.n_species,))
+        for ii in range(self.n_species):
+            m1 = self.parameterStart[ii]
+            m2 = self.parameterEnd[ii]
+            self._KDotDL_species.append(self.speciesList[m1])
             self._KDotDL_byspecies[ii] = np.amax(np.abs(self._KDotDL_list[m1 : m2 + 1]))
 
         # dict preserves order
@@ -460,12 +582,10 @@ class ErrorAnalysis:
             if v1 > 0:
                 dL = actualDataResidual / dataError
                 K = np.copy(jacobianFM)
-                for jj in range(retrieval.n_totalParametersFM):
+                for jj in range(self.n_totalParametersFM):
                     K[jj, :] = K[jj, :] * dataError
-                value = np.zeros(
-                    shape=(retrieval.n_totalParametersFM), dtype=np.float64
-                )
-                for kk in range(retrieval.n_totalParametersFM):
+                value = np.zeros(shape=(self.n_totalParametersFM), dtype=np.float64)
+                for kk in range(self.n_totalParametersFM):
                     myK = K[kk, v1 : v2 + 1]
                     resid_vector = dL[v1 : v2 + 1]
                     # K.dL / |K| / |NESR|
@@ -479,12 +599,12 @@ class ErrorAnalysis:
                             raise RuntimeError("KDotDL of jacobianFM is not finite")
                 self._KDotDL_byfilter[ii] = np.amax(np.abs(value))
 
-        if retrieval.n_totalParametersSys > 0 and jacobianSys is not None:
+        if self.n_totalParametersSys > 0 and jacobianSys is not None:
             logger.warning(
-                "This section of the code for retrieval.n_totalParametersSys has not been tested."
+                "This section of the code for self.n_totalParametersSys has not been tested."
             )
-            value = np.zeros(shape=(retrieval.n_totalParametersSys), dtype=np.float64)
-            for ii in range(retrieval.n_totalParametersSys):
+            value = np.zeros(shape=(self.n_totalParametersSys), dtype=np.float64)
+            for ii in range(self.n_totalParametersSys):
                 K = jacobianSys[ii, :]
                 # K.dL / |K| / |NESR|
                 if np.sum(K * K) > 0:  # when K is very small, K*K becomes zero.
@@ -502,9 +622,9 @@ class ErrorAnalysis:
         Sx = self._Sx
         Sx_rand = self._Sx_rand
 
-        self._errorFM = np.zeros((retrieval.n_totalParametersFM,))
-        self._precision = np.zeros((retrieval.n_totalParametersFM,))
-        for is_index in range(retrieval.n_totalParametersFM):
+        self._errorFM = np.zeros((self.n_totalParametersFM,))
+        self._precision = np.zeros((self.n_totalParametersFM,))
+        for is_index in range(self.n_totalParametersFM):
             self._errorFM[is_index] = np.sqrt(Sx[is_index, is_index])
             self._precision[is_index] = np.sqrt(Sx_rand[is_index, is_index])
 
@@ -519,22 +639,20 @@ class ErrorAnalysis:
         # actualDataResidual is fit - observed; also includes measurement error
         # G ## actualDataResidual should be 0
 
-        if retrieval.n_totalParametersFM == 1:
+        if self.n_totalParametersFM == 1:
             GdL = G_matrix * actualDataResidual
         else:
             GdL = G_matrix * 0
             for jj in range(len(actualDataResidual)):
                 GdL[jj, :] = G_matrix[jj, :] * actualDataResidual[jj]
         self._GdL = GdL
-        ind = [
-            idx for idx, value in enumerate(retrieval.speciesListFM) if value == "CH4"
-        ]
+        ind = [idx for idx, value in enumerate(self.speciesListFM) if value == "CH4"]
 
         # Eventhough we are not doing special processing, we will still need to calculate the self._ch4_evs field.
-        # Also, only calculate the self._ch4_evs field. if 'CH4' is in retrieval.speciesListFM.
+        # Also, only calculate the self._ch4_evs field. if 'CH4' is in self.speciesListFM.
         calculate_evs_field_flag = True
         if len(ind) > 10 and calculate_evs_field_flag:
-            pp = retrieval.pressureListFM[ind]
+            pp = self.pressureListFM[ind]
             (wmatrix, svmatrix, vmatrix) = np.linalg.svd(
                 np.transpose(jacobianFM[ind, :]), full_matrices=True
             )
@@ -710,37 +828,32 @@ class ErrorAnalysis:
     def get_vector(
         self,
         i_vector: np.ndarray,
-        i_retrieval: FakeRetrievalInfo,
         i_species: str,
     ) -> np.ndarray:
-        ii = i_retrieval.species.index(i_species)
-        nn = i_retrieval.n_parametersFM[ii]
-        mm = i_retrieval.n_parameters[ii]
+        ii = self.species.index(i_species)
+        nn = self.n_parametersFM[ii]
+        mm = self.n_parameters[ii]
 
-        start = i_retrieval.parameterStart[ii]
-        endd = i_retrieval.parameterEnd[ii]
+        start = self.parameterStart[ii]
+        endd = self.parameterEnd[ii]
 
-        startFM = i_retrieval.parameterStartFM[ii]
-        endFM = i_retrieval.parameterEndFM[ii]
-        defaultUnretrievedValues = i_retrieval.initialGuessListFM[startFM : endFM + 1]
+        startFM = self.parameterStartFM[ii]
+        endFM = self.parameterEndFM[ii]
+        defaultUnretrievedValues = self.initialGuessListFM[startFM : endFM + 1]
 
         o_vector = np.asarray(i_vector[start : endd + 1])
 
         if nn == 1 and mm == 1:
             my_map = {"toState": np.asarray([1]), "toPars": np.asarray([1])}
         else:
-            assert i_retrieval.mapToState is not None
-            assert i_retrieval.mapToParameters is not None
+            assert self.mapToState is not None
+            assert self.mapToParameters is not None
             my_map = {
-                "toState": i_retrieval.mapToState[
-                    start : endd + 1, startFM : endFM + 1
-                ],
-                "toPars": i_retrieval.mapToParameters[
-                    startFM : endFM + 1, start : endd + 1
-                ],
+                "toState": self.mapToState[start : endd + 1, startFM : endFM + 1],
+                "toPars": self.mapToParameters[startFM : endFM + 1, start : endd + 1],
             }
 
-        if i_retrieval.mapType[ii].lower() == "log":
+        if self.mapType[ii].lower() == "log":
             # TODO: Should we add TROPOMI to this condition to make it more obvious
             if (
                 i_species in ("CLOUDEXT", "EMIS", "CALSCALE", "CALOFFSET")
@@ -764,19 +877,19 @@ class ErrorAnalysis:
                 o_vector = vectorF
             else:
                 o_vector = np.exp(my_map["toState"].T @ o_vector)
-        elif i_retrieval.mapType[ii].lower() == "linear":
+        elif self.mapType[ii].lower() == "linear":
             o_vector = my_map["toState"].T @ o_vector
-        elif i_retrieval.mapType[ii].lower() == "linearscale":
-            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+        elif self.mapType[ii].lower() == "linearscale":
+            xa = self.constraintVectorListFM[startFM : endFM + 1]
             o_vector = xa + o_vector[0]
-        elif i_retrieval.mapType[ii].lower() == "linearpca":
-            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+        elif self.mapType[ii].lower() == "linearpca":
+            xa = self.constraintVectorListFM[startFM : endFM + 1]
             o_vector = xa + my_map["toState"].T @ o_vector
-        elif i_retrieval.mapType[ii].lower() == "logscale":
-            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+        elif self.mapType[ii].lower() == "logscale":
+            xa = self.constraintVectorListFM[startFM : endFM + 1]
             o_vector = xa * o_vector[0]
-        elif i_retrieval.mapType[ii].lower() == "logpca":
-            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+        elif self.mapType[ii].lower() == "logpca":
+            xa = self.constraintVectorListFM[startFM : endFM + 1]
             o_vector = np.exp(np.log(xa) + my_map["toState"].T @ o_vector)
         else:
             raise RuntimeError("Unknown map type")

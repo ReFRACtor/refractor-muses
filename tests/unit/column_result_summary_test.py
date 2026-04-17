@@ -6,7 +6,7 @@ import numpy.testing as npt
 def test_column_result_summary(joint_tropomi_step_12_output):
     rs, rstep, _ = joint_tropomi_step_12_output
     current_state = rs.current_state
-    e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
+    e = ErrorAnalysis(rstep.results)
     csum = ColumnResultSummary(current_state, e)
     if False:
         print(f"""
