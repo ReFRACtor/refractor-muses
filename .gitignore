@@ -28,10 +28,10 @@ python/refractor_muses.egg-info
 # Various test directory stuff
 /*.pkl
 *.log
-t1*
-t2*
-temp*
-try*.py
+t1
+t2
+temp
+try?.py
 end_to_end_run
 
 # Documentation

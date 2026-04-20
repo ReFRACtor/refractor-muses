@@ -21,10 +21,8 @@ class ColumnResultSummary:
         stateInfo = FakeStateInfo(current_state)
         retrievalInfo = FakeRetrievalInfo(current_state)
 
-        if np.max(stateInfo.true["values"]) > 0:
-            have_true = True
-        else:
-            have_true = False
+        # I don't think this is fully supported, so we just always say have_true is False
+        have_true = False
         num_species = retrievalInfo.n_species
         # This really is exactly 5. See the column calculation. This is
         # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
