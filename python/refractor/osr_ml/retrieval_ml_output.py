@@ -41,10 +41,10 @@ class RetrievalMlOutput(MusesStrategyContextMixin):
             self.retrieval_config["product_spec_path"] / f"columns_{inst}_{spec}.nc"
         )
         props = (
-            self.stac_catalog.get_item_links()[0] # type: ignore[union-attr]
+            self.stac_catalog.get_item_links()[0]  # type: ignore[union-attr]
             .resolve_stac_object()
             .target.properties
-        )  
+        )
         sensor_set = props["sensor_set"]
         dstring = props["datetime"].split("T")[0].replace("-", "")
         foutname = (
