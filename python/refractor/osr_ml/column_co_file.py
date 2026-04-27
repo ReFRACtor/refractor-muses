@@ -8,6 +8,8 @@ import typing
 if typing.TYPE_CHECKING:
     from .ml import MlPredictionClass
 
+# Skip this for now. The file definition doesn't have this, and it doesn't currently
+# work. We can possibly come back to this, so we will leave in place
 class _DimColumn:
     '''Make dim_column a enumeration'''
     def __init__(self):
@@ -31,7 +33,8 @@ class ColumnCoFile(DeclarativeOutput):
         self.prediction = prediction
         self.output = TemplatedOutput(pspec, output_filename)
         self.output.register_instances((self,))
-        self.output.register_variable("dim_column", _DimColumn())
+        # See comment above, for now skip the enumeration metadata
+        #self.output.register_variable("dim_column", _DimColumn())
 
     @register_dataset("/col")
     def co_column(self) -> np.ndarray:
