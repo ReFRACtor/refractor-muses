@@ -197,7 +197,7 @@ def features_l1b(
     return features
 
 
-class __PredictionClass:
+class MlPredictionClass:
     ##############
     # This creates a class for the predictions from a Keras multi-layer
     #                   perceptron. You can find these attributes below or
@@ -289,7 +289,7 @@ def prediction(
     flag_outliers: bool = True,
     evaluate: bool = True,
     save_evaluate: bool = True,
-) -> __PredictionClass:
+) -> MlPredictionClass:
     ##############
     # Predict with a Keras multi-layer perceptron.
     #
@@ -374,7 +374,7 @@ def prediction(
     #
     # Returns
     # -------
-    # data_out: __PredictionClass() class/object which contains the
+    # data_out: MlPredictionClass() class/object which contains the
     #                   predictions (and original labels), evaluation metrics,
     #                   and the scaling factor.
     ##############
@@ -996,7 +996,7 @@ def prediction(
     # 6) Fill an object with all these variables and return data_out
     ##########################################################################
     if mdl_type == "regression":
-        data_out = __PredictionClass(
+        data_out = MlPredictionClass(
             mdl_type,
             labels,
             labels_pred,
@@ -1009,7 +1009,7 @@ def prediction(
             scale_fac_conv,
         )
     if mdl_type == "classification":
-        data_out = __PredictionClass(
+        data_out = MlPredictionClass(
             mdl_type,
             labels,
             labels_pred,
@@ -1026,4 +1026,4 @@ def prediction(
     return data_out
 
 
-__all__ = ["features_l1b", "prediction"]
+__all__ = ["features_l1b", "prediction", "MlPredictionClass"]
