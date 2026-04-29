@@ -52,11 +52,8 @@ class RetrievalMlOutput(MusesStrategyContextMixin):
             / f"{sensor_set}_{spec}_{dstring}.nc"
         )
         shutil.copy(pspect, foutname)
-        outcat = pystac.Catalog(
-            id="myid", description="TROPESS Machine Learning product"
-        )
         item = pystac.Item(
-            id=f"{sensor_set}_{spec}_{dstring}",
+            id=f"{dstring}",
             geometry={
                 "type": "MultiPoint",
                 "coordinates": [
@@ -68,13 +65,21 @@ class RetrievalMlOutput(MusesStrategyContextMixin):
                 ],
             },
             bbox=[-180, 90, 180, -90],
-            properties={},
+            properties={},\
+            # TODO I think this should be for data, not time of processing
             datetime=datetime.utcnow(),
         )
-        outcat.add_item(item)
-        outcat.normalize_hrefs(str(self.retrieval_config["output_directory"]))
-        outcat.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
-        logger.info("Fake output")
+        item.assets = {}
+        item.assets["CRIS_CO"] = pystac.Asset(href=foutname.name,
+                                       title="CRIS ML CO Output",
+                                       roles=["data"],
+                                       media_type=pystac.MediaType.NETCDF
+                                       )
+        #icol = pystac.ItemCollection(items=[outcat,])
+        #outcat.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
+        #icol.save_object(dest_href="catalog.json")
+        item.set_self_href(self.retrieval_config["output_directory"] / f"{dstring}.json")
+        item.save_object()
 
 
 ProcessLocationObservable.register_default_observer(RetrievalMlOutput)
