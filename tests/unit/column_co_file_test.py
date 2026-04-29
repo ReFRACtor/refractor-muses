@@ -17,7 +17,9 @@ def test_cris_co_ml(cris_ml_test_in_dir, isolated_dir, ifile_hlp):
             ]
         )
     l1b = read_l1b(files=l1b_file)
-    features = features_l1b(l1b=l1b, prior=None, ml_model_path=ctx.retrieval_config["muses_ml_path"])
+    features = features_l1b(
+        l1b=l1b, prior=None, ml_model_path=ctx.retrieval_config["muses_ml_path"]
+    )
     instrument = "CRIS-JPSS-1"
     species = "CO"
     pred = prediction(
@@ -33,6 +35,9 @@ def test_cris_co_ml(cris_ml_test_in_dir, isolated_dir, ifile_hlp):
         save_evaluate=False,
     )
     f = ColumnCoFile(
-        pred, "column_co.nc", ctx.retrieval_config["product_spec_path"] / "columns_CRIS_CO.nc"
+        pred,
+        l1b_file,
+        "column_co.nc",
+        ctx.retrieval_config["product_spec_path"] / "columns_CRIS_CO.nc",
     )
     f.write()

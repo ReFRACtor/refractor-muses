@@ -36,7 +36,7 @@ version = { attr = "refractor.muses.version.__version__" }
 
 [tools.setuptools]
 package_dir={"" =  "python"}
-package_data={"*" = ["py.typed", "*.pyi"], "refractor.muses" = ["retrieval_output.json"]}
+package_data={"*" = ["py.typed", "*.pyi"], "refractor.muses" = ["retrieval_output.json", "order_species.json"]}
 
 [project.scripts]
 refractor-retrieve = "refractor.muses.refractor_retrieve:main"
