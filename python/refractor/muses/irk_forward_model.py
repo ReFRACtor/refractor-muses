@@ -111,10 +111,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         psi_tot = np.float64(0.0)
 
-        # AT_LINE 42 ELANOR/raylayer_nadir.pro
-        # spherical snells law with n = 1
-        # took out call to earth_radius() b/c variable was not used
-        obs_observation_value = i_uip.raytable[i_uip.ray_cnt]['observation']
 
         # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
         radiusSat = i_uip.obs_table['sat_radius']  # There is only one obs_table so we cannot use the index.
@@ -343,110 +339,69 @@ class IrkForwardModel(rf.StandardForwardModel):
             # end if indsLinear[0] >= 0:
         # end for jj in reversed(range(0,nlayers)) 
 
-        # AT_LINE 302 ELANOR/raylayer_nadir.pro
+        ext = i_uip.cloud['extinction']
+        frequency = i_uip.cloud['frequency']
+        cloud_pressure = i_uip.cloud['pressure']
+        tau_total = np.zeros(shape=(len(frequency)), dtype=np.float64)
 
-        # convert from molec / m^2 to molec / cm^2
-        column = column / 1e4       
-        column_species = column_species / 1e4
+        num_v = len(frequency)
+        num_p = len(pressure)
 
-        # AT_LINE 307 ELANOR/raylayer_nadir.pro
-        tt = idl_tag_names(i_uip)
-        if 'cloud' in tt:
-            ext = i_uip.cloud['extinction']
-            frequency = i_uip.cloud['frequency']
-            cloud_pressure = i_uip.cloud['pressure']
-            tau_total = np.zeros(shape=(len(frequency)), dtype=np.float64)
-
-            num_v = len(frequency)
-            num_p = len(pressure)
-
-            if cloud_pressure < pressure[num_p-2]:
-                print(function_name, "out of range cloud pressure")
-                print(function_name, "cloud_pressure = ", cloud_pressure)
-                assert False
-
-            cloud_tag_names = idl_tag_names(i_uip.cloud)
-            cloud_tag_names = [my_key.upper() for ii, my_key in enumerate(cloud_tag_names)]
-
-            uu = np.where(np.asarray(cloud_tag_names) == "SCALE_PRESSURE")[0]
-            if uu.size > 0:
-                scale = i_uip.cloud['scale_pressure']
-
-            if uu.size == 0: # choose scale pressure that is closest to cloud top
-                vv = np.where(np.abs(pressure-cloud_pressure) == np.min(np.abs(pressure-cloud_pressure)))[0]
-                scale = np.abs(math.log(pressure[vv[0]]) - math.log(pressure[vv[0]+1]))
-
-                # PYTHON_NOTE: Because the value of scale is 0.09594064129559321 it will affect very calculation down stream
-                # We need to round it up to 0.095940641 value.
-
-                # scale = round(scale, 2)
-                # For some strange reason, with OMI, we have to round to 9 digits.
-                scale = round(scale, 9)
-
-            ext_levels = np.zeros(shape=(num_v, num_p), dtype=np.float64)
-
-            for ii in range(num_p):
-                ext_levels[:, ii] = ext * np.exp(-(np.log(pressure[ii]) - np.log(cloud_pressure))**2 / scale**2)
-
-            # AT_LINE 338 ELANOR/raylayer_nadir.pro
-            cloud_levels = [ii for ii in range(num_p)]
-
-            if (np.max(cloud_levels) > len(pressure) or np.min(cloud_levels) < 0):
-                print(function_name, "cloud levels are not bounded by full-state pressure grid")
-                assert False
-
-            pressure_clevel = pressure
-            pressure_clayer = pbar
-
-            map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
-            extinction = np.matmul(ext_levels, map_cloud_ll)
-
-            # obtain path length in each layer in km
-            path_layer = (path_level[0:nlayers] - path_level[1:nlayers+1]) / 1000.
-            path_norm = (radius[1:nlayers+1] - radius[0:nlayers]) / 1000.
-
-            # Because these variables {cloud_tau,tau_total_layer} are different than extinction, we make a copy of extinction so as not to disturb it.
-            # If you don't, these lines will mess extinction up because in Python, then  you assign you variable to another, when you change one, you changed both.
-            # cloud_tau[ii,:] = extinction[ii,:] * path_layer;
-            # tau_total_layer[ii,:] = extinction[ii,:] * path_norm;
-            cloud_tau = np.copy(extinction) # shape (28, 63)
-            tau_total_layer = np.copy(extinction) # shape (28, 63)
-
-            # AT_LINE 365 ELANOR/raylayer_nadir.pro
-            for ii in range(cloud_tau.shape[0]):  # Loop through the 1st index of cloud_tau
-                cloud_tau[ii, :] = extinction[ii, :] * path_layer[:]
-                tau_total_layer[ii, :] = extinction[ii, :] * path_norm[:]
-
-            # AT_LINE 370 ELANOR/raylayer_nadir.pro
-            if i_uip.cloud['bound_values'] == 1: # Bound the extinction.
-                uu = np.where(extinction <= i_uip.cloud['bound_tau'])
-                if len(uu[0]) > 0:
-                    extinction[uu] = 0.0
-                    cloud_tau[uu] = 0.0
-
-            # Compute total optical depth for each frequency
-            # AT_LINE 379 ELANOR/raylayer_nadir.pro
-            for ii in range(cloud_tau.shape[0]):
-                tau_total[ii] = np.sum(tau_total_layer[ii,:])
-
-            i_uip.cloud['tau_total'] = tau_total
-        # end if 'cloud' in tt:
-
-        positive_tbar = np.where(tbar > 0)[0]
-        nlayers = positive_tbar.size
-
-        # Do a sanity check since we are not sure why obs_observation_value should be used as an index.
-        if obs_observation_value > 0:
-            print(function_name, "WARN_NOT_IMPLEMENTED_YET:obs_observation_value", obs_observation_value)
+        if cloud_pressure < pressure[num_p-2]:
+            print(function_name, "out of range cloud pressure")
+            print(function_name, "cloud_pressure = ", cloud_pressure)
             assert False
 
-        return np.array(tau_total)
+        cloud_tag_names = idl_tag_names(i_uip.cloud)
+        cloud_tag_names = [my_key.upper() for ii, my_key in enumerate(cloud_tag_names)]
+
+        uu = np.where(np.asarray(cloud_tag_names) == "SCALE_PRESSURE")[0]
+        if uu.size > 0:
+            scale = i_uip.cloud['scale_pressure']
+
+        if uu.size == 0: # choose scale pressure that is closest to cloud top
+            vv = np.where(np.abs(pressure-cloud_pressure) == np.min(np.abs(pressure-cloud_pressure)))[0]
+            scale = np.abs(math.log(pressure[vv[0]]) - math.log(pressure[vv[0]+1]))
+
+            # PYTHON_NOTE: Because the value of scale is 0.09594064129559321 it will affect very calculation down stream
+            # We need to round it up to 0.095940641 value.
+
+            # scale = round(scale, 2)
+            # For some strange reason, with OMI, we have to round to 9 digits.
+            scale = round(scale, 9)
+
+        ext_levels = np.zeros(shape=(num_v, num_p), dtype=np.float64)
+
+        for ii in range(num_p):
+            ext_levels[:, ii] = ext * np.exp(-(np.log(pressure[ii]) - np.log(cloud_pressure))**2 / scale**2)
+
+        # AT_LINE 338 ELANOR/raylayer_nadir.pro
+        cloud_levels = [ii for ii in range(num_p)]
+
+        if (np.max(cloud_levels) > len(pressure) or np.min(cloud_levels) < 0):
+            print(function_name, "cloud levels are not bounded by full-state pressure grid")
+            assert False
+
+        pressure_clevel = pressure
+        pressure_clayer = pbar
+
+        map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
+        extinction = np.matmul(ext_levels, map_cloud_ll)
+
+        # obtain path length in each layer in km
+        path_layer = (path_level[0:nlayers] - path_level[1:nlayers+1]) / 1000.
+        path_norm = (radius[1:nlayers+1] - radius[0:nlayers]) / 1000.
+
+        tau_total = np.sum(extinction * path_norm[np.newaxis,:], axis=1)
+        return tau_total
 
     def dEdOD(self) -> np.ndarray:
         try:
             t = self.tau_total(self.obs.instrument_name)
         except KeyError:
             t = self.tau_total("AIRS")
+        #print(t)
+        #breakpoint()
         return 1.0 / t
 
     def irk_angle(self) -> list[float]:
