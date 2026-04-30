@@ -40,7 +40,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         self._irk_radiative_transfer = irk_radiative_transfer
         self.rf_uip = rf_uip
 
-    def tau_total(self, instrument_name: str) -> np.ndarray:
+    def tau_total(self, instrument_name: str, current_state: CurrentState) -> np.ndarray:
         from refractor.muses_py_fm import mpy_atmosphere_level
         from refractor.muses_py import idl_tag_names, makemap_ll, ref_index
         from .misc import AttrDictAdapter
@@ -53,25 +53,13 @@ class IrkForwardModel(rf.StandardForwardModel):
         i_uip = AttrDictAdapter(i_uip)
         i_atmparams = AttrDictAdapter(mpy_atmosphere_level(i_uip))
 
-        # IDL_LEGACY_NOTE: This function raylayer_nadir is the same as raylayer_nadir function in  ELANOR/raylayer_nadir.pro file.
-
-        function_name = "raylayer_nadir: "
-
-        # AT_LINE 15 ELANOR/raylayer_nadir.pro
-        no_log_mapping = ''
 
         # These parameters are needed for the atmospheric equation of state
         pressure = i_atmparams.pressure
         lnp = np.log(pressure)
         temperature = i_atmparams.tatm
         h2o = i_atmparams.h2o
-
-        # Add dry air to vmr species to decrease bookeeping and time.
-        # atmparams.density_air_dry: float (64,)
-        # atmparams.density_species: float  (3,64)
-        # density_species (concatenate) should be (4,64)
-
-        # PYTHON: The reshape changes from (64,) to (1,64) and then concatenate with (3,64) results in (4,64)
+        
         density_species = np.concatenate(
             ((i_atmparams.density_air_dry.reshape(1, len(i_atmparams.density_air_dry))), i_atmparams.density_species), 
             axis=0
@@ -114,17 +102,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
         radiusSat = i_uip.obs_table['sat_radius']  # There is only one obs_table so we cannot use the index.
-
-        # Check for bad radius.
-
-        if radiusSat <= 6.e+03 * 1000.0:
-            print(function_name, "the instrument radius is:", radiusSat)
-            print(function_name, "This is too small!!!!")
-            print(function_name, "you probably need to switch to new observation table that reads in the instrument radius directly")
-            print(function_name, "Cannot continue.")
-            assert False
-
-        # AT_LINE 77 ELANOR/raylayer_nadir.pro
+        
         sin_theta_u = radiusSat * math.sin(i_uip.obs_table['pointing_angle']) / radius[nlayers]
 
         snells_constant = radius[nlayers] * sin_theta_u
@@ -158,12 +136,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         indsLinear = np.where(indsLinear == 1)[0]
         indsLog = np.where(indsLog == 1)[0]
 
-        # AT_LINE 112 ELANOR/raylayer_nadir.pro
-
         for jj in reversed(range(0, nlayers)): # go from top to bottom
-            # AT_LINE 115 ELANOR/raylayer_nadir.pro
-
-            # Setup index of refraction values.
             nupper = ref_index(temperature[jj+1], pressure[jj+1] * 100., h2o[jj+1])
 
             n_u = nupper # for the sub-layers
@@ -176,7 +149,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
             t_u = temperature[jj+1]
 
-            # AT_LINE 137 ELANOR/raylayer_nadir.pro
             density_species_u = density_species[:, jj+1]
             hd_species = -(radius[jj+1] - radius[jj]) / np.log(density_species[:, jj+1] / density_species[:, jj])
 
@@ -186,7 +158,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
             flag = 0
 
-            # AT_LINE 148 ELANOR/raylayer_nadir.pro
             while flag == 0: # sub layer loop
                 dr = ds_fix * cos_theta_u
 
@@ -196,9 +167,6 @@ class IrkForwardModel(rf.StandardForwardModel):
                     flag = 1
 
                 r_l = r_u - dr
-                if np.all(np.isfinite(r_l) == False): # noqa:E712
-                    print(function_name, "ERROR: Not all values in r_l is finite.")
-                    assert False
 
                 p_l = pressure[jj] * math.exp(-(r_l - radius[jj]) / hp)
 
@@ -206,28 +174,14 @@ class IrkForwardModel(rf.StandardForwardModel):
                 den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
                 h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (h2o[jj+1] - h2o[jj]) / np.log(pressure[jj+1] / pressure[jj])
 
-                # AT_LINE 171 ELANOR/raylayer_nadir.pro
-                if no_log_mapping == 'true':
-                    density_species_l = density_species[:, jj] * np.exp(-(r_l - radius[jj]) / hd_species)
-
                 n_l = ref_index(t_l, p_l * 100., h2o_l)
 
                 dn_dr = (n_u - n_l) / (r_u - r_l)
 
-                # AT_LINE 181 ELANOR/raylayer_nadir.pro
                 sin_theta_l = snells_constant / r_l / n_l
                 cos_theta_l = math.sqrt(1 - sin_theta_l**2)
                 x_l = r_l * cos_theta_l
 
-                if np.all(np.isfinite(sin_theta_l) == False):# noqa:E712
-                    print(function_name, "ERROR: Not all values in sin_theta_l is finite.")
-                    assert False
-
-                if np.all(np.isfinite(cos_theta_l) == False): # noqa:E712
-                    print(function_name, "ERROR: Not all values in cos_theta_l is finite.")
-                    assert False
-
-                # AT_LINE 188 ELANOR/raylayer_nadir.pro
 
                 dx = x_u - x_l
 
@@ -243,10 +197,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
                 ds_dr = ds / dr
 
-                # AT_LINE 201 ELANOR/raylayer_nadir.pro
                 column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
-                if no_log_mapping == 'true':
-                    column_species[indsLog, jj] = column_species[indsLog, jj] + ds / dr * (density_species_l[indsLog] - density_species_u[indsLog])
 
                 tbar[jj] = tbar[jj] + (ds/dr) * (den_l * t_l - den_u * t_u)
                 pbar[jj] = pbar[jj] + (ds/dr) * (den_l * p_l - den_u * p_u)
@@ -256,46 +207,27 @@ class IrkForwardModel(rf.StandardForwardModel):
                 dum3 = (r_l - radius[jj]) / deltar
                 dum4 = (r_u - radius[jj]) / deltar
 
-                # AT_LINE 214 ELANOR/raylayer_nadir.pro
-                if no_log_mapping == 'true':
-                    map_vmr_l[indsLog, jj] = map_vmr_l[indsLog, jj] + \
-                                            ds_dr * (density_species_l[indsLog] * dum1 - density_species_u[indsLog] * dum2)
-
-                    map_vmr_u[indsLog, jj] = map_vmr_u[indsLog, jj] + \
-                                            ds_dr * (density_species_l[indsLog] * dum3 - density_species_u[indsLog] * dum4)
-
                 map_tatm_l[jj] = map_tatm_l[jj] + ds_dr * (den_l * dum1 - den_u * dum2)
 
                 map_tatm_u[jj] = map_tatm_u[jj] + ds_dr * (den_l * dum3 - den_u * dum4)
 
-                # Add setting so we can optionally not execute the code between the if statement.
-                # AT_LINE 218 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
-                # log mapping 
-                if indsLog[0] >= 0 and (no_log_mapping != 'true'):
+                if indsLog[0] >= 0:
                     density_species_l[indsLog] = density_species[indsLog, jj] * np.exp(-(r_l-radius[jj]) / hd_species[indsLog])
                     column_species[indsLog, jj] = column_species[indsLog, jj] + ds / dr * (density_species_l[indsLog] - density_species_u[indsLog])
                     map_vmr_l[indsLog, jj] = map_vmr_l[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum1 - density_species_u[indsLog] * dum2)
                     map_vmr_u[indsLog, jj] = map_vmr_u[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum3 - density_species_u[indsLog] * dum4)
                 # end if indsLog[0] >= 0:
 
-
-                # AT_LINE 224 ELANOR/raylayer_nadir.pro
-                # linear mapping have different integration
-                # all these quantities are linearly weighted
                 if len(indsLinear) > 0 and indsLinear[0] >= 0:
                     density_species_l[indsLinear] = density_species[indsLinear, jj] + \
                         (density_species[indsLinear, jj+1] - density_species[indsLinear, jj]) * (r_l - radius[jj]) / (radius[jj+1]-radius[jj])
 
-                    # temporary variables to make next equation more readable
                     dens_u = density_species_u[indsLinear]
                     dens_l = density_species_l[indsLinear]
 
                     column_species[indsLinear, jj] = column_species[indsLinear, jj] + \
                         hd * ds / dr * (dens_l - dens_u - hd * (dens_u / den_u-dens_l / den_l) * (den_u - den_l) / dr)
 
-                    if np.all(np.isfinite(column_species[indsLinear, jj]) == False): # noqa:E712
-                        print(function_name, "ERROR: Not all values in column_species[indsLinear,jj is finite.")
-                        assert False
 
                     map_vmr_l[indsLinear, jj] = map_vmr_l[indsLinear, jj] + ds_dr * (den_l * dum1 - den_u * dum2)
                     map_vmr_u[indsLinear, jj] = map_vmr_u[indsLinear, jj] + ds_dr * (den_l * dum3 - den_u * dum4)
@@ -339,67 +271,25 @@ class IrkForwardModel(rf.StandardForwardModel):
             # end if indsLinear[0] >= 0:
         # end for jj in reversed(range(0,nlayers)) 
 
-        ext = i_uip.cloud['extinction']
-        frequency = i_uip.cloud['frequency']
+        ext = np.full(current_state.state_value("CLOUDEXT").shape, 1.0)
         cloud_pressure = i_uip.cloud['pressure']
-        tau_total = np.zeros(shape=(len(frequency)), dtype=np.float64)
 
-        num_v = len(frequency)
-        num_p = len(pressure)
-
-        if cloud_pressure < pressure[num_p-2]:
-            print(function_name, "out of range cloud pressure")
-            print(function_name, "cloud_pressure = ", cloud_pressure)
-            assert False
-
-        cloud_tag_names = idl_tag_names(i_uip.cloud)
-        cloud_tag_names = [my_key.upper() for ii, my_key in enumerate(cloud_tag_names)]
-
-        uu = np.where(np.asarray(cloud_tag_names) == "SCALE_PRESSURE")[0]
-        if uu.size > 0:
-            scale = i_uip.cloud['scale_pressure']
-
-        if uu.size == 0: # choose scale pressure that is closest to cloud top
-            vv = np.where(np.abs(pressure-cloud_pressure) == np.min(np.abs(pressure-cloud_pressure)))[0]
-            scale = np.abs(math.log(pressure[vv[0]]) - math.log(pressure[vv[0]+1]))
-
-            # PYTHON_NOTE: Because the value of scale is 0.09594064129559321 it will affect very calculation down stream
-            # We need to round it up to 0.095940641 value.
-
-            # scale = round(scale, 2)
-            # For some strange reason, with OMI, we have to round to 9 digits.
-            scale = round(scale, 9)
-
-        ext_levels = np.zeros(shape=(num_v, num_p), dtype=np.float64)
-
-        for ii in range(num_p):
-            ext_levels[:, ii] = ext * np.exp(-(np.log(pressure[ii]) - np.log(cloud_pressure))**2 / scale**2)
-
-        # AT_LINE 338 ELANOR/raylayer_nadir.pro
-        cloud_levels = [ii for ii in range(num_p)]
-
-        if (np.max(cloud_levels) > len(pressure) or np.min(cloud_levels) < 0):
-            print(function_name, "cloud levels are not bounded by full-state pressure grid")
-            assert False
-
+        scale = current_state.state_value("scalePressure")[0]
+        ext_levels = ext[:,np.newaxis] * np.exp(-(np.log(pressure[np.newaxis,:]) - np.log(cloud_pressure))**2 / scale**2)
         pressure_clevel = pressure
         pressure_clayer = pbar
 
         map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
         extinction = np.matmul(ext_levels, map_cloud_ll)
-
-        # obtain path length in each layer in km
-        path_layer = (path_level[0:nlayers] - path_level[1:nlayers+1]) / 1000.
         path_norm = (radius[1:nlayers+1] - radius[0:nlayers]) / 1000.
-
         tau_total = np.sum(extinction * path_norm[np.newaxis,:], axis=1)
         return tau_total
 
-    def dEdOD(self) -> np.ndarray:
+    def dEdOD(self, current_state: CurrentState) -> np.ndarray:
         try:
-            t = self.tau_total(self.obs.instrument_name)
+            t = self.tau_total(self.obs.instrument_name, current_state)
         except KeyError:
-            t = self.tau_total("AIRS")
+            t = self.tau_total("AIRS", current_state)
         #print(t)
         #breakpoint()
         return 1.0 / t
@@ -646,7 +536,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             # convert cloudext to cloudod
             # dL/dod = dL/dext * dext/dod
             if species_name == "CLOUDEXT":
-                dEdOD = self.dEdOD()
+                dEdOD = self.dEdOD(current_state)
                 myirfk = np.multiply(myirfk, dEdOD)
                 for pp in range(dEdOD.shape[0]):
                     myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]
