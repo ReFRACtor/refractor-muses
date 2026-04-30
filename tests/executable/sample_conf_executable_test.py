@@ -50,3 +50,38 @@ def test_refractor_retrieve_airs_omi_modify(
         shell=True,
         check=True,
     )
+
+
+@pytest.mark.long_executable_test
+def test_refractor_retrieve_airs_omi_modify2(
+    ifile_hlp,
+    joint_omi_test_in_dir,
+    end_to_end_run_dir,
+):
+    """Full run of the refractor-retrieve code, using the
+    ReFRACtor forward models. used to make sure we didn't break
+    anything. We just check that we can run, we don't bother checking
+    the output.  That is done at lower levels of testing.
+
+    """
+    dir = end_to_end_run_dir / "refractor_retrieve_airs_omi_modify"
+    # Sample configuration file that we have modified the NH3 initial guess
+    config_file = (
+        Path(os.path.dirname(__file__)).parent
+        / "sample_config"
+        / "refractor_config_modify_nh3_constraint.py"
+    )
+    subprocess.run(["rm", "-r", str(dir)])
+    r = MusesRunDir(
+        joint_omi_test_in_dir,
+        ifile_hlp,
+        path_prefix=dir,
+    )
+    logger.info(
+        f'Running "refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {config_file} --targets {r.run_dir}"'
+    )
+    subprocess.run(
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {config_file} --targets {r.run_dir}",
+        shell=True,
+        check=True,
+    )
