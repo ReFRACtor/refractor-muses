@@ -295,8 +295,8 @@ def base_config_definition(
                         "filename": lambda gas_name=None: rf.cross_section_filenames[
                             gas_name
                         ],
-                        "conversion_factor": lambda gas_name=None: rf.cross_section_file_conversion_factors.get(
-                            gas_name, 1.0
+                        "conversion_factor": lambda gas_name=None: (
+                            rf.cross_section_file_conversion_factors.get(gas_name, 1.0)
                         ),
                     },
                 },

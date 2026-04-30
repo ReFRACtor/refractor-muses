@@ -7,6 +7,7 @@ from refractor.muses import (
     RetrievalType,
     StateElementIdentifier,
 )
+import refractor.muses_py as mpy
 from fixtures.require_check import require_muses_py
 from refractor.old_py_retrieve_wrapper import StrategyTable
 import numpy as np
@@ -151,17 +152,19 @@ def test_muses_spectral_window_microwindows(ifile_hlp):
             spec_file=None,
         )
     )
-    mw = MusesSpectralWindow.muses_microwindows_from_muses_py(
-        default_fname,
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
-    mw2 = MusesSpectralWindow.muses_microwindows_from_dict(swin_dict)
-    mw_compare(mw, mw2)
+    # Can only compare if we have muses-py, skip otherwise
+    if mpy.have_muses_py:
+        mw = MusesSpectralWindow.muses_microwindows_from_muses_py(
+            default_fname,
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+        mw2 = MusesSpectralWindow.muses_microwindows_from_dict(swin_dict)
+        mw_compare(mw, mw2)
     # check calculation of muses_monochromatic
     mono_list, mono_filter_list, mono_list_length = swin.muses_monochromatic()
     assert len(mono_list) == (337 - 323) * 100
@@ -190,14 +193,17 @@ def test_microwindows_fname(ifile_hlp):
     ]
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -210,14 +216,17 @@ def test_microwindows_fname(ifile_hlp):
     assert spec_fname == str(spec_fname2)
 
     viewing_mode = "limb"
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Limb_H2O_O3_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -230,14 +239,17 @@ def test_microwindows_fname(ifile_hlp):
     assert spec_fname == str(spec_fname2)
 
     viewing_mode = "nadir"
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file="foo",
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file="foo",
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_foo.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -250,14 +262,17 @@ def test_microwindows_fname(ifile_hlp):
     assert spec_fname == str(spec_fname2)
 
     retrieval_type = RetrievalType("bt")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O,O3,EMIS_TROPOMI_bt.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -270,14 +285,19 @@ def test_microwindows_fname(ifile_hlp):
     assert spec_fname == str(spec_fname2)
 
     retrieval_type = RetrievalType("forwardmodel")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(
+            spectral_dir / "Windows_Nadir_H2O,O3,EMIS_TROPOMI_forwardmodel.asc"
+        )
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -301,14 +321,20 @@ def test_microwindows_fname(ifile_hlp):
         StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
     ]
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(
+            spectral_dir
+            / "Windows_Nadir_TSUR_CLOUDEXT_PCLOUD_TROPOMISURFACEALBEDOBAND3_TROPOMISURFACEALBEDOSLOPEBAND3_TROPOMISURFACEALBEDOSLOPEORDER2BAND3_TROPOMISOLARSHIFTBAND3_TROPOMIRADIANCESHIFTBAND3_TROPOMIRINGSFBAND3_joint.asc"
+        )
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -336,14 +362,17 @@ def test_microwindows_fname(ifile_hlp):
     ]
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("default")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -357,14 +386,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("-")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -378,14 +410,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("fullfilter")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O,O3,EMIS_TROPOMI.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -399,14 +434,20 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "H2O,O3,EMIS_TROPOMI"
     retrieval_type = RetrievalType("bt_ig_refine")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(
+            spectral_dir
+            / "Windows_Nadir_H2O_O3_TSUR_EMIS_CLOUDEXT_PCLOUD_TROPOMISURFACEALBEDOBAND3_TROPOMISURFACEALBEDOSLOPEBAND3_TROPOMISURFACEALBEDOSLOPEORDER2BAND3_TROPOMISOLARSHIFTBAND3_TROPOMIRADIANCESHIFTBAND3_TROPOMIRINGSFBAND3_BT_IG_Refine.asc"
+        )
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -420,14 +461,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "TROPOMIwide"
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3wide_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -441,14 +485,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "TROPOMIBand_1_2_short"
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3Band_1_2_short_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -462,14 +509,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "TROPOMIBand_1_2"
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3Band_1_2_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -483,14 +533,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "TROPOMIBand_2"
     retrieval_type = RetrievalType("joint")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3Band_2_joint.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
@@ -504,14 +557,17 @@ def test_microwindows_fname(ifile_hlp):
 
     step_name = "TROPOMIBand_1_2_short"
     retrieval_type = RetrievalType("foo")
-    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-        viewing_mode,
-        spectral_dir,
-        retrieval_elements,
-        step_name,
-        retrieval_type,
-        spec_file=None,
-    )
+    if mpy.have_muses_py:
+        spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            viewing_mode,
+            spectral_dir,
+            retrieval_elements,
+            step_name,
+            retrieval_type,
+            spec_file=None,
+        )
+    else:
+        spec_fname = str(spectral_dir / "Windows_Nadir_H2O_O3_foo.asc")
     spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,

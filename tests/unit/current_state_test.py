@@ -118,7 +118,6 @@ def test_current_state(isolated_dir, ifile_hlp, joint_tropomi_test_in_dir):
         with all_output_disabled():
             r = MusesRunDir(joint_tropomi_test_in_dir, ifile_hlp, path_prefix=".")
             rs = RetrievalStrategy(r.run_dir / "Table.asc", ifile_hlp=ifile_hlp)
-            rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.script_retrieval_ms(r.run_dir / "Table.asc")

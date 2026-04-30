@@ -65,20 +65,23 @@ class RetrievalMlOutput(MusesStrategyContextMixin):
                 ],
             },
             bbox=[-180, 90, 180, -90],
-            properties={},\
+            properties={},
             # TODO I think this should be for data, not time of processing
             datetime=datetime.utcnow(),
         )
         item.assets = {}
-        item.assets["CRIS_CO"] = pystac.Asset(href=foutname.name,
-                                       title="CRIS ML CO Output",
-                                       roles=["data"],
-                                       media_type=pystac.MediaType.NETCDF
-                                       )
-        #icol = pystac.ItemCollection(items=[outcat,])
-        #outcat.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
-        #icol.save_object(dest_href="catalog.json")
-        item.set_self_href(self.retrieval_config["output_directory"] / f"{dstring}.json")
+        item.assets["CRIS_CO"] = pystac.Asset(
+            href=foutname.name,
+            title="CRIS ML CO Output",
+            roles=["data"],
+            media_type=pystac.MediaType.NETCDF,
+        )
+        # icol = pystac.ItemCollection(items=[outcat,])
+        # outcat.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
+        # icol.save_object(dest_href="catalog.json")
+        item.set_self_href(
+            self.retrieval_config["output_directory"] / f"{dstring}.json"
+        )
         item.save_object()
 
 

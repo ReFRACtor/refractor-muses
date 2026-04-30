@@ -1,5 +1,5 @@
 from refractor.muses import TesFile
-
+import refractor.muses_py as mpy
 
 def test_tes_file(ifile_hlp, omi_test_in_dir):
     fname = omi_test_in_dir / "Table.asc"
@@ -10,9 +10,10 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     assert tfile is tfile_second
     assert tfile is tfile_third
     # Verify against the mpy version
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
-    assert tfile.table.equals(tfile2.table)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile.table.equals(tfile2.table)
 
     # Try another file that has no table
     fname = (
@@ -21,10 +22,11 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     )
     ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile2.table is None
     assert tfile.table is None
-    assert tfile2.table is None
 
     # Check comment handling for end of line
     fname = (
@@ -32,9 +34,10 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     )
     ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
-    assert tfile.table.equals(tfile2.table)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile.table.equals(tfile2.table)
 
     # Check comment handling for whole line
     fname = (
@@ -43,10 +46,11 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     )
     ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile2.table is None
     assert tfile.table is None
-    assert tfile2.table is None
 
     # Test handling of extra stuff at the end of the file
     fname = (
@@ -55,9 +59,10 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     )
     ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
-    assert tfile.table.equals(tfile2.table)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile.table.equals(tfile2.table)
 
     # Another example with stuff as the end of the file
     fname = (
@@ -66,6 +71,7 @@ def test_tes_file(ifile_hlp, omi_test_in_dir):
     )
     ifile_hlp.notify_file_input(fname)
     tfile = TesFile.create(fname)
-    tfile2 = TesFile(fname, use_mpy=True)
-    assert dict(tfile) == dict(tfile2)
-    assert tfile.table.equals(tfile2.table)
+    if mpy.have_muses_py:
+        tfile2 = TesFile(fname, use_mpy=True)
+        assert dict(tfile) == dict(tfile2)
+        assert tfile.table.equals(tfile2.table)
