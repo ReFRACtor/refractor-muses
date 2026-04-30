@@ -40,20 +40,414 @@ class IrkForwardModel(rf.StandardForwardModel):
         self._irk_radiative_transfer = irk_radiative_transfer
         self.rf_uip = rf_uip
 
+    def tau_total(self, instrument_name: str) -> np.ndarray:
+        from refractor.muses_py_fm import mpy_atmosphere_level
+        from refractor.muses_py import idl_tag_names, makemap_ll, ref_index
+        from .misc import AttrDictAdapter
+        import copy
+        import math
+        
+        i_uip = self.rf_uip.uip_all(instrument_name)
+        i_uip["obs_table"]["pointing_angle"] = 0.0
+        i_uip["cloud"]["extinction"][:] = 1.0
+        i_uip = AttrDictAdapter(i_uip)
+        i_atmparams = AttrDictAdapter(mpy_atmosphere_level(i_uip))
+
+        # IDL_LEGACY_NOTE: This function raylayer_nadir is the same as raylayer_nadir function in  ELANOR/raylayer_nadir.pro file.
+
+        function_name = "raylayer_nadir: "
+
+        # AT_LINE 15 ELANOR/raylayer_nadir.pro
+        no_log_mapping = ''
+
+        # These parameters are needed for the atmospheric equation of state
+        pressure = i_atmparams.pressure
+        lnp = np.log(pressure)
+        temperature = i_atmparams.tatm
+        h2o = i_atmparams.h2o
+
+        # Add dry air to vmr species to decrease bookeeping and time.
+        # atmparams.density_air_dry: float (64,)
+        # atmparams.density_species: float  (3,64)
+        # density_species (concatenate) should be (4,64)
+
+        # PYTHON: The reshape changes from (64,) to (1,64) and then concatenate with (3,64) results in (4,64)
+        density_species = np.concatenate(
+            ((i_atmparams.density_air_dry.reshape(1, len(i_atmparams.density_air_dry))), i_atmparams.density_species), 
+            axis=0
+        )
+
+        density_air = i_atmparams.density_air
+
+        num_species = len(density_species) #also accounts for dry air column from the concatenate() function above.
+
+        # AT_LINE 28 ELANOR/raylayer_nadir.pro
+        radius = i_atmparams.radius
+        nlayers = i_atmparams.nlayers
+
+        # AT_LINE 33 ELANOR/raylayer_nadir.pro
+
+        psi_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
+        tbar = np.zeros(shape=(nlayers), dtype=np.float64)
+        tbar_try = np.zeros(shape=(nlayers), dtype=np.float64)
+        pbar = np.zeros(shape=(nlayers), dtype=np.float64)
+        column = np.zeros(shape=(nlayers), dtype=np.float64)
+        path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
+
+        # AT_LINE 42 ELANOR/raylayer_nadir.pro
+        ds_fix = 500.0
+
+        if 'SUB_LAYER_DIST' in idl_tag_names(i_uip):
+            ds_fix = i_uip.SUB_LAYER_DIST # in meteres.
+
+        column_species = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
+        map_vmr_u = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
+        map_vmr_l = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
+        map_tatm_u = np.zeros(shape=(nlayers), dtype=np.float64)
+        map_tatm_l = np.zeros(shape=(nlayers), dtype=np.float64)
+
+        # AT_LINE 54 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
+        density_species_l = np.zeros(shape=(num_species), dtype=np.float64)
+
+        psi_tot = np.float64(0.0)
+
+        # AT_LINE 42 ELANOR/raylayer_nadir.pro
+        # spherical snells law with n = 1
+        # took out call to earth_radius() b/c variable was not used
+        obs_observation_value = i_uip.raytable[i_uip.ray_cnt]['observation']
+
+        # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
+        radiusSat = i_uip.obs_table['sat_radius']  # There is only one obs_table so we cannot use the index.
+
+        # Check for bad radius.
+
+        if radiusSat <= 6.e+03 * 1000.0:
+            print(function_name, "the instrument radius is:", radiusSat)
+            print(function_name, "This is too small!!!!")
+            print(function_name, "you probably need to switch to new observation table that reads in the instrument radius directly")
+            print(function_name, "Cannot continue.")
+            assert False
+
+        # AT_LINE 77 ELANOR/raylayer_nadir.pro
+        sin_theta_u = radiusSat * math.sin(i_uip.obs_table['pointing_angle']) / radius[nlayers]
+
+        snells_constant = radius[nlayers] * sin_theta_u
+
+        cos_theta_u = math.sqrt(1.0 - sin_theta_u**2)
+
+        x_u = radius[nlayers] * cos_theta_u
+
+        psi_tot = 0
+        s_tot = 0.0
+
+        # get indices of linear VMR's
+
+        indsLinear = np.zeros(shape=(len(i_uip.species) +  1), dtype=int)
+        indsLog = np.ndarray(shape=(len(i_uip.species) + 1), dtype=int)
+        indsLog.fill(1)    # Fill with 1's in all elements.
+
+        # AT_LINE 99 ELANOR/raylayer_nadir.pro
+        for jj in range(len(i_uip.jacobiansLinear)):
+            if i_uip.jacobiansLinear[jj] != '':
+                if i_uip.jacobiansLinear[jj] in i_uip.species:
+                    indlinear = i_uip.species.index(i_uip.jacobiansLinear[jj])
+                else:
+                    # PYTHON_NOTE: Because the where statement in IDL can return -1 as the first element if no match, we will try to mimic
+                    #              IDL by setting indlinear to -1 so it be used as an index.
+                    indlinear = -1
+
+                indsLinear[indlinear + 1] = 1
+                indsLog[indlinear + 1] = 0
+
+        indsLinear = np.where(indsLinear == 1)[0]
+        indsLog = np.where(indsLog == 1)[0]
+
+        # AT_LINE 112 ELANOR/raylayer_nadir.pro
+
+        for jj in reversed(range(0, nlayers)): # go from top to bottom
+            # AT_LINE 115 ELANOR/raylayer_nadir.pro
+
+            # Setup index of refraction values.
+            nupper = ref_index(temperature[jj+1], pressure[jj+1] * 100., h2o[jj+1])
+
+            n_u = nupper # for the sub-layers
+
+            hp = -(radius[jj+1] - radius[jj]) / np.log(pressure[jj+1] / pressure[jj])
+            p_u = pressure[jj+1]
+
+            hd = -(radius[jj+1] - radius[jj]) / np.log(density_air[jj+1] / density_air[jj])
+            den_u = density_air[jj+1]
+
+            t_u = temperature[jj+1]
+
+            # AT_LINE 137 ELANOR/raylayer_nadir.pro
+            density_species_u = density_species[:, jj+1]
+            hd_species = -(radius[jj+1] - radius[jj]) / np.log(density_species[:, jj+1] / density_species[:, jj])
+
+            sub_layer = 0
+            r_u = radius[jj+1]
+            deltar = radius[jj+1] - radius[jj]
+
+            flag = 0
+
+            # AT_LINE 148 ELANOR/raylayer_nadir.pro
+            while flag == 0: # sub layer loop
+                dr = ds_fix * cos_theta_u
+
+                # This while loop only exit if the following condition is true.
+                if (r_u - dr) < radius[jj]:
+                    dr = r_u - radius[jj]
+                    flag = 1
+
+                r_l = r_u - dr
+                if np.all(np.isfinite(r_l) == False): # noqa:E712
+                    print(function_name, "ERROR: Not all values in r_l is finite.")
+                    assert False
+
+                p_l = pressure[jj] * math.exp(-(r_l - radius[jj]) / hp)
+
+                t_l = temperature[jj] + (r_l - radius[jj]) * (temperature[jj+1] - temperature[jj]) / (radius[jj+1] - radius[jj])
+                den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
+                h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (h2o[jj+1] - h2o[jj]) / np.log(pressure[jj+1] / pressure[jj])
+
+                # AT_LINE 171 ELANOR/raylayer_nadir.pro
+                if no_log_mapping == 'true':
+                    density_species_l = density_species[:, jj] * np.exp(-(r_l - radius[jj]) / hd_species)
+
+                n_l = ref_index(t_l, p_l * 100., h2o_l)
+
+                dn_dr = (n_u - n_l) / (r_u - r_l)
+
+                # AT_LINE 181 ELANOR/raylayer_nadir.pro
+                sin_theta_l = snells_constant / r_l / n_l
+                cos_theta_l = math.sqrt(1 - sin_theta_l**2)
+                x_l = r_l * cos_theta_l
+
+                if np.all(np.isfinite(sin_theta_l) == False):# noqa:E712
+                    print(function_name, "ERROR: Not all values in sin_theta_l is finite.")
+                    assert False
+
+                if np.all(np.isfinite(cos_theta_l) == False): # noqa:E712
+                    print(function_name, "ERROR: Not all values in cos_theta_l is finite.")
+                    assert False
+
+                # AT_LINE 188 ELANOR/raylayer_nadir.pro
+
+                dx = x_u - x_l
+
+                ds_dx_l = 1. / (1 + r_l * sin_theta_l**2 / (n_l / dn_dr))
+                ds_dx_u = 1. / (1 + r_u * sin_theta_u**2 / (n_u / dn_dr))
+
+                ds = .5 * (ds_dx_u + ds_dx_l) * dx
+
+                dpsi = snells_constant * .5 * (ds_dx_l / n_l / r_l**2 + ds_dx_u / n_u / r_u**2) * dx
+
+                s_tot = s_tot + ds
+                psi_tot = psi_tot + dpsi
+
+                ds_dr = ds / dr
+
+                # AT_LINE 201 ELANOR/raylayer_nadir.pro
+                column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
+                if no_log_mapping == 'true':
+                    column_species[indsLog, jj] = column_species[indsLog, jj] + ds / dr * (density_species_l[indsLog] - density_species_u[indsLog])
+
+                tbar[jj] = tbar[jj] + (ds/dr) * (den_l * t_l - den_u * t_u)
+                pbar[jj] = pbar[jj] + (ds/dr) * (den_l * p_l - den_u * p_u)
+
+                dum1 = (radius[jj+1] - r_l) / deltar
+                dum2 = (radius[jj+1] - r_u) / deltar
+                dum3 = (r_l - radius[jj]) / deltar
+                dum4 = (r_u - radius[jj]) / deltar
+
+                # AT_LINE 214 ELANOR/raylayer_nadir.pro
+                if no_log_mapping == 'true':
+                    map_vmr_l[indsLog, jj] = map_vmr_l[indsLog, jj] + \
+                                            ds_dr * (density_species_l[indsLog] * dum1 - density_species_u[indsLog] * dum2)
+
+                    map_vmr_u[indsLog, jj] = map_vmr_u[indsLog, jj] + \
+                                            ds_dr * (density_species_l[indsLog] * dum3 - density_species_u[indsLog] * dum4)
+
+                map_tatm_l[jj] = map_tatm_l[jj] + ds_dr * (den_l * dum1 - den_u * dum2)
+
+                map_tatm_u[jj] = map_tatm_u[jj] + ds_dr * (den_l * dum3 - den_u * dum4)
+
+                # Add setting so we can optionally not execute the code between the if statement.
+                # AT_LINE 218 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
+                # log mapping 
+                if indsLog[0] >= 0 and (no_log_mapping != 'true'):
+                    density_species_l[indsLog] = density_species[indsLog, jj] * np.exp(-(r_l-radius[jj]) / hd_species[indsLog])
+                    column_species[indsLog, jj] = column_species[indsLog, jj] + ds / dr * (density_species_l[indsLog] - density_species_u[indsLog])
+                    map_vmr_l[indsLog, jj] = map_vmr_l[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum1 - density_species_u[indsLog] * dum2)
+                    map_vmr_u[indsLog, jj] = map_vmr_u[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum3 - density_species_u[indsLog] * dum4)
+                # end if indsLog[0] >= 0:
+
+
+                # AT_LINE 224 ELANOR/raylayer_nadir.pro
+                # linear mapping have different integration
+                # all these quantities are linearly weighted
+                if len(indsLinear) > 0 and indsLinear[0] >= 0:
+                    density_species_l[indsLinear] = density_species[indsLinear, jj] + \
+                        (density_species[indsLinear, jj+1] - density_species[indsLinear, jj]) * (r_l - radius[jj]) / (radius[jj+1]-radius[jj])
+
+                    # temporary variables to make next equation more readable
+                    dens_u = density_species_u[indsLinear]
+                    dens_l = density_species_l[indsLinear]
+
+                    column_species[indsLinear, jj] = column_species[indsLinear, jj] + \
+                        hd * ds / dr * (dens_l - dens_u - hd * (dens_u / den_u-dens_l / den_l) * (den_u - den_l) / dr)
+
+                    if np.all(np.isfinite(column_species[indsLinear, jj]) == False): # noqa:E712
+                        print(function_name, "ERROR: Not all values in column_species[indsLinear,jj is finite.")
+                        assert False
+
+                    map_vmr_l[indsLinear, jj] = map_vmr_l[indsLinear, jj] + ds_dr * (den_l * dum1 - den_u * dum2)
+                    map_vmr_u[indsLinear, jj] = map_vmr_u[indsLinear, jj] + ds_dr * (den_l * dum3 - den_u * dum4)
+                # end if indsLinear[0] >= 0:
+
+                cos_theta_u = cos_theta_l
+                sin_theta_u = sin_theta_l
+                r_u = r_l
+                x_u = x_l
+                n_u = n_l
+
+                t_u = t_l
+                p_u = p_l
+                den_u = den_l
+                density_species_u = copy.deepcopy(density_species_l)  # PYTHON_NOTE: We must make a new memory for density_species_u, otherwise both points to the smae address space.
+                sub_layer = sub_layer + 1
+            # end while (flag == 0): # sub layer loop
+
+            # AT_LINE 288 ELANOR/raylayer_nadir.pro
+            psi_level[jj] = psi_tot
+            path_level[jj] = s_tot
+            tbar[jj] = tbar[jj] / column[jj] + hd * (temperature[jj+1] - temperature[jj]) / (radius[jj+1] - radius[jj])
+            pbar[jj] = pbar[jj] * (hp / (hp + hd)) / column[jj]
+            tbar_try[jj] = tbar_try[jj]/column[jj]
+
+            column[jj] = column[jj] * hd
+            column_species[indsLog, jj] = column_species[indsLog, jj] * hd_species[indsLog]
+
+            map_vmr_l[indsLog, jj] = hd_species[indsLog] * ((-1. / deltar) + map_vmr_l[indsLog, jj] / column_species[indsLog, jj])
+            map_vmr_u[indsLog, jj] = hd_species[indsLog] * ((1. / deltar) + map_vmr_u[indsLog, jj] / column_species[indsLog, jj])
+
+            map_tatm_l[jj] = (tbar[jj] / temperature[jj]) * hd * ((-1. / deltar) + map_tatm_l[jj] / column[jj])
+            map_tatm_u[jj] = (tbar[jj] / temperature[jj+1]) * hd * ((1. / deltar) + map_tatm_u[jj] / column[jj])
+
+            if len(indsLinear) > 0 and indsLinear[0] >= 0:
+                map_vmr_l[indsLinear, jj] = (column_species[indsLinear, jj] / column[jj]) / (density_species[indsLinear, jj] / density_air[jj]) \
+                                            * hd * ((-1. / deltar) + map_vmr_l[indsLinear, jj] / column[jj])
+
+                map_vmr_u[indsLinear, jj] = (column_species[indsLinear, jj] / column[jj]) / (density_species[indsLinear, jj] / density_air[jj]) \
+                                            * hd * ((1. / deltar) + map_vmr_u[indsLinear, jj] / column[jj])
+            # end if indsLinear[0] >= 0:
+        # end for jj in reversed(range(0,nlayers)) 
+
+        # AT_LINE 302 ELANOR/raylayer_nadir.pro
+
+        # convert from molec / m^2 to molec / cm^2
+        column = column / 1e4       
+        column_species = column_species / 1e4
+
+        # AT_LINE 307 ELANOR/raylayer_nadir.pro
+        tt = idl_tag_names(i_uip)
+        if 'cloud' in tt:
+            ext = i_uip.cloud['extinction']
+            frequency = i_uip.cloud['frequency']
+            cloud_pressure = i_uip.cloud['pressure']
+            tau_total = np.zeros(shape=(len(frequency)), dtype=np.float64)
+
+            num_v = len(frequency)
+            num_p = len(pressure)
+
+            if cloud_pressure < pressure[num_p-2]:
+                print(function_name, "out of range cloud pressure")
+                print(function_name, "cloud_pressure = ", cloud_pressure)
+                assert False
+
+            cloud_tag_names = idl_tag_names(i_uip.cloud)
+            cloud_tag_names = [my_key.upper() for ii, my_key in enumerate(cloud_tag_names)]
+
+            uu = np.where(np.asarray(cloud_tag_names) == "SCALE_PRESSURE")[0]
+            if uu.size > 0:
+                scale = i_uip.cloud['scale_pressure']
+
+            if uu.size == 0: # choose scale pressure that is closest to cloud top
+                vv = np.where(np.abs(pressure-cloud_pressure) == np.min(np.abs(pressure-cloud_pressure)))[0]
+                scale = np.abs(math.log(pressure[vv[0]]) - math.log(pressure[vv[0]+1]))
+
+                # PYTHON_NOTE: Because the value of scale is 0.09594064129559321 it will affect very calculation down stream
+                # We need to round it up to 0.095940641 value.
+
+                # scale = round(scale, 2)
+                # For some strange reason, with OMI, we have to round to 9 digits.
+                scale = round(scale, 9)
+
+            ext_levels = np.zeros(shape=(num_v, num_p), dtype=np.float64)
+
+            for ii in range(num_p):
+                ext_levels[:, ii] = ext * np.exp(-(np.log(pressure[ii]) - np.log(cloud_pressure))**2 / scale**2)
+
+            # AT_LINE 338 ELANOR/raylayer_nadir.pro
+            cloud_levels = [ii for ii in range(num_p)]
+
+            if (np.max(cloud_levels) > len(pressure) or np.min(cloud_levels) < 0):
+                print(function_name, "cloud levels are not bounded by full-state pressure grid")
+                assert False
+
+            pressure_clevel = pressure
+            pressure_clayer = pbar
+
+            map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
+            extinction = np.matmul(ext_levels, map_cloud_ll)
+
+            # obtain path length in each layer in km
+            path_layer = (path_level[0:nlayers] - path_level[1:nlayers+1]) / 1000.
+            path_norm = (radius[1:nlayers+1] - radius[0:nlayers]) / 1000.
+
+            # Because these variables {cloud_tau,tau_total_layer} are different than extinction, we make a copy of extinction so as not to disturb it.
+            # If you don't, these lines will mess extinction up because in Python, then  you assign you variable to another, when you change one, you changed both.
+            # cloud_tau[ii,:] = extinction[ii,:] * path_layer;
+            # tau_total_layer[ii,:] = extinction[ii,:] * path_norm;
+            cloud_tau = np.copy(extinction) # shape (28, 63)
+            tau_total_layer = np.copy(extinction) # shape (28, 63)
+
+            # AT_LINE 365 ELANOR/raylayer_nadir.pro
+            for ii in range(cloud_tau.shape[0]):  # Loop through the 1st index of cloud_tau
+                cloud_tau[ii, :] = extinction[ii, :] * path_layer[:]
+                tau_total_layer[ii, :] = extinction[ii, :] * path_norm[:]
+
+            # AT_LINE 370 ELANOR/raylayer_nadir.pro
+            if i_uip.cloud['bound_values'] == 1: # Bound the extinction.
+                uu = np.where(extinction <= i_uip.cloud['bound_tau'])
+                if len(uu[0]) > 0:
+                    extinction[uu] = 0.0
+                    cloud_tau[uu] = 0.0
+
+            # Compute total optical depth for each frequency
+            # AT_LINE 379 ELANOR/raylayer_nadir.pro
+            for ii in range(cloud_tau.shape[0]):
+                tau_total[ii] = np.sum(tau_total_layer[ii,:])
+
+            i_uip.cloud['tau_total'] = tau_total
+        # end if 'cloud' in tt:
+
+        positive_tbar = np.where(tbar > 0)[0]
+        nlayers = positive_tbar.size
+
+        # Do a sanity check since we are not sure why obs_observation_value should be used as an index.
+        if obs_observation_value > 0:
+            print(function_name, "WARN_NOT_IMPLEMENTED_YET:obs_observation_value", obs_observation_value)
+            assert False
+
+        return np.array(tau_total)
+
     def dEdOD(self) -> np.ndarray:
-        # Not clear where exactly this belongs. Have here for now, it would
-        # be good if we could pull this out perhaps into IrkForwardModel
         try:
-            ray_info = self.rf_uip.ray_info(
-                self.obs.instrument_name,
-                set_pointing_angle_zero=True,
-                set_cloud_extinction_one=True,
-            )
+            t = self.tau_total(self.obs.instrument_name)
         except KeyError:
-            ray_info = self.rf_uip.ray_info(
-                "AIRS", set_pointing_angle_zero=True, set_cloud_extinction_one=True
-            )
-        return 1.0 / ray_info["cloud"]["tau_total"]
+            t = self.tau_total("AIRS")
+        return 1.0 / t
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
