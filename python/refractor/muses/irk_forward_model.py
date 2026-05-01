@@ -31,6 +31,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         observation: MusesObservation,
         sat_altitude: rf.DoubleWithUnit,
         earth_radius: rf.DoubleWithUnit,
+        p: rf.Pressure,
         alt: rf.Altitude,
         rindex: MusesRefractiveIndex,
         rconf: RetrievalConfiguration,
@@ -43,6 +44,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         self.obs = observation
         self.eradius = earth_radius.convert("m").value
         self.sat_altitude = sat_altitude.convert("m").value
+        self.p = p
         self.alt = alt
         self.rindex = rindex
         self.rconf = rconf
@@ -54,10 +56,17 @@ class IrkForwardModel(rf.StandardForwardModel):
         self, instrument_name: InstrumentIdentifier | str, current_state: CurrentState
     ) -> np.ndarray:
         from refractor.muses_py_fm import mpy_atmosphere_level
-        from refractor.muses_py import idl_tag_names, makemap_ll, ref_index
+        from refractor.muses_py import makemap_ll
         from .misc import AttrDictAdapter
         import math
 
+        agrid = (
+            self.alt.altitude_grid(self.p, rf.Pressure.DECREASING_PRESSURE)
+            .convert("m")
+            .value.value
+        )
+        nlayers = agrid.shape[0] - 1
+        
         i_uip = self.rf_uip.uip_all(instrument_name)
         i_uip["obs_table"]["pointing_angle"] = 0.0
         i_uip["cloud"]["extinction"][:] = 1.0
@@ -66,9 +75,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        lnp = np.log(pressure)
         temperature = current_state.state_value("TATM")
-        h2o = current_state.state_value("H2O")
         density_species = np.concatenate(
             (
                 (
@@ -89,7 +96,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # AT_LINE 28 ELANOR/raylayer_nadir.pro
         radius = i_atmparams.radius
-        nlayers = i_atmparams.nlayers
 
         # AT_LINE 33 ELANOR/raylayer_nadir.pro
 
@@ -99,30 +105,12 @@ class IrkForwardModel(rf.StandardForwardModel):
         column = np.zeros(shape=(nlayers), dtype=np.float64)
         path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
 
-        # AT_LINE 42 ELANOR/raylayer_nadir.pro
         ds_fix = 500.0
-
-        if "SUB_LAYER_DIST" in idl_tag_names(i_uip):
-            ds_fix = i_uip.SUB_LAYER_DIST  # in meteres.
-
 
         # AT_LINE 54 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
         density_species_l = np.zeros(shape=(num_species), dtype=np.float64)
 
-        # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
-        radiusSat = i_uip.obs_table[
-            "sat_radius"
-        ]  # There is only one obs_table so we cannot use the index.
-
-        sin_theta_u = (
-            radiusSat * math.sin(i_uip.obs_table["pointing_angle"]) / radius[nlayers]
-        )
-
-        snells_constant = radius[nlayers] * sin_theta_u
-
-        cos_theta_u = math.sqrt(1.0 - sin_theta_u**2)
-
-        x_u = radius[nlayers] * cos_theta_u
+        x_u = radius[nlayers]
 
         s_tot = 0.0
 
@@ -149,11 +137,6 @@ class IrkForwardModel(rf.StandardForwardModel):
         indsLog = np.where(indsLog == 1)[0]
 
         for jj in reversed(range(0, nlayers)):  # go from top to bottom
-            nupper = ref_index(
-                temperature[jj + 1], pressure[jj + 1] * 100.0, h2o[jj + 1]
-            )
-
-            n_u = nupper  # for the sub-layers
 
             hp = -(radius[jj + 1] - radius[jj]) / np.log(
                 pressure[jj + 1] / pressure[jj]
@@ -177,7 +160,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             flag = 0
 
             while flag == 0:  # sub layer loop
-                dr = ds_fix * cos_theta_u
+                dr = ds_fix
 
                 # This while loop only exit if the following condition is true.
                 if (r_u - dr) < radius[jj]:
@@ -192,24 +175,11 @@ class IrkForwardModel(rf.StandardForwardModel):
                     temperature[jj + 1] - temperature[jj]
                 ) / (radius[jj + 1] - radius[jj])
                 den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
-                h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (
-                    h2o[jj + 1] - h2o[jj]
-                ) / np.log(pressure[jj + 1] / pressure[jj])
 
-                n_l = ref_index(t_l, p_l * 100.0, h2o_l)
-
-                dn_dr = (n_u - n_l) / (r_u - r_l)
-
-                sin_theta_l = snells_constant / r_l / n_l
-                cos_theta_l = math.sqrt(1 - sin_theta_l**2)
-                x_l = r_l * cos_theta_l
+                x_l = r_l
 
                 dx = x_u - x_l
-
-                ds_dx_l = 1.0 / (1 + r_l * sin_theta_l**2 / (n_l / dn_dr))
-                ds_dx_u = 1.0 / (1 + r_u * sin_theta_u**2 / (n_u / dn_dr))
-
-                ds = 0.5 * (ds_dx_u + ds_dx_l) * dx
+                ds = dx
 
                 s_tot = s_tot + ds
 
@@ -233,11 +203,8 @@ class IrkForwardModel(rf.StandardForwardModel):
 
                 # end if indsLinear[0] >= 0:
 
-                cos_theta_u = cos_theta_l
-                sin_theta_u = sin_theta_l
                 r_u = r_l
                 x_u = x_l
-                n_u = n_l
 
                 t_u = t_l
                 p_u = p_l
