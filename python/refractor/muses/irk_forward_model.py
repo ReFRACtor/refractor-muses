@@ -62,14 +62,161 @@ class IrkForwardModel(rf.StandardForwardModel):
             o_map[ii + 1, ii] = 1 - xcoeff
 
         return o_map
-        
+
+    def atmosphere_level(self, uip):
+        from refractor.muses_py import UtilGeneral, ObjectView, earth_radius, compute_altitude_pge
+        # IDL_LEGACY_NOTE: This function atmosphere_level is the same as atmosphere_level function in  ELANOR/atmosphere_level.pro file.
+        function_name = "atmosphere_level: "
+
+        utilGeneral = UtilGeneral()
+
+        if isinstance(uip, dict):
+            uip = ObjectView(uip)
+
+        Rgas = 8.31451
+        Avo = 6.0225e23
+        kb = 1.380622e-23
+
+        # This procedure reads in the atmosphere and sets up all the level related parameters
+
+        atmosphere = uip.atmosphere
+        atmosphere_params_upper = [x.upper() for x in list(uip.atmosphere_params)]
+
+        levels = None
+        uu = -1
+        if 'LEVEL' in atmosphere_params_upper:
+            uu = atmosphere_params_upper.index('LEVEL')
+
+        if uu > -1:
+            levels = atmosphere[uu, :]
+
+        pressure = None
+        uu = -1
+        if 'PRESSURE' in atmosphere_params_upper:
+            uu = atmosphere_params_upper.index('PRESSURE')
+
+        if uu > -1:
+            pressure = atmosphere[uu, :]
+        else:
+            print(function_name, "We need pressure!")
+            assert False
+
+        tatm = None
+        uu = -1
+        if 'TATM' in atmosphere_params_upper:
+            uu = atmosphere_params_upper.index('TATM')
+
+        if uu > -1:
+            tatm = atmosphere[uu, :]
+        else:
+            print(function_name, "We need TATM!")
+            assert False
+
+        h2o = None
+        uu = -1
+        if 'H2O' in atmosphere_params_upper:
+            uu = atmosphere_params_upper.index('H2O')
+
+        if uu > -1:
+            h2o = atmosphere[uu, :]
+        else:
+            print(function_name, "We need H2O!")
+            assert False
+
+        h2o = np.asarray(h2o)
+        tatm = np.asarray(tatm)
+        pressure = np.asarray(pressure)
+        uu = np.where((h2o <= 0.0) | np.all(np.isnan(h2o), axis=0) |
+                      (tatm <= 0.0) | np.all(np.isnan(tatm), axis=0) |
+                      (pressure <= 0.0) | np.all(np.isnan(pressure)))[0]
+
+        if len(uu) > 0:
+            print(function_name, "Bad pressure, temperature, or water at level:", uu)
+            assert False
+
+        # to use PGE altitude grid using the following:
+        # put in correct units
+
+        latitude = uip.obs_table['target_latitude']*180/math.pi
+
+        waterType = None
+        pge_flag = True
+
+        # AT_LINE 165 ELANOR/atmosphere_level.pro  
+        (results, x) = compute_altitude_pge(pressure, tatm, h2o, 
+                                            uip.obs_table['surfaceAltitude'], latitude, waterType, pge_flag)
+
+        altitude = results['altitude']/1000.0
+        pge_flag = None
+        radiusEarth = earth_radius(latitude, pge_flag)
+        density_air = results['airDensity'] * 1e6
+
+        # AT_LINE 175 ELANOR/atmosphere_level.pro
+        num_species = len(uip.species)
+        vmr_species = np.zeros(shape=(num_species, len(pressure)), dtype=np.float64) # dblarr(num_species,n_elements(pressure))
+
+        # Fill in the selected species and check for zero values.
+        # AT_LINE 179 ELANOR/atmosphere_level.pro
+        for ii in range(num_species):
+            uu = -1
+            if uip.species[ii] in uip.atmosphere_params:
+                uu = atmosphere_params_upper.index(uip.species[ii])
+
+            if uu > -1:
+                vmr_species[ii, :] = atmosphere[uu, :]
+
+            if uu == -1:
+                print(function_name, "ERROR: Species " + uip.species[ii] + " not defined in uip.atmosphere")
+                assert False
+
+            uu = utilGeneral.WhereEqualIndices(vmr_species[ii], 0.0)
+            if len(uu) > 0:
+                print(function_name, 'Warning:  ', "Species ", uip.species[ii], " has a bad value: ", vmr_species[ii, uu], " at level:", uu[0])
+                print(function_name, 'Allowing code to continue.')
+
+            uu = utilGeneral.WhereGreaterEqualIndices(vmr_species[ii], 1.0)
+            if len(uu) > 0:
+                print(function_name, "Species ", uip.species[ii], " has a bad value: ", vmr_species[ii, uu], " at level:", uu[0])
+                print(function_name, "Please make better")
+                assert False
+        # end for ii in range(num_species):
+
+        # AT_LINE 206 ELANOR/atmosphere_level.pro
+
+        density_dry = density_air - density_air * h2o
+
+        # We will need a copy of vmr_species because we will be multiplying it by the density_dry.
+        density_species = copy.deepcopy(vmr_species)
+        for ii in range(0, num_species):
+            density_species[ii, :] = vmr_species[ii, :] * density_dry
+
+        if np.all(np.isfinite(density_species) == False):
+            print(function_name, "ERROR: Not all values are finite in density_species.")
+            assert False
+
+        radius = radiusEarth + altitude * 1000.0
+
+        rayparams = {
+            'pressure': pressure,
+            'tatm': tatm,
+            'h2o': h2o,
+            'species': uip.species,
+            'vmr': vmr_species,
+            'radiusEarth': radiusEarth,
+            'density_species': density_species,
+            'density_air': density_air,
+            'density_air_dry': density_dry,
+            'radius': radius, 
+            'nlayers': len(pressure)-1}
+
+        return rayparams
+    
 
     def tau_total(
         self, instrument_name: InstrumentIdentifier | str, current_state: CurrentState
     ) -> np.ndarray:
         from refractor.muses_py_fm import mpy_atmosphere_level
         from .misc import AttrDictAdapter
-        import math
 
         agrid = (
             self.alt.altitude_grid(self.p, rf.Pressure.DECREASING_PRESSURE)
@@ -86,87 +233,53 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        temperature = current_state.state_value("TATM")
-        density_air = i_atmparams.density_air
-
+        tatm = current_state.state_value("TATM")
+        density_air = self.atmosphere_level(i_uip)["density_air"]
 
         radius = i_atmparams.radius
 
-        tbar = np.zeros(shape=(nlayers), dtype=np.float64)
-        tbar_try = np.zeros(shape=(nlayers), dtype=np.float64)
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
         column = np.zeros(shape=(nlayers), dtype=np.float64)
         path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
 
         ds_fix = 500.0
-
         x_u = radius[nlayers]
-
         s_tot = 0.0
-
         for jj in reversed(range(0, nlayers)):  # go from top to bottom
-
             hp = -(radius[jj + 1] - radius[jj]) / np.log(
                 pressure[jj + 1] / pressure[jj]
             )
             p_u = pressure[jj + 1]
-
             hd = -(radius[jj + 1] - radius[jj]) / np.log(
                 density_air[jj + 1] / density_air[jj]
             )
             den_u = density_air[jj + 1]
-
-            t_u = temperature[jj + 1]
-
             sub_layer = 0
             r_u = radius[jj + 1]
-
             flag = 0
-
             while flag == 0:  # sub layer loop
                 dr = ds_fix
-
                 # This while loop only exit if the following condition is true.
                 if (r_u - dr) < radius[jj]:
                     dr = r_u - radius[jj]
                     flag = 1
-
                 r_l = r_u - dr
-
                 p_l = pressure[jj] * math.exp(-(r_l - radius[jj]) / hp)
-
-                t_l = temperature[jj] + (r_l - radius[jj]) * (
-                    temperature[jj + 1] - temperature[jj]
-                ) / (radius[jj + 1] - radius[jj])
                 den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
-
                 x_l = r_l
-
                 dx = x_u - x_l
                 ds = dx
-
                 s_tot = s_tot + ds
-
                 column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
-
-                tbar[jj] = tbar[jj] + (ds / dr) * (den_l * t_l - den_u * t_u)
                 pbar[jj] = pbar[jj] + (ds / dr) * (den_l * p_l - den_u * p_u)
-
                 r_u = r_l
                 x_u = x_l
-
-                t_u = t_l
                 p_u = p_l
                 den_u = den_l
                 sub_layer = sub_layer + 1
 
             path_level[jj] = s_tot
-            tbar[jj] = tbar[jj] / column[jj] + hd * (
-                temperature[jj + 1] - temperature[jj]
-            ) / (radius[jj + 1] - radius[jj])
             pbar[jj] = pbar[jj] * (hp / (hp + hd)) / column[jj]
-            tbar_try[jj] = tbar_try[jj] / column[jj]
-
             column[jj] = column[jj] * hd
 
         # end for jj in reversed(range(0,nlayers))
