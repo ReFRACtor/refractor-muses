@@ -40,34 +40,44 @@ class IrkForwardModel(rf.StandardForwardModel):
         self._irk_radiative_transfer = irk_radiative_transfer
         self.rf_uip = rf_uip
 
-    def tau_total(self, instrument_name: str, current_state: CurrentState) -> np.ndarray:
+    def tau_total(
+        self, instrument_name: str, current_state: CurrentState
+    ) -> np.ndarray:
         from refractor.muses_py_fm import mpy_atmosphere_level
         from refractor.muses_py import idl_tag_names, makemap_ll, ref_index
         from .misc import AttrDictAdapter
         import copy
         import math
-        
+
         i_uip = self.rf_uip.uip_all(instrument_name)
         i_uip["obs_table"]["pointing_angle"] = 0.0
         i_uip["cloud"]["extinction"][:] = 1.0
         i_uip = AttrDictAdapter(i_uip)
         i_atmparams = AttrDictAdapter(mpy_atmosphere_level(i_uip))
 
-
         # These parameters are needed for the atmospheric equation of state
         pressure = i_atmparams.pressure
         lnp = np.log(pressure)
         temperature = i_atmparams.tatm
         h2o = i_atmparams.h2o
-        
+
         density_species = np.concatenate(
-            ((i_atmparams.density_air_dry.reshape(1, len(i_atmparams.density_air_dry))), i_atmparams.density_species), 
-            axis=0
+            (
+                (
+                    i_atmparams.density_air_dry.reshape(
+                        1, len(i_atmparams.density_air_dry)
+                    )
+                ),
+                i_atmparams.density_species,
+            ),
+            axis=0,
         )
 
         density_air = i_atmparams.density_air
 
-        num_species = len(density_species) #also accounts for dry air column from the concatenate() function above.
+        num_species = len(
+            density_species
+        )  # also accounts for dry air column from the concatenate() function above.
 
         # AT_LINE 28 ELANOR/raylayer_nadir.pro
         radius = i_atmparams.radius
@@ -85,25 +95,23 @@ class IrkForwardModel(rf.StandardForwardModel):
         # AT_LINE 42 ELANOR/raylayer_nadir.pro
         ds_fix = 500.0
 
-        if 'SUB_LAYER_DIST' in idl_tag_names(i_uip):
-            ds_fix = i_uip.SUB_LAYER_DIST # in meteres.
+        if "SUB_LAYER_DIST" in idl_tag_names(i_uip):
+            ds_fix = i_uip.SUB_LAYER_DIST  # in meteres.
 
-        column_species = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
-        map_vmr_u = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
-        map_vmr_l = np.zeros(shape=(num_species, nlayers), dtype=np.float64)
-        map_tatm_u = np.zeros(shape=(nlayers), dtype=np.float64)
-        map_tatm_l = np.zeros(shape=(nlayers), dtype=np.float64)
 
         # AT_LINE 54 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
         density_species_l = np.zeros(shape=(num_species), dtype=np.float64)
 
         psi_tot = np.float64(0.0)
 
-
         # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
-        radiusSat = i_uip.obs_table['sat_radius']  # There is only one obs_table so we cannot use the index.
-        
-        sin_theta_u = radiusSat * math.sin(i_uip.obs_table['pointing_angle']) / radius[nlayers]
+        radiusSat = i_uip.obs_table[
+            "sat_radius"
+        ]  # There is only one obs_table so we cannot use the index.
+
+        sin_theta_u = (
+            radiusSat * math.sin(i_uip.obs_table["pointing_angle"]) / radius[nlayers]
+        )
 
         snells_constant = radius[nlayers] * sin_theta_u
 
@@ -116,13 +124,13 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # get indices of linear VMR's
 
-        indsLinear = np.zeros(shape=(len(i_uip.species) +  1), dtype=int)
+        indsLinear = np.zeros(shape=(len(i_uip.species) + 1), dtype=int)
         indsLog = np.ndarray(shape=(len(i_uip.species) + 1), dtype=int)
-        indsLog.fill(1)    # Fill with 1's in all elements.
+        indsLog.fill(1)  # Fill with 1's in all elements.
 
         # AT_LINE 99 ELANOR/raylayer_nadir.pro
         for jj in range(len(i_uip.jacobiansLinear)):
-            if i_uip.jacobiansLinear[jj] != '':
+            if i_uip.jacobiansLinear[jj] != "":
                 if i_uip.jacobiansLinear[jj] in i_uip.species:
                     indlinear = i_uip.species.index(i_uip.jacobiansLinear[jj])
                 else:
@@ -136,29 +144,35 @@ class IrkForwardModel(rf.StandardForwardModel):
         indsLinear = np.where(indsLinear == 1)[0]
         indsLog = np.where(indsLog == 1)[0]
 
-        for jj in reversed(range(0, nlayers)): # go from top to bottom
-            nupper = ref_index(temperature[jj+1], pressure[jj+1] * 100., h2o[jj+1])
+        for jj in reversed(range(0, nlayers)):  # go from top to bottom
+            nupper = ref_index(
+                temperature[jj + 1], pressure[jj + 1] * 100.0, h2o[jj + 1]
+            )
 
-            n_u = nupper # for the sub-layers
+            n_u = nupper  # for the sub-layers
 
-            hp = -(radius[jj+1] - radius[jj]) / np.log(pressure[jj+1] / pressure[jj])
-            p_u = pressure[jj+1]
+            hp = -(radius[jj + 1] - radius[jj]) / np.log(
+                pressure[jj + 1] / pressure[jj]
+            )
+            p_u = pressure[jj + 1]
 
-            hd = -(radius[jj+1] - radius[jj]) / np.log(density_air[jj+1] / density_air[jj])
-            den_u = density_air[jj+1]
+            hd = -(radius[jj + 1] - radius[jj]) / np.log(
+                density_air[jj + 1] / density_air[jj]
+            )
+            den_u = density_air[jj + 1]
 
-            t_u = temperature[jj+1]
+            t_u = temperature[jj + 1]
 
-            density_species_u = density_species[:, jj+1]
-            hd_species = -(radius[jj+1] - radius[jj]) / np.log(density_species[:, jj+1] / density_species[:, jj])
+            hd_species = -(radius[jj + 1] - radius[jj]) / np.log(
+                density_species[:, jj + 1] / density_species[:, jj]
+            )
 
             sub_layer = 0
-            r_u = radius[jj+1]
-            deltar = radius[jj+1] - radius[jj]
+            r_u = radius[jj + 1]
 
             flag = 0
 
-            while flag == 0: # sub layer loop
+            while flag == 0:  # sub layer loop
                 dr = ds_fix * cos_theta_u
 
                 # This while loop only exit if the following condition is true.
@@ -170,11 +184,15 @@ class IrkForwardModel(rf.StandardForwardModel):
 
                 p_l = pressure[jj] * math.exp(-(r_l - radius[jj]) / hp)
 
-                t_l = temperature[jj] + (r_l - radius[jj]) * (temperature[jj+1] - temperature[jj]) / (radius[jj+1] - radius[jj])
+                t_l = temperature[jj] + (r_l - radius[jj]) * (
+                    temperature[jj + 1] - temperature[jj]
+                ) / (radius[jj + 1] - radius[jj])
                 den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
-                h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (h2o[jj+1] - h2o[jj]) / np.log(pressure[jj+1] / pressure[jj])
+                h2o_l = h2o[jj] + (np.log(p_l) - lnp[jj]) * (
+                    h2o[jj + 1] - h2o[jj]
+                ) / np.log(pressure[jj + 1] / pressure[jj])
 
-                n_l = ref_index(t_l, p_l * 100., h2o_l)
+                n_l = ref_index(t_l, p_l * 100.0, h2o_l)
 
                 dn_dr = (n_u - n_l) / (r_u - r_l)
 
@@ -182,55 +200,41 @@ class IrkForwardModel(rf.StandardForwardModel):
                 cos_theta_l = math.sqrt(1 - sin_theta_l**2)
                 x_l = r_l * cos_theta_l
 
-
                 dx = x_u - x_l
 
-                ds_dx_l = 1. / (1 + r_l * sin_theta_l**2 / (n_l / dn_dr))
-                ds_dx_u = 1. / (1 + r_u * sin_theta_u**2 / (n_u / dn_dr))
+                ds_dx_l = 1.0 / (1 + r_l * sin_theta_l**2 / (n_l / dn_dr))
+                ds_dx_u = 1.0 / (1 + r_u * sin_theta_u**2 / (n_u / dn_dr))
 
-                ds = .5 * (ds_dx_u + ds_dx_l) * dx
+                ds = 0.5 * (ds_dx_u + ds_dx_l) * dx
 
-                dpsi = snells_constant * .5 * (ds_dx_l / n_l / r_l**2 + ds_dx_u / n_u / r_u**2) * dx
+                dpsi = (
+                    snells_constant
+                    * 0.5
+                    * (ds_dx_l / n_l / r_l**2 + ds_dx_u / n_u / r_u**2)
+                    * dx
+                )
 
                 s_tot = s_tot + ds
                 psi_tot = psi_tot + dpsi
 
-                ds_dr = ds / dr
-
                 column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
 
-                tbar[jj] = tbar[jj] + (ds/dr) * (den_l * t_l - den_u * t_u)
-                pbar[jj] = pbar[jj] + (ds/dr) * (den_l * p_l - den_u * p_u)
-
-                dum1 = (radius[jj+1] - r_l) / deltar
-                dum2 = (radius[jj+1] - r_u) / deltar
-                dum3 = (r_l - radius[jj]) / deltar
-                dum4 = (r_u - radius[jj]) / deltar
-
-                map_tatm_l[jj] = map_tatm_l[jj] + ds_dr * (den_l * dum1 - den_u * dum2)
-
-                map_tatm_u[jj] = map_tatm_u[jj] + ds_dr * (den_l * dum3 - den_u * dum4)
+                tbar[jj] = tbar[jj] + (ds / dr) * (den_l * t_l - den_u * t_u)
+                pbar[jj] = pbar[jj] + (ds / dr) * (den_l * p_l - den_u * p_u)
 
                 if indsLog[0] >= 0:
-                    density_species_l[indsLog] = density_species[indsLog, jj] * np.exp(-(r_l-radius[jj]) / hd_species[indsLog])
-                    column_species[indsLog, jj] = column_species[indsLog, jj] + ds / dr * (density_species_l[indsLog] - density_species_u[indsLog])
-                    map_vmr_l[indsLog, jj] = map_vmr_l[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum1 - density_species_u[indsLog] * dum2)
-                    map_vmr_u[indsLog, jj] = map_vmr_u[indsLog, jj] + ds_dr * (density_species_l[indsLog] * dum3 - density_species_u[indsLog] * dum4)
+                    density_species_l[indsLog] = density_species[indsLog, jj] * np.exp(
+                        -(r_l - radius[jj]) / hd_species[indsLog]
+                    )
                 # end if indsLog[0] >= 0:
 
                 if len(indsLinear) > 0 and indsLinear[0] >= 0:
-                    density_species_l[indsLinear] = density_species[indsLinear, jj] + \
-                        (density_species[indsLinear, jj+1] - density_species[indsLinear, jj]) * (r_l - radius[jj]) / (radius[jj+1]-radius[jj])
-
-                    dens_u = density_species_u[indsLinear]
-                    dens_l = density_species_l[indsLinear]
-
-                    column_species[indsLinear, jj] = column_species[indsLinear, jj] + \
-                        hd * ds / dr * (dens_l - dens_u - hd * (dens_u / den_u-dens_l / den_l) * (den_u - den_l) / dr)
+                    density_species_l[indsLinear] = density_species[indsLinear, jj] + (
+                        density_species[indsLinear, jj + 1]
+                        - density_species[indsLinear, jj]
+                    ) * (r_l - radius[jj]) / (radius[jj + 1] - radius[jj])
 
 
-                    map_vmr_l[indsLinear, jj] = map_vmr_l[indsLinear, jj] + ds_dr * (den_l * dum1 - den_u * dum2)
-                    map_vmr_u[indsLinear, jj] = map_vmr_u[indsLinear, jj] + ds_dr * (den_l * dum3 - den_u * dum4)
                 # end if indsLinear[0] >= 0:
 
                 cos_theta_u = cos_theta_l
@@ -242,47 +246,40 @@ class IrkForwardModel(rf.StandardForwardModel):
                 t_u = t_l
                 p_u = p_l
                 den_u = den_l
-                density_species_u = copy.deepcopy(density_species_l)  # PYTHON_NOTE: We must make a new memory for density_species_u, otherwise both points to the smae address space.
+                density_species_u = copy.deepcopy(
+                    density_species_l
+                )  # PYTHON_NOTE: We must make a new memory for density_species_u, otherwise both points to the smae address space.
                 sub_layer = sub_layer + 1
             # end while (flag == 0): # sub layer loop
 
             # AT_LINE 288 ELANOR/raylayer_nadir.pro
             psi_level[jj] = psi_tot
             path_level[jj] = s_tot
-            tbar[jj] = tbar[jj] / column[jj] + hd * (temperature[jj+1] - temperature[jj]) / (radius[jj+1] - radius[jj])
+            tbar[jj] = tbar[jj] / column[jj] + hd * (
+                temperature[jj + 1] - temperature[jj]
+            ) / (radius[jj + 1] - radius[jj])
             pbar[jj] = pbar[jj] * (hp / (hp + hd)) / column[jj]
-            tbar_try[jj] = tbar_try[jj]/column[jj]
+            tbar_try[jj] = tbar_try[jj] / column[jj]
 
             column[jj] = column[jj] * hd
-            column_species[indsLog, jj] = column_species[indsLog, jj] * hd_species[indsLog]
 
-            map_vmr_l[indsLog, jj] = hd_species[indsLog] * ((-1. / deltar) + map_vmr_l[indsLog, jj] / column_species[indsLog, jj])
-            map_vmr_u[indsLog, jj] = hd_species[indsLog] * ((1. / deltar) + map_vmr_u[indsLog, jj] / column_species[indsLog, jj])
-
-            map_tatm_l[jj] = (tbar[jj] / temperature[jj]) * hd * ((-1. / deltar) + map_tatm_l[jj] / column[jj])
-            map_tatm_u[jj] = (tbar[jj] / temperature[jj+1]) * hd * ((1. / deltar) + map_tatm_u[jj] / column[jj])
-
-            if len(indsLinear) > 0 and indsLinear[0] >= 0:
-                map_vmr_l[indsLinear, jj] = (column_species[indsLinear, jj] / column[jj]) / (density_species[indsLinear, jj] / density_air[jj]) \
-                                            * hd * ((-1. / deltar) + map_vmr_l[indsLinear, jj] / column[jj])
-
-                map_vmr_u[indsLinear, jj] = (column_species[indsLinear, jj] / column[jj]) / (density_species[indsLinear, jj] / density_air[jj]) \
-                                            * hd * ((1. / deltar) + map_vmr_u[indsLinear, jj] / column[jj])
-            # end if indsLinear[0] >= 0:
-        # end for jj in reversed(range(0,nlayers)) 
+        # end for jj in reversed(range(0,nlayers))
 
         ext = np.full(current_state.state_value("CLOUDEXT").shape, 1.0)
-        cloud_pressure = i_uip.cloud['pressure']
+        cloud_pressure = i_uip.cloud["pressure"]
 
         scale = current_state.state_value("scalePressure")[0]
-        ext_levels = ext[:,np.newaxis] * np.exp(-(np.log(pressure[np.newaxis,:]) - np.log(cloud_pressure))**2 / scale**2)
+        ext_levels = ext[:, np.newaxis] * np.exp(
+            -((np.log(pressure[np.newaxis, :]) - np.log(cloud_pressure)) ** 2)
+            / scale**2
+        )
         pressure_clevel = pressure
         pressure_clayer = pbar
 
         map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
         extinction = np.matmul(ext_levels, map_cloud_ll)
-        path_norm = (radius[1:nlayers+1] - radius[0:nlayers]) / 1000.
-        tau_total = np.sum(extinction * path_norm[np.newaxis,:], axis=1)
+        path_norm = (radius[1 : nlayers + 1] - radius[0:nlayers]) / 1000.0
+        tau_total = np.sum(extinction * path_norm[np.newaxis, :], axis=1)
         return tau_total
 
     def dEdOD(self, current_state: CurrentState) -> np.ndarray:

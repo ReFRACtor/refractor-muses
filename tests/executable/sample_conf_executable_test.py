@@ -64,7 +64,7 @@ def test_refractor_retrieve_airs_omi_modify2(
     the output.  That is done at lower levels of testing.
 
     """
-    dir = end_to_end_run_dir / "refractor_retrieve_airs_omi_modify"
+    dir = end_to_end_run_dir / "refractor_retrieve_airs_omi_modify2"
     # Sample configuration file that we have modified the NH3 initial guess
     config_file = (
         Path(os.path.dirname(__file__)).parent
