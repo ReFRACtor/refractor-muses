@@ -63,32 +63,18 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         return o_map
 
-    def atmosphere_level(self, uip):
-        from refractor.muses_py import UtilGeneral, ObjectView, earth_radius, compute_altitude_pge
-        # IDL_LEGACY_NOTE: This function atmosphere_level is the same as atmosphere_level function in  ELANOR/atmosphere_level.pro file.
+    def density_air(self, uip):
+        from refractor.muses_py import UtilGeneral, earth_radius, compute_altitude_pge
         function_name = "atmosphere_level: "
 
         utilGeneral = UtilGeneral()
 
-        if isinstance(uip, dict):
-            uip = ObjectView(uip)
-
-        Rgas = 8.31451
-        Avo = 6.0225e23
-        kb = 1.380622e-23
-
-        # This procedure reads in the atmosphere and sets up all the level related parameters
-
         atmosphere = uip.atmosphere
         atmosphere_params_upper = [x.upper() for x in list(uip.atmosphere_params)]
 
-        levels = None
         uu = -1
         if 'LEVEL' in atmosphere_params_upper:
             uu = atmosphere_params_upper.index('LEVEL')
-
-        if uu > -1:
-            levels = atmosphere[uu, :]
 
         pressure = None
         uu = -1
@@ -190,32 +176,14 @@ class IrkForwardModel(rf.StandardForwardModel):
         for ii in range(0, num_species):
             density_species[ii, :] = vmr_species[ii, :] * density_dry
 
-        if np.all(np.isfinite(density_species) == False):
-            print(function_name, "ERROR: Not all values are finite in density_species.")
-            assert False
-
         radius = radiusEarth + altitude * 1000.0
 
-        rayparams = {
-            'pressure': pressure,
-            'tatm': tatm,
-            'h2o': h2o,
-            'species': uip.species,
-            'vmr': vmr_species,
-            'radiusEarth': radiusEarth,
-            'density_species': density_species,
-            'density_air': density_air,
-            'density_air_dry': density_dry,
-            'radius': radius, 
-            'nlayers': len(pressure)-1}
-
-        return rayparams
+        return density_air, radius
     
 
     def tau_total(
         self, instrument_name: InstrumentIdentifier | str, current_state: CurrentState
     ) -> np.ndarray:
-        from refractor.muses_py_fm import mpy_atmosphere_level
         from .misc import AttrDictAdapter
 
         agrid = (
@@ -229,14 +197,10 @@ class IrkForwardModel(rf.StandardForwardModel):
         i_uip["obs_table"]["pointing_angle"] = 0.0
         i_uip["cloud"]["extinction"][:] = 1.0
         i_uip = AttrDictAdapter(i_uip)
-        i_atmparams = AttrDictAdapter(mpy_atmosphere_level(i_uip))
 
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        tatm = current_state.state_value("TATM")
-        density_air = self.atmosphere_level(i_uip)["density_air"]
-
-        radius = i_atmparams.radius
+        density_air, radius = self.density_air(i_uip)
 
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
         column = np.zeros(shape=(nlayers), dtype=np.float64)
