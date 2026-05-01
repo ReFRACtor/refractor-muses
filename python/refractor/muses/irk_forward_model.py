@@ -12,6 +12,8 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
     from .pointing_angle_surface import PointingAngleSurface
+    from .muses_refractive_index import MusesRefractiveIndex
+    from .identifier import InstrumentIdentifier
 
 
 class IrkForwardModel(rf.StandardForwardModel):
@@ -27,6 +29,10 @@ class IrkForwardModel(rf.StandardForwardModel):
         spectrum_sampling: rf.SpectrumSampling,
         spectrum_effect: list[list[rf.SpectrumEffect]],
         observation: MusesObservation,
+        sat_altitude: rf.DoubleWithUnit,
+        earth_radius: rf.DoubleWithUnit,
+        alt: rf.Altitude,
+        rindex: MusesRefractiveIndex,
         rconf: RetrievalConfiguration,
         pntsurf: PointingAngleSurface,
         irk_radiative_transfer: rf.MusesRadiativeTransferOss | None = None,
@@ -35,18 +41,21 @@ class IrkForwardModel(rf.StandardForwardModel):
             instrument, spec_win, radiative_transfer, spectrum_sampling, spectrum_effect
         )
         self.obs = observation
+        self.eradius = earth_radius.convert("m").value
+        self.sat_altitude = sat_altitude.convert("m").value
+        self.alt = alt
+        self.rindex = rindex
         self.rconf = rconf
         self.pntsurf = pntsurf
         self._irk_radiative_transfer = irk_radiative_transfer
         self.rf_uip = rf_uip
 
     def tau_total(
-        self, instrument_name: str, current_state: CurrentState
+        self, instrument_name: InstrumentIdentifier | str, current_state: CurrentState
     ) -> np.ndarray:
         from refractor.muses_py_fm import mpy_atmosphere_level
         from refractor.muses_py import idl_tag_names, makemap_ll, ref_index
         from .misc import AttrDictAdapter
-        import copy
         import math
 
         i_uip = self.rf_uip.uip_all(instrument_name)
@@ -56,11 +65,10 @@ class IrkForwardModel(rf.StandardForwardModel):
         i_atmparams = AttrDictAdapter(mpy_atmosphere_level(i_uip))
 
         # These parameters are needed for the atmospheric equation of state
-        pressure = i_atmparams.pressure
+        pressure = current_state.state_value("pressure")
         lnp = np.log(pressure)
-        temperature = i_atmparams.tatm
-        h2o = i_atmparams.h2o
-
+        temperature = current_state.state_value("TATM")
+        h2o = current_state.state_value("H2O")
         density_species = np.concatenate(
             (
                 (
@@ -85,7 +93,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # AT_LINE 33 ELANOR/raylayer_nadir.pro
 
-        psi_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
         tbar = np.zeros(shape=(nlayers), dtype=np.float64)
         tbar_try = np.zeros(shape=(nlayers), dtype=np.float64)
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
@@ -102,8 +109,6 @@ class IrkForwardModel(rf.StandardForwardModel):
         # AT_LINE 54 src_ms-2018-12-10/ELANOR/raylayer_nadir.pro
         density_species_l = np.zeros(shape=(num_species), dtype=np.float64)
 
-        psi_tot = np.float64(0.0)
-
         # PYTHON_NOTE: There is only one obs_table so we cannot use the index.
         radiusSat = i_uip.obs_table[
             "sat_radius"
@@ -119,7 +124,6 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         x_u = radius[nlayers] * cos_theta_u
 
-        psi_tot = 0
         s_tot = 0.0
 
         # get indices of linear VMR's
@@ -207,15 +211,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
                 ds = 0.5 * (ds_dx_u + ds_dx_l) * dx
 
-                dpsi = (
-                    snells_constant
-                    * 0.5
-                    * (ds_dx_l / n_l / r_l**2 + ds_dx_u / n_u / r_u**2)
-                    * dx
-                )
-
                 s_tot = s_tot + ds
-                psi_tot = psi_tot + dpsi
 
                 column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
 
@@ -246,14 +242,9 @@ class IrkForwardModel(rf.StandardForwardModel):
                 t_u = t_l
                 p_u = p_l
                 den_u = den_l
-                density_species_u = copy.deepcopy(
-                    density_species_l
-                )  # PYTHON_NOTE: We must make a new memory for density_species_u, otherwise both points to the smae address space.
                 sub_layer = sub_layer + 1
             # end while (flag == 0): # sub layer loop
 
-            # AT_LINE 288 ELANOR/raylayer_nadir.pro
-            psi_level[jj] = psi_tot
             path_level[jj] = s_tot
             tbar[jj] = tbar[jj] / column[jj] + hd * (
                 temperature[jj + 1] - temperature[jj]
@@ -273,10 +264,7 @@ class IrkForwardModel(rf.StandardForwardModel):
             -((np.log(pressure[np.newaxis, :]) - np.log(cloud_pressure)) ** 2)
             / scale**2
         )
-        pressure_clevel = pressure
-        pressure_clayer = pbar
-
-        map_cloud_ll = makemap_ll(pressure_clayer, pressure_clevel)
+        map_cloud_ll = makemap_ll(pbar, pressure)
         extinction = np.matmul(ext_levels, map_cloud_ll)
         path_norm = (radius[1 : nlayers + 1] - radius[0:nlayers]) / 1000.0
         tau_total = np.sum(extinction * path_norm[np.newaxis, :], axis=1)
