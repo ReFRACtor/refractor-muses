@@ -178,7 +178,7 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         radius = radiusEarth + altitude * 1000.0
 
-        return density_air, radius
+        return density_air, altitude * 1000.0
     
 
     def tau_total(
@@ -200,44 +200,41 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        density_air, radius = self.density_air(i_uip)
+        density_air, agrid = self.density_air(i_uip)
 
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
         column = np.zeros(shape=(nlayers), dtype=np.float64)
         path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
 
         ds_fix = 500.0
-        x_u = radius[nlayers]
+        a_u = agrid[nlayers]
         s_tot = 0.0
         for jj in reversed(range(0, nlayers)):  # go from top to bottom
-            hp = -(radius[jj + 1] - radius[jj]) / np.log(
+            hp = -(agrid[jj + 1] - agrid[jj]) / np.log(
                 pressure[jj + 1] / pressure[jj]
             )
             p_u = pressure[jj + 1]
-            hd = -(radius[jj + 1] - radius[jj]) / np.log(
+            hd = -(agrid[jj + 1] - agrid[jj]) / np.log(
                 density_air[jj + 1] / density_air[jj]
             )
             den_u = density_air[jj + 1]
             sub_layer = 0
-            r_u = radius[jj + 1]
+            a_u = agrid[jj + 1]
             flag = 0
             while flag == 0:  # sub layer loop
-                dr = ds_fix
+                da = ds_fix
                 # This while loop only exit if the following condition is true.
-                if (r_u - dr) < radius[jj]:
-                    dr = r_u - radius[jj]
+                if (a_u - da) < agrid[jj]:
+                    da = a_u - agrid[jj]
                     flag = 1
-                r_l = r_u - dr
-                p_l = pressure[jj] * math.exp(-(r_l - radius[jj]) / hp)
-                den_l = density_air[jj] * math.exp(-(r_l - radius[jj]) / hd)
-                x_l = r_l
-                dx = x_u - x_l
-                ds = dx
+                a_l = a_u - da
+                p_l = pressure[jj] * math.exp(-(a_l - agrid[jj]) / hp)
+                den_l = density_air[jj] * math.exp(-(a_l - agrid[jj]) / hd)
+                ds = a_u - a_l
                 s_tot = s_tot + ds
-                column[jj] = column[jj] + (ds / dr) * (den_l - den_u)
-                pbar[jj] = pbar[jj] + (ds / dr) * (den_l * p_l - den_u * p_u)
-                r_u = r_l
-                x_u = x_l
+                column[jj] = column[jj] + (ds / da) * (den_l - den_u)
+                pbar[jj] = pbar[jj] + (ds / da) * (den_l * p_l - den_u * p_u)
+                a_u = a_l
                 p_u = p_l
                 den_u = den_l
                 sub_layer = sub_layer + 1
@@ -258,7 +255,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         )
         map_cloud_ll = self.makemap_ll(pbar, pressure)
         extinction = np.matmul(ext_levels, map_cloud_ll)
-        path_norm = (radius[1 : nlayers + 1] - radius[0:nlayers]) / 1000.0
+        path_norm = (agrid[1 : nlayers + 1] - agrid[0:nlayers]) / 1000.0
         tau_total = np.sum(extinction * path_norm[np.newaxis, :], axis=1)
         return tau_total
 
