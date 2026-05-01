@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .misc import ResultIrk
+from .muses_altitude_pge import MusesAltitudePge
 from functools import cache
 import numpy as np
 import copy
@@ -14,7 +15,6 @@ if typing.TYPE_CHECKING:
     from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
     from .pointing_angle_surface import PointingAngleSurface
     from .muses_refractive_index import MusesRefractiveIndex
-    from .identifier import InstrumentIdentifier
 
 
 class IrkForwardModel(rf.StandardForwardModel):
@@ -63,145 +63,30 @@ class IrkForwardModel(rf.StandardForwardModel):
 
         return o_map
 
-    def density_air(self, uip):
-        from refractor.muses_py import UtilGeneral, earth_radius, compute_altitude_pge
-        function_name = "atmosphere_level: "
-
-        utilGeneral = UtilGeneral()
-
-        atmosphere = uip.atmosphere
-        atmosphere_params_upper = [x.upper() for x in list(uip.atmosphere_params)]
-
-        uu = -1
-        if 'LEVEL' in atmosphere_params_upper:
-            uu = atmosphere_params_upper.index('LEVEL')
-
-        pressure = None
-        uu = -1
-        if 'PRESSURE' in atmosphere_params_upper:
-            uu = atmosphere_params_upper.index('PRESSURE')
-
-        if uu > -1:
-            pressure = atmosphere[uu, :]
-        else:
-            print(function_name, "We need pressure!")
-            assert False
-
-        tatm = None
-        uu = -1
-        if 'TATM' in atmosphere_params_upper:
-            uu = atmosphere_params_upper.index('TATM')
-
-        if uu > -1:
-            tatm = atmosphere[uu, :]
-        else:
-            print(function_name, "We need TATM!")
-            assert False
-
-        h2o = None
-        uu = -1
-        if 'H2O' in atmosphere_params_upper:
-            uu = atmosphere_params_upper.index('H2O')
-
-        if uu > -1:
-            h2o = atmosphere[uu, :]
-        else:
-            print(function_name, "We need H2O!")
-            assert False
-
-        h2o = np.asarray(h2o)
-        tatm = np.asarray(tatm)
-        pressure = np.asarray(pressure)
-        uu = np.where((h2o <= 0.0) | np.all(np.isnan(h2o), axis=0) |
-                      (tatm <= 0.0) | np.all(np.isnan(tatm), axis=0) |
-                      (pressure <= 0.0) | np.all(np.isnan(pressure)))[0]
-
-        if len(uu) > 0:
-            print(function_name, "Bad pressure, temperature, or water at level:", uu)
-            assert False
-
-        # to use PGE altitude grid using the following:
-        # put in correct units
-
-        latitude = uip.obs_table['target_latitude']*180/math.pi
-
-        waterType = None
-        pge_flag = True
-
-        # AT_LINE 165 ELANOR/atmosphere_level.pro  
-        (results, x) = compute_altitude_pge(pressure, tatm, h2o, 
-                                            uip.obs_table['surfaceAltitude'], latitude, waterType, pge_flag)
-
-        altitude = results['altitude']/1000.0
-        pge_flag = None
-        radiusEarth = earth_radius(latitude, pge_flag)
-        density_air = results['airDensity'] * 1e6
-
-        # AT_LINE 175 ELANOR/atmosphere_level.pro
-        num_species = len(uip.species)
-        vmr_species = np.zeros(shape=(num_species, len(pressure)), dtype=np.float64) # dblarr(num_species,n_elements(pressure))
-
-        # Fill in the selected species and check for zero values.
-        # AT_LINE 179 ELANOR/atmosphere_level.pro
-        for ii in range(num_species):
-            uu = -1
-            if uip.species[ii] in uip.atmosphere_params:
-                uu = atmosphere_params_upper.index(uip.species[ii])
-
-            if uu > -1:
-                vmr_species[ii, :] = atmosphere[uu, :]
-
-            if uu == -1:
-                print(function_name, "ERROR: Species " + uip.species[ii] + " not defined in uip.atmosphere")
-                assert False
-
-            uu = utilGeneral.WhereEqualIndices(vmr_species[ii], 0.0)
-            if len(uu) > 0:
-                print(function_name, 'Warning:  ', "Species ", uip.species[ii], " has a bad value: ", vmr_species[ii, uu], " at level:", uu[0])
-                print(function_name, 'Allowing code to continue.')
-
-            uu = utilGeneral.WhereGreaterEqualIndices(vmr_species[ii], 1.0)
-            if len(uu) > 0:
-                print(function_name, "Species ", uip.species[ii], " has a bad value: ", vmr_species[ii, uu], " at level:", uu[0])
-                print(function_name, "Please make better")
-                assert False
-        # end for ii in range(num_species):
-
-        # AT_LINE 206 ELANOR/atmosphere_level.pro
-
-        density_dry = density_air - density_air * h2o
-
-        # We will need a copy of vmr_species because we will be multiplying it by the density_dry.
-        density_species = copy.deepcopy(vmr_species)
-        for ii in range(0, num_species):
-            density_species[ii, :] = vmr_species[ii, :] * density_dry
-
-        radius = radiusEarth + altitude * 1000.0
-
-        return density_air, altitude * 1000.0
-    
-
     def tau_total(
-        self, instrument_name: InstrumentIdentifier | str, current_state: CurrentState
+        self, current_state: CurrentState
     ) -> np.ndarray:
-        from .misc import AttrDictAdapter
-
-        agrid = (
-            self.alt.altitude_grid(self.p, rf.Pressure.DECREASING_PRESSURE)
-            .convert("m")
-            .value.value
+        alt_pge = MusesAltitudePge(
+            current_state.state_value("pressure"),
+            current_state.state_value("TATM"),
+            current_state.state_value("H2O"),
+            current_state.sounding_metadata.surface_altitude.convert("m").value,
+            current_state.sounding_metadata.latitude.value,
+            tes_pge=True,
         )
+        # Note we have our own altitude calculate in refractor, but is is
+        # slightly different than MusesAltitudePge. However we need to call
+        # this anyways to get air_density, so go ahead and just use the
+        # py-retrieve value here.
+        agrid = alt_pge.altitude
+        # Not sure about the units here, but py-retrieve atmosphere_level function
+        # scales this here.
+        density_air = alt_pge.air_density * 1e6
         nlayers = agrid.shape[0] - 1
         
-        i_uip = self.rf_uip.uip_all(instrument_name)
-        i_uip["obs_table"]["pointing_angle"] = 0.0
-        i_uip["cloud"]["extinction"][:] = 1.0
-        i_uip = AttrDictAdapter(i_uip)
-
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        density_air, agrid = self.density_air(i_uip)
-
+        
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
         column = np.zeros(shape=(nlayers), dtype=np.float64)
         path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
@@ -243,11 +128,8 @@ class IrkForwardModel(rf.StandardForwardModel):
             pbar[jj] = pbar[jj] * (hp / (hp + hd)) / column[jj]
             column[jj] = column[jj] * hd
 
-        # end for jj in reversed(range(0,nlayers))
-
         ext = np.full(current_state.state_value("CLOUDEXT").shape, 1.0)
         cloud_pressure = current_state.state_value("PCLOUD")[0]
-
         scale = current_state.state_value("scalePressure")[0]
         ext_levels = ext[:, np.newaxis] * np.exp(
             -((np.log(pressure[np.newaxis, :]) - np.log(cloud_pressure)) ** 2)
@@ -260,13 +142,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         return tau_total
 
     def dEdOD(self, current_state: CurrentState) -> np.ndarray:
-        try:
-            t = self.tau_total(self.obs.instrument_name, current_state)
-        except KeyError:
-            t = self.tau_total("AIRS", current_state)
-        #print(t)
-        #breakpoint()
-        return 1.0 / t
+        return 1.0 / self.tau_total(current_state)
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
