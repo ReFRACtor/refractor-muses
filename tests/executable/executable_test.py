@@ -12,6 +12,7 @@
 import subprocess
 import pytest
 from refractor.muses import MusesRunDir, InputFileHelper
+from fixtures.require_check import require_oss, require_muses_py
 
 
 # Note this reads files we don't in refractor, so for this test point to the real
@@ -19,6 +20,7 @@ from refractor.muses import MusesRunDir, InputFileHelper
 # reasonable in these tests to depend on the real data just to make sure py-retrieve
 # still runs ok.
 @pytest.mark.long_executable_test
+@require_muses_py
 def test_py_retrieve_airs_omi(
     osp_real_dir, gmao_real_dir, joint_omi_test_in_dir, end_to_end_run_dir
 ):
@@ -42,6 +44,7 @@ def test_py_retrieve_airs_omi(
 
 
 @pytest.mark.long_executable_test
+@require_muses_py
 def test_py_retrieve_cris_tropomi(
     osp_real_dir, gmao_real_dir, joint_tropomi_test_in_dir, end_to_end_run_dir
 ):
@@ -65,11 +68,9 @@ def test_py_retrieve_cris_tropomi(
 
 
 @pytest.mark.long_executable_test
-def test_refractor_py_retrieve_airs_omi(
-    ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir
-):
-    """Full run of the refractor-retrieve code, using the old
-    py-retrieve forward models. used to make sure we didn't break
+@require_oss
+def test_refractor_airs_omi(ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir):
+    """Full run of the refractor-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking
     the output.  That is done at lower levels of testing.
 
@@ -89,11 +90,11 @@ def test_refractor_py_retrieve_airs_omi(
 
 
 @pytest.mark.long_executable_test
-def test_refractor_py_retrieve_cris_tropomi(
+@require_oss
+def test_refractor_cris_tropomi(
     ifile_hlp, joint_tropomi_test_in_dir, end_to_end_run_dir
 ):
-    """Full run of the refractor-retrieve code, using the old
-    py-retrieve forward models. used to make sure we didn't break
+    """Full run of the refractor-retrieve code, used to make sure we didn't break
     anything. We just check that we can run, we don't bother checking
     the output.  That is done at lower levels of testing.
 
@@ -113,60 +114,7 @@ def test_refractor_py_retrieve_cris_tropomi(
 
 
 @pytest.mark.long_executable_test
-def test_refractor_retrieve_airs_omi(
-    ifile_hlp, joint_omi_test_in_dir, end_to_end_run_dir, refractor_config_file
-):
-    """Full run of the refractor-retrieve code, using the
-    ReFRACtor forward models. used to make sure we didn't break
-    anything. We just check that we can run, we don't bother checking
-    the output.  That is done at lower levels of testing.
-
-    We use MPI here, just to test that out. However we only have 1 target, so
-    this really isn't needed here.
-
-    """
-    dir = end_to_end_run_dir / "refractor_retrieve_airs_omi"
-    subprocess.run(["rm", "-r", str(dir)])
-    r = MusesRunDir(
-        joint_omi_test_in_dir,
-        ifile_hlp,
-        path_prefix=dir,
-    )
-    subprocess.run(
-        f"refractor-retrieve --mpi --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
-        shell=True,
-        check=True,
-    )
-
-
-@pytest.mark.long_executable_test
-def test_refractor_retrieve_cris_tropomi(
-    ifile_hlp,
-    joint_tropomi_test_in_dir,
-    end_to_end_run_dir,
-    refractor_config_file,
-):
-    """Full run of the refractor-retrieve code, using the
-    ReFRACtor forward models. used to make sure we didn't break
-    anything. We just check that we can run, we don't bother checking
-    the output.  That is done at lower levels of testing.
-
-    """
-    dir = end_to_end_run_dir / "refractor_retrieve_cris_tropomi"
-    subprocess.run(["rm", "-r", str(dir)])
-    r = MusesRunDir(
-        joint_tropomi_test_in_dir,
-        ifile_hlp,
-        path_prefix=dir,
-    )
-    subprocess.run(
-        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {refractor_config_file} --targets {r.run_dir}",
-        shell=True,
-        check=True,
-    )
-
-
-@pytest.mark.long_executable_test
+@require_muses_py
 def test_py_retrieve_refractor_cris_tropomi(
     ifile_hlp,
     joint_tropomi_test_in_dir,

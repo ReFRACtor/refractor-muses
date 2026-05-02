@@ -7,7 +7,7 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
 )
-from fixtures.require_check import require_muses_py_fm
+from fixtures.require_check import require_oss
 
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
@@ -20,7 +20,7 @@ match_py_retrieve = False
 
 
 @pytest.mark.long_test
-@require_muses_py_fm
+@require_oss
 def test_retrieval_strategy_airs_irk(
     ifile_hlp,
     python_fp_logger,

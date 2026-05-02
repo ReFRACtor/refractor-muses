@@ -11,10 +11,8 @@ import typing
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_observation import MusesObservation
-    from .retrieval_configuration import RetrievalConfiguration
     from .muses_radiative_transfer_oss import MusesRadiativeTransferOss
     from .pointing_angle_surface import PointingAngleSurface
-    from .muses_refractive_index import MusesRefractiveIndex
 
 
 class IrkForwardModel(rf.StandardForwardModel):
@@ -23,19 +21,12 @@ class IrkForwardModel(rf.StandardForwardModel):
 
     def __init__(
         self,
-        rf_uip: rf.RefractorUip,  # Temp, leverage off UIP. We'll remove this in a bit
         instrument: rf.Instrument,
         spec_win: rf.SpectralWindow,
         radiative_transfer: rf.MusesRadiativeTransferOss,
         spectrum_sampling: rf.SpectrumSampling,
         spectrum_effect: list[list[rf.SpectrumEffect]],
         observation: MusesObservation,
-        sat_altitude: rf.DoubleWithUnit,
-        earth_radius: rf.DoubleWithUnit,
-        p: rf.Pressure,
-        alt: rf.Altitude,
-        rindex: MusesRefractiveIndex,
-        rconf: RetrievalConfiguration,
         pntsurf: PointingAngleSurface,
         irk_radiative_transfer: rf.MusesRadiativeTransferOss | None = None,
     ) -> None:
@@ -43,29 +34,20 @@ class IrkForwardModel(rf.StandardForwardModel):
             instrument, spec_win, radiative_transfer, spectrum_sampling, spectrum_effect
         )
         self.obs = observation
-        self.eradius = earth_radius.convert("m").value
-        self.sat_altitude = sat_altitude.convert("m").value
-        self.p = p
-        self.alt = alt
-        self.rindex = rindex
-        self.rconf = rconf
         self.pntsurf = pntsurf
         self._irk_radiative_transfer = irk_radiative_transfer
-        self.rf_uip = rf_uip
 
-    def makemap_ll(self, pbar : np.ndarray, plevel : np.ndarray) -> np.ndarray:
+    def makemap_ll(self, pbar: np.ndarray, plevel: np.ndarray) -> np.ndarray:
         o_map = np.zeros(shape=(plevel.shape[0], pbar.shape[0]), dtype=np.float64)
         for ii in range(pbar.shape[0]):
-            xdelta_p = math.log(plevel[ii+1]) - math.log(plevel[ii])
-            xcoeff = 1. - (math.log(pbar[ii]) - math.log(plevel[ii])) / xdelta_p
+            xdelta_p = math.log(plevel[ii + 1]) - math.log(plevel[ii])
+            xcoeff = 1.0 - (math.log(pbar[ii]) - math.log(plevel[ii])) / xdelta_p
             o_map[ii, ii] = xcoeff
             o_map[ii + 1, ii] = 1 - xcoeff
 
         return o_map
 
-    def tau_total(
-        self, current_state: CurrentState
-    ) -> np.ndarray:
+    def tau_total(self, current_state: CurrentState) -> np.ndarray:
         alt_pge = MusesAltitudePge(
             current_state.state_value("pressure"),
             current_state.state_value("TATM"),
@@ -83,10 +65,10 @@ class IrkForwardModel(rf.StandardForwardModel):
         # scales this here.
         density_air = alt_pge.air_density * 1e6
         nlayers = agrid.shape[0] - 1
-        
+
         # These parameters are needed for the atmospheric equation of state
         pressure = current_state.state_value("pressure")
-        
+
         pbar = np.zeros(shape=(nlayers), dtype=np.float64)
         column = np.zeros(shape=(nlayers), dtype=np.float64)
         path_level = np.zeros(shape=(nlayers + 1), dtype=np.float64)
@@ -95,9 +77,7 @@ class IrkForwardModel(rf.StandardForwardModel):
         a_u = agrid[nlayers]
         s_tot = 0.0
         for jj in reversed(range(0, nlayers)):  # go from top to bottom
-            hp = -(agrid[jj + 1] - agrid[jj]) / np.log(
-                pressure[jj + 1] / pressure[jj]
-            )
+            hp = -(agrid[jj + 1] - agrid[jj]) / np.log(pressure[jj + 1] / pressure[jj])
             p_u = pressure[jj + 1]
             hd = -(agrid[jj + 1] - agrid[jj]) / np.log(
                 density_air[jj + 1] / density_air[jj]

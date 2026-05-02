@@ -286,6 +286,30 @@ class MusesCrisForwardModelOss(IrkForwardModel):
 class MusesAirsForwardModelOss(IrkForwardModel):
     """IRK specialization for AIRS"""
 
+    def __init__(
+        self,
+        instrument: rf.Instrument,
+        spec_win: rf.SpectralWindow,
+        radiative_transfer: rf.MusesRadiativeTransferOss,
+        spectrum_sampling: rf.SpectrumSampling,
+        spectrum_effect: list[list[rf.SpectrumEffect]],
+        observation: MusesObservation,
+        pntsurf: PointingAngleSurface,
+        rconf: RetrievalConfiguration,
+        irk_radiative_transfer: rf.MusesRadiativeTransferOss | None = None,
+    ) -> None:
+        super().__init__(
+            instrument,
+            spec_win,
+            radiative_transfer,
+            spectrum_sampling,
+            spectrum_effect,
+            observation,
+            pntsurf,
+            irk_radiative_transfer=irk_radiative_transfer,
+        )
+        self.rconf = rconf
+
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
@@ -394,23 +418,14 @@ class CrisFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesCrisForwardModelOss(
-            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
             self.spectrum_sampling,
             self.spectrum_effect,
             self.observation,
-            self.observation.spacecraft_altitude,
-            self.muses_altitude.earth_radius(),
-            self.pressure_fm,
-            self.muses_altitude,
-            self.refractive_index,
-            self.retrieval_config,
             self.pointing_angle_surface,
         )
-        # TODO Remove this when no longer using UIP
-        self._add_rf_uip_update_to_fm(fm1)
         if False:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.
@@ -571,24 +586,16 @@ class AirsFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesAirsForwardModelOss(
-            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
             self.spectrum_sampling,
             self.spectrum_effect,
             self.observation,
-            self.observation.spacecraft_altitude,
-            self.muses_altitude.earth_radius(),
-            self.pressure_fm,
-            self.muses_altitude,
-            self.refractive_index,
-            self.retrieval_config,
             self.tes_pointing_angle_surface,
+            self.retrieval_config,
             irk_radiative_transfer=self.tes_radiative_transfer,
         )
-        # TODO Remove this when no longer using UIP
-        self._add_rf_uip_update_to_fm(fm1)
         if False:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.
@@ -667,23 +674,15 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
     @cached_property
     def forward_model(self) -> rf.ForwardModel:
         fm1 = MusesTesForwardModelOss(
-            self._rf_uip,
             self.instrument,
             self.spec_win,
             self.radiative_transfer,
             self.spectrum_sampling,
             self.spectrum_effect,
             self.observation,
-            self.observation.spacecraft_altitude,
-            self.muses_altitude.earth_radius(),
-            self.pressure_fm,
-            self.muses_altitude,
-            self.refractive_index,
-            self.retrieval_config,
             self.pointing_angle_surface,
         )
         # TODO Remove this when no longer using UIP
-        self._add_rf_uip_update_to_fm(fm1)
         if False:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.

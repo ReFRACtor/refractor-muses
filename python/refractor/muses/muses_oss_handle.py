@@ -197,6 +197,10 @@ class MusesOssHandle:
             else:
                 raise RuntimeError("Trouble setting up the liboss library")
 
+    @property
+    def have_liboss(self) -> bool:
+        return self.liboss is not None
+
     def to_c_str(
         self, s: str | os.PathLike[str] | InputFilePath
     ) -> tuple[c_char_p, Any]:

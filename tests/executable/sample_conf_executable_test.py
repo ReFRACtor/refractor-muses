@@ -14,10 +14,12 @@ import pytest
 from refractor.muses import MusesRunDir
 from pathlib import Path
 from loguru import logger
+from fixtures.require_check import require_oss
 import os
 
 
 @pytest.mark.long_executable_test
+@require_oss
 def test_refractor_retrieve_airs_omi_modify(
     ifile_hlp,
     joint_omi_test_in_dir,
@@ -43,16 +45,17 @@ def test_refractor_retrieve_airs_omi_modify(
         path_prefix=dir,
     )
     logger.info(
-        f'Running "refractor-retrieve --refractor-config {config_file} --targets {r.run_dir}"'
+        f'Running "refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {config_file} --targets {r.run_dir}"'
     )
     subprocess.run(
-        f"refractor-retrieve --refractor-config {config_file} --targets {r.run_dir}",
+        f"refractor-retrieve --osp-dir={str(ifile_hlp.osp_dir.base_path)} --osp-delta-dir={str(ifile_hlp.osp_dir.delta_path)} --refractor-config {config_file} --targets {r.run_dir}",
         shell=True,
         check=True,
     )
 
 
 @pytest.mark.long_executable_test
+@require_oss
 def test_refractor_retrieve_airs_omi_modify2(
     ifile_hlp,
     joint_omi_test_in_dir,

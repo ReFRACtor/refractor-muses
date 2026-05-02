@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 from fixtures.compare_run import compare_run
-from fixtures.require_check import require_muses_py_fm
+from fixtures.require_check import require_oss
 from loguru import logger
 from refractor.omi import OmiForwardModelHandle
 from refractor.muses import (
@@ -30,7 +30,7 @@ match_py_retrieve = False
 # match_py_retrieve = True
 
 
-@require_muses_py_fm
+@require_oss
 @pytest.mark.long_test
 def test_retrieval_strategy_airs_omi(
     ifile_hlp,
@@ -118,7 +118,7 @@ def test_retrieval_strategy_airs_omi(
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
-@require_muses_py_fm
+@require_oss
 def test_load_step(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     logger.remove()
     r = MusesRunDir(joint_omi_test_in_dir, ifile_hlp)
@@ -167,7 +167,7 @@ def test_load_step(ifile_hlp, joint_omi_test_in_dir, isolated_dir):
     # breakpoint()
 
 
-@require_muses_py_fm
+@require_oss
 def test_run_pickle_1(end_to_end_run_dir, ifile_hlp):
     """Test loading the pickle files saved in test_retrieval_strategy_airs_omi, rerunning
     step 5. This is an example of how you might run to debug a problem. This is similar

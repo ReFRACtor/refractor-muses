@@ -10,7 +10,7 @@ from refractor.muses import (
     InputFileRecord,
     InstrumentIdentifier,
 )
-from fixtures.require_check import require_muses_py_fm
+from fixtures.require_check import require_oss
 
 # Use refractor vlidort, lidort forward model, or py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
@@ -24,7 +24,7 @@ match_py_retrieve = False
 
 
 @pytest.mark.long_test
-@require_muses_py_fm
+@require_oss
 def test_retrieval_strategy_cris_tropomi(
     ifile_hlp,
     python_fp_logger,
@@ -123,7 +123,7 @@ def test_retrieval_strategy_cris_tropomi(
 # retrievals that don't show up in cris_tropomi
 @pytest.mark.skip
 @pytest.mark.long_test
-@require_muses_py_fm
+@require_oss
 def test_retrieval_cris(
     ifile_hlp,
     python_fp_logger,

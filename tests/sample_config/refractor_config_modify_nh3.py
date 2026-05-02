@@ -1,7 +1,6 @@
 from __future__ import annotations
 from refractor.muses import (
     RetrievalStrategy,
-    RetrievalStrategyCaptureObserver,
     StateElementFromClimatologyNh3,
     OspSetupReturn,
     StateElementWithCreateHandle,
@@ -15,29 +14,11 @@ from refractor.muses import (
     InstrumentIdentifier,
     mpy_radiance_from_observation_list,
 )
-from refractor.tropomi import TropomiForwardModelHandle
-from refractor.omi import OmiForwardModelHandle
-import refractor.framework as rf
 from typing import Any
 from loguru import logger
 
 
-# Configuration to use our own TROPOMI and OMI forward models.
-# Note that if we want to use VLIDORT instead, can just skip the forward model
-
-# Turn on logging for refractor. This is independent of python logger, although we
-# could probably integrate this together if it is important
-rf.Logger.set_implementation(rf.FpLogger())
-
 rs = RetrievalStrategy(None)
-rs.forward_model_handle_set.add_handle(
-    TropomiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
-    priority_order=100,
-)
-rs.forward_model_handle_set.add_handle(
-    OmiForwardModelHandle(use_pca=True, use_lrad=False, lrad_second_order=False),
-    priority_order=100,
-)
 
 # We modify things by adding new code. Not sure what the exact changes
 # we want to make here is, but for this example we start with our
@@ -159,12 +140,3 @@ rs.state_element_handle_set.add_handle(
     ),
     priority_order=100,
 )
-
-if False:
-    # If desired, capture each step so we can rerun this for debugging
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
-    rs.add_observer(rscap)
-
-# Replace top level script_retrieval_ms with RetrievalStrategy (only matters
-# if we are using py-retrieval instead of refractor-retrieve).
-rs.register_with_muses_py()
