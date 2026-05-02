@@ -15,10 +15,9 @@ class ColumnResultSummary:
         self, current_state: CurrentState, error_analysis: ErrorAnalysis
     ) -> None:
         # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
+        from refractor.muses_py_fm import FakeRetrievalInfo
 
         self.current_state = current_state
-        stateInfo = FakeStateInfo(current_state)
         retrievalInfo = FakeRetrievalInfo(current_state)
 
         # I don't think this is fully supported, so we just always say have_true is False
@@ -47,40 +46,34 @@ class ColumnResultSummary:
         self._O3_columnErrorDU = 0.0
         self._O3_tropo_consistency = 0.0
 
+        pselem = self.current_state.state_element("pressure")
+        hselem = self.current_state.state_element("H2O")
+        tselem = self.current_state.state_element("TATM")
         for ispecie in range(0, num_species):
-            # AT_LINE 292 Write_Retrieval_Summary.pro
             species_name = retrievalInfo.species[ispecie]
-            loc = -1
-            if species_name in stateInfo.species:
-                loc = np.where(np.array(stateInfo.species) == species_name)[0][0]
-
-            # AT_LINE 294 Write_Retrieval_Summary.pro
-            if (loc >= 0) and (species_name != "TATM"):
+            selem_name = StateElementIdentifier(species_name)
+            selem = self.current_state.state_element(selem_name)
+            if selem_name.is_atmospheric_species and species_name != "TATM":
+                # if species_name != "TATM":
                 # Add the species_name to the current index.
                 self._columnSpecies.append(species_name)
                 indcol = len(self._columnSpecies) - 1
-
-                # AT_LINE 301 Write_Retrieval_Summary.pro
-
-                # EM NOTE - Adding stratosphere to the column for analysis
                 for ij in range(0, 5):
                     # AT_LINE 303 Write_Retrieval_Summary.pro
                     if ij == 0:
                         my_type = "Column"
 
                         minPressure = 0.0
-                        minIndex = np.int64(len(stateInfo.current["pressure"]) - 1)
+                        minIndex = np.int64(len(pselem.value_fm) - 1)
 
-                        maxPressure = np.amax(stateInfo.current["pressure"])
+                        maxPressure = np.amax(pselem.value_fm)
                     elif ij == 1:
                         my_type = "Trop"
 
                         minPressure = self.tropopause_pressure
-                        minIndex = np.argmin(
-                            np.abs(stateInfo.current["pressure"] - minPressure)
-                        )
+                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
 
-                        maxPressure = np.amax(stateInfo.current["pressure"])
+                        maxPressure = np.amax(pselem.value_fm)
                     elif ij == 2:
                         # upper tropopause
                         my_type = "UpperTrop"
@@ -88,24 +81,20 @@ class ColumnResultSummary:
                         maxPressure = 500
 
                         minPressure = self.tropopause_pressure
-                        minIndex = np.argmin(
-                            np.abs(stateInfo.current["pressure"] - minPressure)
-                        )
+                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
                     elif ij == 3:
                         # lower troposphere
                         my_type = "LowerTrop"
 
                         minPressure = 500
-                        minIndex = np.argmin(
-                            np.abs(stateInfo.current["pressure"] - minPressure)
-                        )
+                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
 
-                        maxPressure = np.amax(stateInfo.current["pressure"])
+                        maxPressure = np.amax(pselem.value_fm)
                     elif ij == 4:
                         # Stratosphere
                         my_type = "Strato"
                         minPressure = 0
-                        minIndex = np.int64(len(stateInfo.current["pressure"]) - 1)
+                        minIndex = np.int64(len(pselem.value_fm) - 1)
 
                         maxPressure = self.tropopause_pressure
                         if maxPressure == 0:
@@ -128,18 +117,16 @@ class ColumnResultSummary:
 
                     linear = mapType.lower() in ("linear", "linearpca")
 
-                    indSpecie = loc
-                    indH2O = stateInfo.species.index("H2O")
-                    indTATM = stateInfo.species.index("TATM")
-
                     # AT_LINE 357 Write_Retrieval_Summary.pro
                     x = MusesAltitudePge.column(
-                        stateInfo.constraint["values"][indSpecie, :],
-                        stateInfo.constraint["pressure"],
-                        stateInfo.constraint["values"][indTATM, :],
-                        stateInfo.constraint["values"][indH2O, :],
-                        stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                        stateInfo.current["latitude"],
+                        selem.constraint_vector_fm,
+                        pselem.constraint_vector_fm,
+                        tselem.constraint_vector_fm,
+                        hselem.constraint_vector_fm,
+                        self.current_state.sounding_metadata.surface_altitude.convert(
+                            "m"
+                        ).value,
+                        self.current_state.sounding_metadata.latitude.value,
                         minPressure,
                         maxPressure,
                         linear,
@@ -149,12 +136,14 @@ class ColumnResultSummary:
 
                     # AT_LINE 368 Write_Retrieval_Summary.pro
                     x = MusesAltitudePge.column(
-                        stateInfo.initial["values"][indSpecie, :],
-                        stateInfo.initial["pressure"],
-                        stateInfo.initial["values"][indTATM, :],
-                        stateInfo.initial["values"][indH2O, :],
-                        stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                        stateInfo.current["latitude"],
+                        selem.step_initial_fm,
+                        pselem.step_initial_fm,
+                        tselem.step_initial_fm,
+                        hselem.step_initial_fm,
+                        self.current_state.sounding_metadata.surface_altitude.convert(
+                            "m"
+                        ).value,
+                        self.current_state.sounding_metadata.latitude.value,
                         minPressure,
                         maxPressure,
                         linear,
@@ -164,12 +153,14 @@ class ColumnResultSummary:
 
                     # AT_LINE 379 Write_Retrieval_Summary.pro
                     x = MusesAltitudePge.column(
-                        stateInfo.initialInitial["values"][indSpecie, :],
-                        stateInfo.initialInitial["pressure"],
-                        stateInfo.initialInitial["values"][indTATM, :],
-                        stateInfo.initialInitial["values"][indH2O, :],
-                        stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                        stateInfo.current["latitude"],
+                        selem.retrieval_initial_fm,
+                        pselem.retrieval_initial_fm,
+                        tselem.retrieval_initial_fm,
+                        hselem.retrieval_initial_fm,
+                        self.current_state.sounding_metadata.surface_altitude.convert(
+                            "m"
+                        ).value,
+                        self.current_state.sounding_metadata.latitude.value,
                         minPressure,
                         maxPressure,
                         linear,
@@ -179,12 +170,14 @@ class ColumnResultSummary:
 
                     # AT_LINE 390 Write_Retrieval_Summary.pro
                     x = MusesAltitudePge.column(
-                        stateInfo.current["values"][indSpecie, :],
-                        stateInfo.current["pressure"],
-                        stateInfo.current["values"][indTATM, :],
-                        stateInfo.current["values"][indH2O, :],
-                        stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                        stateInfo.current["latitude"],
+                        selem.value_fm,
+                        pselem.value_fm,
+                        tselem.value_fm,
+                        hselem.value_fm,
+                        self.current_state.sounding_metadata.surface_altitude.convert(
+                            "m"
+                        ).value,
+                        self.current_state.sounding_metadata.latitude.value,
                         minPressure,
                         maxPressure,
                         linear,
@@ -195,12 +188,14 @@ class ColumnResultSummary:
                     # AT_LINE 400 Write_Retrieval_Summary.pro
                     # air column
                     x = MusesAltitudePge.column(
-                        stateInfo.current["values"][indSpecie, :] * 0 + 1,
-                        stateInfo.current["pressure"],
-                        stateInfo.current["values"][indTATM, :],
-                        stateInfo.current["values"][indH2O, :],
-                        stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                        stateInfo.current["latitude"],
+                        selem.value_fm * 0 + 1,
+                        pselem.value_fm,
+                        tselem.value_fm,
+                        hselem.value_fm,
+                        self.current_state.sounding_metadata.surface_altitude.convert(
+                            "m"
+                        ).value,
+                        self.current_state.sounding_metadata.latitude.value,
                         minPressure,
                         maxPressure,
                         linear,
@@ -221,13 +216,19 @@ class ColumnResultSummary:
                     # true values
                     # only for synthetic data
                     if have_true:
+                        assert selem.true_value_fm is not None
+                        assert pselem.true_value_fm is not None
+                        assert tselem.true_value_fm is not None
+                        assert hselem.true_value_fm is not None
                         x = MusesAltitudePge.column(
-                            stateInfo.true["values"][indSpecie, :],
-                            stateInfo.true["pressure"],
-                            stateInfo.true["values"][indTATM, :],
-                            stateInfo.true["values"][indH2O, :],
-                            stateInfo.current["tsa"]["surfaceAltitudeKm"] * 1000,
-                            stateInfo.current["latitude"],
+                            selem.true_value_fm,
+                            pselem.true_value_fm,
+                            tselem.true_value_fm,
+                            hselem.true_value_fm,
+                            self.current_state.sounding_metadata.surface_altitude.convert(
+                                "m"
+                            ).value,
+                            self.current_state.sounding_metadata.latitude.value,
                             minPressure,
                             maxPressure,
                             linear,
@@ -244,10 +245,10 @@ class ColumnResultSummary:
                     if mapType == "log":
                         # PYTHON_NOTE: It is possible that the length of x['derivative'] is greater than stateInfo.current['values'][indSpecie,:]
                         #              In that case, we make sure both terms below on the right hand side are the same sizes.
-                        rhs_term_sizes = len(stateInfo.current["values"][indSpecie, :])
+                        rhs_term_sizes = len(selem.value_fm)
                         derivativeFinal = (
                             x["derivative"][0:rhs_term_sizes]
-                            * stateInfo.current["values"][indSpecie, 0:rhs_term_sizes]
+                            * selem.value_fm[0:rhs_term_sizes]
                         )
 
                     # IDL:
@@ -265,10 +266,10 @@ class ColumnResultSummary:
                     if mapType == "log":
                         # PYTHON_NOTE: It is possible that the length of x['derivative'] is greater than stateInfo.current['values'][indSpecie,:]
                         #              In that case, we make sure both terms below on the right hand side are the same sizes.
-                        rhs_term_sizes = len(stateInfo.initial["values"][indSpecie, :])
+                        rhs_term_sizes = len(selem.step_initial_fm)
                         derivativeFinal = (
                             x["derivative"][0:rhs_term_sizes]
-                            * stateInfo.initial["values"][indSpecie, 0:rhs_term_sizes]
+                            * selem.step_initial_fm[0:rhs_term_sizes]
                         )
 
                     # IDL:
@@ -316,14 +317,10 @@ class ColumnResultSummary:
                     ak = ak[ind1FM : ind2FM + 1]
                     na = len(ak)
 
-                    pressureLayers = np.asarray(stateInfo.current["pressure"][0])
+                    pressureLayers = np.asarray(pselem.value_fm[0])
                     pressureLayers = np.append(
                         pressureLayers,
-                        (
-                            stateInfo.current["pressure"][1:]
-                            + stateInfo.current["pressure"][0 : na - 1]
-                        )
-                        / 2,
+                        (pselem.value_fm[1:] + pselem.value_fm[0 : na - 1]) / 2,
                     )
 
                     indp = np.where(
