@@ -2,7 +2,7 @@ from __future__ import annotations
 from .templated_output import TemplatedOutput
 import os
 import numpy as np
-from .declaritve_output import register_dataset, DeclarativeOutput
+from .declarative_output import register_dataset, DeclarativeOutput
 import typing
 from typing import Any
 import xarray

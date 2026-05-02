@@ -1,6 +1,11 @@
 from __future__ import annotations
 import inspect
-from typing import Any, Self
+from typing import Any, Self, Callable, ParamSpec
+import numpy as np
+import typing
+
+if typing.TYPE_CHECKING:
+    from .templated_output import TemplatedOutput
 
 
 class OutputType(object):
@@ -8,45 +13,72 @@ class OutputType(object):
     attribute = "attribute"
 
 
-def _attach_name_to_func(type_name: str, data_name: str) -> Any:
-    def _wrapper(func: Any) -> Any:
+P = ParamSpec("P")
+
+
+def _attach_name_to_func(
+    type_name: str, data_name: str
+) -> Callable[
+    [
+        Callable[P, np.ndarray],
+    ],
+    Callable[P, np.ndarray],
+]:
+    def _wrapper(func: Callable[P, np.ndarray]) -> Callable[P, np.ndarray]:
+        # TODO Sort out these types, probably need some examples here to
+        # work this through
         def _attach_creator_to_data(creator: Any) -> Any:
-            func._creator = creator  # noqa:SLF001
+            func._creator = creator  # type: ignore[attr-defined] # noqa:SLF001
+
             return creator
 
         def _attach_modifier_to_data(modifier: Any) -> Any:
-            func._modifier = modifier  # noqa:SLF001
+            func._modifier = modifier  # type: ignore[attr-defined] # noqa:SLF001
             return modifier
 
-        func._output_type = type_name  # noqa:SLF001
-        func._data_name = data_name  # noqa:SLF001
+        func._output_type = type_name  # type: ignore[attr-defined] # noqa:SLF001
+        func._data_name = data_name  # type: ignore[attr-defined] # noqa:SLF001
 
         # A "chained" decorator connected to the
         # data function that defines how to create
         # the variable
-        func.creator = _attach_creator_to_data
+        func.creator = _attach_creator_to_data  # type:ignore[attr-defined]
 
         # A "chained" decorator connected to the
         # data function that allows modification
         # of the NetCDF variable object itself
-        func.modifier = _attach_modifier_to_data
+        func.modifier = _attach_modifier_to_data  # type:ignore[attr-defined]
 
         return func
 
     return _wrapper
 
 
-def register_dataset(var_name: str) -> Any:
+def register_dataset(
+    var_name: str,
+) -> Callable[
+    [
+        Callable[P, np.ndarray],
+    ],
+    Callable[P, np.ndarray],
+]:
     return _attach_name_to_func(OutputType.dataset, var_name)
 
 
-def register_attribute(attr_name: str) -> Any:
+def register_attribute(
+    attr_name: str,
+) -> Callable[
+    [
+        Callable[P, np.ndarray],
+    ],
+    Callable[P, np.ndarray],
+]:
     return _attach_name_to_func(OutputType.attribute, attr_name)
 
 
-class DeclarativeOutput(object):
+class DeclarativeOutput:
     def __new__(cls, *vargs: Any, **kwargs: Any) -> Self:
-        cls.output_definition: dict = {}
+        cls.output_definition: dict[str, dict[str, str]] = {}
 
         # Go through all classes and look for any functions that has an output_type
         # defined on them to register them as sources of data for datasets and attributes
@@ -64,7 +96,7 @@ class DeclarativeOutput(object):
 
         return super().__new__(cls)
 
-    def register_output(self, output: Any) -> None:
+    def register_output(self, output: TemplatedOutput) -> None:
         for func_name, data_name in self.output_definition.get(
             OutputType.dataset, {}
         ).items():

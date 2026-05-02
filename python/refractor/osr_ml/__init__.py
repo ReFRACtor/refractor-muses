@@ -24,9 +24,8 @@ from .current_strategy_step_ml import (
 from .date_to_julian_day import (
     date_to_julian_day,
 )
-from .declaritve_output import (
+from .declarative_output import (
     DeclarativeOutput,
-    OutputType,
     register_attribute,
     register_dataset,
 )
@@ -37,6 +36,7 @@ from .maps import (
     map_data_1d,
 )
 from .ml import (
+    MlPredictionClass,
     features_l1b,
     prediction,
 )
@@ -66,7 +66,7 @@ __all__ = [
     "CurrentStrategyStepMl",
     "DeclarativeOutput",
     "DummySpectralWindowHandle",
-    "OutputType",
+    "MlPredictionClass",
     "RetrievalMlOutput",
     "RetrievalStrategyStepMl",
     "RetrievalStrategyStepMlHandle",
