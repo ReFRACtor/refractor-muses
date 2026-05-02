@@ -1,4 +1,6 @@
+from __future__ import annotations
 import inspect
+from typing import Any, Self
 
 
 class OutputType(object):
@@ -6,13 +8,13 @@ class OutputType(object):
     attribute = "attribute"
 
 
-def _attach_name_to_func(type_name, data_name):
-    def _wrapper(func):
-        def _attach_creator_to_data(creator):
+def _attach_name_to_func(type_name: str, data_name: str) -> Any:
+    def _wrapper(func: Any) -> Any:
+        def _attach_creator_to_data(creator: Any) -> Any:
             func._creator = creator  # noqa:SLF001
             return creator
 
-        def _attach_modifier_to_data(modifier):
+        def _attach_modifier_to_data(modifier: Any) -> Any:
             func._modifier = modifier  # noqa:SLF001
             return modifier
 
@@ -34,17 +36,17 @@ def _attach_name_to_func(type_name, data_name):
     return _wrapper
 
 
-def register_dataset(var_name):
+def register_dataset(var_name: str) -> Any:
     return _attach_name_to_func(OutputType.dataset, var_name)
 
 
-def register_attribute(attr_name):
+def register_attribute(attr_name: str) -> Any:
     return _attach_name_to_func(OutputType.attribute, attr_name)
 
 
 class DeclarativeOutput(object):
-    def __new__(cls, *vargs, **kwargs):
-        cls.output_definition = {}
+    def __new__(cls, *vargs: Any, **kwargs: Any) -> Self:
+        cls.output_definition: dict = {}
 
         # Go through all classes and look for any functions that has an output_type
         # defined on them to register them as sources of data for datasets and attributes
@@ -62,7 +64,7 @@ class DeclarativeOutput(object):
 
         return super().__new__(cls)
 
-    def register_output(self, output):
+    def register_output(self, output: Any) -> None:
         for func_name, data_name in self.output_definition.get(
             OutputType.dataset, {}
         ).items():

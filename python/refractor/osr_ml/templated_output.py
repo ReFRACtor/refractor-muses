@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import re
 from loguru import logger
@@ -5,25 +6,33 @@ from shutil import copyfile
 import netCDF4
 import shutil
 import tempfile
-from nco import Nco
+from nco import Nco  # type: ignore
+from pathlib import Path
+from typing import Iterator, Any, Callable, Sequence
 
 
-def call_ncks(input_filename, output_filename, options, overwrite=False):
+def call_ncks(
+    input_filename: str | os.PathLike[str],
+    output_filename: str | os.PathLike[str],
+    options: list[str],
+    overwrite: bool = False,
+) -> None:
     nco = Nco()
 
     use_temp = False
-    if os.path.realpath(input_filename) == os.path.realpath(output_filename):
+    if Path(input_filename).resolve() == Path(output_filename).resolve():
         if not overwrite:
             raise IOError(f"Will not overwrite original file {input_filename}")
 
-        temp_fd, dest_filename = tempfile.mkstemp()
+        temp_fd, dest_filename_s = tempfile.mkstemp()
+        dest_filename = Path(dest_filename_s)
         use_temp = True
     else:
-        dest_filename = output_filename
+        dest_filename = Path(output_filename)
 
-    nco.ncks(input=input_filename, output=dest_filename, options=options)
+    nco.ncks(input=str(input_filename), output=str(dest_filename), options=options)
 
-    if not os.path.exists(dest_filename):
+    if not Path(dest_filename).exists():
         raise IOError(f"ncks failed to create {dest_filename} from {input_filename}")
 
     if use_temp:
@@ -32,13 +41,19 @@ def call_ncks(input_filename, output_filename, options, overwrite=False):
         os.close(temp_fd)
 
 
-def remove_unlimited_dims(input_filename, output_filename, **kwargs):
+def remove_unlimited_dims(
+    input_filename: str | os.PathLike[str],
+    output_filename: str | os.PathLike[str],
+    **kwargs: Any,
+) -> None:
     ncks_options = ["--history --fix_rec_dmn all"]
 
     return call_ncks(input_filename, output_filename, options=ncks_options, **kwargs)
 
 
-def netcdf_variables(item: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group):
+def netcdf_variables(
+    item: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group,
+) -> Iterator[netCDF4.Variable]:
     """
     Returns all netCDF variables in a flat generator
     """
@@ -48,8 +63,8 @@ def netcdf_variables(item: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group):
     elif isinstance(item, netCDF4.Dataset) or isinstance(item, netCDF4.Group):
         for child_item in item.variables.values():
             yield from netcdf_variables(child_item)
-        for child_item in item.groups.values():
-            yield from netcdf_variables(child_item)
+        for child_item2 in item.groups.values():
+            yield from netcdf_variables(child_item2)
     else:
         raise Exception(f"Unsure how to handle data type: {type(item)}")
 
@@ -62,7 +77,10 @@ def netcdf_full_path(item: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group) -
     if isinstance(item, netCDF4.Variable):
         return os.path.join(netcdf_full_path(item.group()), item.name)
     elif isinstance(item, netCDF4.Group):
-        return os.path.join(netcdf_full_path(item.parent), item.name)
+        if item.parent is None:
+            return item.name
+        else:
+            return os.path.join(netcdf_full_path(item.parent), item.name)
     elif isinstance(item, netCDF4.Dataset):
         return item.name
     else:
@@ -88,16 +106,25 @@ class TemplatedOutput:
 
     """
 
-    def __init__(self, template_filename, output_filename, grid_mapping=None) -> None:
-        self.output_filename = output_filename
+    def __init__(
+        self,
+        template_filename: str | os.PathLike[str],
+        output_filename: str | os.PathLike[str],
+        # Not sure what this is, or the type. Come back to this if needed
+        grid_mapping: Any | None = None,
+    ) -> None:
+        self.output_filename = Path(output_filename)
         self.grid_mapping = grid_mapping
 
-        self.variable_data_functions = {}
-        self.attribute_value_functions = {}
+        # TODO Get these types
+        self.variable_data_functions: dict = {}
+        self.attribute_value_functions: dict = {}
 
         copyfile(template_filename, self.output_filename)
 
-    def _template_variables_list(self, output_contents):
+    def _template_variables_list(
+        self, output_contents: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group
+    ) -> list[str]:
         "Loads fill values from the template file"
 
         template_variables = [
@@ -106,7 +133,7 @@ class TemplatedOutput:
 
         return template_variables
 
-    def register_instances(self, obj_list):
+    def register_instances(self, obj_list: Sequence[object]) -> None:
         "Calls each class instance to register their output into this class"
 
         for obj in obj_list:
@@ -120,38 +147,40 @@ class TemplatedOutput:
 
             obj.register_output(self)
 
-    def register_dataset(self, name, function):
+    def register_dataset(self, name: str, function: Callable[..., Any]) -> None:
         "Alias for register variable"
 
         return self.register_variable(name, function)
 
-    def register_variable(self, name, function):
-        """
-        Registers a simple dataset variable
+    def register_variable(self, name: str, function: Callable[..., Any]) -> None:
+        """Registers a simple dataset variable
 
         Parameters
         ----------
         name : str
-            Full dataset variable name, with slashes defining the group heirarchy
+            Full dataset variable name, with slashes defining the
+            group heirarchy
 
         function : function
-            Call back function that returns the data being registered, it takes no arguments
+            Call back function that returns the data being registered,
+            it takes no arguments
 
         """
 
         self.variable_data_functions[name] = function
 
-    def register_attribute(self, name, value):
-        """
-        Registers an attribute
+    def register_attribute(self, name: str, value: Any) -> None:
+        """Registers an attribute
 
         Parameters
         ----------
         name : str
-            Full attribute name, with slashes defining the group and variables  heirarchy
+            Full attribute name, with slashes defining the group and
+            variables heirarchy
 
         value : value
             Value of the attribute. Could be a scalar or np array
+
         """
 
         if hasattr(value, "__call__"):
@@ -159,7 +188,9 @@ class TemplatedOutput:
         else:
             self.attribute_value_functions[name] = value
 
-    def get_variable(self, output_contents, var_name):
+    def get_variable(
+        self, output_contents: netCDF4.Dataset, var_name: str
+    ) -> None | netCDF4.Dataset:
         """
         Gets NetCDF4 variable given a variable's full name (including groups)
         Returns None if not present instead of throwing a KeyError
@@ -168,12 +199,15 @@ class TemplatedOutput:
         try:
             return output_contents[var_name]
         except (IndexError, KeyError):
-            # IndexError is for just the variable name, KeyError for name with a group in it
+            # IndexError is for just the variable name, KeyError for
+            # name with a group in it
             return None
 
-    def get_attr_parent(self, rootgrp, attr_name):
-        """
-        Gets attributes NetCDF4 variable given an attribute's full name (including groups)
+    def get_attr_parent(
+        self, rootgrp: netCDF4.Dataset | netCDF4.Group, attr_name: str
+    ) -> tuple[netCDF4.Group | netCDF4.Dataset, str]:
+        """Gets attributes NetCDF4 variable given an attribute's full
+        name (including groups)
         """
         attr_name = attr_name.strip("/")
         toks = re.split("/+", attr_name)
@@ -185,7 +219,7 @@ class TemplatedOutput:
 
         return parent, toks[-1]
 
-    def _write_attributes(self, output_contents):
+    def _write_attributes(self, output_contents: netCDF4.Dataset) -> None:
         for attr_full_name, value in self.attribute_value_functions.items():
             try:
                 parent, attr_name = self.get_attr_parent(
@@ -200,19 +234,20 @@ class TemplatedOutput:
                     f"Error setting attribute {attr_full_name} with value {value} : {exc}"
                 ) from exc
 
-    def _write_variables(self, output_contents):
+    def _write_variables(self, output_contents: netCDF4.Dataset) -> None:
         template_variables = self._template_variables_list(output_contents)
 
         variables_written = []
 
         for var_name, var_data_func in self.variable_data_functions.items():
-            # A variable can optionally define a creator function to create the variable
-            # where data is written.
+            # A variable can optionally define a creator function to
+            # create the variable where data is written.
             creator_func = (
                 hasattr(var_data_func, "_creator") and var_data_func._creator or None  # noqa: SLF001
             )
 
-            # A modifier allows direct modifications of the variable object before data values are set
+            # A modifier allows direct modifications of the variable
+            # object before data values are set
             modifier_func = (
                 hasattr(var_data_func, "_modifier") and var_data_func._modifier or None  # noqa: SLF001
             )
@@ -220,30 +255,38 @@ class TemplatedOutput:
             # See if the variable is already defined in the output file
             var = self.get_variable(output_contents, var_name)
 
-            # If the creator_func is None and the variable is not defined existing file, then we
-            # can not set a value
+            # If the creator_func is None and the variable is not
+            # defined existing file, then we can not set a value
             if var is None and creator_func is None:
                 raise KeyError(
                     f"{var_name} not present in {self.output_filename} and no creator function provided"
                 )
 
-            # Use a templated definition of a variable instead of the creator function, even if it is defined
-            # This allows transistioning from purely created with code to template plus code or pure code
-            if var is None:
+            # Use a templated definition of a variable instead of the
+            # creator function, even if it is defined This allows
+            # transistioning from purely created with code to template
+            # plus code or pure code
+            if var is None and creator_func is not None:
                 var = creator_func(var_data_func.__self__, output_contents, var_name)
             elif creator_func is not None:
-                # Warn that we are using the templated value despite there being a creator function in the code
+                # Warn that we are using the templated value despite
+                # there being a creator function in the code
                 logger.warning(
                     f"Using existing variable definition {var_name} in {self.output_filename} despite definition of a creator function"
                 )
 
-            if hasattr(var, "grid_mapping") and self.grid_mapping is not None:
+            if (
+                var is not None
+                and hasattr(var, "grid_mapping")
+                and self.grid_mapping is not None
+            ):
                 var.grid_mapping = self.grid_mapping
 
             # Obtain the data from the registered function/method
             data = var_data_func()
 
-            # Allow direct modifications to the variable object itself such as dynamic attribute modifications
+            # Allow direct modifications to the variable object itself
+            # such as dynamic attribute modifications
             if modifier_func is not None:
                 modifier_func(var_data_func.__self__, var, var_name)
 
@@ -251,6 +294,7 @@ class TemplatedOutput:
             if data is None:
                 continue
 
+            assert var is not None
             try:
                 var[...] = data
                 variables_written.append(netcdf_full_path(var))
@@ -272,18 +316,20 @@ class TemplatedOutput:
                         f"{var_name} defined within netCDF4 template but no value was registered or written"
                     )
 
-            # Issue warnings for any variables written because they were registered but that were not defined by the template
+            # Issue warnings for any variables written because they
+            # were registered but that were not defined by the
+            # template
             for var_name in variables_written:
                 if var_name not in template_variables:
                     logger.warning(
                         f"{var_name} written but not defined within the netCDF4 template"
                     )
 
-    def write(self):
-        """
-        Calls all registered functions to write the NetCDF4 output file
-        Variables must be defined in the template NetCDF4 file.
-        Attributes will be written even if they are not defined in the template file
+    def write(self) -> None:
+        """Calls all registered functions to write the NetCDF4 output
+        file Variables must be defined in the template NetCDF4 file.
+        Attributes will be written even if they are not defined in the
+        template file
         """
 
         logger.info(f"Writing to output file: {self.output_filename}")

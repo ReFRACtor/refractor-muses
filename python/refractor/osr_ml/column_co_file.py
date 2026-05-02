@@ -4,14 +4,16 @@ import os
 import numpy as np
 from .declaritve_output import register_dataset, DeclarativeOutput
 import typing
+from typing import Any
 import xarray
 from pathlib import Path
 from functools import cache
 from datetime import datetime
-import astropy.time
+import astropy.time  # type: ignore
 
 if typing.TYPE_CHECKING:
     from .ml import MlPredictionClass
+    import netCDF4
 
 
 # Skip this for now. The file definition doesn't have this, and it doesn't currently
@@ -19,10 +21,10 @@ if typing.TYPE_CHECKING:
 class _DimColumn:
     """Make dim_column a enumeration"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__self__ = self
 
-    def _creator(self, t, ds, var_name) -> None:
+    def _creator(self, t: Any, ds: netCDF4.Dataset, var_name: str) -> None:
         en = ds.createEnumType(
             np.uint8,
             "dim_column",
@@ -74,7 +76,7 @@ class ColumnCoFile(DeclarativeOutput):
 
     @register_dataset("/datetime_utc")
     @cache
-    def datetime_utc(self, chop_milliseconds=True) -> np.ndarray:
+    def datetime_utc(self, chop_milliseconds: bool = True) -> np.ndarray:
         res = []
         for fname in self.input_path:
             ds = xarray.open_dataset(fname)
@@ -100,7 +102,15 @@ class ColumnCoFile(DeclarativeOutput):
         tepoch = astropy.time.Time("1993-01-01 00:00:00")
         tarray = [
             astropy.time.Time(
-                datetime(*utime[i, :6], microsecond=utime[i, 6] * 1000 + utime[i, 7])
+                datetime(
+                    year=utime[i, 0],
+                    month=utime[i, 1],
+                    day=utime[i, 2],
+                    hour=utime[i, 3],
+                    minute=utime[i, 4],
+                    second=utime[i, 5],
+                    microsecond=utime[i, 6] * 1000 + utime[i, 7],
+                )
             )
             for i in range(utime.shape[0])
         ]
@@ -151,7 +161,7 @@ class ColumnCoFile(DeclarativeOutput):
                     for fov in range(ds.sizes["fov"])
                 ]
             )
-        return res
+        return np.array(res)
 
     @register_dataset("/geolocation/cris_xtrack")
     @cache
@@ -167,7 +177,7 @@ class ColumnCoFile(DeclarativeOutput):
                     for fov in range(ds.sizes["fov"])
                 ]
             )
-        return res
+        return np.array(res)
 
     @register_dataset("/geolocation/cris_fov")
     @cache
@@ -183,7 +193,7 @@ class ColumnCoFile(DeclarativeOutput):
                     for fov in range(ds.sizes["fov"])
                 ]
             )
-        return res
+        return np.array(res)
 
     @register_dataset("/year_fraction")
     def year_fraction(self) -> np.ndarray:
@@ -198,14 +208,16 @@ class ColumnCoFile(DeclarativeOutput):
     @register_dataset("/col")
     def co_column(self) -> np.ndarray:
         # We get the columns to use from the file labels_order.txt
+        assert self.prediction.labels_pred is not None
         return self.prediction.labels_pred[:, :5]
 
     @register_dataset("/col_error")
     def co_column_error(self) -> np.ndarray:
         # We get the columns to use from the file labels_order.txt
+        assert self.prediction.labels_pred is not None
         return self.prediction.labels_pred[:, -5:]
 
-    def write(self):
+    def write(self) -> None:
         self.output.write()
 
 
