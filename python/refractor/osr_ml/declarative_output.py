@@ -2,10 +2,7 @@ from __future__ import annotations
 import inspect
 from typing import Any, Self, Callable, ParamSpec
 import numpy as np
-import typing
-
-if typing.TYPE_CHECKING:
-    from .templated_output import TemplatedOutput
+import abc
 
 
 class OutputType(object):
@@ -76,6 +73,19 @@ def register_attribute(
     return _attach_name_to_func(OutputType.attribute, attr_name)
 
 
+class DeclarativeOutputHandle(object, metaclass=abc.ABCMeta):
+    """Base class that handles the actual output from a DeclarativeOutput
+    class, e.g., TemplatedOutput"""
+
+    @abc.abstractmethod
+    def register_dataset(self, name: str, function: Callable[..., Any]) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def register_attribute(self, name: str, value: Any) -> None:
+        raise NotImplementedError()
+
+
 class DeclarativeOutput:
     def __new__(cls, *vargs: Any, **kwargs: Any) -> Self:
         cls.output_definition: dict[str, dict[str, str]] = {}
@@ -96,7 +106,7 @@ class DeclarativeOutput:
 
         return super().__new__(cls)
 
-    def register_output(self, output: TemplatedOutput) -> None:
+    def register_output(self, output: DeclarativeOutputHandle) -> None:
         for func_name, data_name in self.output_definition.get(
             OutputType.dataset, {}
         ).items():
@@ -108,4 +118,9 @@ class DeclarativeOutput:
             output.register_attribute(data_name, getattr(self, func_name))
 
 
-__all__ = ["DeclarativeOutput", "register_attribute", "register_dataset"]
+__all__ = [
+    "DeclarativeOutput",
+    "DeclarativeOutputHandle",
+    "register_attribute",
+    "register_dataset",
+]

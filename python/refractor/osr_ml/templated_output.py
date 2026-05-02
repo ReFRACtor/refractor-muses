@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from nco import Nco  # type: ignore
 from pathlib import Path
+from .declarative_output import DeclarativeOutputHandle
 from typing import Iterator, Any, Callable, Sequence
 
 
@@ -87,7 +88,7 @@ def netcdf_full_path(item: netCDF4.Dataset | netCDF4.Variable | netCDF4.Group) -
         raise Exception(f"Unsure how to handle data type: {type(item)}")
 
 
-class TemplatedOutput:
+class TemplatedOutput(DeclarativeOutputHandle):
     """Writes data into an output product from a set of call
     functions registered to handle certain aspects of the process such
     as dimensions, attributes and variables. The variables are
@@ -150,7 +151,7 @@ class TemplatedOutput:
     def register_dataset(self, name: str, function: Callable[..., Any]) -> None:
         "Alias for register variable"
 
-        return self.register_variable(name, function)
+        self.register_variable(name, function)
 
     def register_variable(self, name: str, function: Callable[..., Any]) -> None:
         """Registers a simple dataset variable
