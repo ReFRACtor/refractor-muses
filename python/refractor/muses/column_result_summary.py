@@ -20,14 +20,13 @@ class ColumnResultSummary:
         self.current_state = current_state
         retrievalInfo = FakeRetrievalInfo(current_state)
 
-        # I don't think this is fully supported, so we just always say have_true is False
+        # I don't think this is fully supported, so we just always say
+        # have_true is False
         have_true = False
         num_species = retrievalInfo.n_species
         # This really is exactly 5. See the column calculation. This is
         # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
         num_cols = 5
-        # AT_LINE 255 Write_Retrieval_Summary.pro
-        # Now get species dependent preferences
         self._columnSpecies = []
         self._column = np.zeros((num_cols, num_species))
         self._columnDOFS = np.zeros(self._column.shape)
@@ -46,262 +45,117 @@ class ColumnResultSummary:
         self._O3_columnErrorDU = 0.0
         self._O3_tropo_consistency = 0.0
 
-        pselem = self.current_state.state_element("pressure")
-        hselem = self.current_state.state_element("H2O")
-        tselem = self.current_state.state_element("TATM")
+        self.pselem = self.current_state.state_element("pressure")
+        self.hselem = self.current_state.state_element("H2O")
+        self.tselem = self.current_state.state_element("TATM")
+        # Set of columns we process for. This gives a name, min pressure
+        # and max pressure
+        column_set = [
+            ["Column", 0, np.amax(self.pselem.value_fm)],
+            ["Trop", self.tropopause_pressure, np.amax(self.pselem.value_fm)],
+            ["UpperTrop", self.tropopause_pressure, 500],
+            ["LowerTrop", 500, np.amax(self.pselem.value_fm)],
+            ["Strato", 0, self.tropopause_pressure],
+        ]
         for ispecie in range(0, num_species):
             species_name = retrievalInfo.species[ispecie]
             selem_name = StateElementIdentifier(species_name)
-            selem = self.current_state.state_element(selem_name)
+            self.selem = self.current_state.state_element(selem_name)
             if selem_name.is_atmospheric_species and species_name != "TATM":
-                # if species_name != "TATM":
-                # Add the species_name to the current index.
                 self._columnSpecies.append(species_name)
                 indcol = len(self._columnSpecies) - 1
-                for ij in range(0, 5):
-                    # AT_LINE 303 Write_Retrieval_Summary.pro
-                    if ij == 0:
-                        my_type = "Column"
-
-                        minPressure = 0.0
-                        minIndex = np.int64(len(pselem.value_fm) - 1)
-
-                        maxPressure = np.amax(pselem.value_fm)
-                    elif ij == 1:
-                        my_type = "Trop"
-
-                        minPressure = self.tropopause_pressure
-                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
-
-                        maxPressure = np.amax(pselem.value_fm)
-                    elif ij == 2:
-                        # upper tropopause
-                        my_type = "UpperTrop"
-
-                        maxPressure = 500
-
-                        minPressure = self.tropopause_pressure
-                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
-                    elif ij == 3:
-                        # lower troposphere
-                        my_type = "LowerTrop"
-
-                        minPressure = 500
-                        minIndex = np.argmin(np.abs(pselem.value_fm - minPressure))
-
-                        maxPressure = np.amax(pselem.value_fm)
-                    elif ij == 4:
-                        # Stratosphere
-                        my_type = "Strato"
-                        minPressure = 0
-                        minIndex = np.int64(len(pselem.value_fm) - 1)
-
-                        maxPressure = self.tropopause_pressure
-                        if maxPressure == 0:
-                            maxPressure = 200.0
+                for ij, (my_type, self.min_pressure, self.max_pressure) in enumerate(
+                    column_set
+                ):
+                    if self.min_pressure == 0.0:
+                        min_index = np.int64(len(self.pselem.value_fm) - 1)
                     else:
-                        raise RuntimeError("Type not found")
-                    # end if (ij == 0):
+                        min_index = np.argmin(
+                            np.abs(self.pselem.value_fm - self.min_pressure)
+                        )
+                    if self.max_pressure == 0:
+                        self.max_pressure = 200.0
 
-                    # AT_LINE 336 Write_Retrieval_Summary.pro
-                    self._columnPressureMin[ij] = minPressure
-                    self._columnPressureMax[ij] = maxPressure
+                    self._columnPressureMin[ij] = self.min_pressure
+                    self._columnPressureMax[ij] = self.max_pressure
 
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    my_map = retrievalInfo.mapToState
-                    if my_map is None:
-                        raise RuntimeError("basis matrix missing")
+                    map_type = retrievalInfo.mapType[ispecie]
+                    self.linear = map_type.lower() in ("linear", "linearpca")
 
-                    mapType = retrievalInfo.mapType[ispecie]
-
-                    linear = mapType.lower() in ("linear", "linearpca")
-
-                    # AT_LINE 357 Write_Retrieval_Summary.pro
-                    x = MusesAltitudePge.column(
-                        selem.constraint_vector_fm,
-                        pselem.constraint_vector_fm,
-                        tselem.constraint_vector_fm,
-                        hselem.constraint_vector_fm,
-                        self.current_state.sounding_metadata.surface_altitude.convert(
-                            "m"
-                        ).value,
-                        self.current_state.sounding_metadata.latitude.value,
-                        minPressure,
-                        maxPressure,
-                        linear,
+                    self._columnPrior[ij, indcol] = self.column_calc(
+                        "constraint_vector_fm"
                     )
-
-                    self._columnPrior[ij, indcol] = x["column"]
-
-                    # AT_LINE 368 Write_Retrieval_Summary.pro
-                    x = MusesAltitudePge.column(
-                        selem.step_initial_fm,
-                        pselem.step_initial_fm,
-                        tselem.step_initial_fm,
-                        hselem.step_initial_fm,
-                        self.current_state.sounding_metadata.surface_altitude.convert(
-                            "m"
-                        ).value,
-                        self.current_state.sounding_metadata.latitude.value,
-                        minPressure,
-                        maxPressure,
-                        linear,
+                    self._columnInitial[ij, indcol] = self.column_calc(
+                        "step_initial_fm"
                     )
-
-                    self._columnInitial[ij, indcol] = x["column"]
-
-                    # AT_LINE 379 Write_Retrieval_Summary.pro
-                    x = MusesAltitudePge.column(
-                        selem.retrieval_initial_fm,
-                        pselem.retrieval_initial_fm,
-                        tselem.retrieval_initial_fm,
-                        hselem.retrieval_initial_fm,
-                        self.current_state.sounding_metadata.surface_altitude.convert(
-                            "m"
-                        ).value,
-                        self.current_state.sounding_metadata.latitude.value,
-                        minPressure,
-                        maxPressure,
-                        linear,
+                    self._columnInitialInitial[ij, indcol] = self.column_calc(
+                        "retrieval_initial_fm"
                     )
+                    self._column[ij, indcol] = self.column_calc("value_fm")
+                    self._columnAir[ij] = self.column_calc("value_fm", do_air=True)
+                    # only for synthetic data
+                    if have_true:
+                        self._columnTrue[ij, indcol] = self.column_calc("true_value_fm")
 
-                    self._columnInitialInitial[ij, indcol] = x["column"]
-
-                    # AT_LINE 390 Write_Retrieval_Summary.pro
-                    x = MusesAltitudePge.column(
-                        selem.value_fm,
-                        pselem.value_fm,
-                        tselem.value_fm,
-                        hselem.value_fm,
-                        self.current_state.sounding_metadata.surface_altitude.convert(
-                            "m"
-                        ).value,
-                        self.current_state.sounding_metadata.latitude.value,
-                        minPressure,
-                        maxPressure,
-                        linear,
-                    )
-
-                    self._column[ij, indcol] = x["column"]
-
-                    # AT_LINE 400 Write_Retrieval_Summary.pro
-                    # air column
-                    x = MusesAltitudePge.column(
-                        selem.value_fm * 0 + 1,
-                        pselem.value_fm,
-                        tselem.value_fm,
-                        hselem.value_fm,
-                        self.current_state.sounding_metadata.surface_altitude.convert(
-                            "m"
-                        ).value,
-                        self.current_state.sounding_metadata.latitude.value,
-                        minPressure,
-                        maxPressure,
-                        linear,
-                    )
-
-                    self._columnAir[ij] = x["columnAir"]
-
-                    # AT_LINE 411 Write_Retrieval_Summary.pro
                     if species_name == "O3" and my_type == "Trop":
                         # compare initial gues for this step to retrieved.
                         ret = self._column[ij, indcol]
                         ig = self._columnInitial[ij, indcol]
                         ratio = (ret / ig) - 1.0
                         self._O3_tropo_consistency = ratio
-                    # end if species_name == 'O3' and my_type == 'Trop':
 
-                    # AT_LINE 420 Write_Retrieval_Summary.pro
-                    # true values
-                    # only for synthetic data
-                    if have_true:
-                        assert selem.true_value_fm is not None
-                        assert pselem.true_value_fm is not None
-                        assert tselem.true_value_fm is not None
-                        assert hselem.true_value_fm is not None
-                        x = MusesAltitudePge.column(
-                            selem.true_value_fm,
-                            pselem.true_value_fm,
-                            tselem.true_value_fm,
-                            hselem.true_value_fm,
-                            self.current_state.sounding_metadata.surface_altitude.convert(
-                                "m"
-                            ).value,
-                            self.current_state.sounding_metadata.latitude.value,
-                            minPressure,
-                            maxPressure,
-                            linear,
-                        )
-
-                        self._columnTrue[ij, indcol] = x["column"]
-
-                    # AT_LINE 435 Write_Retrieval_Summary.pro
                     Sx = error_analysis.Sx[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
 
-                    derivativeFinal = np.copy(x["derivative"])
+                    xder = self.column_calc("value_fm", do_air=True, do_deriv=True)
+                    derivativeFinal = np.copy(xder)
 
-                    mapType = mapType.lower()
-                    if mapType == "log":
-                        # PYTHON_NOTE: It is possible that the length of x['derivative'] is greater than stateInfo.current['values'][indSpecie,:]
-                        #              In that case, we make sure both terms below on the right hand side are the same sizes.
-                        rhs_term_sizes = len(selem.value_fm)
+                    map_type = map_type.lower()
+                    if map_type == "log":
+                        rhs_term_sizes = len(self.selem.value_fm)
                         derivativeFinal = (
-                            x["derivative"][0:rhs_term_sizes]
-                            * selem.value_fm[0:rhs_term_sizes]
+                            xder[0:rhs_term_sizes]
+                            * self.selem.value_fm[0:rhs_term_sizes]
                         )
 
-                    # IDL:
-                    # error = SQRT(derivativeFinal[0:minIndex] ## Sx[0:minIndex,0:minIndex] ## TRANSPOSE(derivativeFinal[0:minIndex])
-
                     error = np.sqrt(
-                        derivativeFinal[0 : minIndex + 1].T
-                        @ Sx[0 : minIndex + 1, 0 : minIndex + 1]
-                        @ derivativeFinal[0 : minIndex + 1]
+                        derivativeFinal[0 : min_index + 1].T
+                        @ Sx[0 : min_index + 1, 0 : min_index + 1]
+                        @ derivativeFinal[0 : min_index + 1]
                     )
                     self._columnError[ij, indcol] = error
 
-                    # AT_LINE 446 Write_Retrieval_Summary.pro
-                    # multipy prior covariance to calc predicted prior error
-                    if mapType == "log":
-                        # PYTHON_NOTE: It is possible that the length of x['derivative'] is greater than stateInfo.current['values'][indSpecie,:]
-                        #              In that case, we make sure both terms below on the right hand side are the same sizes.
-                        rhs_term_sizes = len(selem.step_initial_fm)
+                    if map_type == "log":
+                        rhs_term_sizes = len(self.selem.step_initial_fm)
                         derivativeFinal = (
-                            x["derivative"][0:rhs_term_sizes]
-                            * selem.step_initial_fm[0:rhs_term_sizes]
+                            xder[0:rhs_term_sizes]
+                            * self.selem.step_initial_fm[0:rhs_term_sizes]
                         )
 
-                    # IDL:
-                    # error = SQRT(derivativeFinal[0:minIndex] ## results.Sa[0:minIndex,0:minIndex] ## TRANSPOSE(derivativeFinal[0:minIndex])
-
                     error = np.sqrt(
-                        derivativeFinal[0 : minIndex + 1].T
-                        @ error_analysis.Sa[0 : minIndex + 1, 0 : minIndex + 1]
-                        @ derivativeFinal[0 : minIndex + 1]
+                        derivativeFinal[0 : min_index + 1].T
+                        @ error_analysis.Sa[0 : min_index + 1, 0 : min_index + 1]
+                        @ derivativeFinal[0 : min_index + 1]
                     )
 
                     self._columnPriorError[ij, indcol] = error
 
-                    # AT_LINE 455 Write_Retrieval_Summary.pro
                     if species_name == "O3" and my_type == "Column":
                         self._O3_columnErrorDU = self._columnError[ij, indcol] / 2.69e16
-                    # end if species_name == 'O3' and my_type == 'Column':
 
                     if my_type == "Column" and species_name == "H2O":
                         if (
                             "H2O" in retrievalInfo.speciesListFM
                             and "HDO" in retrievalInfo.speciesListFM
                         ):
-                            # in H2O/HDO step, check H2O column - H2O column from O3 step / error
+                            # in H2O/HDO step, check H2O column - H2O
+                            # column from O3 step / error
                             self._H2O_H2OQuality = (
                                 self._column[ij, indcol]
                                 - self._columnInitial[ij, indcol]
                             ) / self._columnPriorError[ij, indcol]
-                        # end if len(ind4) > 0 and len(ind5) > 0
-                    # end if my_type == 'Column' and species_name == 'H2O':
 
-                    # AT_LINE 474 Write_Retrieval_Summary.pro
                     # calculate DOFs for different ranges
                     # based on layers
                     # each level corresponds to a layer which ranges to 1/2
@@ -317,52 +171,69 @@ class ColumnResultSummary:
                     ak = ak[ind1FM : ind2FM + 1]
                     na = len(ak)
 
-                    pressureLayers = np.asarray(pselem.value_fm[0])
-                    pressureLayers = np.append(
-                        pressureLayers,
-                        (pselem.value_fm[1:] + pselem.value_fm[0 : na - 1]) / 2,
+                    pressure_layer = np.asarray(self.pselem.value_fm[0])
+                    pressure_layer = np.append(
+                        pressure_layer,
+                        (self.pselem.value_fm[1:] + self.pselem.value_fm[0 : na - 1])
+                        / 2,
                     )
 
                     indp = np.where(
-                        (pressureLayers >= (minPressure - 0.0001))
-                        & (pressureLayers < (maxPressure + 0.0001))
+                        (pressure_layer >= (self.min_pressure - 0.0001))
+                        & (pressure_layer < (self.max_pressure + 0.0001))
                     )[0]
 
                     dof = np.sum(ak[indp[0 : len(indp) - 1]])
 
                     # PYTHON_NOTE: It is possible with the where() function below, the array returned is empty.
                     #              If it is empty, we cannot use np.amax() so we have to do two separated steps.
-                    #              as opposed to IDL which does it it one step: indp1 = max(where(pressureLayers GT maxPressure))
-                    max_indices = np.where(pressureLayers > maxPressure)[0]
+                    #              as opposed to IDL which does it it one step: indp1 = max(where(pressure_layer GT self.max_pressure))
+                    max_indices = np.where(pressure_layer > self.max_pressure)[0]
 
                     indp1 = np.int64(-1)
                     if len(max_indices) > 0:
                         indp1 = np.amax(max_indices)
 
                     if indp1 != -1:
-                        fraction1 = (maxPressure - pressureLayers[indp1 + 1]) / (
-                            pressureLayers[indp1] - pressureLayers[indp1 + 1]
+                        fraction1 = (self.max_pressure - pressure_layer[indp1 + 1]) / (
+                            pressure_layer[indp1] - pressure_layer[indp1 + 1]
                         )
                         dof = dof + fraction1 * ak[indp1]
 
                     indp2 = np.int64(-1)
-                    min_indices = np.where(pressureLayers < minPressure)[0]
+                    min_indices = np.where(pressure_layer < self.min_pressure)[0]
                     if len(min_indices) > 0:
                         indp2 = np.amin(min_indices)
 
                     if indp2 != -1:
-                        fraction2 = (minPressure - pressureLayers[indp2 - 1]) / (
-                            pressureLayers[indp2] - pressureLayers[indp2 - 1]
+                        fraction2 = (self.min_pressure - pressure_layer[indp2 - 1]) / (
+                            pressure_layer[indp2] - pressure_layer[indp2 - 1]
                         )
                         dof = dof + fraction2 * ak[indp2]
 
                     self._columnDOFS[ij, indcol] = dof
-                # end for ij in range(0, 5):
 
-                # AT_LINE 505 Write_Retrieval_Summary.pro
-            # end if (loc >= 0) and (species_name != 'TATM'):
-            continue
-        # end for ispecie in range(0,num_species):
+    def column_calc(
+        self, ctype: str, do_air: bool = False, do_deriv: bool = False
+    ) -> np.ndarray:
+        x = MusesAltitudePge.column(
+            getattr(self.selem, ctype)
+            if not do_air
+            else np.full_like(getattr(self.selem, ctype), 1),
+            getattr(self.pselem, ctype),
+            getattr(self.tselem, ctype),
+            getattr(self.hselem, ctype),
+            self.current_state.sounding_metadata.surface_altitude.convert("m").value,
+            self.current_state.sounding_metadata.latitude.value,
+            self.min_pressure,
+            self.max_pressure,
+            self.linear,
+        )
+        if do_deriv:
+            return x["derivative"]
+        if do_air:
+            return x["columnAir"]
+        return x["column"]
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.state_value(StateElementIdentifier(state_name))[0]
