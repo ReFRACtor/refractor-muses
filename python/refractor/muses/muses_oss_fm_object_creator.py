@@ -682,7 +682,6 @@ class TesFmObjectCreator(MusesOssFmObjectCreator):
             self.observation,
             self.pointing_angle_surface,
         )
-        # TODO Remove this when no longer using UIP
         if False:
             # While developing, can directly compare with py-retrieve
             # forward model at each steo.

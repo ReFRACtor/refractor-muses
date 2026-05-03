@@ -764,7 +764,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if

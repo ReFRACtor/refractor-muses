@@ -70,7 +70,8 @@ class CloudResultSummary:
                         [StateElementIdentifier("CLOUDEXT")]
                     )
                 except KeyError:
-                    # If not in previous_aposteriori_cov_fm, then we just skip the next part
+                    # If not in previous_aposteriori_cov_fm, then we
+                    # just skip the next part
                     pass
             if cov is not None and np.count_nonzero(plist_ind) > 0:
                 error_current = np.diag(cov[plist_ind, :][:, plist_ind])
@@ -79,7 +80,6 @@ class CloudResultSummary:
                     / error_current.size
                     * self.cloudODAve
                 )
-        # end else part of if (len(ind) > 0):
 
         indw = np.where(species_list == "CLOUDEXT")[0]
         indFM = np.where(species_list_fm == "CLOUDEXT")[0]
@@ -96,14 +96,15 @@ class CloudResultSummary:
             x = np.var((cloudod - myMean) / err, ddof=1)
             self._cloudODVar = math.sqrt(x)
 
-        freq =  self.current_state.state_spectral_domain_wavenumber("EMIS")
+        freq = self.current_state.state_spectral_domain_wavenumber("EMIS")
+        assert freq is not None
         indw = np.where((freq >= 975) & (freq <= 1200))[0]
         self._emissionLayer = 0
         self._emisDev = -999.0
         if len(indw) > 0:
-            self._emisDev = np.mean(self.current_state.state_value("EMIS")[indw]) - np.mean(
-                self.current_state.state_constraint_vector("EMIS")[indw]
-            )
+            self._emisDev = np.mean(
+                self.current_state.state_value("EMIS")[indw]
+            ) - np.mean(self.current_state.state_constraint_vector("EMIS")[indw])
 
         if "O3" in species_list_fm:
             ind10 = [idx for idx, value in enumerate(species_list_fm) if value == "O3"]
@@ -158,17 +159,14 @@ class CloudResultSummary:
                     )
                 ):
                     self._ozoneCcurve = 0
-            # end if len(indLow) > 0 and len(indHigh) > 0:
 
             # slope c-curve flag
             o3 = self.current_state.state_value("O3")
             indp = np.where(o3 > 0)[0]
             altitude = self.current_state.height().convert("km").value
-            o3 = o3[indp]
 
-            slope = self.ccurve_jessica(altitude, o3)
+            slope = self.ccurve_jessica(altitude, o3[indp])
             self._ozone_slope_QA = slope
-        # end if len(ind) > 0:
 
         # Now get species dependent preferences
         self._deviation_QA = np.zeros((num_species,))
@@ -191,7 +189,7 @@ class CloudResultSummary:
 
             fm_sv_slice = self.current_state.fm_sv_slice(selem_name)
             ak_diag = error_analysis.A.diagonal()[fm_sv_slice]
-            
+
             if selem_name.is_atmospheric_species:
                 result_quality = self.quality_deviation(
                     pressure, profile, constraint, ak_diag, selem_name
@@ -374,10 +372,16 @@ class CloudResultSummary:
             if valueTemp > 0.2:
                 count = count + 1
 
-            if selem_name != StateElementIdentifier("HCN") and valueTemp > 0.2 and dof < 0.5:
+            if (
+                selem_name != StateElementIdentifier("HCN")
+                and valueTemp > 0.2
+                and dof < 0.5
+            ):
                 deviationBad = 1
 
-            if selem_name != StateElementIdentifier("HCN") and (valueTemp > 0.2 and dof < 0.1):
+            if selem_name != StateElementIdentifier("HCN") and (
+                valueTemp > 0.2 and dof < 0.1
+            ):
                 deviationBad = 1
 
             myvalsl.append(valueTemp)
