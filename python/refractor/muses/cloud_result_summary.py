@@ -19,11 +19,7 @@ class CloudResultSummary:
         result_list: np.ndarray,
         error_analysis: ErrorAnalysis,
     ) -> None:
-        # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeStateInfo
-
         self.current_state = current_state
-        stateInfo = FakeStateInfo(self.current_state)
 
         num_species = len(self.current_state.retrieval_state_element_id)
 
@@ -100,29 +96,23 @@ class CloudResultSummary:
             x = np.var((cloudod - myMean) / err, ddof=1)
             self._cloudODVar = math.sqrt(x)
 
-        indw = np.where(
-            (stateInfo.emisPars["frequency"] >= 975)
-            & (stateInfo.emisPars["frequency"] <= 1200)
-        )[0]
-
+        freq =  self.current_state.state_spectral_domain_wavenumber("EMIS")
+        indw = np.where((freq >= 975) & (freq <= 1200))[0]
         self._emissionLayer = 0
         self._emisDev = -999.0
         if len(indw) > 0:
-            self._emisDev = np.mean(stateInfo.current["emissivity"][indw]) - np.mean(
-                stateInfo.constraint["emissivity"][indw]
+            self._emisDev = np.mean(self.current_state.state_value("EMIS")[indw]) - np.mean(
+                self.current_state.state_constraint_vector("EMIS")[indw]
             )
 
         if "O3" in species_list_fm:
             ind10 = [idx for idx, value in enumerate(species_list_fm) if value == "O3"]
 
             if len(ind10) > 0:
-                indt = np.where(np.array(stateInfo.species) == "TATM")[0][0]
-                TATM = stateInfo.current["values"][indt, :]
-                TSUR = stateInfo.current["TSUR"]
-
-                indo3 = np.where(np.array(stateInfo.species) == "O3")[0][0]
-                o3 = stateInfo.current["values"][indo3, :]
-                o3ig = stateInfo.constraint["values"][indo3, :]
+                TATM = self.current_state.state_value("TATM")
+                TSUR = self.current_state.state_value("TSUR")[0]
+                o3 = self.current_state.state_value("O3")
+                o3ig = self.current_state.state_constraint_vector("O3")
 
                 aveTATM = 0.0
                 my_sum = 0.0
@@ -138,9 +128,9 @@ class CloudResultSummary:
         self._ozone_slope_QA = 1.0
         ind = [idx for idx, value in enumerate(species_list_fm) if value == "O3"]
         if len(ind) > 0:
-            pressure = stateInfo.current["pressure"]
-            o3 = stateInfo.current["values"][stateInfo.species.index("O3"), :]
-            o3ig = stateInfo.initial["values"][stateInfo.species.index("O3"), :]
+            pressure = self.current_state.state_value("pressure")
+            o3 = self.current_state.state_value("O3")
+            o3ig = self.current_state.state_step_initial_value("O3")
             indLow = np.where(pressure >= 700)[0]
             indHigh = np.where((pressure >= 200) & (pressure <= 700))[0]
             if len(indLow) > 0 and len(indHigh) > 0:
@@ -171,9 +161,9 @@ class CloudResultSummary:
             # end if len(indLow) > 0 and len(indHigh) > 0:
 
             # slope c-curve flag
-            o3 = stateInfo.current["values"][stateInfo.species.index("O3"), :]
+            o3 = self.current_state.state_value("O3")
             indp = np.where(o3 > 0)[0]
-            altitude = stateInfo.current["heightKm"][indp]
+            altitude = self.current_state.height().convert("km").value
             o3 = o3[indp]
 
             slope = self.ccurve_jessica(altitude, o3)
@@ -189,33 +179,22 @@ class CloudResultSummary:
         ):
             my_sum = 0.0
 
-            species_name = str(selem_name)
-
-            loc = -1
-            if species_name in stateInfo.species:
-                loc = np.where(np.array(stateInfo.species) == species_name)[0][0]
-
             # deviation quality flag - refined for O3 and HCN
             self._deviation_QA[ispecie] = 1
             self._num_deviations_QA[ispecie] = 1
             self._DeviationBad_QA[ispecie] = 1
-            pressure = stateInfo.current["pressure"]
+            pressure = self.current_state.state_value("pressure")
 
-            if loc != -1:
-                profile = stateInfo.current["values"][loc, :]
-                constraint = stateInfo.constraint["values"][loc, :]
+            if selem_name.is_atmospheric_species:
+                profile = self.current_state.state_value(selem_name)
+                constraint = self.current_state.state_constraint_vector(selem_name)
 
-            ind = [
-                idx
-                for idx, value in enumerate(species_list_fm)
-                if value == species_name
-            ]
-
-            ak_diag = error_analysis.A[ind, ind]
-
-            if loc != -1:
+            fm_sv_slice = self.current_state.fm_sv_slice(selem_name)
+            ak_diag = error_analysis.A.diagonal()[fm_sv_slice]
+            
+            if selem_name.is_atmospheric_species:
                 result_quality = self.quality_deviation(
-                    pressure, profile, constraint, ak_diag, species_name
+                    pressure, profile, constraint, ak_diag, selem_name
                 )
                 self._deviation_QA[ispecie] = result_quality.deviation_QA
                 self._num_deviations_QA[ispecie] = result_quality.num_deviations
@@ -339,7 +318,7 @@ class CloudResultSummary:
         species: np.ndarray,
         constraintVector: np.ndarray,
         averagingKernelDiagonal: np.ndarray,
-        speciesName: str,
+        selem_name: StateElementIdentifier,
     ) -> AttrDictAdapter:
         # look at a new flag.  Compare deviations from the prior versus DOF's.
         # Count # of times it crosses the prior
@@ -387,7 +366,6 @@ class CloudResultSummary:
         mydofsl = [0]
         deviationBad = 0
 
-        # AT_LINE 50 Write_Retrieval_Summary.pro
         for kk in range(0, len(ind) - 1):
             valueTemp = np.amax(
                 np.abs(value[ind[kk] : ind[kk + 1] + 1])
@@ -396,18 +374,15 @@ class CloudResultSummary:
             if valueTemp > 0.2:
                 count = count + 1
 
-            if speciesName != "HCN" and valueTemp > 0.2 and dof < 0.5:
+            if selem_name != StateElementIdentifier("HCN") and valueTemp > 0.2 and dof < 0.5:
                 deviationBad = 1
 
-            if (speciesName != "HCN") and (valueTemp > 0.2 and dof < 0.1):
+            if selem_name != StateElementIdentifier("HCN") and (valueTemp > 0.2 and dof < 0.1):
                 deviationBad = 1
-            # end if (speciesName != 'HCN') and (valueTemp > 0.2 and dof < 0.1):
 
             myvalsl.append(valueTemp)
             mydofsl.append(dof)
-        # end for kk in range(0,len(ind)-1):
 
-        # AT_LINE 70 quality_deviation.pro
         myvals = np.asarray(
             myvalsl[1:]
         )  # Remove the 1st element since it was just a filler.
@@ -417,18 +392,16 @@ class CloudResultSummary:
 
         ind1 = np.where(mydofs < 1)[0]
         if len(ind1) > 0:
-            # Get the index of the maximum of myvals, which contains the percentage differences.
-            # Note that Python allows us to get the index directory with argmax() function.
+            # Get the index of the maximum of myvals, which contains
+            # the percentage differences.  Note that Python allows us
+            # to get the index directory with argmax() function.
             max_ind = np.argmax(myvals[ind1])
             maxDeviation = myvals[ind1[max_ind]]
             maxDeviationDOF = mydofs[ind1[max_ind]]
-        # end if len(ind1) > 0:
 
-        # AT_LINE 81 quality_deviation.pro
         num_deviations = count
 
-        # AT_LINE 84 Write_Retrieval_Summary.pro
-        if speciesName == "HCN":
+        if selem_name == StateElementIdentifier("HCN"):
             deviationQualityFlag = 1
             if maxDeviation >= 0.4 and maxDeviationDOF < 0.1:
                 deviationQualityFlag = 0
@@ -458,7 +431,6 @@ class CloudResultSummary:
 
             deviation_QA = deviationQualityFlag
 
-        # AT_LINE 103 quality_deviation.pro
         results = {
             "maxDeviation": maxDeviation,
             "maxDeviationDOF": maxDeviationDOF,
