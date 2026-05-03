@@ -185,29 +185,23 @@ class ColumnResultSummary:
                         & (pressure_layer < (self.max_pressure + 0.0001))
                     )[0]
 
+                    # TODO: This chops off the last entry in indp. Is that actually
+                    # intended?
                     dof = np.sum(ak[indp[0 : len(indp) - 1]])
 
-                    # PYTHON_NOTE: It is possible with the where() function below, the array returned is empty.
-                    #              If it is empty, we cannot use np.amax() so we have to do two separated steps.
-                    #              as opposed to IDL which does it it one step: indp1 = max(where(pressure_layer GT self.max_pressure))
-                    max_indices = np.where(pressure_layer > self.max_pressure)[0]
-
-                    indp1 = np.int64(-1)
-                    if len(max_indices) > 0:
-                        indp1 = np.amax(max_indices)
-
-                    if indp1 != -1:
+                    indp1 = np.max(
+                        np.where(pressure_layer > self.max_pressure), initial=-1
+                    )
+                    indp2 = np.min(
+                        np.where(pressure_layer < self.min_pressure),
+                        initial=len(pressure_layer)
+                    )
+                    if indp1 >= 0:
                         fraction1 = (self.max_pressure - pressure_layer[indp1 + 1]) / (
                             pressure_layer[indp1] - pressure_layer[indp1 + 1]
                         )
                         dof = dof + fraction1 * ak[indp1]
-
-                    indp2 = np.int64(-1)
-                    min_indices = np.where(pressure_layer < self.min_pressure)[0]
-                    if len(min_indices) > 0:
-                        indp2 = np.amin(min_indices)
-
-                    if indp2 != -1:
+                    if indp2 < len(pressure_layer):
                         fraction2 = (self.min_pressure - pressure_layer[indp2 - 1]) / (
                             pressure_layer[indp2] - pressure_layer[indp2 - 1]
                         )
