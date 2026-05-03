@@ -194,7 +194,7 @@ class ColumnResultSummary:
                     )
                     indp2 = np.min(
                         np.where(pressure_layer < self.min_pressure),
-                        initial=len(pressure_layer)
+                        initial=len(pressure_layer),
                     )
                     if indp1 >= 0:
                         fraction1 = (self.max_pressure - pressure_layer[indp1 + 1]) / (

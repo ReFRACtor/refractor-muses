@@ -9,7 +9,6 @@ import typing
 if typing.TYPE_CHECKING:
     from .error_analysis import ErrorAnalysis
     from .current_state import CurrentState
-    from refractor.muses_py_fm import FakeRetrievalInfo
 
 
 # Needs a lot of cleanup, we are just shoving stuff into place
@@ -21,24 +20,27 @@ class CloudResultSummary:
         error_analysis: ErrorAnalysis,
     ) -> None:
         # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeRetrievalInfo, FakeStateInfo
+        from refractor.muses_py_fm import FakeStateInfo
 
         self.current_state = current_state
         stateInfo = FakeStateInfo(self.current_state)
-        retrievalInfo = FakeRetrievalInfo(self.current_state)
 
-        num_species = retrievalInfo.n_species
+        num_species = len(self.current_state.retrieval_state_element_id)
 
         self._cloudODVar = 0.0
         self._cloudODAveError = 0.0
 
         factor = self.cloud_factor
-
-        indw = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
-        indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
-
+        species_list = np.array(
+            [str(i) for i in self.current_state.retrieval_state_vector_element_list]
+        )
+        species_list_fm = np.array(
+            [str(i) for i in self.current_state.forward_model_state_vector_element_list]
+        )
+        indw = np.where(species_list == "CLOUDEXT")[0]
+        indFM = np.where(species_list_fm == "CLOUDEXT")[0]
         if len(indw) > 0:
-            my_map = self.get_one_map(retrievalInfo, "CLOUDEXT")
+            my_map = self.get_one_map("CLOUDEXT")
             errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
             cloudod = np.exp(result_list[indw]) * factor
@@ -83,11 +85,11 @@ class CloudResultSummary:
                 )
         # end else part of if (len(ind) > 0):
 
-        indw = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
-        indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
+        indw = np.where(species_list == "CLOUDEXT")[0]
+        indFM = np.where(species_list_fm == "CLOUDEXT")[0]
 
         if len(indw) > 0:
-            my_map = self.get_one_map(retrievalInfo, "CLOUDEXT")
+            my_map = self.get_one_map("CLOUDEXT")
 
             errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
@@ -110,12 +112,8 @@ class CloudResultSummary:
                 stateInfo.constraint["emissivity"][indw]
             )
 
-        if "O3" in retrievalInfo.speciesListFM:
-            ind10 = [
-                idx
-                for idx, value in enumerate(retrievalInfo.speciesListFM)
-                if value == "O3"
-            ]
+        if "O3" in species_list_fm:
+            ind10 = [idx for idx, value in enumerate(species_list_fm) if value == "O3"]
 
             if len(ind10) > 0:
                 indt = np.where(np.array(stateInfo.species) == "TATM")[0][0]
@@ -138,11 +136,7 @@ class CloudResultSummary:
 
         self._ozoneCcurve = 1
         self._ozone_slope_QA = 1.0
-        ind = [
-            idx
-            for idx, value in enumerate(retrievalInfo.speciesListFM)
-            if value == "O3"
-        ]
+        ind = [idx for idx, value in enumerate(species_list_fm) if value == "O3"]
         if len(ind) > 0:
             pressure = stateInfo.current["pressure"]
             o3 = stateInfo.current["values"][stateInfo.species.index("O3"), :]
@@ -156,7 +150,7 @@ class CloudResultSummary:
                 meanloig = np.mean(o3ig[indLow])
                 surf = o3[np.amin(indLow)]
 
-                my_map = self.get_one_map(retrievalInfo, "O3")
+                my_map = self.get_one_map("O3")
 
                 AK = error_analysis.A[ind, :][:, ind]
                 AKzz = np.matmul(np.matmul(my_map["toState"], AK), my_map["toPars"])
@@ -190,10 +184,12 @@ class CloudResultSummary:
         self._deviation_QA = np.zeros((num_species,))
         self._num_deviations_QA = np.zeros((num_species,), dtype=int)
         self._DeviationBad_QA = np.zeros((num_species,), dtype=int)
-        for ispecie in range(0, num_species):
+        for ispecie, selem_name in enumerate(
+            self.current_state.retrieval_state_element_id
+        ):
             my_sum = 0.0
 
-            species_name = retrievalInfo.species[ispecie]
+            species_name = str(selem_name)
 
             loc = -1
             if species_name in stateInfo.species:
@@ -211,7 +207,7 @@ class CloudResultSummary:
 
             ind = [
                 idx
-                for idx, value in enumerate(retrievalInfo.speciesListFM)
+                for idx, value in enumerate(species_list_fm)
                 if value == species_name
             ]
 
@@ -473,20 +469,9 @@ class CloudResultSummary:
 
         return AttrDictAdapter(results)
 
-    def get_one_map(
-        self, i_retrieval: FakeRetrievalInfo, specieIn: str
-    ) -> dict[str, np.ndarray]:
-        indSpecie = i_retrieval.species.index(specieIn)
-        nn = i_retrieval.n_parameters[indSpecie]
-        mm = i_retrieval.n_parametersFM[indSpecie]
-
-        nnn = i_retrieval.parameterStart[indSpecie]
-        mmm = i_retrieval.parameterStartFM[indSpecie]
-        assert i_retrieval.mapToState is not None
-        assert i_retrieval.mapToParameters is not None
-        my_map = i_retrieval.mapToState[nnn : nnn + nn, mmm : mmm + mm]
-        mapStar = i_retrieval.mapToParameters[mmm : mmm + mm, nnn : nnn + nn]
-        return {"toState": my_map, "toPars": mapStar}
+    def get_one_map(self, specieIn: str) -> dict[str, np.ndarray]:
+        selem = self.current_state.state_element(specieIn)
+        return {"toState": selem.basis_matrix, "toPars": selem.map_to_parameter_matrix}
 
 
 __all__ = ["CloudResultSummary"]
