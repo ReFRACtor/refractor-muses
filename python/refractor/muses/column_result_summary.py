@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
 import numpy as np
@@ -9,23 +10,18 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
 
 
-# Needs a lot of cleanup, we are just shoving stuff into place
 class ColumnResultSummary:
     def __init__(
         self, current_state: CurrentState, error_analysis: ErrorAnalysis
     ) -> None:
-        # Temp, we want to remove this
-        from refractor.muses_py_fm import FakeRetrievalInfo
-
         self.current_state = current_state
-        retrievalInfo = FakeRetrievalInfo(current_state)
 
         # I don't think this is fully supported, so we just always say
         # have_true is False
         have_true = False
-        num_species = retrievalInfo.n_species
+        num_species = len(self.current_state.retrieval_state_element_id)
         # This really is exactly 5. See the column calculation. This is
-        # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
+        # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato"]
         num_cols = 5
         self._columnSpecies = []
         self._column = np.zeros((num_cols, num_species))
@@ -57,12 +53,15 @@ class ColumnResultSummary:
             ["LowerTrop", 500, np.amax(self.pselem.value_fm)],
             ["Strato", 0, self.tropopause_pressure],
         ]
-        for ispecie in range(0, num_species):
-            species_name = retrievalInfo.species[ispecie]
-            selem_name = StateElementIdentifier(species_name)
+        for ispecie, selem_name in enumerate(
+            self.current_state.retrieval_state_element_id
+        ):
             self.selem = self.current_state.state_element(selem_name)
-            if selem_name.is_atmospheric_species and species_name != "TATM":
-                self._columnSpecies.append(species_name)
+            if (
+                selem_name.is_atmospheric_species
+                and selem_name != StateElementIdentifier("TATM")
+            ):
+                self._columnSpecies.append(str(selem_name))
                 indcol = len(self._columnSpecies) - 1
                 for ij, (my_type, self.min_pressure, self.max_pressure) in enumerate(
                     column_set
@@ -79,10 +78,10 @@ class ColumnResultSummary:
                     self._columnPressureMin[ij] = self.min_pressure
                     self._columnPressureMax[ij] = self.max_pressure
 
-                    ind1FM = retrievalInfo.parameterStartFM[ispecie]
-                    ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    map_type = retrievalInfo.mapType[ispecie]
-                    self.linear = map_type.lower() in ("linear", "linearpca")
+                    fm_sv_slice = self.current_state.fm_sv_slice(selem_name)
+                    assert fm_sv_slice is not None
+                    map_type = self._map_type(selem_name)
+                    self.linear = map_type == "linear"
 
                     self._columnPrior[ij, indcol] = self.column_calc(
                         "constraint_vector_fm"
@@ -99,19 +98,18 @@ class ColumnResultSummary:
                     if have_true:
                         self._columnTrue[ij, indcol] = self.column_calc("true_value_fm")
 
-                    if species_name == "O3" and my_type == "Trop":
+                    if selem_name == StateElementIdentifier("O3") and my_type == "Trop":
                         # compare initial gues for this step to retrieved.
                         ret = self._column[ij, indcol]
                         ig = self._columnInitial[ij, indcol]
                         ratio = (ret / ig) - 1.0
                         self._O3_tropo_consistency = ratio
 
-                    Sx = error_analysis.Sx[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
+                    Sx = error_analysis.Sx[fm_sv_slice, fm_sv_slice]
 
                     xder = self.column_calc("value_fm", do_air=True, do_deriv=True)
                     derivativeFinal = np.copy(xder)
 
-                    map_type = map_type.lower()
                     if map_type == "log":
                         rhs_term_sizes = len(self.selem.value_fm)
                         derivativeFinal = (
@@ -141,13 +139,20 @@ class ColumnResultSummary:
 
                     self._columnPriorError[ij, indcol] = error
 
-                    if species_name == "O3" and my_type == "Column":
+                    if (
+                        selem_name == StateElementIdentifier("O3")
+                        and my_type == "Column"
+                    ):
                         self._O3_columnErrorDU = self._columnError[ij, indcol] / 2.69e16
 
-                    if my_type == "Column" and species_name == "H2O":
+                    if my_type == "Column" and selem_name == StateElementIdentifier(
+                        "H2O"
+                    ):
                         if (
-                            "H2O" in retrievalInfo.speciesListFM
-                            and "HDO" in retrievalInfo.speciesListFM
+                            StateElementIdentifier("H2O")
+                            in self.current_state.retrieval_state_element_id
+                            and StateElementIdentifier("HDO")
+                            in self.current_state.retrieval_state_element_id
                         ):
                             # in H2O/HDO step, check H2O column - H2O
                             # column from O3 step / error
@@ -164,11 +169,8 @@ class ColumnResultSummary:
                     # was a level at 100 hPa, only half of the AK at 100 hPa would be
                     # included because only half of the above described layer is inclu
 
-                    ispecie = retrievalInfo.species.index(species_name)
-                    ind1FM = retrievalInfo.parameterStartFM[ispecie]
-                    ind2FM = retrievalInfo.parameterEndFM[ispecie]
                     ak = np.diagonal(error_analysis.A)
-                    ak = ak[ind1FM : ind2FM + 1]
+                    ak = ak[fm_sv_slice]
                     na = len(ak)
 
                     pressure_layer = np.asarray(self.pselem.value_fm[0])
@@ -212,6 +214,22 @@ class ColumnResultSummary:
                         dof = dof + fraction2 * ak[indp2]
 
                     self._columnDOFS[ij, indcol] = dof
+
+    def _map_type(self, sid: StateElementIdentifier) -> str:
+        from refractor.muses import StateMappingUpdateArray
+
+        smap = self.current_state.state_mapping(sid, include_subset=False)
+        if isinstance(smap, rf.StateMappingLinear):
+            return "linear"
+        elif isinstance(smap, rf.StateMappingLog):
+            return "log"
+        elif isinstance(smap, StateMappingUpdateArray):
+            return "linear"
+        elif smap.name == "state mapping, log":
+            return "log"
+        elif smap.name == "log, state mapping":
+            return "log"
+        raise RuntimeError(f"Don't recognize state mapping {smap}")
 
     def column_calc(
         self, ctype: str, do_air: bool = False, do_deriv: bool = False
