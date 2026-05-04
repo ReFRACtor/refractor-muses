@@ -1,7 +1,6 @@
 from __future__ import annotations
 import inspect
-from typing import Any, Self, Callable, ParamSpec
-import numpy as np
+from typing import Any, Self, Callable, ParamSpec, TypeVar
 import abc
 
 
@@ -11,17 +10,18 @@ class OutputType(object):
 
 
 P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def _attach_name_to_func(
     type_name: str, data_name: str
 ) -> Callable[
     [
-        Callable[P, np.ndarray],
+        Callable[P, R],
     ],
-    Callable[P, np.ndarray],
+    Callable[P, R],
 ]:
-    def _wrapper(func: Callable[P, np.ndarray]) -> Callable[P, np.ndarray]:
+    def _wrapper(func: Callable[P, R]) -> Callable[P, R]:
         # TODO Sort out these types, probably need some examples here to
         # work this through
         def _attach_creator_to_data(creator: Any) -> Any:
@@ -55,9 +55,9 @@ def register_dataset(
     var_name: str,
 ) -> Callable[
     [
-        Callable[P, np.ndarray],
+        Callable[P, R],
     ],
-    Callable[P, np.ndarray],
+    Callable[P, R],
 ]:
     return _attach_name_to_func(OutputType.dataset, var_name)
 
@@ -66,9 +66,9 @@ def register_attribute(
     attr_name: str,
 ) -> Callable[
     [
-        Callable[P, np.ndarray],
+        Callable[P, R],
     ],
-    Callable[P, np.ndarray],
+    Callable[P, R],
 ]:
     return _attach_name_to_func(OutputType.attribute, attr_name)
 

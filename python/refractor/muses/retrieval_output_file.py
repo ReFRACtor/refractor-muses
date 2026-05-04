@@ -1,9 +1,11 @@
 from __future__ import annotations
 from loguru import logger
 import importlib
+import datetime
+import pytz
 import json
 import os
-import netCDF4
+import xarray as xr
 from pathlib import Path
 from .declarative_output import DeclarativeOutputHandle
 from typing import Any, Callable, Sequence
@@ -85,6 +87,62 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
         else:
             self.attribute_value_functions[name] = value
 
+    def _write_variables(self) -> None:
+        data_var = {}
+        for var_name, var_data_func in self.variable_data_functions.items():
+            # A variable can optionally define a creator function to
+            # create the variable where data is written.
+            #
+            # We currently ignore this, but leave this in place for now in
+            # case we want to add this at some point
+            # creator_func = (
+            #    var_data_func._creator if hasattr(var_data_func, "_creator") else None  # noqa: SLF001
+            # )
+
+            # A modifier allows direct modifications of the variable
+            # object before data values are set
+            modifier_func = (
+                var_data_func._modifier if hasattr(var_data_func, "_modifier") else None  # noqa: SLF001
+            )
+
+            # Obtain the data from the registered function/method
+            data = var_data_func()
+
+            # Skip setting values if data is None
+            if data is None:
+                continue
+
+            # Standard names for the grids, with for some reason "grid_1" being
+            # called "one" in py-retrieve. Don't know if this matters, but match
+            # that behavior
+            if hasattr(data, "shape"):
+                dim_name = [f"grid_{d}" if d != 1 else "one" for d in data.shape]
+            else:
+                dim_name = []
+
+            vname = Path(var_name)
+            if vname.parent != Path("/"):
+                raise RuntimeError("Don't handle groups yet")
+
+            # xarray can't handle "/" in a name
+            data_var[vname.name] = xr.DataArray(
+                data=data, dims=dim_name, attrs=({"Units": "()"})
+            )
+
+            # Note that xarray puts in a fillvalue for each field (defaults to
+            # NaN. This isn't actually a bad thing, but to match the old files
+            # we need to remove this.
+            data_var[vname.name].encoding = {"_FillValue": None}
+
+            # Allow direct modifications to the variable object itself
+            # such as dynamic attribute modifications
+            if modifier_func is not None:
+                modifier_func(var_data_func.__self__, data_var[var_name.name], var_name)
+
+        # Xarray Dataset can't be updated, not sure why this constraint. But we can
+        # create a modified version.
+        self.ds: xr.Dataset = self.ds.assign(data_var)
+
     def write(self) -> None:
         """Calls all registered functions to write the NetCDF4 output
         file Variables must be defined in the template NetCDF4 file.
@@ -93,14 +151,23 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
         """
 
         logger.info(f"Writing to output file: {self.output_filename}")
-        fh = netCDF4.Dataset(self.output_filename, "w")
 
+        # It is convenient in testing to have a fixed creation_date, just so we can
+        # compare files created at different times with h5diff and have them compare as
+        # identical
+        cdate = os.environ.get(
+            "MUSES_FAKE_CREATION_DATE",
+            datetime.datetime.now(tz=pytz.utc).strftime("%Y%m%dT%H%M%SZ"),
+        )
+        self.ds = xr.Dataset(attrs={"creation_date": cdate})
         try:
             # self._write_attributes(output_contents)
-            # self._write_variables(output_contents)
-            pass
+            self._write_variables()
         finally:
-            fh.close()
+            # Note that xarray puts in a fillvalue for each field (defaults to
+            # NaN. This isn't actually a bad thing, but to match the old files
+            # we need to remove this
+            self.ds.to_netcdf(self.output_filename)
 
 
 __all__ = [
