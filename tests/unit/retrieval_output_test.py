@@ -2,6 +2,7 @@ from refractor.muses import (
     RetrievalJacobianOutput,
     RetrievalL2Output,
     RetrievalRadianceOutput,
+    RetrievalRadianceOutputNew,
     RetrievalIrkOutput,
     RetrievalPickleResult,
     RetrievalPlotRadiance,
@@ -40,6 +41,17 @@ def joint_tropomi_output(
 def test_retrieval_radiance_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalRadianceOutput(rs.creator_dict)
+    jout.notify_process_location(
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
+    )
+
+
+def test_retrieval_radiance_output_new(joint_tropomi_output):
+    rs, rstep, kwargs = joint_tropomi_output
+    jout = RetrievalRadianceOutputNew("test.nc")
     jout.notify_process_location(
         ProcessLocation("retrieval step"),
         retrieval_strategy=rs,

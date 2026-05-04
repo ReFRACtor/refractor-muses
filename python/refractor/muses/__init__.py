@@ -56,6 +56,12 @@ from .current_strategy_step import (
     CurrentStrategyStepOE,
     CurrentStrategyStepOEImp,
 )
+from .declarative_output import (
+    DeclarativeOutput,
+    DeclarativeOutputHandle,
+    register_attribute,
+    register_dataset,
+)
 from .docopt_simple import (
     DocOptSimple,
     docopt_simple,
@@ -302,6 +308,9 @@ from .retrieval_output import (
 from .retrieval_radiance_output import (
     RetrievalRadianceOutput,
 )
+from .retrieval_radiance_output_new import (
+    RetrievalRadianceOutputNew,
+)
 from .retrieval_result import (
     RetrievalResult,
 )
@@ -386,6 +395,9 @@ from .state_info import (
 from .state_mapping_update_array import (
     StateMappingUpdateArray,
 )
+from .templated_output import (
+    TemplatedOutput,
+)
 from .tes_file import (
     TesFile,
 )
@@ -434,6 +446,8 @@ __all__ = [
     "CurrentStrategyStepImp",
     "CurrentStrategyStepOE",
     "CurrentStrategyStepOEImp",
+    "DeclarativeOutput",
+    "DeclarativeOutputHandle",
     "DictFilterMetadata",
     "DocOptSimple",
     "EmisState",
@@ -540,6 +554,7 @@ __all__ = [
     "RetrievalPlotRadiance",
     "RetrievalPlotResult",
     "RetrievalRadianceOutput",
+    "RetrievalRadianceOutputNew",
     "RetrievalResult",
     "RetrievalStepCaptureObserver",
     "RetrievalStrategy",
@@ -595,6 +610,7 @@ __all__ = [
     "StateMappingUpdateArray",
     "StrategyStepIdentifier",
     "SurfaceAlbedo",
+    "TemplatedOutput",
     "TesFile",
     "TesFmObjectCreator",
     "TesForwardModelHandle",
@@ -615,6 +631,8 @@ __all__ = [
     "mpy_radiance_from_observation_list",
     "muses_oss_handle",
     "order_species",
+    "register_attribute",
+    "register_dataset",
     "species_type",
 ]
 # </AUTOGEN_INIT>

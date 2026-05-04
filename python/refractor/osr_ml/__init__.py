@@ -24,11 +24,6 @@ from .current_strategy_step_ml import (
 from .date_to_julian_day import (
     date_to_julian_day,
 )
-from .declarative_output import (
-    DeclarativeOutput,
-    register_attribute,
-    register_dataset,
-)
 from .dummy_spectral_window_handle import (
     DummySpectralWindowHandle,
 )
@@ -56,21 +51,16 @@ from .retrieval_strategy_step_ml import (
 from .rmsd_two_var import (
     rmsd_two_var,
 )
-from .templated_output import (
-    TemplatedOutput,
-)
 
 __all__ = [
     "ColumnCoFile",
     "CurrentStrategyStepHandleMl",
     "CurrentStrategyStepMl",
-    "DeclarativeOutput",
     "DummySpectralWindowHandle",
     "MlPredictionClass",
     "RetrievalMlOutput",
     "RetrievalStrategyStepMl",
     "RetrievalStrategyStepMlHandle",
-    "TemplatedOutput",
     "cris_colprior_from_l1b",
     "cris_pixel_corners",
     "date_to_julian_day",
@@ -83,8 +73,6 @@ __all__ = [
     "read_l2muses",
     "read_l2rad",
     "read_nc",
-    "register_attribute",
-    "register_dataset",
     "rmsd_two_var",
 ]
 # </AUTOGEN_INIT>
