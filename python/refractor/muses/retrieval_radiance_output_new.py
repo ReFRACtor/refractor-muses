@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from .declarative_output import register_dataset, DeclarativeOutput
 from .identifier import ProcessLocation
-import subprocess
+from .retrieval_output_file import RetrievalOutputFile
 from loguru import logger
 from pathlib import Path
 import os
@@ -22,8 +22,8 @@ class RetrievalRadianceOutputNew(DeclarativeOutput):
 
     def __init__(self, output_filename: str | os.PathLike[str]) -> None:
         self.output_filename = Path(output_filename)
-        # self.output = TemplatedOutput(pspec, output_filename)
-        # self.output.register_instances((self,))
+        self.output = RetrievalOutputFile(output_filename)
+        self.output.register_instances((self,))
 
     def notify_process_location(
         self,
@@ -35,12 +35,15 @@ class RetrievalRadianceOutputNew(DeclarativeOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.current_state = current_state
         self.retrieval_strategy_step = retrieval_strategy_step
-        subprocess.run(["touch", self.output_filename])
+        self.write()
 
     @register_dataset("/RADIANCEFULLBAND")
     def radiance_full_band(self) -> np.ndarray:
         # Placeholder
         return np.zeros((2223,))
+
+    def write(self) -> None:
+        self.output.write()
 
 
 __all__ = [

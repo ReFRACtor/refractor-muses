@@ -305,6 +305,9 @@ from .retrieval_output import (
     RetrievalOutput,
     extra_l2_output,
 )
+from .retrieval_output_file import (
+    RetrievalOutputFile,
+)
 from .retrieval_radiance_output import (
     RetrievalRadianceOutput,
 )
@@ -550,6 +553,7 @@ __all__ = [
     "RetrievalJacobianOutput",
     "RetrievalL2Output",
     "RetrievalOutput",
+    "RetrievalOutputFile",
     "RetrievalPickleResult",
     "RetrievalPlotRadiance",
     "RetrievalPlotResult",
