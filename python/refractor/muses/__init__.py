@@ -311,9 +311,6 @@ from .retrieval_output_file import (
 from .retrieval_radiance_output import (
     RetrievalRadianceOutput,
 )
-from .retrieval_radiance_output_new import (
-    RetrievalRadianceOutputNew,
-)
 from .retrieval_result import (
     RetrievalResult,
 )
@@ -558,7 +555,6 @@ __all__ = [
     "RetrievalPlotRadiance",
     "RetrievalPlotResult",
     "RetrievalRadianceOutput",
-    "RetrievalRadianceOutputNew",
     "RetrievalResult",
     "RetrievalStepCaptureObserver",
     "RetrievalStrategy",

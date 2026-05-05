@@ -149,7 +149,7 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
 
             # xarray can't handle "/" in a name
             data_var[vname.name] = xr.DataArray(
-                data=data, dims=dim_name, attrs=({"Units": "()"})
+                data=data, dims=dim_name, attrs=({"UNITS": "()"})
             )
 
             # Note that xarray puts in a fillvalue for each field (defaults to
