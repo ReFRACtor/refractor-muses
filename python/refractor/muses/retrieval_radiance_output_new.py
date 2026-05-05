@@ -1,11 +1,12 @@
 from __future__ import annotations
 import numpy as np
+from .creator_dict import CreatorDict
+from .muses_strategy_context import MusesStrategyContextMixin
 from .declarative_output import register_dataset, DeclarativeOutput
-from .identifier import ProcessLocation
+from .identifier import ProcessLocation, RetrievalType, InstrumentIdentifier
 from .retrieval_output_file import RetrievalOutputFile
 from loguru import logger
 from pathlib import Path
-import os
 from typing import Any
 import typing
 
@@ -14,16 +15,55 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
 
 
-class RetrievalRadianceOutputNew(DeclarativeOutput):
+# The variable_order can be used to specify the order variables appear
+# in the file. This doesn't matter much, expect it makes it easier to
+# compare against old expected results. No harm in matching the order
+# the py-retrieve code used.
+variable_order = [
+    "RADIANCEFIT",
+    "RADIANCEFITINITIAL",
+    "RADIANCEOBSERVED",
+    "NESR",
+    "FREQUENCY",
+    "RADIANCEFULLBAND",
+    "FREQUENCYFULLBAND",
+    "NESRFULLBAND",
+    "SOUNDINGID",
+    "LATITUDE",
+    "LONGITUDE",
+    "SURFACEALTITUDEMETERS",
+    "RADIANCERESIDUALMEAN",
+    "RADIANCERESIDUALRMS",
+    "LAND",
+    "QUALITY",
+    "CLOUDOPTICALDEPTH",
+    "CLOUDTOPPRESSURE",
+    "SURFACETEMPERATURE",
+    "SCANDIRECTION",
+    "TIME",
+    "EMIS",
+    "EMISFREQ",
+    "CLOUD",
+    "CLOUDFREQ",
+]
+
+
+class RetrievalRadianceOutputNew(DeclarativeOutput, MusesStrategyContextMixin):
     """New version of RetrievalRadianceOutput, that uses the DeclarativeOutput interface.
     We will likely rename the old RetrievalRadianceOutput to RetrievalRadianceOutputOld,
     and rename this to RetrievalRadianceOutput when we have this all in place. But for
     now leave the old one in place and have this as the "new" version."""
 
-    def __init__(self, output_filename: str | os.PathLike[str]) -> None:
-        self.output_filename = Path(output_filename)
-        self.output = RetrievalOutputFile(output_filename)
+    def __init__(self, creator_dict: CreatorDict, **kwargs: Any) -> None:
+        MusesStrategyContextMixin.__init__(self, creator_dict.strategy_context)
+        DeclarativeOutput.__init__(self)
+        self.creator_dict = creator_dict
+        self.output = RetrievalOutputFile(variable_order)
         self.output.register_instances((self,))
+
+    @property
+    def observing_process_location(self) -> list[ProcessLocation]:
+        return [ProcessLocation("retrieval step")]
 
     def notify_process_location(
         self,
@@ -35,22 +75,103 @@ class RetrievalRadianceOutputNew(DeclarativeOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.current_state = current_state
         self.retrieval_strategy_step = retrieval_strategy_step
+        self._obs_rad: dict | None = None
         self.write()
+
+    @property
+    def obs_rad(self) -> dict:
+        # Not sure what exactly this is doing, we may want to track through
+        # this and figure this out. I'm guessing the code could be simplified.
+        if self._obs_rad is not None:
+            return self._obs_rad
+        if (
+            hasattr(self.retrieval_strategy_step, "results")
+            and self.retrieval_strategy_step.results is not None
+        ):
+            results = self.retrieval_strategy_step.results
+        else:
+            raise RuntimeError("retrieval_strategy_step.results needs to not be None")
+        radiance_full = results.radiance_full
+        radiance_step = results.rstep
+        instruments = results.instruments
+        assert radiance_full is not None
+        assert radiance_step is not None
+        self._obs_rad = radiance_full
+        for inst in ("OMI", "TROPOMI"):
+            if InstrumentIdentifier(inst) in radiance_step.instrumentNames:
+                i = radiance_step.instrumentNames.index(InstrumentIdentifier(inst))
+                istart = sum(radiance_step.instrumentSizes[:i])
+                iend = istart + radiance_step.instrumentSizes[i]
+                r = range(istart, iend)
+                self._obs_rad = {
+                    "instrumentNames": [inst],
+                    "frequency": radiance_step.frequency[r],
+                    "radiance": radiance_step.radiance[r],
+                    "NESR": radiance_step.NESR[r],
+                }
+        if (
+            len(self._obs_rad["instrumentNames"]) == 1
+            or self._obs_rad["instrumentNames"][0]
+            == self._obs_rad["instrumentNames"][1]
+        ):
+            num_trueFreq = self._obs_rad["frequency"]
+            fullRadiance = self._obs_rad["radiance"]
+            fullNESR = self._obs_rad["NESR"]
+        else:
+            instruIndex = self._obs_rad["instrumentNames"].index(instruments[0])
+            if instruIndex == 0:
+                r = range(0, self._obs_rad["instrumentSizes"][0])
+            elif instruIndex == 1:
+                r = range(
+                    self._obs_rad["instrumentSizes"][0],
+                    self._obs_rad["frequency"].shape[0],
+                )
+            num_trueFreq = self._obs_rad["frequency"][r]
+            fullRadiance = self._obs_rad["radiance"][r]
+            fullNESR = self._obs_rad["NESR"][r]
+        self._obs_rad = {
+            "frequency": num_trueFreq,
+            "radiance": fullRadiance,
+            "NESR": fullNESR,
+        }
+        return self._obs_rad
+
+    @property
+    def out_fname(self) -> Path:
+        return (
+            self.retrieval_config["output_directory"]
+            / "Products"
+            / f"Products_Radiance-{self.species_tag}{self.special_tag}.nc"
+        )
+
+    @property
+    def species_tag(self) -> str:
+        res = self.step_name
+        res = res.rstrip(", ")
+        if "EMIS" in res and res.index("EMIS") > 0:
+            res = res.replace("EMIS", "")
+        if res.endswith(",_OMI"):
+            res = res.replace(",_OMI", "_OMI")  #  Change "H2O,O3,_OMI" to "H2O,O3_OMI"
+        res = res.rstrip(", ")
+        return res
+
+    @property
+    def special_tag(self) -> str:
+        if self.retrieval_type != RetrievalType("default"):
+            return f"-{self.retrieval_type.lower()}"
+        return ""
 
     @register_dataset("/RADIANCEFULLBAND")
     def radiance_full_band(self) -> np.ndarray:
-        # Placeholder
-        return np.zeros((2223,))
+        return self.obs_rad["radiance"]
 
     @register_dataset("/FREQUENCYFULLBAND")
     def frequency_full_band(self) -> np.ndarray:
-        # Placeholder
-        return np.zeros((2223,))
+        return self.obs_rad["frequency"]
 
     @register_dataset("/NESRFULLBAND")
     def nesr_full_band(self) -> np.ndarray:
-        # Placeholder
-        return np.zeros((2223,))
+        return self.obs_rad["NESR"]
 
     @register_dataset("/RADIANCEFIT")
     def radiance_fit(self) -> np.ndarray:
@@ -149,7 +270,7 @@ class RetrievalRadianceOutputNew(DeclarativeOutput):
         )
 
     def write(self) -> None:
-        self.output.write()
+        self.output.write(self.out_fname)
 
 
 __all__ = [

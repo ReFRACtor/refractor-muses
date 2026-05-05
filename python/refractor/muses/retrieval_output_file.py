@@ -23,13 +23,19 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
     TODO Replace this with TemplatedOutput
     """
 
-    def __init__(
-        self,
-        output_filename: str | os.PathLike[str],
-    ) -> None:
-        self.output_filename = Path(output_filename)
+    def __init__(self, variable_order: list[str] | None = None) -> None:
+        """The variable_order can be used to specify the order variables appear
+        in the file. This doesn't matter much, expect it makes it easier to
+        compare against old expected results. No harm in matching the order
+        the py-retrieve code used.  If None, we just use the order that
+        self.variable_order is in (whatever order the functions were registered in).
+        It is ok for variable_order to have variables listed not actually in the
+        file, or for the file to have extra variables - we just tack the
+        extra variables at the end."""
         self.variable_data_functions: dict = {}
         self.attribute_value_functions: dict = {}
+
+        self.variable_order = variable_order
 
         # muses-py has a lot of hard coded things related to the
         # species names and netcdf output.  It would be good a some
@@ -87,8 +93,25 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
         else:
             self.attribute_value_functions[name] = value
 
+    def sort_variable_order(
+        self, data_var: dict[str, xr.DataArray]
+    ) -> dict[str, xr.DataArray]:
+        if self.variable_order is None:
+            return data_var
+        variable_in_list = set(self.variable_order) & set(data_var.keys())
+        res: dict[str, xr.DataArray] = {}
+        # Put stuff in first from self.variable_order
+        for vname in self.variable_order:
+            if vname in variable_in_list:
+                res[vname] = data_var[vname]
+        # Now pick up everything left
+        for vname, val in data_var.items():
+            if vname not in variable_in_list:
+                res[vname] = val
+        return res
+
     def _write_variables(self) -> None:
-        data_var = {}
+        data_var: dict[str, xr.DataArray] = {}
         for var_name, var_data_func in self.variable_data_functions.items():
             # A variable can optionally define a creator function to
             # create the variable where data is written.
@@ -139,18 +162,20 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
             if modifier_func is not None:
                 modifier_func(var_data_func.__self__, data_var[var_name.name], var_name)
 
-        # Xarray Dataset can't be updated, not sure why this constraint. But we can
-        # create a modified version.
+        data_var = self.sort_variable_order(data_var)
+        # Xarray Dataset can't be updated, not sure why it has this
+        # constraint. But we can create a modified version.
         self.ds: xr.Dataset = self.ds.assign(data_var)
 
-    def write(self) -> None:
+    def write(self, output_filename: str | os.PathLike[str]) -> None:
         """Calls all registered functions to write the NetCDF4 output
         file Variables must be defined in the template NetCDF4 file.
         Attributes will be written even if they are not defined in the
         template file
         """
-
-        logger.info(f"Writing to output file: {self.output_filename}")
+        out_fname = Path(output_filename)
+        logger.info(f"Writing to output file: {out_fname}")
+        os.makedirs(out_fname.parent, exist_ok=True)
 
         # It is convenient in testing to have a fixed creation_date, just so we can
         # compare files created at different times with h5diff and have them compare as
@@ -159,6 +184,11 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
             "MUSES_FAKE_CREATION_DATE",
             datetime.datetime.now(tz=pytz.utc).strftime("%Y%m%dT%H%M%SZ"),
         )
+        # We use xarray to generate the netCDF file, rather the netCDF4 library.
+        # This is just a higher level interface that is easier to work with. This
+        # is an internal implementation detail, if needed in the future (e.g.
+        # xarray gets dropped) we can replace this with the lower level
+        # netCDF4 library.
         self.ds = xr.Dataset(attrs={"creation_date": cdate})
         try:
             # self._write_attributes(output_contents)
@@ -167,7 +197,7 @@ class RetrievalOutputFile(DeclarativeOutputHandle):
             # Note that xarray puts in a fillvalue for each field (defaults to
             # NaN. This isn't actually a bad thing, but to match the old files
             # we need to remove this
-            self.ds.to_netcdf(self.output_filename)
+            self.ds.to_netcdf(out_fname)
 
 
 __all__ = [
