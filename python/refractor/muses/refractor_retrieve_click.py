@@ -54,6 +54,6 @@ def stac(ctx, retrieval_config, strategy_table, stac_catalog_dir, output_dir) ->
         # to actually run the code
         dump(ctx)
     else:
-        main_retrieve(["stac", retrieval_config, strategy_table, f"{stac_catalog_dir}/catalog.json", output_dir])
+        main_retrieve(["stac", retrieval_config, strategy_table, f"{stac_catalog_dir}/catalog.json", "./output"])
 
 
