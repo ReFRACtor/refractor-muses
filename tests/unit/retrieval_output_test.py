@@ -1,6 +1,7 @@
 from refractor.muses import (
     RetrievalJacobianOutput,
     RetrievalL2Output,
+    RetrievalL2OutputNew,
     RetrievalRadianceOutput,
     RetrievalIrkOutput,
     RetrievalPickleResult,
@@ -71,6 +72,18 @@ def test_retrieval_l2_output(joint_tropomi_output):
     jout.finalize_file_number()
 
 
+def test_retrieval_l2_output_new(joint_tropomi_output):
+    rs, rstep, kwargs = joint_tropomi_output
+    jout = RetrievalL2OutputNew(rs.creator_dict)
+    jout.notify_process_location(
+        ProcessLocation("retrieval step"),
+        retrieval_strategy=rs,
+        retrieval_strategy_step=rstep,
+        **kwargs,
+    )
+    jout.finalize_file_number()
+
+    
 # Can't currently pickle because of our dynamic function FmUpdateUip. We can come
 # back to this
 @pytest.mark.skip
@@ -130,7 +143,7 @@ def test_retrieval_input_output(joint_tropomi_output):
         retrieval_strategy_step=rstep,
         **kwargs,
     )
-    breakpoint()
+
 
 
 def test_retrieval_plot_results(joint_tropomi_output):

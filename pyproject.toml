@@ -43,6 +43,7 @@ include-package-data = true
 
 [project.scripts]
 refractor-retrieve = "refractor.muses.refractor_retrieve:main"
+refractor-retrieve-stac = "refractor.muses.refractor_retrieve_click:stac"
 
 [tool.ruff.lint.per-file-ignores]
 

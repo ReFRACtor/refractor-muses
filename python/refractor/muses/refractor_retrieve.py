@@ -247,8 +247,8 @@ def process_stac(
     logger.remove(loghid)
 
 
-def main() -> None:
-    args = docopt_simple(usage, version=version)
+def main(argv: list[str] | None = None) -> None:
+    args = docopt_simple(usage, argv=argv, version=version)
     # warnings to logger
     showwarning_ = warnings.showwarning
 
